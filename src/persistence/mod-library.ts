@@ -4,8 +4,7 @@ import { sha256, stableSourceId } from '../interchange/util'
 import { getDatabase } from './database'
 import { catalogSnapshotKey } from '../interchange/identity'
 
-export async function readModSource(pin: ModCatalogPin): Promise<{ readonly filename: string; readonly text: string }> {
-  const database = getDatabase()
+export async function readModSource(pin: ModCatalogPin, database = getDatabase()): Promise<{ readonly filename: string; readonly text: string }> {
   const catalog = await database.catalogs.get(catalogSnapshotKey(pin.catalogId, pin.catalogRevisionId))
   if (!catalog || catalog.snapshot.schemaVersion !== CRYSTAL_EDIT_CATALOG_SCHEMA) throw new Error('The saved mod revision is unavailable.')
   const digest = catalog.snapshot.checksum.replace(/^sha256:/, '')

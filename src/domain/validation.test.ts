@@ -163,9 +163,9 @@ describe('scenario stock semantics', () => {
       now: TEST_NOW,
     })
 
-    expect(effectiveScenarioAssignments(requirePlaythrough(localData).scenarios.scenario!)).toEqual(
-      assignment('character', 'replacement-build'),
-    )
+    expect(effectiveScenarioAssignments(requirePlaythrough(localData).scenarios.scenario!)).toEqual({
+      character: { kind: 'build', revisionId: 'replacement-build-revision' },
+    })
     expect(validateScenario(localData, asId<ScenarioId>('scenario')).dimensions.inventory.status).toBe('valid')
   })
 
@@ -326,8 +326,8 @@ describe('scenario stock semantics', () => {
     })
 
     expect(effectiveScenarioAssignments(requirePlaythrough(localData).scenarios.scenario!)).toEqual({
-      ...assignment('first-character', 'first-replacement'),
-      ...assignment('second-character', 'second-recorded'),
+      'first-character': { kind: 'build', revisionId: 'first-replacement-revision' },
+      'second-character': { kind: 'build', revisionId: 'second-recorded-revision' },
     })
   })
 })

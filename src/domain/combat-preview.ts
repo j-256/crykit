@@ -1,3 +1,4 @@
+import { withoutRetainedMechanics } from './retained-selections'
 import combatData from '../catalog/native-combat-v1.json'
 import { ABILITY_COSTS, type AbilityEstimate } from './ability-estimates'
 import { calculateBuildStats, type CalculatedStat } from './build-stats'
@@ -208,6 +209,7 @@ function monsterStats(ref: EntityRef, statuses: readonly ActiveStatus[], resolve
 }
 
 export function calculateBuildCombatPreview(content: BuildRevisionContent, slots: readonly SlotDefinition[], sourceResolve: DefinitionResolver, rules?: GameRuleResolution, unknownInputs: readonly string[] = [], unknownSecondaryClass = false): BuildCombatPreview {
+  sourceResolve = withoutRetainedMechanics(content, sourceResolve)
   const scope = calculationModResolver(sourceResolve)
   const resolve = scope.resolve
   const plan = content.calculation

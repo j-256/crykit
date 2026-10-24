@@ -44,6 +44,7 @@ export function resolveEntity(localData: LocalData, catalogs: readonly CatalogSn
 }
 
 export function resolveCalculationEntity(localData: LocalData, catalogs: readonly CatalogSnapshot[], ref: EntityRef, gameSetup?: GameSetupRevision) {
+  if (gameSetup?.publicSourceContext) return undefined
   const definition = resolveEntity(localData, catalogs, ref)
   return definition ? { ...definition, modAvailability: definitionModAvailability(localData, ref, gameSetup, catalogs) } : undefined
 }

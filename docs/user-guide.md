@@ -252,7 +252,9 @@ See [local data and interchange](data-formats.md) for supported inputs, backup s
 
 ## Use the app offline
 
-While connected, open **Data & settings > Offline & storage**. If the app is not ready, choose **Prepare for offline use** and wait for **Offline ready** before relying on it without a connection. Offline preparation caches the application and its bundled reference data. The first download can take time on a slow connection; preparation stays in progress until installation completes. If installation fails, reconnect and retry. Keep exporting backups for your personal records.
+While connected, open **Data & settings > Offline & storage**. The core app includes the planner, calculations, reference data and editing tools. Select any optional **Artwork**, **Maps** or **Screenshot recognition**, then choose **Prepare for offline use**. Each option shows its app-file size and whether it has been downloaded. Progress reports files checked and downloaded; **Offline ready** means the core and your selected extras have all been checked successfully. You can keep using the app while it prepares.
+
+Unselected extras may need a connection. Artwork uses placeholders without its download; maps and screenshot recognition need their selected files before you rely on them offline. Unchecking an extra keeps its downloaded files, while future app updates prepare only the selected extras. An existing complete offline installation keeps its selections when upgrading. If preparation fails, reconnect and retry; already prepared core files and personal records are preserved. Keep exporting backups for your personal records.
 
 **Ask browser to keep data** requests protection against automatic removal when storage is low. It does not replace a backup or protect against clearing site data.
 

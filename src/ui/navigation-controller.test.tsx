@@ -64,6 +64,23 @@ afterEach(() => {
 })
 
 describe('navigation controller history', () => {
+  it('exempts only the exact owned form from open draft queries', async () => {
+    const root = createRoot(container)
+    await act(async () => { root.render(<Harness/>); await tick() })
+    const owner = Symbol('Build'), other = Symbol('Other draft')
+    const own = controller.registerBlocker({ scope: controller.route, owner, blocked: () => true })
+    expect(controller.hasOpenDraft()).toBe(true)
+    expect(controller.hasOpenDraft(owner)).toBe(false)
+    const independent = controller.registerBlocker({ scope: controller.route, owner: other, blocked: () => true })
+    expect(controller.hasOpenDraft(owner)).toBe(true)
+    independent()
+    const unknown = controller.registerBlocker({ scope: controller.route, blocked: () => true })
+    expect(controller.hasOpenDraft(owner)).toBe(true)
+    unknown(); own()
+    expect(controller.hasOpenDraft()).toBe(false)
+    await act(async () => root.unmount())
+  })
+
   it('normalizes descriptive slugs without adding history and refreshes imported names after loading', async () => {
     const hash = '#/reference/catalog/synthetic/r1/id/foreign%3A1/incorrect-name'
     window.history.replaceState({ retained: true }, '', hash)

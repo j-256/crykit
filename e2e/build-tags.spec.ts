@@ -1,5 +1,5 @@
 import { closeBuildActions, clickBuildAction, openBuildActions, openBuildComparison } from './planning-header-helpers'
-import { waitForPlannerReady } from './local-data-helpers'
+import { waitForPlannerReady, readLocalData as storedData } from './local-data-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -13,19 +13,6 @@ const ORIGINAL_TITLE = 'Rowan: sample Warrior'
 const TAG = 'guard rotation'
 const NEW_TITLE = 'Synthetic tagged Build'
 const DETAILS_ACTION_SPACING = 16
-
-async function storedData(page: Page): Promise<LocalData> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const read = database.transaction('localDatas', 'readonly').objectStore('localDatas').getAll()
-      read.onerror = () => { database.close(); reject(read.error) }
-      read.onsuccess = () => { database.close(); resolve(read.result[0].localData) }
-    }
-  }))
-}
 
 function tagsControl(page: Page) { return page.locator('.build-tags-control') }
 async function openTags(page: Page) { await openBuildActions(page); await tagsControl(page).locator('summary').click() }
@@ -95,7 +82,8 @@ test('optional tags persist independently, round-trip in backups, and match both
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const download = page.waitForEvent('download')
-  await settings.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await settings.getByText("What's included in a backup?", { exact: true }).click()
+  await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const bytes = await readFile((await (await download).path())!)
   const backup = JSON.parse(strFromU8(unzipSync(bytes)['bundle.json']!)) as { localData: LocalData }
   expect(backup.localData.builds).toEqual(after.builds)
@@ -152,7 +140,7 @@ test('failed detail saves roll back title and tags together while retaining the 
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'localDatas') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic failed tag save', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic failed tag save', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })

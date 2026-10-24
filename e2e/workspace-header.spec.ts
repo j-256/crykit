@@ -1,23 +1,10 @@
+import { readLocalData as storedData, waitForPlannerReady } from './local-data-helpers'
 import { chooseTeamCheckpoint } from './team-helpers'
 import { expect, test, type Page } from '@playwright/test'
-import type { LocalData } from '../src/domain/types'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { closeBuildActions, openBuildActions } from './planning-header-helpers'
 
 const SAMPLE_BUILD = 'Rowan: sample Warrior'
-
-async function storedData(page: Page): Promise<LocalData> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const read = database.transaction('localDatas', 'readonly').objectStore('localDatas').getAll()
-      read.onerror = () => { database.close(); reject(read.error) }
-      read.onsuccess = () => { database.close(); resolve(read.result[0].localData) }
-    }
-  }))
-}
 
 async function expectHeaderControls(page: Page) {
   const header = page.locator('.context-bar')
@@ -99,7 +86,7 @@ test('header revision saves retain failures for retry and preserve the earlier c
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'localDatas') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic header save failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic header save failure', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })
@@ -117,6 +104,7 @@ test('header revision saves retain failures for retry and preserve the earlier c
   await page.locator('.context-bar').getByRole('combobox', { name: 'Editor checkpoint', exact: true }).selectOption(after.builds[build.id]!.latestRevisionId!)
   await expect(page.locator('.context-bar').getByRole('combobox', { name: 'Editor checkpoint', exact: true }).locator('option:checked')).toContainText('r2')
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Wizard')
 })
 
@@ -218,8 +206,9 @@ test('a new Build title in the header alone activates the navigation guard', { t
   expect(await storedData(page)).toEqual(before)
 })
 
-test('Team member Build titles live in the header and cancellation preserves the pending Team', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('Team member names live in the header and cancellation preserves the pending Team', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/teams/new')
+  await page.getByRole('combobox', { name: /^Choose shared setup/ }).selectOption({ label: 'Sample starter Game Setup · r1' })
   await expect(page.getByRole('textbox', { name: 'Team name', exact: true })).toBeVisible()
   const before = await storedData(page)
   const build = Object.values(before.builds).find(build => build.title === SAMPLE_BUILD)!
@@ -228,10 +217,10 @@ test('Team member Build titles live in the header and cancellation preserves the
   const header = page.locator('.context-bar')
   const slot = page.getByRole('region', { name: 'Team slot 1 loadout', exact: true })
   await slot.getByRole('button', { name: 'Edit member', exact: true }).click()
-  const title = header.getByRole('textbox', { name: 'Build title', exact: true })
+  const title = header.getByRole('textbox', { name: 'Member name', exact: true })
   await expect(title).toHaveValue(SAMPLE_BUILD)
-  await expect(title).toHaveAttribute('required', '')
-  await expect(page.locator('.build-sheet').getByRole('textbox', { name: 'Build title', exact: true })).toHaveCount(0)
+  await expect(title).not.toHaveAttribute('required')
+  await expect(page.locator('.build-sheet').getByRole('textbox', { name: 'Member name', exact: true })).toHaveCount(0)
   expect(await title.evaluate(input => (input as HTMLInputElement).form?.classList.contains('build-sheet'))).toBe(true)
   await title.fill('Synthetic canceled Team member')
   await expectHeaderControls(page)
@@ -243,7 +232,7 @@ test('Team member Build titles live in the header and cancellation preserves the
   await page.getByRole('region', { name: 'Team slot 2 loadout', exact: true }).getByRole('button', { name: 'Create member', exact: true }).click()
   await expect(title).toHaveValue('')
   await expect(title).not.toHaveAttribute('required')
-  await expect(page.locator('.build-sheet').getByRole('textbox', { name: 'Build title', exact: true })).toHaveCount(0)
+  await expect(page.locator('.build-sheet').getByRole('textbox', { name: 'Member name', exact: true })).toHaveCount(0)
   await title.fill('Synthetic canceled new member')
   await expectHeaderControls(page)
   await page.getByRole('button', { name: 'Cancel and return to Team', exact: true }).click()
@@ -254,6 +243,7 @@ test('Team member Build titles live in the header and cancellation preserves the
 
 test('Team header saves use native validation and sharing leaves the saved Team unchanged', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/teams/new')
+  await page.getByRole('combobox', { name: /^Choose shared setup/ }).selectOption({ label: 'Sample starter Game Setup · r1' })
   const header = page.locator('.context-bar')
   const save = header.getByRole('button', { name: 'Save Team', exact: true })
   await expect(save).toBeDisabled()

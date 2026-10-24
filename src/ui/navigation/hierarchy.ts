@@ -2,7 +2,7 @@ import { type AppRoute, type Destination, PROGRESS_PAGES, BUILDS_ROUTE, type Rou
 import { formatAppRoute } from './routes.ts'
 
 export function routeDestination(route: AppRoute): Destination {
-  if (route.page.page === 'share') return 'builds'
+  if (route.page.page === 'share' || route.page.page === 'hosted-share') return 'builds'
   if (route.page.page === 'settings') return 'builds'
   if (route.page.page === 'unresolved') return route.page.recovery
   return route.page.page
@@ -18,7 +18,7 @@ export function routeTitle(route: AppRoute): string {
   if (page.page === 'map') return 'World Map | CryKit'
   if (page.page === 'mods') return `${page.view === 'editor' ? 'Mod editor' : 'Mods'} | CryKit`
   if (page.page === 'teams') return `${page.view === 'adopt' ? 'Adopt Team' : page.view === 'edit' ? 'Edit Team' : 'Teams'} | CryKit`
-  if (page.page === 'share') return 'Shared snapshot | CryKit'
+  if ((page.page === 'share' || page.page === 'hosted-share')) return 'Shared snapshot | CryKit'
   if (page.page === 'unresolved') return 'Page unavailable | CryKit'
   if (page.page === 'settings') return `${page.section === 'data' ? 'Data' : page.section === 'game-setup' ? 'Game Setup' : page.section.charAt(0).toLocaleUpperCase() + page.section.slice(1)} settings | CryKit`
   if (page.page === 'inventory') return `${page.view === 'new' ? 'Add inventory item' : page.view === 'event-new' ? 'Record acquisition' : page.view === 'edit' ? 'Edit inventory item' : 'Inventory'} | CryKit`
@@ -48,7 +48,7 @@ export function parentRoute(route: AppRoute): AppRoute | undefined {
   if (route.overlays.length) return { ...route, overlays: route.overlays.slice(0, -1) }
   const page = route.page
   if (page.page === 'teams') return page.view === 'list' ? undefined : page.view === 'adopt' || page.view === 'edit' ? { ...route, page: { page: 'teams', view: 'team', teamId: page.teamId } } : { ...route, page: { page: 'teams', view: 'list' } }
-  if (page.page === 'share') return BUILDS_ROUTE
+  if ((page.page === 'share' || page.page === 'hosted-share')) return BUILDS_ROUTE
   if (page.page === 'inventory' && page.view !== 'list') return { ...route, page: { page: 'inventory', view: 'list' } }
   if (page.page === 'characters') {
     if (page.view === 'new') return { ...route, page: { page: 'characters', view: 'list' } }

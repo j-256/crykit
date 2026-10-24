@@ -3,7 +3,7 @@ import { MOD_LIBRARY_IMPORT_REVISION } from '../src/interchange/crystal-edit'
 import { referencePath } from './reference-helpers'
 import { bundledModEntityId } from '../src/domain/bundled-mods'
 import { createHash } from 'node:crypto'
-import { expect, type Page } from '@playwright/test'
+import { expect, test as base, type BrowserContext, type Page } from '@playwright/test'
 
 const job = { ID: 0, Name: 'Warrior', HPRating: 80, MPRating: 30, StrRating: 80, VitRating: 80, DexRating: 80, AgiRating: 80, MndRating: 80, SpiRating: 80, SpdRating: 80, LckRating: 80, EquipmentTypes: [0], AbilityIDs: [], PassiveIDs: [], LearnTree: [], IsUnselectableJob: false, IsUnselectableSubJob: false }
 export const SYNTHETIC_LIBRARY_ROOTS = [
@@ -19,14 +19,37 @@ export async function importSyntheticLibrary(page: Page, exclude = true, roots: 
   await page.goto('/#/mods')
   for (const root of roots) {
     await page.getByLabel('Import mod JSON', { exact: true }).setInputFiles({ name: `${root.ID}.json`, mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(root)) })
+    await expect(page.getByRole('region', { name: 'Import mod choices', exact: true })).toBeVisible()
+    await page.getByLabel('Add this mod to Reference', { exact: true }).setChecked(!exclude)
+    await page.getByRole('button', { name: 'Add mod JSON', exact: true }).click()
+    await page.getByRole('button', { name: 'Adding...', exact: true }).waitFor({ state: 'hidden' })
     const card = page.getByRole('region', { name: root.Title, exact: true })
     await expect(card.getByText('Imported JSON', { exact: true })).toBeVisible()
     if (exclude) {
-      await card.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
       await expect(card.getByRole('button', { name: 'Add to Reference', exact: true })).toBeVisible()
     }
   }
 }
+
+type ImportedLibraryState = Awaited<ReturnType<BrowserContext['storageState']>>
+
+export const modLibraryTest = base.extend<{}, { importedLibraryState: ImportedLibraryState }>({
+  importedLibraryState: [async ({ browser }, use, workerInfo) => {
+    const started = Date.now()
+    const { baseURL, viewport, isMobile, hasTouch, userAgent, deviceScaleFactor, colorScheme } = workerInfo.project.use
+    const context = await browser.newContext({ baseURL, viewport, isMobile, hasTouch, userAgent, deviceScaleFactor, colorScheme })
+    let state: ImportedLibraryState
+    try {
+      await importSyntheticLibrary(await context.newPage())
+      state = await context.storageState({ indexedDB: true })
+    } finally { await context.close() }
+    console.info(JSON.stringify({ fixture: 'synthetic-mod-library', project: workerInfo.project.name, durationMs: Date.now() - started }))
+    await use(state)
+  }, { scope: 'worker' }],
+  // Each test still owns a fresh context and native database copy, never a shared writable workspace
+  // The real UI prepares the seed inside each run; no prepared fixture state is reused between runs
+  storageState: async ({ importedLibraryState }, use) => { await use(importedLibraryState) },
+})
 
 export function syntheticReferencePath(projectIndex: number, family: string, id: number, name: string) {
   const source = SYNTHETIC_LIBRARY_SOURCES[projectIndex]!

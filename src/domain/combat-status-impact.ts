@@ -1,3 +1,4 @@
+import { withoutRetainedMechanics } from './retained-selections'
 import combatData from '../catalog/native-combat-v1.json'
 import type { DefinitionResolver } from './build-mechanics'
 import { calculateBuildCombatPreview, type BuildCombatPreview } from './combat-preview'
@@ -34,7 +35,7 @@ export function listActiveStatusImpactChoices(content: BuildRevisionContent, sou
   const plan = content.calculation
   const battle = plan?.battle
   if (!battle) return []
-  const resolve = calculationModResolver(sourceResolve).resolve
+  const resolve = calculationModResolver(withoutRetainedMechanics(content, sourceResolve)).resolve
   const mode = rules?.mode ?? plan.pcMode ?? 'standard'
   const seen = new Set<string>()
   const choices: ActiveStatusImpactChoice[] = []
@@ -99,7 +100,7 @@ export function compareActiveStatusImpact(content: BuildRevisionContent, slots: 
   const plan = content.calculation
   const battle = plan?.battle
   if (!selected || !plan || !battle) return undefined
-  const resolve = calculationModResolver(sourceResolve).resolve
+  const resolve = calculationModResolver(withoutRetainedMechanics(content, sourceResolve)).resolve
   const mode = rules?.mode ?? plan.pcMode ?? 'standard'
   const identity = statusIdentity(selected.ref, resolve, mode)
   const field = selected.recipient === 'user' ? 'statuses' : 'targetStatuses'

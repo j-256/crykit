@@ -1,14 +1,43 @@
+import { readFile } from 'node:fs/promises'
+import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { expect, type Locator, type Page } from '@playwright/test'
 import type { LocalData, Playthrough } from '../src/domain'
+import { readManagedGuestPlanner } from './guest-planner-reader'
 
 export async function waitForPlannerReady(page: Page): Promise<void> {
   // First-run seed validation can outlast the browser load event; wait for the app shell before route assertions
   await page.getByRole('navigation', { name: 'Primary navigation', exact: true }).filter({ visible: true }).waitFor()
 }
 
+export async function selectedGuestPlannerName(page: Page): Promise<string> {
+  return page.evaluate(async () => {
+    const name = 'crykit-guest-coordinator-v1'
+    if (!(await indexedDB.databases()).some(database => database.name === name)) return 'crykit'
+    return new Promise<string>((resolve, reject) => {
+      const request = indexedDB.open(name)
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => {
+        const database = request.result
+        const transaction = database.transaction('active', 'readonly')
+        const read = transaction.objectStore('active').get('active')
+        transaction.onerror = () => { database.close(); reject(transaction.error) }
+        transaction.oncomplete = () => {
+          database.close()
+          const planner = read.result?.manifest?.planner
+          if (typeof planner !== 'string' || !planner) reject(new Error('Selected guest planner is unavailable'))
+          else resolve(planner)
+        }
+      }
+    })
+  })
+}
+
 export async function readLocalData(page: Page): Promise<LocalData> {
-  return page.evaluate(() => new Promise<LocalData>((resolve, reject) => {
-    const request = indexedDB.open('crykit')
+  const managed = await readManagedGuestPlanner(page)
+  if (managed) return structuredClone(managed.localData)
+  const name = await selectedGuestPlannerName(page)
+  return page.evaluate(name => new Promise<LocalData>((resolve, reject) => {
+    const request = indexedDB.open(name)
     request.onerror = () => reject(request.error)
     request.onsuccess = () => {
       const database = request.result
@@ -22,13 +51,26 @@ export async function readLocalData(page: Page): Promise<LocalData> {
         else reject(new Error('Synthetic planner data not found'))
       }
     }
-  }))
+  }), name)
 }
 
 export function selectedPlaythrough(localData: LocalData): Playthrough {
   const playthrough = localData.selectedPlaythroughId ? localData.playthroughs[localData.selectedPlaythroughId] : undefined
   if (!playthrough) throw new Error('The fixture has no selected Playthrough')
   return playthrough
+}
+
+// Restored records do not select a device context; the Tracking picker also works when no Playthrough is selected
+export async function choosePlaythrough(page: Page, label: string): Promise<void> {
+  const previousUrl = page.url(), trackingUrl = new URL(previousUrl)
+  trackingUrl.hash = '/inventory'
+  await page.goto(trackingUrl.href)
+  await page.getByRole('button', { name: /^Playthrough:/ }).click()
+  const picker = page.getByRole('dialog', { name: 'Choose playthrough', exact: true })
+  await picker.getByRole('button').filter({ has: page.getByText(label, { exact: true }) }).click()
+  await expect(picker).not.toBeVisible()
+  await expect(page.getByRole('button', { name: `Playthrough: ${label}`, exact: true })).toBeVisible()
+  await page.goto(previousUrl)
 }
 
 export async function createBlankPlaythrough(page: Page): Promise<void> {
@@ -48,6 +90,30 @@ export async function createBlankPlaythrough(page: Page): Promise<void> {
 export async function replacePlannerData(panel: Locator): Promise<void> {
   await panel.getByRole('checkbox', { name: /Replace all planner data/ }).check()
   await panel.getByRole('button', { name: 'Replace planner data', exact: true }).click()
+  // Complete import validation and publication are bulk work, separate from ordinary durable saves
+  await panel.getByRole('button', { name: 'Importing...', exact: true }).waitFor({ state: 'hidden' })
+}
+
+// Use the supported native import boundary instead of writing a retired planner database
+export async function replacePlannerFixture(page: Page, localData: LocalData): Promise<LocalData> {
+  const previousUrl = page.url()
+  await page.goto('/#/settings/data')
+  const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  const download = page.waitForEvent('download')
+  if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
+  await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
+  const path = await (await download).path()
+  if (!path) throw new Error('The fixture backup download did not finish')
+  const files = unzipSync(await readFile(path))
+  const bundle = JSON.parse(strFromU8(files['bundle.json']!))
+  // Preserve exact exported catalog/source receipts; the import records its own native command
+  files['bundle.json'] = new TextEncoder().encode(JSON.stringify({ ...bundle, localData: { ...localData, changes: [] }, history: [] }))
+  await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-planner-fixture.zip', mimeType: 'application/zip', buffer: Buffer.from(zipSync(files)) })
+  await replacePlannerData(panel)
+  await expect(panel).not.toBeVisible()
+  await page.goto(previousUrl)
+  await waitForPlannerReady(page)
+  return readLocalData(page)
 }
 
 export async function chooseFourTeamMembers(form: Locator): Promise<void> {
@@ -131,23 +197,8 @@ export async function saveAndApplyGameSetup(panel: Locator): Promise<void> {
 
 export async function skipInitialModSetup(page: Page): Promise<void> {
   const selector = page.getByRole('dialog', { name: 'Choose your mods', exact: true })
-  const state = async () => page.evaluate(async () => {
-    const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('crykit')
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })
-    try {
-      if (!database.objectStoreNames.contains('localDatas')) return 'loading'
-      return await new Promise<string>((resolve, reject) => {
-        const request = database.transaction('localDatas').objectStore('localDatas').get('local-data-record')
-        request.onsuccess = () => resolve(request.result ? request.result.localData.modSetup?.state ?? 'legacy' : 'loading')
-        request.onerror = () => reject(request.error)
-      })
-    } finally { database.close() }
-  })
-  await expect.poll(state).not.toBe('loading')
-  if (await state() !== 'pending') return
+  await waitForPlannerReady(page)
+  if ((await readLocalData(page)).modSetup?.state !== 'pending') return
   await expect(selector).toBeVisible()
   await selector.getByRole('button', { name: 'Skip for now', exact: true }).click()
   await expect(selector).not.toBeVisible()

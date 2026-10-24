@@ -1,9 +1,37 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "crykit-preview",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-09-28",
   "workers_dev": false,
   "preview_urls": false,
-  "assets": { "directory": "./dist" },
+  "tail_consumers": [{ "service": "crykit-preview-alerts" }],
+  "limits": { "cpu_ms": 1000 },
+  "ratelimits": [
+    { "name": "CLOUD_NETWORK_LIMITER", "namespace_id": "16377300201", "simple": { "limit": 12000, "period": 60 } },
+    { "name": "CLOUD_ACCOUNT_LIMITER", "namespace_id": "16377300202", "simple": { "limit": 7200, "period": 60 } },
+    { "name": "CLOUD_AUTH_LIMITER", "namespace_id": "16377300203", "simple": { "limit": 60, "period": 60 } },
+    { "name": "CLOUD_LOCATION_LIMITER", "namespace_id": "16377300204", "simple": { "limit": 24000, "period": 60 } }
+  ],
+  "observability": { "enabled": false, "logs": { "enabled": false, "invocation_logs": false } },
+  "alias": { "@serenity-kit/opaque": "./.account-tests/opaque-runtime.js" },
+  "build": { "command": "node scripts/build-account-tests.mjs --prepare-opaque" },
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": ["/api/*", "/admin", "/admin/*"] },
+  "secrets": { "required": ["OPAQUE_SERVER_SETUP", "SESSION_SECRET", "CURSOR_SECRET", "CAPABILITY_SECRET", "DUMMY_IDENTITY_SECRET", "EMAIL_STATE_SECRET", "SERVICE_BACKUP_KEY"] },
+  "vars": {
+    "SERVICE_ORIGIN": "https://preview.crykit.lasers.app",
+    "ACCOUNTS_ACTIVE": "false",
+    "SIGNUP_ACTIVE": "false",
+    "EMAIL_SENDING_ACTIVE": "false",
+    "EMAIL_HEADROOM": "unknown",
+    "STORAGE_CAP_BYTES": "68719476736"
+  },
+  "d1_databases": [{ "binding": "DB", "database_name": "crykit-preview-metadata", "database_id": "94a4bb57-4067-4dc1-9400-d76dd6a84bac", "migrations_dir": "worker/migrations" }],
+  "r2_buckets": [
+    { "binding": "OBJECTS", "bucket_name": "crykit-preview-objects" },
+    { "binding": "LEDGER_BACKUPS", "bucket_name": "crykit-preview-backups" },
+    { "binding": "REVOCATION_LEDGER", "bucket_name": "crykit-preview-revocations" }
+  ],
+  "triggers": { "crons": [] },
   "routes": [{ "pattern": "preview.crykit.lasers.app", "custom_domain": true }]
 }

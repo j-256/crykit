@@ -121,7 +121,7 @@ test('settings routes retain dirty forms and expired previews recover explicitly
   await panel.getByRole('button', { name: 'Discard and close', exact: true }).click()
 
   const reopened = await openData(page)
-  await reopened.locator('input[type="file"]').setInputFiles({
+  await reopened.getByLabel('Choose import file', { exact: true }).setInputFiles({
     name: 'synthetic-navigation-reference.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify({ schema_version: '1.1.0', classes: [{ id: 'synthetic:route', name: 'Synthetic route class' }] })),

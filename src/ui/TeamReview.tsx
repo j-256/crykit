@@ -1,3 +1,5 @@
+import { withoutRetainedMechanics } from '../domain/retained-selections'
+import { teamSlotForViewId } from '../domain/team-checkpoints'
 import { logicalEntityKey, validateBuildContent } from '../domain'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { equipmentFacts, equipmentRole } from '../domain/mechanics-facts'
@@ -5,12 +7,15 @@ import { TEAM_SIZE } from '../domain/scenarios'
 import type { BuildRevision, BuildRevisionId, CatalogSnapshot, LocalData } from '../domain/types'
 import { Badge } from './components'
 import { Icon } from './icons'
-import { resolveEntity } from './model'
+import { resolveEntity, resolveCalculationEntity } from './model'
 
 export function newerTeamCheckpoint(localData: LocalData, revision: BuildRevision): BuildRevision | undefined {
-  const latestId = localData.builds[revision.buildId]?.latestRevisionId
+  const owned = teamSlotForViewId(localData, revision.id)
+  if (owned && !owned.sourceBuildRevisionId) return undefined
+  const source = owned ? localData.buildRevisions[owned.sourceBuildRevisionId!]! : revision
+  const latestId = localData.builds[source.buildId]?.latestRevisionId
   const latest = latestId ? localData.buildRevisions[latestId] : undefined
-  return latest && latest.buildId === revision.buildId && latest.revision > revision.revision ? latest : undefined
+  return latest && latest.buildId === revision.buildId && latest.revision > source.revision ? latest : undefined
 }
 
 export function reviewTeam(slots: readonly (BuildRevisionId | null)[], localData: LocalData, catalogs: readonly CatalogSnapshot[]) {
@@ -18,8 +23,8 @@ export function reviewTeam(slots: readonly (BuildRevisionId | null)[], localData
     const revision = id ? localData.buildRevisions[id] : undefined
     if (!revision) return []
     const setup = localData.gameSetups[revision.gameSetupRevisionId]
-    const equipmentSlots = setup?.slots.length ? setup.slots : SUGGESTED_BUILD_SLOTS
-    const resolve = (ref: Parameters<typeof resolveEntity>[2]) => resolveEntity(localData, catalogs, ref)
+    const equipmentSlots = setup?.slots ?? SUGGESTED_BUILD_SLOTS
+    const resolve = withoutRetainedMechanics(revision.content, (ref: NonNullable<Parameters<typeof resolveEntity>[2]>) => resolveCalculationEntity(localData, catalogs, ref, setup))
     const report = validateBuildContent(revision.content, setup, equipmentSlots, resolve, ref => logicalEntityKey(localData, ref))
     const mainHandSlot = equipmentSlots.find(slot => equipmentRole(slot) === 'mainHand')
     const mainHand = mainHandSlot ? revision.content.equipment[mainHandSlot.id] : undefined

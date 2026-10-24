@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { jsonRecord } from '../domain/crystal-edit'
 import { entityDefinitionKey } from '../domain/core'
+import { buildModReferences } from '../domain/build-references'
+import { modCatalogRevision } from '../domain/mod-layers'
 import { modSourceInterpretationMatches, modSourceMatch } from '../domain/mod-source-match'
 import type { BuildReferenceName, CatalogSnapshot, LocalData, ModSourceReceipt } from '../domain/types'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
@@ -16,7 +18,10 @@ export function SharedModSources({ localData, catalogs, importNotice, onImport, 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const receipts = useMemo(() => [...new Map(Object.values(localData.gameSetups).flatMap(setup => setup.modSourceReceipts ?? []).map(receipt => [JSON.stringify([receipt.catalogId, receipt.catalogRevisionId]), receipt])).values()], [localData])
-  const entries = useMemo(() => [...new Map(Object.values(localData.buildRevisions).flatMap(revision => revision.content.referenceNames ?? []).map(entry => [entityDefinitionKey(entry.ref), entry])).values()], [localData])
+  const selections = useMemo(() => Object.values(localData.buildRevisions).map(revision => ({
+    setup: localData.gameSetups[revision.gameSetupRevisionId],
+    entries: (revision.content.referenceNames ?? []).filter(entry => buildModReferences(revision.content).some(ref => entityDefinitionKey(ref) === entityDefinitionKey(entry.ref))),
+  })), [localData])
   const importFile = async (receipt: ModSourceReceipt, file: File) => {
     setBusy(true)
     setError(undefined)
@@ -41,12 +46,21 @@ export function SharedModSources({ localData, catalogs, importNotice, onImport, 
       const exact = source?.revisionId === receipt.catalogRevisionId
       const options = source ? buildDefinitionOptions(localData, [source]) : []
       const identities = source && jsonRecord(source.legacy) && jsonRecord(source.legacy.crystalEditIdentities) ? source.legacy.crystalEditIdentities : {}
+      // Composed selections keep their setup pin, not the imported source pin
+      // Match the owning setup's exact source layer before offering view-only artwork for that selection
+      const entries = [...new Map(selections.flatMap(({ setup, entries }) => {
+        if (!setup?.modComposition?.layers.some(pin => pin.catalogId === receipt.catalogId && pin.catalogRevisionId === receipt.catalogRevisionId)) return []
+        return entries.filter(entry => entry.projectId === receipt.catalogId && entry.ref.kind === 'catalog' && entry.modelKey && typeof identities[entry.modelKey] === 'string' && (
+          entry.ref.catalogId === receipt.catalogId && entry.ref.catalogRevisionId === receipt.catalogRevisionId
+          || entry.ref.catalogId === setup.modComposition!.baseline.catalogId && entry.ref.catalogRevisionId === modCatalogRevision(setup.id) && setup.catalogLock[entry.ref.catalogId] === entry.ref.catalogRevisionId
+        ))
+      }).map(entry => [entityDefinitionKey(entry.ref), entry])).values()]
       return <div className="stack" key={JSON.stringify([receipt.catalogId, receipt.catalogRevisionId])}>
         <h3>{receipt.title}</h3>
         <p>{source ? exact ? 'The saved source revision is available.' : modSourceInterpretationMatches(receipt, source) ? 'Matching content is available in another file revision.' : 'Matching JSON is saved. The original checkpoint uses an older interpretation. See the recovery status for whether these definitions have been applied.' : 'Upload the matching source to restore any unavailable facts this mod changes.'}</p>
         <Field label={`Matching JSON for ${receipt.title}`}><input accept=".json,application/json" data-draft-exempt="true" disabled={busy} onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) void importFile(receipt, file) }} type="file"/></Field>
         <details><summary>Source identity</summary><dl className="definition-list"><div><dt>Project</dt><dd>{receipt.catalogId}</dd></div><div><dt>Saved revision</dt><dd>{receipt.catalogRevisionId}</dd></div>{receipt.contentFingerprint && <div><dt>Content fingerprint</dt><dd>{receipt.contentFingerprint}</dd></div>}</dl></details>
-        {onArtwork && entries.filter(entry => entry.projectId === receipt.catalogId).map(entry => {
+        {onArtwork && exact && entries.map(entry => {
           const entityId = entry.modelKey ? identities[entry.modelKey] : undefined
           const option = options.find(option => option.ref.kind === 'catalog' && option.ref.entityId === entityId)
           return <details key={entityDefinitionKey(entry.ref)}><summary>{entry.name}</summary><div className="stack"><p>{entry.modelKey}</p>{option ? <><p>Definition from your local JSON</p><BuildSelectionDetails catalogs={source ? [source] : []} localData={localData} option={option}/></> : <p>Definition unavailable. The saved name does not supply stats or effects.</p>}<Field label={`Local artwork for ${entry.name}`}><input accept="image/png,image/jpeg,image/webp" onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; onArtwork(entry, file) }} type="file"/></Field></div></details>

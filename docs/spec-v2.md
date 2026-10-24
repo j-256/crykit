@@ -106,7 +106,7 @@ Show saved status only after the transaction commits. Preserve drafts on quota, 
 
 ## Offline, security, and updates
 
-Cache the complete production shell and required built assets. Offline ready means those assets were checked successfully. Once ready, reference/inventory edits, characters, builds, validation, and native export work without a connection. Development-server availability is not offline verification.
+Cache the production shell and essential built assets. Optional artwork, maps and screenshot recognition have separate download selections. Offline ready means the essential files and every selected extra were checked successfully. Once ready, reference/inventory edits, characters, builds, validation, and native export work without a connection; optional features need their corresponding prepared files. Existing complete offline installations retain their feature selections when upgrading. Development-server availability is not offline verification.
 
 Stage service-worker updates and apply them only through an explicit action. Never force a reload over a draft. Keep old cached assets usable for existing tabs. Personal records remain in IndexedDB across shell updates.
 

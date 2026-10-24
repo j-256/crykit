@@ -1,4 +1,5 @@
 import { buildModReferences } from './build-references'
+import { retainedSelectionRefs } from './retained-selections'
 import { withBuildReferenceNames } from './build-reference-names'
 import { CURRENT_CATALOG } from '../catalog/bundled'
 import { mapBattleCalculationReferences } from './battle-plan'
@@ -80,10 +81,11 @@ export function selectBuildModRevision(behavior: BuildBehavior, catalog: Catalog
 
 export function buildContentForModSetup<Content extends BuildRevisionContent>(content: Content, setup: BuildBehavior, catalogs: readonly CatalogSnapshot[], previousSetup?: BuildBehavior): Content {
   content = withBuildReferenceNames(content, catalogs)
+  const retained = retainedSelectionRefs(content)
   const composition = setup.modComposition
   if (!composition) {
     const rebind = (ref: EntityRef | null): EntityRef | null => {
-      if (!ref || ref.kind === 'personal') return ref
+      if (!ref || ref.kind === 'personal' || retained.has(entityDefinitionKey(ref))) return ref
       const source = catalogs.find(catalog => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)
       const pin = setup.catalogLock[ref.catalogId]
       const target = catalogs.find(catalog => catalog.id === ref.catalogId && catalog.revisionId === pin)
@@ -96,11 +98,11 @@ export function buildContentForModSetup<Content extends BuildRevisionContent>(co
   let effective: ReturnType<typeof composeModLayers>
   try { effective = composeModLayers(composition, catalogs) } catch { return content }
   const rebind = (ref: EntityRef | null): EntityRef | null => {
-    if (!ref || ref.kind === 'personal') return ref
+    if (!ref || ref.kind === 'personal' || retained.has(entityDefinitionKey(ref))) return ref
     const source = catalogs.find(catalog => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)
     let target = ref.entityId
     if (ref.catalogId !== composition.baseline.catalogId) {
-      if (!source || !composition.layers.some(layer => layer.enabled && layer.catalogId === source.id)) return ref
+      if (!source || !composition.layers.some(layer => layer.enabled && layer.catalogId === source.id && layer.catalogRevisionId === source.revisionId)) return ref
       const modelKey = [...modModelRecords(source)].find(([, entity]) => entity.id === ref.entityId)?.[0]
       const [, family, id] = modelKey?.split(':') ?? []
       const mapped = modelKey && (effective.sourceIdentities[source.id]?.[modelKey] ?? (composition.version !== 3 || originalModIdentity(family!, Number(id)) ? effective.identities[modelKey] : undefined))
@@ -112,6 +114,6 @@ export function buildContentForModSetup<Content extends BuildRevisionContent>(co
   return withBuildReferenceNames(mapBuildModReferences(content, rebind), catalogs)
 }
 
-function mapBuildModReferences<Content extends BuildRevisionContent>(content: Content, rebind: (ref: EntityRef | null) => EntityRef | null): Content {
+export function mapBuildModReferences<Content extends BuildRevisionContent>(content: Content, rebind: (ref: EntityRef | null) => EntityRef | null): Content {
   return { ...content, ...(content.referenceNames ? { referenceNames: content.referenceNames.map(entry => { const ref = rebind(entry.ref); return ref?.kind === 'catalog' ? { ...entry, ref } : entry }) } : {}), primaryClass: rebind(content.primaryClass), secondaryClass: rebind(content.secondaryClass), equipment: Object.fromEntries(Object.entries(content.equipment).map(([slot, selection]) => [slot, selection ? { ...selection, ref: rebind(selection.ref)! } : selection])), passives: content.passives.map(selection => ({ ...selection, ref: rebind(selection.ref)! })), ...(content.calculation ? { calculation: { ...content.calculation, ...(content.calculation.battle ? { battle: mapBattleCalculationReferences(content.calculation.battle, ref => rebind(ref)!) } : {}), growth: content.calculation.growth.map(row => ({ ...row, classRef: rebind(row.classRef) })), statuses: content.calculation.statuses.map(ref => rebind(ref)!), ...(content.calculation.ability ? { ability: rebind(content.calculation.ability) } : {}) } } : {}) }
 }

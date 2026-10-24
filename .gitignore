@@ -19,3 +19,7 @@ test-results/
 *.zip
 *.sqlite*
 *.log
+.account-tests/
+.dev.vars
+.dev.vars.*
+!/wrangler.local.jsonc

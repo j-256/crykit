@@ -1,8 +1,11 @@
-import type { CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, LocalData, LocalDataId, Timestamp } from '../domain/types'
+import { assertPublicSourceContexts, publicSetupAllowsPin, publicCheckpointAllowsRef } from '../domain/public-source-context'
+import { assertRetainedSelections, retainedSelectionRefs } from '../domain/retained-selections'
+import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, LocalData, LocalDataId, Timestamp } from '../domain/types'
 import { entityDefinitionKey } from '../domain/core'
+import { sameValue } from '../domain/definition-values'
 import { battleCalculationReferences } from '../domain/battle-plan'
 import { assertModConfiguration } from '../domain/mods'
-import { composeModCatalog, expandModCatalogs, hasWithdrawnModDependencies, modCatalogForPin, modCatalogRevision } from '../domain/mod-layers'
+import { composeModCatalog, compactModCatalog, expandModCatalogs, MOD_CATALOG_SCHEMA, hasWithdrawnModDependencies, modCatalogForPin, modCatalogRevision } from '../domain/mod-layers'
 import { withdrawnCatalog, withdrawnCatalogKey } from '../domain/withdrawn-catalogs'
 import { assertModSourceReceipts } from '../domain/build-reference-names'
 import { buildModReferences } from '../domain/build-references'
@@ -21,6 +24,7 @@ import {
   NativeManifestSchema,
   NativePayloadSchema,
   NativeLocalDataSchema,
+  StoredPre250LocalDataSchema,
 } from './native-schema'
 import { catalogSnapshotKey } from './identity'
 import type {
@@ -46,6 +50,8 @@ function unavailableReference(ref: EntityRef, catalogs: ReadonlyMap<string, Read
 const MAX_NATIVE_HISTORY = 500
 const validatedImmutableCatalogs = new WeakSet<CatalogSnapshot>()
 const frozenCatalogValues = new WeakSet<object>()
+const immutableExpandedSources = new WeakMap<CatalogSnapshot, { readonly baseline: CatalogSnapshot; readonly compact: CatalogSnapshot }>()
+const immutableLegacyComparisons = new WeakMap<CatalogSnapshot, WeakMap<CatalogSnapshot, boolean>>()
 
 function freezeCatalogValue(value: unknown): void {
   if (!value || typeof value !== 'object' || frozenCatalogValues.has(value)) return
@@ -64,8 +70,67 @@ export function immutableCatalogSnapshot(catalog: CatalogSnapshot): CatalogSnaps
   return catalog
 }
 
+// Expansion only selects or combines records from these exact schema-admitted immutable sources
+// Revalidating every inherited record would repeat source admission during an ordinary setup save
+// This function constructs the view itself; it cannot admit an unchecked caller-supplied result
+export function immutableExpandedModCatalogs(catalogs: readonly CatalogSnapshot[]): readonly CatalogSnapshot[] {
+  for (const catalog of catalogs) immutableCatalogSnapshot(catalog)
+  const expanded = expandModCatalogs(catalogs)
+  for (const [at, catalog] of expanded.entries()) {
+    if (!validatedImmutableCatalogs.has(catalog)) {
+      freezeCatalogValue(catalog)
+      validatedImmutableCatalogs.add(catalog)
+    }
+    if (catalog.schemaVersion !== MOD_CATALOG_SCHEMA || immutableExpandedSources.has(catalog)) continue
+    const source = catalogs[at]!
+    const pin = nativeRecord(source.legacy) && nativeRecord(source.legacy.modBaseline) ? source.legacy.modBaseline : undefined
+    const baseline = pin && modCatalogForPin(catalogs, pin as unknown as import('../domain/types').ModCatalogPin)
+    if (baseline) immutableExpandedSources.set(catalog, { baseline, compact: immutableCatalogSnapshot(compactModCatalog(source)) })
+  }
+  // Lookup reuse requires immutable membership as well as admitted immutable snapshots
+  // Preserve frozen source identity, but never freeze a borrowed caller's collection
+  return Object.isFrozen(expanded) ? expanded : Object.freeze([...expanded])
+}
+
+// Readonly derived views may reuse only snapshots admitted and deeply frozen by this format owner
+export function isImmutableCatalogSnapshot(catalog: CatalogSnapshot): boolean {
+  return validatedImmutableCatalogs.has(catalog)
+}
+
+// This proves immutability only, never native identity or source authority
+// A derived fact may reuse it only after corroborating the complete exact record
+export function isImmutableCatalogRecord(entity: CatalogEntity): boolean {
+  return frozenCatalogValues.has(entity)
+}
+
+// Native projections compare the complete provenance metadata, not just an ID or digest
+// Only validated, deeply frozen snapshots can reuse equality; a frozen shell can still contain mutable provenance
+export function sameCatalogLegacy(left: CatalogSnapshot, right: CatalogSnapshot): boolean {
+  if (left.legacy === right.legacy) return true
+  const immutable = validatedImmutableCatalogs.has(left) && validatedImmutableCatalogs.has(right)
+  const cached = immutable ? immutableLegacyComparisons.get(left)?.get(right) : undefined
+  if (cached !== undefined) return cached
+  const equal = sameValue(left.legacy, right.legacy)
+  if (immutable) {
+    let comparisons = immutableLegacyComparisons.get(left)
+    if (!comparisons) { comparisons = new WeakMap(); immutableLegacyComparisons.set(left, comparisons) }
+    comparisons.set(right, equal)
+  }
+  return equal
+}
+
 function schemaError(message: string, details?: Readonly<Record<string, unknown>>): never {
   throw new AppDataError('schema-mismatch', message, { recoverable: true, details })
+}
+
+function validateCheckpointDisplayReceipts(content: import('../domain/types').BuildRevisionContent): void {
+  const selected = new Set(buildModReferences(content).map(entityDefinitionKey))
+  const seen = new Set<string>()
+  for (const entry of content.referenceNames ?? []) {
+    const key = entityDefinitionKey(entry.ref)
+    if (!selected.has(key) || seen.has(key)) schemaError('A checkpoint display receipt must identify one selected entry')
+    seen.add(key)
+  }
 }
 
 function recordValue(value: unknown, label: string): Record<string, unknown> {
@@ -153,7 +218,13 @@ function validateDefinitionRequirements(
   }
 }
 
+const immutableCatalogLookups = new WeakMap<readonly unknown[], ValidatedCatalogs>()
 function validateCatalogs(values: readonly unknown[]): ValidatedCatalogs {
+  // Only the exact frozen collection of format-owned deeply immutable snapshots can reuse its graph lookup
+  // New collections still check cross-catalog requirements, and each caller validates its current planner separately
+  const reusable = Object.isFrozen(values) && values.every(value => validatedImmutableCatalogs.has(value as CatalogSnapshot))
+  const admitted = reusable && immutableCatalogLookups.get(values)
+  if (admitted) return admitted
   const snapshots: CatalogSnapshot[] = []
   const keys = new Map<string, ReadonlySet<string>>()
   const entityKinds = new Map<string, CatalogEntityKind>()
@@ -192,7 +263,18 @@ function validateCatalogs(values: readonly unknown[]): ValidatedCatalogs {
       validateDefinitionRequirements(entity.requirements, keys, new Set(), `catalogs[${index}].entities.${entityId}.requirements`)
     }
   }
-  return { snapshots, keys, entityKinds }
+  const result = { snapshots, keys, entityKinds }
+  if (reusable) immutableCatalogLookups.set(values, result)
+  return result
+}
+
+// Isolated copied checkpoints may lack exact external sources, but present complete catalogs
+// remain authoritative for entity membership; reuse native partial/withdrawn semantics unchanged
+export function validatePresentCatalogReferences(refs: readonly EntityRef[], catalogs: readonly CatalogSnapshot[]): void {
+  const present = refs.filter(ref => ref.kind === 'catalog' && catalogs.some(catalog => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId))
+  if (!present.length) return
+  const validated = validateCatalogs(catalogs)
+  for (const ref of present) validateEntityRef(ref, validated.keys, new Set(), 'copiedCheckpoint.selectedReferences')
 }
 
 function validatePinnedReferences(
@@ -227,6 +309,19 @@ function validatePinnedReferences(
     return
   }
   for (const [key, nested] of Object.entries(record)) validatePinnedReferences(localData, nested, lock, `${label}.${key}`)
+}
+
+function retainedUnavailableRef(localData: LocalData, content: import('../domain/types').BuildRevisionContent, ref: EntityRef, catalogs: ReadonlyMap<string, ReadonlySet<string>>) {
+  if (ref.kind !== 'catalog' || !retainedSelectionRefs(content).has(entityDefinitionKey(ref))) return false
+  // A receipt can explain an absent source, but cannot conceal a missing entity in a complete local catalog
+  if (catalogs.has(catalogSnapshotKey(ref.catalogId, ref.catalogRevisionId))) return false
+  return localData.unavailableDefinitions?.some(receipt => entityDefinitionKey(receipt.ref) === entityDefinitionKey(ref)) ?? false
+}
+
+function validateCheckpointContext(localData: LocalData, content: import('../domain/types').BuildRevisionContent, setup: import('../domain/types').GameSetupRevision, lock: Readonly<Record<string, import('../domain/types').CatalogRevisionId>>, label: string) {
+  assertRetainedSelections(localData, content, setup, lock)
+  const retained = retainedSelectionRefs(content)
+  for (const ref of buildModReferences(content)) if (!retained.has(entityDefinitionKey(ref))) validatePinnedReferences(localData, ref, lock, label)
 }
 
 function validatePersonalDefinitionLineage(
@@ -295,7 +390,10 @@ function validateLocalDataEntityRefs(
   personalDefinitionIds: ReadonlySet<string>,
   label: string,
 ): void {
-  const check = (ref: EntityRef, path: string): void => validateEntityRef(ref, catalogs, personalDefinitionIds, path)
+  const check = (ref: EntityRef, path: string): void => {
+    if (ref.kind === 'personal' && !personalDefinitionIds.has(ref.definitionId) && localData.unavailableDefinitions?.some(receipt => entityDefinitionKey(receipt.ref) === entityDefinitionKey(ref))) return
+    validateEntityRef(ref, catalogs, personalDefinitionIds, path)
+  }
   for (const [id, definition] of Object.entries(localData.personalDefinitions)) {
     if (definition.baseRef) check(definition.baseRef, `${label}.personalDefinitions.${id}.baseRef`)
     if (definition.previousRevision) check(definition.previousRevision, `${label}.personalDefinitions.${id}.previousRevision`)
@@ -311,16 +409,17 @@ function validateLocalDataEntityRefs(
     for (const mapping of layout.mappings) check(mapping.ref, `${label}.skillTreeLayouts.${layout.id}.mappings`)
   }
   for (const [id, revision] of Object.entries(localData.buildRevisions)) {
-    if (revision.content.primaryClass) check(revision.content.primaryClass, `${label}.buildRevisions.${id}.content.primaryClass`)
-    if (revision.content.secondaryClass) check(revision.content.secondaryClass, `${label}.buildRevisions.${id}.content.secondaryClass`)
-    for (const [index, row] of (revision.content.calculation?.growth ?? []).entries()) if (row.classRef) check(row.classRef, `${label}.buildRevisions.${id}.content.calculation.growth.${index}.classRef`)
-    for (const [index, ref] of (revision.content.calculation?.statuses ?? []).entries()) check(ref, `${label}.buildRevisions.${id}.content.calculation.statuses.${index}`)
-    if (revision.content.calculation?.ability) check(revision.content.calculation.ability, `${label}.buildRevisions.${id}.content.calculation.ability`)
-    for (const { ref, path } of battleCalculationReferences(revision.content.calculation?.battle)) check(ref, `${label}.buildRevisions.${id}.content.calculation.battle.${path}`)
+    const checkSelected = (ref: EntityRef, path: string) => { if (!retainedUnavailableRef(localData, revision.content, ref, catalogs) && !(ref.kind === 'catalog' && !catalogs.has(catalogSnapshotKey(ref.catalogId, ref.catalogRevisionId)) && publicCheckpointAllowsRef(localData, revision, ref))) check(ref, path) }
+    if (revision.content.primaryClass) checkSelected(revision.content.primaryClass, `${label}.buildRevisions.${id}.content.primaryClass`)
+    if (revision.content.secondaryClass) checkSelected(revision.content.secondaryClass, `${label}.buildRevisions.${id}.content.secondaryClass`)
+    for (const [index, row] of (revision.content.calculation?.growth ?? []).entries()) if (row.classRef) checkSelected(row.classRef, `${label}.buildRevisions.${id}.content.calculation.growth.${index}.classRef`)
+    for (const [index, ref] of (revision.content.calculation?.statuses ?? []).entries()) checkSelected(ref, `${label}.buildRevisions.${id}.content.calculation.statuses.${index}`)
+    if (revision.content.calculation?.ability) checkSelected(revision.content.calculation.ability, `${label}.buildRevisions.${id}.content.calculation.ability`)
+    for (const { ref, path } of battleCalculationReferences(revision.content.calculation?.battle)) checkSelected(ref, `${label}.buildRevisions.${id}.content.calculation.battle.${path}`)
     for (const [slotId, selection] of Object.entries(revision.content.equipment)) {
-      if (selection) check(selection.ref, `${label}.buildRevisions.${id}.content.equipment.${slotId}.ref`)
+      if (selection) checkSelected(selection.ref, `${label}.buildRevisions.${id}.content.equipment.${slotId}.ref`)
     }
-    for (const [index, selection] of revision.content.passives.entries()) check(selection.ref, `${label}.buildRevisions.${id}.content.passives.${index}.ref`)
+    for (const [index, selection] of revision.content.passives.entries()) checkSelected(selection.ref, `${label}.buildRevisions.${id}.content.passives.${index}.ref`)
   }
   for (const [playthroughId, playthrough] of Object.entries(localData.playthroughs)) {
     const playthroughLabel = `${label}.playthroughs.${playthroughId}`
@@ -372,6 +471,7 @@ function validateLocalData(
   const buildRevisions = assertIdMap(localData.buildRevisions, `${label}.buildRevisions`)
   const playthroughs = assertIdMap(localData.playthroughs, `${label}.playthroughs`)
   assertIdMap(localData.importReceipts, `${label}.importReceipts`)
+  assertPublicSourceContexts(typedLocalData)
   validatePersonalDefinitionLineage(typedLocalData, catalogEntityKinds)
 
   for (const gameSetup of Object.values(typedLocalData.gameSetups)) {
@@ -405,7 +505,7 @@ function validateLocalData(
   for (const [id, gameSetup] of Object.entries(gameSetups)) {
     const lock = recordValue(gameSetup.catalogLock, `${label}.gameSetups.${id}.catalogLock`)
     for (const [catalogId, revisionId] of Object.entries(lock)) {
-      if (typeof revisionId !== 'string' || (!catalogs.has(catalogSnapshotKey(catalogId, revisionId)) && !withdrawnCatalogKey(catalogSnapshotKey(catalogId, revisionId)))) {
+      if (typeof revisionId !== 'string' || (!catalogs.has(catalogSnapshotKey(catalogId, revisionId)) && !withdrawnCatalogKey(catalogSnapshotKey(catalogId, revisionId)) && !publicSetupAllowsPin(typedLocalData.gameSetups[id], catalogId, revisionId))) {
         schemaError('A Game Setup references a missing catalog revision', { id, catalogId, revisionId })
       }
     }
@@ -458,6 +558,7 @@ function validateLocalData(
     if (revision.parentRevisionId !== undefined && buildRevisions[revision.parentRevisionId as string]?.buildId !== buildId) {
       schemaError('A build revision parent belongs to another build', { id })
     }
+    if (revision.parentRevisionId && Number(buildRevisions[revision.parentRevisionId as string]!.revision) >= Number(revision.revision)) schemaError('A build revision has cyclic or nonincreasing parent lineage', { id })
     const gameSetupRevisionId = stringValue(revision.gameSetupRevisionId, `${label}.buildRevisions.${id}.gameSetupRevisionId`)
     const gameSetup = gameSetups[gameSetupRevisionId]
     if (!gameSetup) {
@@ -465,30 +566,60 @@ function validateLocalData(
     }
     const lock = recordValue(revision.catalogLock, `${label}.buildRevisions.${id}.catalogLock`)
     for (const [catalogId, revisionId] of Object.entries(lock)) {
-      if (typeof revisionId !== 'string' || (!catalogs.has(catalogSnapshotKey(catalogId, revisionId)) && !withdrawnCatalogKey(catalogSnapshotKey(catalogId, revisionId)))) {
+      if (typeof revisionId !== 'string' || (!catalogs.has(catalogSnapshotKey(catalogId, revisionId)) && !withdrawnCatalogKey(catalogSnapshotKey(catalogId, revisionId)) && !(typedLocalData.buildRevisions[id]?.publicSourceContext && publicSetupAllowsPin(typedLocalData.gameSetups[gameSetupRevisionId], catalogId, revisionId)))) {
         schemaError('A build revision references a missing catalog revision', { id, catalogId, revisionId })
       }
     }
     const slotIds = new Set((gameSetup.slots as readonly Record<string, unknown>[]).map((slot) => slot.id as string))
     const content = recordValue(revision.content, `${label}.buildRevisions.${id}.content`)
     const typedContent = content as unknown as import('../domain/types').BuildRevisionContent
-    const selectedNames = new Set(buildModReferences(typedContent).map(entityDefinitionKey))
-    const savedNames = new Set<string>()
-    for (const entry of typedContent.referenceNames ?? []) {
-      const key = entityDefinitionKey(entry.ref)
-      if (!selectedNames.has(key) || savedNames.has(key)) schemaError('A Build display receipt must identify one selected entry')
-      savedNames.add(key)
-    }
-    validatePinnedReferences(typedLocalData, content, lock, `${label}.buildRevisions.${id}.content`)
+    validateCheckpointDisplayReceipts(typedContent)
+    validateCheckpointContext(typedLocalData, typedContent, gameSetup as unknown as import('../domain/types').GameSetupRevision, lock as Readonly<Record<string, import('../domain/types').CatalogRevisionId>>, `${label}.buildRevisions.${id}.content`)
     const equipment = recordValue(content.equipment, `${label}.buildRevisions.${id}.content.equipment`)
     for (const slotId of Object.keys(equipment)) {
-      if (!slotIds.has(slotId)) schemaError('A Build revision selects an unknown Game Setup slot', { id, slotId })
+      if (!slotIds.has(slotId) && equipment[slotId] !== null && !typedContent.retainedSelections?.slotIds.includes(slotId as import('../domain/types').SlotId)) schemaError('A Build revision selects an unknown Game Setup slot', { id, slotId })
     }
   }
 
   const teams = assertIdMap(typedLocalData.teams, `${label}.teams`)
   for (const [id, team] of Object.entries(teams)) {
+    if (team.kind === 'shared') {
+      const revision = typedLocalData.teamRevisions[team.latestRevisionId as string]
+      if (!revision || revision.teamId !== id) schemaError('A shared Team references a missing or foreign checkpoint', { id })
+      continue
+    }
     for (const revisionId of team.slots as readonly (string | null)[]) if (revisionId && !buildRevisions[revisionId]) schemaError('A Team references a missing build checkpoint', { id, revisionId })
+  }
+  const receiptKeys = new Set<string>()
+  for (const receipt of typedLocalData.unavailableDefinitions ?? []) {
+    const key = entityDefinitionKey(receipt.ref)
+    if (receiptKeys.has(key)) schemaError('Unavailable definition receipts repeat an identity')
+    receiptKeys.add(key)
+    if (receipt.ref.kind === 'personal' && typedLocalData.personalDefinitions[receipt.ref.definitionId] && typedLocalData.personalDefinitions[receipt.ref.definitionId]!.kind !== receipt.kind) schemaError('An unavailable definition receipt changes the recorded kind')
+  }
+  const teamRevisions = assertIdMap(typedLocalData.teamRevisions ?? {}, `${label}.teamRevisions`)
+  for (const [id, value] of Object.entries(teamRevisions)) {
+    const revision = value as unknown as import('../domain/types').TeamRevision
+    const setup = typedLocalData.gameSetups[revision.gameSetupRevisionId]
+    if (!setup) schemaError('A Team checkpoint references a missing Game Setup', { id })
+    const parent = revision.parentRevisionId ? typedLocalData.teamRevisions[revision.parentRevisionId] : undefined
+    if (revision.parentRevisionId && (!parent || parent.teamId !== revision.teamId || parent.revision + 1 !== revision.revision)) schemaError('A Team checkpoint has invalid parent lineage', { id })
+    if (!revision.parentRevisionId && revision.revision !== 0) schemaError('A Team checkpoint root must start at revision zero', { id })
+    const seen = new Set<string>()
+    for (const slot of revision.slots) {
+      if (!slot) continue
+      if (seen.has(slot.id)) schemaError('A Team checkpoint repeats a slot identity', { id })
+      seen.add(slot.id)
+      if (slot.sourceBuildRevisionId && !typedLocalData.buildRevisions[slot.sourceBuildRevisionId]) schemaError('A Team slot references missing source lineage', { id })
+      validateCheckpointDisplayReceipts(slot.content)
+      validateCheckpointContext(typedLocalData, slot.content, setup, revision.catalogLock, `${label}.teamRevisions.${id}`)
+      for (const ref of buildModReferences(slot.content)) {
+        const receipt = typedLocalData.unavailableDefinitions?.find(receipt => entityDefinitionKey(receipt.ref) === entityDefinitionKey(ref))
+        if (!(ref.kind === 'catalog' && !catalogs.has(catalogSnapshotKey(ref.catalogId, ref.catalogRevisionId)) && publicCheckpointAllowsRef(typedLocalData, revision, ref)) && !retainedUnavailableRef(typedLocalData, slot.content, ref, catalogs) && !(ref.kind === 'personal' && receipt && !typedLocalData.personalDefinitions[ref.definitionId])) validateEntityRef(ref, catalogs, new Set(Object.keys(personalDefinitions)), `${label}.teamRevisions.${id}`)
+      }
+      for (const slotId of Object.keys(slot.content.equipment)) if (!setup.slots.some(slot => slot.id === slotId) && slot.content.equipment[slotId] !== null && !slot.content.retainedSelections?.slotIds.includes(slotId as import('../domain/types').SlotId)) schemaError('A Team slot selects an unknown Game Setup equipment slot', { id, slotId })
+    }
+    for (const [catalogId, revisionId] of Object.entries(revision.catalogLock)) if (!catalogs.has(catalogSnapshotKey(catalogId, revisionId)) && !withdrawnCatalogKey(catalogSnapshotKey(catalogId, revisionId)) && !(revision.publicSourceContext && publicSetupAllowsPin(setup, catalogId, revisionId))) schemaError('A Team checkpoint references a missing catalog revision', { id, catalogId, revisionId })
   }
   for (const [playthroughId, playthrough] of Object.entries(playthroughs)) {
     const playthroughLabel = `${label}.playthroughs.${playthroughId}`
@@ -586,7 +717,9 @@ function validateLocalData(
           if (!characters[characterId]) schemaError(`A scenario${baseline ? ' baseline' : ''} assignment references a missing character`, { playthroughId, id, characterId })
           if (!memberIds.includes(characterId)) schemaError(`A scenario${baseline ? ' baseline' : ''} assignment is outside its team`, { playthroughId, id, characterId })
           if ((!baseline && revisionId === null)) continue
-          if (typeof revisionId !== 'string' || !buildRevisions[revisionId]) schemaError(`A scenario${baseline ? ' baseline' : ''} references a missing Build revision`, { playthroughId, id, revisionId })
+          const checkpoint = revisionId as import('../domain/types').CheckpointRef
+          const exists = typeof revisionId === 'string' ? String(typedLocalData.schemaVersion) !== '2.5.0' && buildRevisions[revisionId] : checkpoint?.kind === 'build' ? buildRevisions[checkpoint.revisionId] : checkpoint?.kind === 'team-slot' && typedLocalData.teamRevisions[checkpoint.teamRevisionId]?.slots[checkpoint.slot]
+          if (!exists) schemaError(`A scenario${baseline ? ' baseline' : ''} references a missing Build revision`, { playthroughId, id, revisionId })
         }
       }
       validateAssignments(recordValue(scenario.assignments, `${playthroughLabel}.scenarios.${id}.assignments`))
@@ -685,7 +818,10 @@ function validateHistory(
 // Effective revision IDs belong to their originating setup, including rekeyed shared copies
 // This permits unresolved references without inventing a replacement snapshot or loosening unrelated pins
 export function unavailableModCatalogKeys(localDatas: readonly LocalData[], catalogs: readonly CatalogSnapshot[]): ReadonlySet<string> {
-  const setups = localDatas.flatMap(value => Object.values(value.gameSetups))
+  return unavailableSetupCatalogKeys(localDatas.flatMap(value => Object.values(value.gameSetups)), catalogs)
+}
+
+export function unavailableSetupCatalogKeys(setups: readonly import('../domain/types').GameSetupRevision[], catalogs: readonly CatalogSnapshot[]): ReadonlySet<string> {
   const origins = new Map(setups.map(value => [modCatalogRevision(value.id), value]))
   const keys = new Set<string>()
   for (const setup of setups) {
@@ -709,7 +845,8 @@ function includeUnavailableModCatalogs(keys: ReadonlyMap<string, ReadonlySet<str
   const result = new Map(keys)
   for (const key of unavailable) {
     // These sets exist only for graph validation; the database and definition resolver receive no synthetic catalog
-    const entities = result.get(key) ?? new Set<string>()
+    // Missing-source tolerance belongs to this planner, never the reusable complete-catalog lookup
+    const entities = new Set(result.get(key))
     partialCatalogEntities.add(entities)
     result.set(key, entities)
   }
@@ -742,8 +879,18 @@ export function validateNativeLocalDataGraph(
       }
       const expected = composeModCatalog(origin, catalogs)!
       const actual = modCatalogForPin(catalogs, { catalogId: expected.id, catalogRevisionId: expected.revisionId })
-      const expanded = expandModCatalogs([modCatalogForPin(catalogs, gameSetup.modComposition.baseline)!, expected])[1]!
-      if (!actual || (!jsonEqual({ ...actual, checksum: expected.checksum }, expected) && !jsonEqual({ ...actual, checksum: expected.checksum }, expanded))) schemaError('An effective mod catalog does not match its pinned source layers')
+      const baseline = modCatalogForPin(catalogs, gameSetup.modComposition.baseline)!
+      const constructed = actual && immutableExpandedSources.get(actual)
+      // The private constructor has already selected every inherited record from this exact immutable baseline
+      // Comparing its complete compact input checks all changed records and metadata without encoding the baseline again
+      // Raw or separately admitted full catalogs have no constructor proof and retain the complete expanded comparison
+      const comparable = constructed?.baseline === baseline ? constructed.compact : actual
+      let matches = !!comparable && jsonEqual({ ...comparable, checksum: expected.checksum }, expected)
+      if (!matches && actual) {
+        const expanded = expandModCatalogs([baseline, expected])[1]!
+        matches = jsonEqual({ ...actual, checksum: expected.checksum }, expanded)
+      }
+      if (!matches) schemaError('An effective mod catalog does not match its pinned source layers')
       checkedOrigins.add(origin.id)
     } catch (error) { schemaError(error instanceof Error ? error.message : 'Invalid imported mod composition') }
   }
@@ -759,7 +906,7 @@ export function validateNativeLocalDataGraph(
 }
 
 export function validateNativeLocalDataShape(localData: LocalData): void {
-  const result = NativeLocalDataSchema.safeParse(localData)
+  const result = (String(localData.schemaVersion) === '2.5.0' ? NativeLocalDataSchema : StoredPre250LocalDataSchema).safeParse(localData)
   if (!result.success) {
     schemaError('The transformed localData has an unsupported shape', {
       issues: result.error.issues.slice(0, 20).map((issue) => `${issue.path.join('.')}: ${issue.message}`),
@@ -912,7 +1059,8 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string, a
       ancestry: lineage,
     },
     proposed: {
-      localData,
+      // Import activation receives a current root while archived source bytes and original history stay exact
+      localData: (await import('../domain/team-checkpoints')).migrateLocalData250(localData, allCatalogs),
       lineage,
       catalogs: catalogs.snapshots,
       evidence,

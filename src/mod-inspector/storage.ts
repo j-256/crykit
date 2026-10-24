@@ -1,4 +1,6 @@
 import Dexie, { type Table } from 'dexie'
+import { installGuestWriteBarrier } from '../workspace/guest-barrier'
+import { prepareFreshGuestTargetOpening, prepareRequiredGuestTargetOpening } from '../workspace/fresh-guest-target'
 import { DOCUMENT_LIMITS, parseDocument } from './document'
 import { deriveInspectorFileInfo, readInspectorFileInfo, INSPECTOR_FILE_INFO_SCHEMA_VERSION } from './file-info'
 import type { InspectorDraft, InspectorDraftSummary, InspectorFileInfo } from './types'
@@ -7,6 +9,7 @@ const STORAGE_NAME = 'crykit-mod-inspector-v1'
 const DOCUMENT_SCHEMA_VERSION = 1
 const LEGACY_DATABASE_VERSION = 1
 const DATABASE_LAYOUT_VERSION = 2
+const DATABASE_NATIVE_VERSION = 30
 const INITIAL_REVISION = 1
 const TABLES = Object.freeze({ drafts: 'drafts', chunks: 'chunks' })
 const PAYLOAD_KIND = Object.freeze({ original: 'original', draft: 'draft' } as const)
@@ -97,8 +100,12 @@ export class InspectorStorage {
   private readonly drafts: Table<StoredDraft, string>
   private readonly chunks: Table<TextChunk, ChunkKey>
 
-  constructor(name = STORAGE_NAME) {
-    this.database = new Dexie(name)
+  constructor(name = STORAGE_NAME, options: { readonly freshGuestTarget?: true; readonly requiredGuestTarget?: true } = {}) {
+    if (options.freshGuestTarget && options.requiredGuestTarget) throw new Error('An Inspector target cannot be fresh and selected at once')
+    const opening = options.freshGuestTarget ? prepareFreshGuestTargetOpening(name, DATABASE_NATIVE_VERSION)
+      : options.requiredGuestTarget ? prepareRequiredGuestTargetOpening(name, DATABASE_NATIVE_VERSION, { drafts: 'id, updatedAt', chunks: '[draftId+kind+index], [draftId+kind], draftId', meta: 'key' }) : undefined
+    this.database = new Dexie(name, opening?.dependencies)
+    opening?.attach(this.database)
     this.database.version(LEGACY_DATABASE_VERSION).stores({ [TABLES.drafts]: 'id, updatedAt' })
     this.database.version(DATABASE_LAYOUT_VERSION).stores({
       [TABLES.drafts]: 'id, updatedAt',
@@ -121,6 +128,9 @@ export class InspectorStorage {
         await metadata.put(storedDraft(row, originalPayload, draftPayload))
       }
     })
+    // Database metadata changes independently of the exact existing payload layout
+    this.database.version(3).stores({ meta: 'key' })
+    installGuestWriteBarrier(this.database)
     this.drafts = this.database.table(TABLES.drafts)
     this.chunks = this.database.table(TABLES.chunks)
   }
@@ -247,11 +257,14 @@ export class InspectorStorage {
   close(): void {
     this.database.close()
   }
+
+  async openDatabase(): Promise<Dexie> { await this.database.open(); return this.database }
 }
 
-let defaultStorage: InspectorStorage | undefined
+const namedStorage = new Map<string, InspectorStorage>()
 
-export function getInspectorStorage(): InspectorStorage {
-  defaultStorage ??= new InspectorStorage()
-  return defaultStorage
+export function getInspectorStorage(name = STORAGE_NAME): InspectorStorage {
+  let storage = namedStorage.get(name)
+  if (!storage) { storage = new InspectorStorage(name); namedStorage.set(name, storage) }
+  return storage
 }

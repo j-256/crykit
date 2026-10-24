@@ -1,3 +1,4 @@
+import { teamSlotForViewId } from '../domain/team-checkpoints'
 import { useMemo, useRef, useState } from 'react'
 import type { BuildRevisionId, CatalogSnapshot, LocalData } from '../domain/types'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
@@ -11,6 +12,7 @@ const CHECKPOINT_PAGE_SIZE = 30
 
 export function teamCheckpointOptions(localData: LocalData, catalogs: readonly CatalogSnapshot[], selectedId: BuildRevisionId | null) {
   return Object.values(localData.buildRevisions).flatMap(revision => {
+    if (teamSlotForViewId(localData, revision.id)) return []
     const build = localData.builds[revision.buildId]
     if (!build || build.archived && revision.id !== selectedId) return []
     const setup = localData.gameSetups[revision.gameSetupRevisionId]

@@ -7,14 +7,18 @@ import { inspectSave } from '../src/domain/save-editor'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { skipInitialModSetup } from './local-data-helpers'
+import { readManagedGuestWorkspace } from './guest-planner-reader'
+import { readSaveContent } from '../src/workspace/save-repository'
 
 const ROUTE = '/#/save-editor'
 const FILENAME = 'synthetic-party.sav'
+// Full retained-history publication and successor hydration are measured separately from ordinary UI assertions
+const RETAINED_SAVE_READINESS_MS = 10_000
 
-async function openSave(page: Page, save = createSaveEditorFixture()) {
+async function openSave(page: Page, save = createSaveEditorFixture(), filename = FILENAME, readinessTimeout?: number) {
   const bytes = Buffer.from(encodeCrystalSave(save))
-  await page.getByLabel('Open Crystal Project save', { exact: true }).setInputFiles({ name: FILENAME, mimeType: 'application/octet-stream', buffer: bytes })
-  await expect(page.getByRole('heading', { name: FILENAME, exact: true })).toBeVisible()
+  await page.getByLabel('Open Crystal Project save', { exact: true }).setInputFiles({ name: filename, mimeType: 'application/octet-stream', buffer: bytes })
+  await expect(page.getByRole('heading', { name: filename, exact: true })).toBeVisible({ timeout: readinessTimeout })
   return bytes
 }
 
@@ -142,7 +146,7 @@ test('opens, edits, and downloads a separate save with exact original recovery',
   await page.getByLabel('Search inventory', { exact: true }).fill('Potion')
   await page.getByLabel('Potion stock', { exact: true }).fill('7')
   await page.getByRole('button', { name: 'Apply Potion stock', exact: true }).click()
-  await expect(page.getByText('Changes not exported', { exact: true })).toBeVisible()
+  await expect(page.getByText('Saved locally · Working bytes changed since download', { exact: true })).toBeVisible({ timeout: RETAINED_SAVE_READINESS_MS })
 
   const download = await downloadSave(page, 'Export edited save')
   expect(download.filename).toBe('synthetic-party-edited.sav')
@@ -181,7 +185,9 @@ test('reviews the overpowered preset before applying and preserves equipped load
   expectPreserved(original, edited)
 })
 
-test('retains pending input and the loaded save after rejected edits or malformed replacement', async ({ page }) => {
+test('saves rejected pending input on navigation and keeps an unsupported import independent', async ({ page }) => {
+  const downloads: string[] = []
+  page.on('download', download => downloads.push(download.suggestedFilename()))
   await page.goto(ROUTE)
   const originalBytes = await openSave(page)
   await page.getByLabel('Copper', { exact: true }).fill('12.5')
@@ -190,28 +196,84 @@ test('retains pending input and the loaded save after rejected edits or malforme
   await expect(page.getByLabel('Copper', { exact: true })).toHaveValue('12.5')
   await page.getByRole('button', { name: 'Builds', exact: true }).filter({ visible: true }).click()
   await expect(page.getByText('Unsaved edits are still open', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Export and continue', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Save Editor', exact: true })).toBeVisible()
-  await expect(page.getByText(/Apply or discard pending fields and loadout choices before exporting/)).toBeVisible()
-  await page.getByRole('button', { name: 'Discard pending input', exact: true }).click()
-  await page.getByLabel('Open Crystal Project save', { exact: true }).setInputFiles({ name: 'broken.sav', mimeType: 'application/octet-stream', buffer: Buffer.from([28, 0, 0, 0]) })
-  await expect(page.getByText(/The open draft has not changed/)).toBeVisible()
+  await page.getByRole('button', { name: 'Save and continue', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
+  expect(downloads).toEqual([])
+  await page.getByRole('button', { name: 'Save Editor', exact: true }).filter({ visible: true }).click()
+  await expect(page.getByLabel('Copper', { exact: true })).toHaveValue('12.5')
+  await expect(page.getByText('Saved locally · No working download recorded', { exact: true })).toBeVisible()
   expect((await downloadSave(page, 'Download original')).bytes).toEqual(originalBytes)
+  const unsupported = Buffer.from([28, 0, 0, 0])
+  await page.getByLabel('Open Crystal Project save', { exact: true }).setInputFiles({ name: 'broken.sav', mimeType: 'application/octet-stream', buffer: unsupported })
+  await expect(page.getByRole('heading', { name: 'broken.sav', exact: true })).toBeVisible()
+  await expect(page.getByText('Read-only save', { exact: true })).toBeVisible()
+  expect((await downloadSave(page, 'Download original')).bytes).toEqual(unsupported)
+  const files = page.getByRole('combobox', { name: 'Saved game saves', exact: true })
+  await expect(files.locator('option')).toHaveCount(3)
+  await files.selectOption({ label: FILENAME })
+  await expect(page.getByLabel('Copper', { exact: true })).toHaveValue('12.5')
+  // Durable unfinished input must not be mistaken for an applied working-file edit
+  const beforeExport = [...downloads]
+  await page.getByRole('button', { name: 'Export edited save', exact: true }).click()
+  await expect(page.getByText('Apply or discard pending fields and loadout choices before exporting. Unreviewed input has not been included in the draft.', { exact: true })).toBeVisible()
+  const workspace = await readManagedGuestWorkspace(page)
+  if (!workspace) throw new Error('The selected managed save workspace is unavailable')
+  const saved = workspace.saveDocuments.find(file => file.filename === FILENAME)!
+  expect(saved.pendingForm).toMatchObject({ fields: { currency: '12.5' } })
+  expect(saved.exportedRevision).toBeNull()
+  const savedContent = await readSaveContent(workspace, saved)
+  expect(Buffer.from(savedContent.originalBytes)).toEqual(originalBytes)
+  expect(Buffer.from(savedContent.workingBytes)).toEqual(originalBytes)
+  expect(downloads).toEqual(beforeExport)
   await page.getByLabel('Copper', { exact: true }).fill('500')
   await page.getByRole('button', { name: 'Builds', exact: true }).filter({ visible: true }).click()
   await page.getByRole('button', { name: 'Discard and continue', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Save Editor', exact: true }).filter({ visible: true }).click()
+  await expect(page.getByLabel('Copper', { exact: true })).toHaveValue('12.5')
 })
 
-test('exports a valid draft before continuing away from the editor', async ({ page }) => {
+test('locally saves applied bytes before navigation and downloads only on explicit request', async ({ page }) => {
+  const downloads: string[] = []
+  page.on('download', download => downloads.push(download.suggestedFilename()))
   await page.goto(ROUTE)
-  await openSave(page)
+  const originalBytes = await openSave(page)
   await page.getByLabel('Copper', { exact: true }).fill('456')
   await page.getByRole('button', { name: 'Apply currency', exact: true }).click()
+  await expect(page.getByText('Saved locally · No working download recorded', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Builds', exact: true }).filter({ visible: true }).click()
-  const download = await downloadSave(page, 'Export and continue')
-  expect(decodeCrystalSave(download.bytes).header.currencyAmount).toBe(456)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
+  expect(downloads).toEqual([])
+  await page.getByRole('button', { name: 'Save Editor', exact: true }).filter({ visible: true }).click()
+  await expect(page.getByLabel('Copper', { exact: true })).toHaveValue('456')
+  const download = await downloadSave(page, 'Export edited save')
+  expect(decodeCrystalSave(download.bytes).header.currencyAmount).toBe(456)
+  expectPreserved(decodeCrystalSave(originalBytes), decodeCrystalSave(download.bytes))
+  expect((await downloadSave(page, 'Download original')).bytes).toEqual(originalBytes)
+})
+
+test('keeps a second supported document independent from the first original and working copy', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await page.goto(ROUTE)
+  const first = await openSave(page)
+  await page.getByLabel('Copper', { exact: true }).fill('456')
+  await page.getByRole('button', { name: 'Apply currency', exact: true }).click()
+  const working = (await downloadSave(page, 'Export edited save')).bytes
+  expect(decodeCrystalSave(working).header.currencyAmount).toBe(456)
+  // File input events do not wait for the previous owned marker operation
+  await expect(page.getByRole('combobox', { name: 'Saved game saves', exact: true })).toBeEnabled()
+  const second = await openSave(page, createSaveEditorFixture(12), 'second-supported.sav', RETAINED_SAVE_READINESS_MS)
+  await expect(page.getByLabel('Copper', { exact: true })).toHaveValue('123')
+  expect((await downloadSave(page, 'Download original')).bytes).toEqual(second)
+  const files = page.getByRole('combobox', { name: 'Saved game saves', exact: true })
+  await expect(files.locator('option')).toHaveCount(3)
+  await files.selectOption({ label: FILENAME })
+  await expect(page.getByLabel('Copper', { exact: true })).toHaveValue('456')
+  expect((await downloadSave(page, 'Download original')).bytes).toEqual(first)
+  expect((await downloadSave(page, 'Export edited save')).bytes).toEqual(working)
+  await files.selectOption({ label: 'second-supported.sav' })
+  await expect(page.getByRole('heading', { name: 'second-supported.sav', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Copper', { exact: true })).toHaveValue('123')
+  expect((await downloadSave(page, 'Export edited save')).bytes).toEqual(second)
 })
 
 test('keeps modded saves read-only with the exact original download', async ({ page }) => {
@@ -220,7 +282,8 @@ test('keeps modded saves read-only with the exact original download', async ({ p
   modded.header.isModded = true
   const bytes = await openSave(page, modded)
   await expect(page.getByText('Read-only save', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Export edited save', exact: true }).first()).toBeDisabled()
+  await expect(page.getByLabel('Copper', { exact: true })).toBeDisabled()
+  expect((await downloadSave(page, 'Export edited save')).bytes).toEqual(bytes)
   expect((await downloadSave(page, 'Download original')).bytes).toEqual(bytes)
 })
 
@@ -237,7 +300,12 @@ test('loads an exact mod definition, edits the active save, and removes its mod 
   await expect(page.getByRole('option', { name: /Synthetic mod class/ })).toBeVisible()
   await page.keyboard.press('Escape')
   await page.getByLabel('Copper', { exact: true }).fill('654')
-  await page.getByRole('button', { name: 'Apply currency', exact: true }).click()
+  const confirmation = page.waitForEvent('dialog')
+  const applying = page.getByRole('button', { name: 'Apply currency', exact: true }).click()
+  const dialog = await confirmation
+  expect(dialog.message()).toBe('Apply this field and discard the unfinished loadout or selected Build?')
+  await dialog.accept()
+  await applying
   const modded = decodeCrystalSave((await downloadSave(page, 'Export edited save')).bytes)
   expect(modded.header.currencyAmount).toBe(654)
   expect(modded.header.isModded).toBe(true)
@@ -249,6 +317,7 @@ test('loads an exact mod definition, edits the active save, and removes its mod 
   await expect(review).toContainText('ID redirects cleared')
   await page.getByRole('button', { name: 'Apply reviewed changes', exact: true }).click()
   const vanilla = decodeCrystalSave((await downloadSave(page, 'Export edited save')).bytes)
+  await expect(page.getByRole('combobox', { name: 'Saved game saves', exact: true })).toBeEnabled({ timeout: RETAINED_SAVE_READINESS_MS })
   expect(vanilla.header.currencyAmount).toBe(654)
   expect(vanilla.header.isModded).toBe(false)
   expect(vanilla.header.mods).toEqual([])
@@ -264,9 +333,13 @@ test('identifies imported disabled-mod residue by exact project identity', { tag
   await expect(page.getByRole('button', { name: 'Review mod data removal', exact: true })).toBeEnabled()
 })
 
-test('edits and exports offline without persisting the opened game save', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
+test('reopens the exact stored original and working save offline before further editing', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   await page.goto(ROUTE)
-  await openSave(page)
+  const originalBytes = await openSave(page)
+  await page.getByLabel('Copper', { exact: true }).fill('456')
+  await page.getByRole('button', { name: 'Apply currency', exact: true }).click()
+  const workingBytes = (await downloadSave(page, 'Export edited save')).bytes
+  expect(decodeCrystalSave(workingBytes).header.currencyAmount).toBe(456)
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
@@ -276,10 +349,18 @@ test('edits and exports offline without persisting the opened game save', { tag:
   await context.setOffline(true)
   await page.goto(ROUTE)
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Choose a save file', exact: true })).toBeVisible()
-  await openSave(page)
+  await page.getByRole('combobox', { name: 'Saved game saves', exact: true }).selectOption({ label: FILENAME })
+  await expect(page.getByLabel('Copper', { exact: true })).toHaveValue('456')
+  expect((await downloadSave(page, 'Download original')).bytes).toEqual(originalBytes)
+  expect((await downloadSave(page, 'Export edited save')).bytes).toEqual(workingBytes)
   await page.getByLabel('Copper', { exact: true }).fill('789')
   await page.getByRole('button', { name: 'Apply currency', exact: true }).click()
   const downloaded = await downloadSave(page, 'Export edited save')
   expect(decodeCrystalSave(downloaded.bytes).header.currencyAmount).toBe(789)
+  expectPreserved(decodeCrystalSave(originalBytes), decodeCrystalSave(downloaded.bytes))
+  await page.reload()
+  await page.getByRole('combobox', { name: 'Saved game saves', exact: true }).selectOption({ label: FILENAME })
+  await expect(page.getByLabel('Copper', { exact: true })).toHaveValue('789')
+  expect((await downloadSave(page, 'Export edited save')).bytes).toEqual(downloaded.bytes)
+  expect((await downloadSave(page, 'Download original')).bytes).toEqual(originalBytes)
 })

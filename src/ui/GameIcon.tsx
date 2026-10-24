@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react'
+import { useContext, useState } from 'react'
 import { entityDefinitionKey } from '../domain/core'
 import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData } from '../domain/types'
 import { catalogArtwork, menuIcon, type MenuIcon } from '../catalog/sprites'
@@ -6,9 +6,10 @@ import { definitionIconKey, fieldIconKeys } from '../catalog/menu-icons'
 import { resolveDefinition } from '../domain/definitions'
 import { ArtworkPlaceholder, CatalogArtwork } from './WikiSprite'
 import { Sources } from './Sources'
+import { LocalArtworkContext } from './mods/PrivateArtwork'
 
 const ICON_SIZE = 24
-export const LocalArtworkContext = createContext<Readonly<Record<string, string>>>({})
+export { LocalArtworkContext } from './mods/PrivateArtwork'
 
 function IconImage({ icon, iconKey, placeholderKind = 'other' }: { icon: MenuIcon; iconKey: string; placeholderKind?: CatalogEntityKind }) {
   const [failed, setFailed] = useState(false)
@@ -27,16 +28,21 @@ export function GameIcon({ iconKey, placeholderKind }: { iconKey?: string; place
   return icon && iconKey ? <IconImage icon={icon} iconKey={iconKey} key={`${iconKey}:${icon.asset.file}`} placeholderKind={placeholderKind}/> : null
 }
 
+function LocalDefinitionImage({ url }: { readonly url: string }) {
+  const [failed, setFailed] = useState(false)
+  return failed ? <ArtworkPlaceholder compact entity={{ kind: 'other', name: 'Local artwork unavailable' }}/> : <img alt="" className="game-icon" decoding="async" height={ICON_SIZE} onError={() => { if (url.startsWith('blob:')) URL.revokeObjectURL(url); setFailed(true) }} src={url} width={ICON_SIZE}/>
+}
+
 export function DefinitionArtwork({ localData, catalogs, value, compact = true }: { localData: LocalData; catalogs: readonly CatalogSnapshot[]; value?: EntityRef | null; compact?: boolean }) {
   const localArtwork = useContext(LocalArtworkContext)
   if (!value) return null
   const localImage = localArtwork[entityDefinitionKey(value)]
-  if (localImage) return <img alt="" className="game-icon" decoding="async" height={ICON_SIZE} src={localImage} width={ICON_SIZE}/>
+  if (localImage) return <LocalDefinitionImage key={localImage} url={localImage}/>
   const entity = resolveDefinition(localData, catalogs, value)
   if (!entity) return <ArtworkPlaceholder compact={compact} entity={{ kind: 'other', name: 'Unresolved definition' }}/>
   if (value.kind === 'catalog') {
     const artworkEntity = { ...entity, id: value.entityId }
-    if (catalogArtwork(value.catalogId, artworkEntity)) return <CatalogArtwork catalogId={value.catalogId} compact={compact} entity={artworkEntity}/>
+    if (catalogArtwork(value.catalogId, artworkEntity) || entity.fields['Source mod project ID']) return <CatalogArtwork catalogId={value.catalogId} catalogRevisionId={value.catalogRevisionId} compact={compact} entity={artworkEntity}/>
   }
   const iconKey = definitionIconKey(entity)
   if (iconKey) return <GameIcon iconKey={iconKey} placeholderKind={entity.kind}/>

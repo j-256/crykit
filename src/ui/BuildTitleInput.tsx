@@ -9,12 +9,13 @@ interface BuildTitleInputProps {
   readonly required?: boolean
   readonly fallback?: string
   readonly hint?: string
+  readonly label?: string
 }
 
-export function BuildTitleInput({ value, onChange, disabled, formId, required = false, fallback = 'New Build', hint }: BuildTitleInputProps) {
+export function BuildTitleInput({ value, onChange, disabled, formId, required = false, fallback = 'New Build', hint, label = 'Build title' }: BuildTitleInputProps) {
   return <h1 aria-label={value.trim() || fallback} className="build-title-input">
     {/* The header lives outside the editor form, so keep native submission and validation associated by ID */}
-    <input aria-description={hint} aria-label="Build title" className="build-title-input__field" disabled={disabled} form={formId} maxLength={MAX_SHORT_TEXT_LENGTH} onChange={event => onChange(event.target.value)} placeholder={fallback} required={required} title={hint} type="text" value={value}/>
+    <input aria-description={hint} aria-label={label} className="build-title-input__field" disabled={disabled} form={formId} maxLength={MAX_SHORT_TEXT_LENGTH} onChange={event => onChange(event.target.value)} placeholder={fallback} required={required} title={hint} type="text" value={value}/>
     <Icon className="build-title-input__icon" name="edit"/>
   </h1>
 }

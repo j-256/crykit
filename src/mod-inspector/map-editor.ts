@@ -98,12 +98,22 @@ function validateCoord(coord: PlacementCoord): void {
   if (![coord.X, coord.Y, coord.Z].every(value => Number.isSafeInteger(value) && value >= MAP_EDITOR_LIMITS.intMin && value <= MAP_EDITOR_LIMITS.intMax)) throw new Error('Placement coordinates must be signed 32-bit integers.')
 }
 
-export function moveMapPlacement(text: string, id: number, coord: PlacementCoord): string {
+function prepareMapMove(text: string, id: number, coord: PlacementCoord) {
   validateCoord(coord)
   const { document, project } = requireProject(text)
   const placement = project.placements.find(record => record.id === id)
   if (!placement) throw new Error('The selected placement is unavailable; select it again.')
   if (placement.hasVoxelOutfit && project.placements.some(other => other.id !== id && other.hasVoxelOutfit && other.coord.X === coord.X && other.coord.Y === coord.Y && other.coord.Z === coord.Z)) throw new Error('This move overlaps another authored voxel placement. Choose another cell or height.')
+  return { document, placement }
+}
+
+// Hydration shares every mutation precondition without constructing or applying a text patch
+export function validateMapPlacementMove(text: string, id: number, coord: PlacementCoord): void {
+  prepareMapMove(text, id, coord)
+}
+
+export function moveMapPlacement(text: string, id: number, coord: PlacementCoord): string {
+  const { document, placement } = prepareMapMove(text, id, coord)
   // Patch only coordinate leaves so unknown properties, scripts and exact numeric lexemes survive
   const patches = (['X', 'Y', 'Z'] as const).flatMap(axis => {
     if (placement.coord[axis] === coord[axis]) return []
@@ -118,18 +128,28 @@ export function moveMapPlacement(text: string, id: number, coord: PlacementCoord
 
 export interface VoxelBlockOptions { readonly biomeId: number; readonly voxelId: number; readonly lastNativeEntityId: number; readonly knownVoxelIds: readonly number[] }
 
-export function addVoxelPlatform(text: string, options: VoxelBlockOptions & { readonly coord: PlacementCoord; readonly width: number; readonly depth: number }): string {
+export interface VoxelPlatformOptions extends VoxelBlockOptions { readonly coord: PlacementCoord; readonly width: number; readonly depth: number }
+
+function platformCoordinates(options: VoxelPlatformOptions): readonly PlacementCoord[] {
   validateCoord(options.coord)
   if (![options.width, options.depth].every(value => Number.isInteger(value) && value > 0 && value <= MAP_EDITOR_LIMITS.brushSide)) throw new Error(`Platform width and depth must be between 1 and ${MAP_EDITOR_LIMITS.brushSide}.`)
   const coords = Array.from({ length: options.width * options.depth }, (_, index) => ({ X: options.coord.X + Math.floor(index / options.depth), Y: options.coord.Y, Z: options.coord.Z + index % options.depth }))
-  return addVoxelBlocks(text, coords, options, false)
+  return coords
+}
+
+export function validateVoxelPlatform(text: string, options: VoxelPlatformOptions): void {
+  prepareVoxelBlocks(text, platformCoordinates(options), options, false)
+}
+
+export function addVoxelPlatform(text: string, options: VoxelPlatformOptions): string {
+  return addVoxelBlocks(text, platformCoordinates(options), options, false)
 }
 
 export function paintVoxelBlocks(text: string, coords: readonly PlacementCoord[], options: VoxelBlockOptions): string {
   return addVoxelBlocks(text, coords, options, true)
 }
 
-function addVoxelBlocks(text: string, coords: readonly PlacementCoord[], options: VoxelBlockOptions, skipOccupied: boolean): string {
+function prepareVoxelBlocks(text: string, coords: readonly PlacementCoord[], options: VoxelBlockOptions, skipOccupied: boolean) {
   const { document, project } = requireProject(text)
   if (coords.length > MAP_EDITOR_LIMITS.strokeCells) throw new Error('The brush stroke exceeds the block limit. Release and start another stroke.')
   if (!Number.isInteger(options.biomeId) || options.biomeId < 0 || options.biomeId > MAP_EDITOR_LIMITS.byteMax) throw new Error('Choose a valid biome ID.')
@@ -146,10 +166,17 @@ function addVoxelBlocks(text: string, coords: readonly PlacementCoord[], options
       if (!skipOccupied) throw new Error('This platform overlaps an existing voxel placement. Choose another cell or height.')
     } else unique.set(key(coord), coord)
   }
-  if (!unique.size) return text
   if (project.placements.length + unique.size > MAP_EDITOR_LIMITS.entities) throw new Error('This brush exceeds the map editor entity limit.')
-  let id = Math.max(options.lastNativeEntityId, ...project.placements.map(placement => placement.id))
+  const id = Math.max(options.lastNativeEntityId, ...project.placements.map(placement => placement.id))
   if (id + unique.size > MAP_EDITOR_LIMITS.intMax) throw new Error('There are no safe entity IDs left for this brush.')
+  return { document, project, unique, id }
+}
+
+function addVoxelBlocks(text: string, coords: readonly PlacementCoord[], options: VoxelBlockOptions, skipOccupied: boolean): string {
+  const prepared = prepareVoxelBlocks(text, coords, options, skipOccupied)
+  const { document, project, unique } = prepared
+  if (!unique.size) return text
+  let id = prepared.id
   const records: string[] = []
   for (const coord of unique.values()) {
     // The inspected loader redirects added IDs above the native boundary

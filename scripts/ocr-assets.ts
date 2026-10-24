@@ -12,12 +12,11 @@ export function ocrAssets(): Plugin {
     ['ocr/tesseract-license.txt', join(dirname(require.resolve('tesseract.js/package.json')), 'LICENSE.md')],
     ['ocr/core-license.txt', join(dirname(require.resolve('tesseract.js-core/package.json')), 'LICENSE')],
   ])
-  // OEM.LSTM_ONLY selects one of these cores according to browser SIMD support
+  // Each wrapper embeds its complete WASM payload; separate binaries only duplicate the download
+  // Keep every SIMD fallback available because the worker chooses according to browser support
   for (const variant of ['lstm', 'simd-lstm', 'relaxedsimd-lstm']) {
-    for (const extension of ['wasm', 'wasm.js']) {
-      const name = `tesseract-core-${variant}.${extension}`
-      assets.set(`ocr/${name}`, join(dirname(require.resolve('tesseract.js-core/package.json')), name))
-    }
+    const name = `tesseract-core-${variant}.wasm.js`
+    assets.set(`ocr/${name}`, join(dirname(require.resolve('tesseract.js-core/package.json')), name))
   }
   return {
     name: 'local-ocr-assets',

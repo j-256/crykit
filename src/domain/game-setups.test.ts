@@ -3,6 +3,8 @@ import { createPlaythroughWithSetup, latestGameSetups } from './game-setups'
 import { createTestLocalData, TEST_NOW } from './test-helpers'
 import { requirePlaythrough } from './core'
 import { createPlaythrough, selectPlaythrough, updateGameSetupRevision } from './local-data'
+import { previewCrystalEdit } from '../interchange/crystal-edit'
+import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
 
 describe('explicit tracking settings', () => {
   it('starts a fresh playthrough with Standard mode, Normal difficulty, and empty records', () => {
@@ -28,6 +30,16 @@ describe('explicit tracking settings', () => {
     expect(requirePlaythrough(next).currentGameSetupRevisionId).toBe(setupId)
     expect(requirePlaythrough(next).characters).toEqual({})
     expect(next.gameSetups).toEqual(original.gameSetups)
+  })
+
+  it('applies a saved exact mod default only to a fresh Playthrough setup', async () => {
+    const original = createTestLocalData()
+    const catalog = (await previewCrystalEdit(new TextEncoder().encode('{"ID":"playthrough-default","EditorVersion":34,"Items":[{"ID":1,"Name":"Item"}]}'), 'default.json')).proposed.catalogs[0]!
+    const next = createPlaythroughWithSetup(original, { label: 'Fresh modded game', catalogLock: { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId }, defaultMods: { defaults: { version: 1, layers: [{ catalogId: catalog.id, catalogRevisionId: catalog.revisionId, enabled: true }] }, catalogs: [...BUNDLED_CATALOGS, catalog] }, now: TEST_NOW, expectedRevision: original.revision })
+    const setup = next.gameSetups[requirePlaythrough(next).currentGameSetupRevisionId!]!
+    expect(setup.modComposition?.layers).toContainEqual({ catalogId: catalog.id, catalogRevisionId: catalog.revisionId, enabled: true })
+    expect(setup.modSourceReceipts).toContainEqual(expect.objectContaining({ catalogId: catalog.id, catalogRevisionId: catalog.revisionId }))
+    expect(next.gameSetups[original.planningGameSetupRevisionId!]).toEqual(original.gameSetups[original.planningGameSetupRevisionId!])
   })
 
   it('does not carry another playthrough settings into an unconfigured legacy playthrough', () => {

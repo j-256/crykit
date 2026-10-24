@@ -5,7 +5,7 @@ import { homedir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
 
 const RECORD_VERSION = 1
-const VERIFICATION_STEPS = Object.freeze({ checks: 'check:deterministic', build: 'build:assets', browser: 'test:e2e' })
+const VERIFICATION_STEPS = Object.freeze({ prepare: 'prepare:verification', checks: 'check:deterministic:base', tests: 'test:vitest:prepared', browser: 'test:e2e', accounts: 'test:e2e:accounts:prepared' })
 const VERIFICATION_COMMANDS = Object.freeze(Object.values(VERIFICATION_STEPS))
 const OBJECT_ID_PATTERN = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/
 const MAX_GIT_OUTPUT_BYTES = 32 * 1024 * 1024
@@ -62,27 +62,30 @@ function passedRecord(record, tree) {
 }
 
 async function runNpm(command, { cwd, env }) {
+  const started = performance.now()
   process.stderr.write(`[verify] npm run ${command}\n`)
   await new Promise((resolve, reject) => {
     const child = spawn('npm', ['run', command], { cwd, env, stdio: 'inherit' })
     child.once('error', error => reject(new VerificationError(error.code === 'ENOENT' ? 'npm is required' : `Unable to run npm run ${command}`, error.code === 'ENOENT' ? 3 : 1)))
-    child.once('exit', (code, signal) => code === 0 ? resolve() : reject(new VerificationError(`npm run ${command} failed${signal ? ` (${signal})` : ''}; no publication record was created`, code || 1)))
+    child.once('exit', (code, signal) => {
+      process.stderr.write(`[verify] npm run ${command}: ${code === 0 ? 'passed' : 'failed'} in ${((performance.now() - started) / 1000).toFixed(3)}s\n`)
+      code === 0 ? resolve() : reject(new VerificationError(`npm run ${command} failed${signal ? ` (${signal})` : ''}; no publication record was created`, code || 1))
+    })
   })
 }
 
 async function runVerificationCommands(run, options) {
-  let checksFailed = false
-  const checks = (async () => {
-    try { await run(VERIFICATION_STEPS.checks, options) }
-    catch (error) { checksFailed = true; throw error }
-  })()
-  const browsers = (async () => {
-    // Deterministic checks own typechecking so concurrent builds cannot race on incremental compiler output
-    await run(VERIFICATION_STEPS.build, options)
-    if (!checksFailed) await run(VERIFICATION_STEPS.browser, options)
-  })()
-  // Retain coordinator ownership until every running command settles, including after a sibling fails
-  const results = await Promise.allSettled([checks, browsers])
+  // Finish every mutable build producer before consumers copy or load its output
+  // Standalone test commands still prepare their own inputs; the full gate prepares them once
+  await run(VERIFICATION_STEPS.prepare, options)
+  // Reject prerequisite failures before starting the long suite
+  // Cancelling an active Vitest case can run teardown before its database command finishes
+  await run(VERIFICATION_STEPS.checks, options)
+  await run(VERIFICATION_STEPS.tests, options)
+  // Archive admission has measured deadline failures when browser preparation competes with it
+  // Keep that CPU-heavy phase separate, then overlap independent browser suites
+  // Retain coordinator ownership until every running sibling settles even after a failure
+  const results = await Promise.allSettled([VERIFICATION_STEPS.browser, VERIFICATION_STEPS.accounts].map(command => (async () => run(command, options))()))
   const failed = results.find(result => result.status === 'rejected')
   if (failed) throw failed.reason
 }

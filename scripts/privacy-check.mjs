@@ -22,6 +22,7 @@ try {
 if (options.help) { process.stdout.write(USAGE); process.exit(0) }
 
 const forbiddenPaths = [
+  /(^|\/)(?:\.account-tests|\.dev\.vars|[^/]+-service-secrets\.json)(?:\/|$|\.)/i,
   /(^|\/)(private|imports|backups|node_modules|\.env)(\/|$|\.)/i,
   /(^|\/)crystal_project_.*\.(md|html|json|xlsx|zip)$/i,
   /\.(xlsx|zip|sqlite|db|pem|key)$/i,
@@ -29,12 +30,13 @@ const forbiddenPaths = [
 const reviewedWorkflows = new Set(['.github/workflows/deploy.yml'])
 const machineRoot = '/' + 'Users' + '/'
 const scratchRoots = ['w', 'c', 'z'].map(name => '/' + name + '/')
+const reviewedPublicEmailAddresses = new Set(['abuse@crykit.lasers.app'])
 const forbiddenContent = [
   { label: 'machine-local path', pattern: new RegExp(machineRoot.replaceAll('/', '\\/')) },
   { label: 'personal scratch path', pattern: new RegExp(`(?:^|[\\s"'\x60(])(?:${scratchRoots.join('|')})`, 'm') },
   { label: 'credential', pattern: /\b(?:gh[pousr]_[A-Za-z0-9]{25,}|github_pat_[A-Za-z0-9_]{25,}|AKIA[A-Z0-9]{16})\b/ },
   { label: 'private key', pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
-  { label: 'personal email', pattern: /\b[A-Z0-9._%+-]+@(?!example\.(?:com|org|net)\b|users\.noreply\.github\.com\b)[A-Z0-9.-]+\.[A-Z]{2,}\b/i },
+  { label: 'personal email', pattern: /\b[A-Z0-9._%+-]+@(?!example\.(?:com|org|net)\b|users\.noreply\.github\.com\b)[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, allowedMatches: reviewedPublicEmailAddresses },
 ]
 
 function git(args) {
@@ -108,8 +110,10 @@ for (const file of new Set(files)) {
   }
   if (bytes.includes(0)) { findings.push(`${file}: unreviewed binary content`); continue }
   const contents = bytes.toString('utf8')
-  for (const { label, pattern } of forbiddenContent) {
-    if (pattern.test(contents)) findings.push(`${file}: ${label}`)
+  for (const { label, pattern, allowedMatches } of forbiddenContent) {
+    // Review complete addresses so an approved alias cannot hide another address on the same line
+    const forbidden = allowedMatches ? [...contents.matchAll(pattern)].some(match => !allowedMatches.has(match[0].toLowerCase())) : pattern.test(contents)
+    if (forbidden) findings.push(`${file}: ${label}`)
   }
 }
 if (findings.length) {

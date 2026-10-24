@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseDocument } from './document'
-import { deriveInspectorFileInfo, readInspectorFileInfo, INSPECTOR_FILE_INFO_TEXT_LIMIT } from './file-info'
+import { deriveInspectorFileInfo, readInspectorFileInfo, INSPECTOR_FILE_INFO_TEXT_LIMIT, inspectorInputFileInfo, withInspectorInputFileInfo } from './file-info'
 
 describe('inspector file presentation metadata', () => {
   it('reads exact root strings without interpreting document identity', () => {
@@ -27,5 +27,30 @@ describe('inspector file presentation metadata', () => {
     expect(whitespace.projectId).toBe(info.title)
     expect(document.text).toContain(title)
     for (const cache of [null, {}, { ...info, schemaVersion: 2 }, { ...info, edited: 'false' }, { ...info, title }, { ...info, titleState: 'missing' }, { ...info, title: '   ' }]) expect(readInspectorFileInfo(cache)).toBeUndefined()
+  })
+
+  it('copies legacy optional hints into strict JSON without changing their meaning', () => {
+    const info = readInspectorFileInfo(deriveInspectorFileInfo(parseDocument('{}'), false))!
+    expect(Object.hasOwn(info, 'title')).toBe(true)
+    const fields = withInspectorInputFileInfo({ unknown: '\ud800' }, info)
+    expect(fields).toStrictEqual(JSON.parse(JSON.stringify(fields)))
+    expect(inspectorInputFileInfo(fields)).toEqual(info)
+    expect(info).toHaveProperty('title', undefined)
+  })
+
+  it('keeps display hints in inert input without replacing unknown values or future hint versions', () => {
+    const info = deriveInspectorFileInfo(parseDocument('{"Title":"Bounded label","Version":"1"}'), false)
+    const fields = { tab: 'map', unknown: { preserved: 'Exact input' } }
+    const result = withInspectorInputFileInfo(fields, info)
+    expect(result).toEqual({ ...fields, fileInfo: info })
+    expect(inspectorInputFileInfo(result)).toEqual(info)
+    expect(fields).toEqual({ tab: 'map', unknown: { preserved: 'Exact input' } })
+    const future = { fileInfo: { schemaVersion: 9, unknown: 'Keep this exact cache' }, tab: 'map' }
+    expect(withInspectorInputFileInfo(future, info)).toBe(future)
+    expect(inspectorInputFileInfo(future)).toBeUndefined()
+    for (const opaque of ['unknown input', [1, 2], 42]) {
+      expect(withInspectorInputFileInfo(opaque, info)).toBe(opaque)
+      expect(inspectorInputFileInfo(opaque)).toBeUndefined()
+    }
   })
 })

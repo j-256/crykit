@@ -1,26 +1,12 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import type { LocalData } from '../src/domain/types'
 import { formatAppRoute, type AppRoute } from '../src/ui/navigation'
-import { openCurrentGameSetup, openGameSetupSection, selectedPlaythrough, skipInitialModSetup } from './local-data-helpers'
+import { openCurrentGameSetup, openGameSetupSection, selectedPlaythrough, skipInitialModSetup, readLocalData as storedData } from './local-data-helpers'
 import { chooseTeamCheckpoint, teamCheckpointControl } from './team-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 
 const MIN_DEEP_SCROLL_PX = 100
 const LAYOUT_TOLERANCE_PX = 1
 const inventoryRoute: AppRoute = { page: { page: 'inventory', view: 'list' }, overlays: [], query: {} }
-
-async function storedData(page: Page): Promise<LocalData> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const read = database.transaction('localDatas', 'readonly').objectStore('localDatas').get('local-data-record')
-      read.onerror = () => { database.close(); reject(read.error) }
-      read.onsuccess = () => { database.close(); resolve(read.result.localData) }
-    }
-  }))
-}
 
 async function attemptRoute(page: Page, route: AppRoute): Promise<void> {
   // A browser history attempt avoids a locator click scrolling the warning into view for the test
@@ -72,6 +58,7 @@ test('repeated blocked Team navigation reveals all recovery choices between fixe
   await skipInitialModSetup(page)
   const before = await storedData(page)
   await page.goto(formatAppRoute({ page: { page: 'teams', view: 'new' }, overlays: [], query: {} }))
+  await page.getByRole('combobox', { name: /^Choose shared setup/ }).selectOption(before.planningGameSetupRevisionId!)
   await page.getByRole('textbox', { name: 'Team name', exact: true }).fill('Synthetic deep Team draft')
   const revisions = Object.values(before.builds).map(build => build.latestRevisionId!)
   for (let index = 0; index < 4; index += 1) await chooseTeamCheckpoint(page, index + 1, revisions[index]!)

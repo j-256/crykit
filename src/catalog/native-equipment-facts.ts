@@ -1,4 +1,5 @@
 import { bundledCatalogForSnapshot } from './bundled'
+import { sameCatalogLegacy } from '../interchange/native'
 import { NATIVE_GAME_DATA } from './native-game'
 import { nativeDescription, nativeDescriptionSourceMatches } from './native-description'
 import { FLAT_STAT_FIELDS } from './native-field-facts'
@@ -27,7 +28,7 @@ export function nativeEquipmentFacts(catalog: CatalogSnapshot, entity: CatalogEn
   const baseline = snapshot?.entities[entity.id]
   const identity = nativeIdentity(entity)
   const record = nativeSourceRecord(entity)
-  if (!snapshot || catalog.legacy !== snapshot?.legacy && !sameValue(catalog.legacy, snapshot?.legacy) || !nativeRecord(catalog.legacy) || catalog.legacy.sourceContentDigest !== NATIVE_GAME_DATA.contentDigest || !nativeDescriptionSourceMatches(NATIVE_GAME_DATA) || !baseline || identity?.database !== 'equipment' || !record || entity !== baseline && !sameValue(baseline, entity) && !sameValue(projectSourceSemantics(baseline), entity)) return undefined
+  if (!snapshot || !sameCatalogLegacy(catalog, snapshot) || !nativeRecord(catalog.legacy) || catalog.legacy.sourceContentDigest !== NATIVE_GAME_DATA.contentDigest || !nativeDescriptionSourceMatches(NATIVE_GAME_DATA) || !baseline || identity?.database !== 'equipment' || !record || entity !== baseline && !sameValue(baseline, entity) && !sameValue(projectSourceSemantics(baseline), entity)) return undefined
   if (!Array.isArray(record.StatMods) || !record.StatMods.every(modifier => nativeRecord(modifier) && ['Tag', 'Value1', 'Value2', 'Value3'].every(field => typeof modifier[field] === 'number' && Number.isSafeInteger(modifier[field])) && typeof NATIVE_GAME_DATA.enums.SangStatModTag?.[String(modifier.Tag)] === 'string')) return undefined
   const sources = entity.sources.filter(source => source.sourceId.startsWith(NATIVE_SOURCE_PREFIX))
   const locator = sources.find(source => source.locator)?.locator ?? `Native equipment ID ${identity.databaseId}; ${identity.mode} mode`

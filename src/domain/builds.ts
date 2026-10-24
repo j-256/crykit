@@ -1,4 +1,7 @@
+import { publicContextForNoteEdit } from './public-source-context'
+import { assertRetainedSelections, retainedSelectionRefs } from './retained-selections'
 import {
+  entityDefinitionKey,
   asTimestamp,
   assertExpectedRevision,
   assertPersonalDefinitionRef,
@@ -146,18 +149,8 @@ export function cloneBuild(localData: LocalData, input: CloneBuildInput): LocalD
     throw new DomainError('DUPLICATE_ID', `Build revision already exists: ${revisionId}`)
   }
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
-  const content: BuildRevisionContent = {
-    primaryClass: sourceRevision.content.primaryClass,
-    secondaryClass: sourceRevision.content.secondaryClass,
-    equipment: Object.fromEntries(Object.entries(sourceRevision.content.equipment).map(([slotId, selection]) => [
-      slotId,
-      selection === null ? null : { ...selection },
-    ])),
-    passives: sourceRevision.content.passives.map(selection => ({ ...selection })),
-    ...(sourceRevision.content.rotationNotes === undefined ? {} : { rotationNotes: sourceRevision.content.rotationNotes }),
-    contextAssumptions: [...sourceRevision.content.contextAssumptions],
-    ...(sourceRevision.content.calculation ? { calculation: structuredClone(sourceRevision.content.calculation) } : {}),
-  }
+  // Copies keep private unresolved receipts and display names so reopening cannot grant old mechanics
+  const content: BuildRevisionContent = structuredClone(sourceRevision.content)
   const revision: BuildRevision = {
     id: revisionId,
     buildId: id,
@@ -165,6 +158,7 @@ export function cloneBuild(localData: LocalData, input: CloneBuildInput): LocalD
     gameSetupRevisionId: sourceRevision.gameSetupRevisionId,
     catalogLock: { ...sourceRevision.catalogLock },
     content,
+    ...(sourceRevision.publicSourceContext ? { publicSourceContext: structuredClone(sourceRevision.publicSourceContext) } : {}),
     createdAt: at,
     ...(sourceRevision.note === undefined ? {} : { note: sourceRevision.note }),
   }
@@ -308,12 +302,16 @@ export function saveBuildRevision(localData: LocalData, input: SaveBuildRevision
   if (localData.buildRevisions[id]) {
     throw new DomainError('DUPLICATE_ID', `Build revision already exists: ${id}`)
   }
+  const previous = localData.buildRevisions[input.parentRevisionId ?? current.latestRevisionId ?? '']
+  const publicSourceContext = publicContextForNoteEdit(previous, gameSetup, [input.content])
   const catalogLock = input.catalogLock ?? gameSetup.catalogLock
+  assertRetainedSelections(localData, input.content, gameSetup, catalogLock)
+  const retained = retainedSelectionRefs(input.content)
   const slotIds = new Set(gameSetup.slots.map((slot) => slot.id as string))
   const assertBuildRef = (ref: import('./types').EntityRef, label: string) => {
-    assertPersonalDefinitionRef(localData, ref)
+    if (!(ref.kind === 'personal' && localData.unavailableDefinitions?.some(receipt => entityDefinitionKey(receipt.ref) === entityDefinitionKey(ref)))) assertPersonalDefinitionRef(localData, ref)
     const rootRef = definitionLineageRootRef(localData, ref)
-    if (rootRef.kind === 'catalog' && catalogLock[rootRef.catalogId] !== rootRef.catalogRevisionId) {
+    if (rootRef.kind === 'catalog' && !retained.has(entityDefinitionKey(ref)) && catalogLock[rootRef.catalogId] !== rootRef.catalogRevisionId) {
       throw new DomainError('INVALID_INPUT', `${label} falls outside the build catalog lock`)
     }
   }
@@ -324,7 +322,7 @@ export function saveBuildRevision(localData: LocalData, input: SaveBuildRevision
     validateCalculationPlan(plan, assertBuildRef)
   }
   for (const [slotId, selection] of Object.entries(input.content.equipment)) {
-    if (!slotId.trim() || !slotIds.has(slotId)) {
+    if (!slotId.trim() || !slotIds.has(slotId) && selection !== null && !input.content.retainedSelections?.slotIds.includes(slotId as import('./types').SlotId)) {
       throw new DomainError('INVALID_INPUT', `Build selection references an unknown Game Setup slot: ${slotId}`)
     }
     if (!selection) continue
@@ -342,6 +340,7 @@ export function saveBuildRevision(localData: LocalData, input: SaveBuildRevision
     gameSetupRevisionId: input.gameSetupRevisionId,
     catalogLock,
     content: input.content,
+    ...(publicSourceContext ? { publicSourceContext } : {}),
     createdAt: at,
     ...(input.parentRevisionId === undefined ? {} : { parentRevisionId: input.parentRevisionId }),
     ...(input.note === undefined ? {} : { note: input.note }),

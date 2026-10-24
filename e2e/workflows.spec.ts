@@ -1,5 +1,5 @@
 import { MOBILE_TEST_TAG } from './test-tags'
-import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData, waitForPlannerReady } from './local-data-helpers'
+import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData, waitForPlannerReady, choosePlaythrough } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -78,7 +78,8 @@ async function exportPayload(page: Page) {
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const downloadPromise = page.waitForEvent('download')
-  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
+  await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const download = await downloadPromise
   expect(download.suggestedFilename()).toMatch(/\.zip$/)
   const path = await download.path()
@@ -153,7 +154,7 @@ test('empty and oversized imports reject before reading file bytes', async ({ pa
     await page.evaluate((claimedSize) => {
       Object.defineProperty(File.prototype, 'size', { configurable: true, get: () => claimedSize })
     }, size)
-    await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-size-check.json', mimeType: 'application/json', buffer: Buffer.from('{}') })
+    await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-size-check.json', mimeType: 'application/json', buffer: Buffer.from('{}') })
     await expect(panel.getByRole('alert')).toContainText(size === 0 ? 'The selected file is empty' : 'The selected file exceeds the 32 MiB local import limit')
     expect(await page.evaluate(() => (window as Window & { importFileReads?: number }).importFileReads)).toBe(0)
     await expect(panel.getByText('Import preview', { exact: true })).not.toBeVisible()
@@ -164,7 +165,7 @@ test('empty and oversized imports reject before reading file bytes', async ({ pa
 
 test('import previews before writing and native restore keeps original source bytes', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const panel = await openData(page)
-  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-research.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(SYNTHETIC_RESEARCH)) })
+  await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-research.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(SYNTHETIC_RESEARCH)) })
   await expect(panel.getByText('Import preview', { exact: true })).toBeVisible()
   await expect(panel.locator('[aria-label="Records in this file"]')).toContainText('Reference records')
   await expect(panel.getByText('Replace your planner data', { exact: true })).toBeVisible()
@@ -173,6 +174,7 @@ test('import previews before writing and native restore keeps original source by
   await expect(panel.locator('.import-preview .import-preview__details')).not.toHaveAttribute('open')
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
+  await choosePlaythrough(page, 'Imported playthrough')
   await expect(page.getByRole('heading', { name: 'Record your first item' })).toBeVisible()
   await page.getByRole('button', { name: 'Reference', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Reference', exact: true })).toBeVisible()
@@ -196,7 +198,7 @@ test('import previews before writing and native restore keeps original source by
   const manifest = JSON.parse(strFromU8(files['manifest.json']!))
   expect(manifest.sources.some((source: { path: string }) => strFromU8(files[source.path]!) === JSON.stringify(SYNTHETIC_RESEARCH))).toBe(true)
   const restore = await openData(page)
-  await restore.locator('input[type="file"]').setInputFiles({ name: 'synthetic-backup.zip', mimeType: 'application/zip', buffer: bytes })
+  await restore.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-backup.zip', mimeType: 'application/zip', buffer: bytes })
   await restore.getByText('File details and source notices', { exact: true }).click()
   await expect(restore.getByText('native-backup-2.1.0', { exact: true })).toBeVisible()
   await replacePlannerData(restore)
@@ -210,11 +212,12 @@ test('import previews before writing and native restore keeps original source by
 test('an imported Game Setup preserves unknown rules while difficulty remains editable', async ({ page }) => {
   const panel = await openData(page)
   const research = { ...SYNTHETIC_RESEARCH, player_context: { platform: 'Nintendo Switch' } }
-  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-game-setup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(research)) })
+  await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-game-setup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(research)) })
   await panel.getByRole('combobox', { name: /^Import action/ }).selectOption('replace')
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
 
+  await choosePlaythrough(page, 'Imported playthrough')
   const settings = await openData(page)
   await openCurrentGameSetup(settings)
   await openGameSetupSection(settings, 'Rules from game data')
@@ -241,7 +244,7 @@ test('large previews bound warning and facet elements while keeping every facet 
     passives: Array.from({ length: 250 }, (_, index) => ({ id: `synthetic:unnamed-${index}` })),
   }
   const panel = await openData(page)
-  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-large-facets.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(reference)) })
+  await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-large-facets.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(reference)) })
   await expect(panel.getByText('Import preview', { exact: true })).toBeVisible()
   await expect(panel.getByText('Additional warnings omitted', { exact: true })).toBeVisible()
   const warningRows = await panel.getByText('passives contains a row without a supported name field', { exact: true }).count()
@@ -263,13 +266,13 @@ test('large previews bound warning and facet elements while keeping every facet 
 
 test('replacement confirmation belongs to one import preview', async ({ page }) => {
   const panel = await openData(page)
-  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-first-preview.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(SYNTHETIC_RESEARCH)) })
+  await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-first-preview.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(SYNTHETIC_RESEARCH)) })
   const action = panel.getByRole('combobox', { name: /^Import action/ })
   await action.selectOption('replace')
   await panel.getByRole('checkbox', { name: /Replace all planner data/ }).check()
   await expect(panel.getByRole('button', { name: 'Replace planner data', exact: true })).toBeEnabled()
   await panel.getByRole('button', { name: 'Choose another file', exact: true }).click()
-  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-second-preview.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...SYNTHETIC_RESEARCH, synthetic_note: 'Different preview' })) })
+  await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-second-preview.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...SYNTHETIC_RESEARCH, synthetic_note: 'Different preview' })) })
   await expect(action).toHaveValue('replace')
   await expect(panel.getByRole('checkbox', { name: /Replace all planner data/ })).not.toBeChecked()
   await expect(panel.getByRole('button', { name: 'Replace planner data', exact: true })).toBeDisabled()
@@ -307,7 +310,7 @@ test('Playthrough switching isolates records and undo restores the previous obse
 
 test('reference facets combine alternatives and keep unknown numeric values as possible matches', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   const panel = await openData(page)
-  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-facets.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(SYNTHETIC_RESEARCH)) })
+  await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-facets.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(SYNTHETIC_RESEARCH)) })
   await expect(panel.getByText('Import preview', { exact: true })).toBeVisible()
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
@@ -342,9 +345,10 @@ test('reference facets combine alternatives and keep unknown numeric values as p
 
 test('inventory facets and search survive browser back navigation', async ({ page }) => {
   const panel = await openData(page)
-  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-inventory.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(SYNTHETIC_RESEARCH)) })
+  await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-inventory.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(SYNTHETIC_RESEARCH)) })
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
+  await choosePlaythrough(page, 'Imported playthrough')
   for (const name of ['Reed Staff', 'Paper Shield']) {
     await page.getByRole('button', { name: 'Add item', exact: true }).click()
     const form = page.getByRole('dialog', { name: 'Add inventory item', exact: true })
@@ -425,7 +429,7 @@ test('stale tabs cannot overwrite saved planner data and can export their recove
   await expect(stale.getByText('Shared baseline', { exact: true })).toBeVisible()
   await addItem(page, 'Saved in first tab', 1)
   await addItem(page, 'Later first-tab observation', 1)
-  await expect(stale.getByText('Another tab changed the planner data', { exact: true })).toBeVisible()
+  await expect(stale.getByText('Updated data is ready', { exact: true })).toBeVisible()
   await stale.getByRole('button', { name: 'Add item', exact: true }).click()
   const dialog = stale.getByRole('dialog', { name: 'Add inventory item' })
   await dialog.getByRole('button', { name: 'Enter an unlisted item', exact: true }).click()
@@ -446,7 +450,7 @@ test('a quota failure keeps the draft exportable and leaves persisted observatio
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'localDatas') throw new DOMException('Synthetic storage limit', 'QuotaExceededError')
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') throw new DOMException('Synthetic storage limit', 'QuotaExceededError')
       return original.apply(this, args)
     }
   })
@@ -474,7 +478,7 @@ test('retry persists one retained observation after a transient storage failure'
     const original = IDBObjectStore.prototype.put
     let failOnce = true
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'localDatas' && failOnce) {
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1' && failOnce) {
         failOnce = false
         throw new DOMException('Synthetic temporary storage failure', 'QuotaExceededError')
       }
@@ -517,12 +521,8 @@ test('subpath installation stages updates without reloading an open draft', asyn
       let bytes = await readFile(join(process.cwd(), 'dist', relative))
       if (relative === 'sw.js') {
         const source = bytes.toString()
-        const fileList = source.match(/^const FILES = (.*);$/m)
-        if (!fileList) throw new Error('The offline asset list is unavailable')
-        const files = JSON.parse(fileList[1]) as string[]
-        // This journey checks update staging; full asset caching has separate offline coverage
-        const shellFiles = files.filter(file => file === 'index.html' || file === 'icon.svg' || file === 'manifest.webmanifest' || file.endsWith('.js') || file.endsWith('.css'))
-        bytes = Buffer.from(source.replace(/^const CACHE_NAME = .*;$/m, `const CACHE_NAME = 'crykit-shell-test-build-${generation}';`).replace(/^const FILES = .*;$/m, `const FILES = ${JSON.stringify(shellFiles)};`))
+        // Keep production download groups intact; the core already bounds this update-staging fixture
+        bytes = Buffer.from(source.replace(/^const CACHE_NAME = .*;$/m, `const CACHE_NAME = 'crykit-shell-test-build-${generation}';`))
       }
       response.writeHead(200, { 'Content-Type': mimeTypes[extname(relative)] ?? 'application/octet-stream', 'Cache-Control': 'no-store', Vary: 'Origin' })
       response.end(bytes)

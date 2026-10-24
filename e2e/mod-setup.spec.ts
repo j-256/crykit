@@ -1,13 +1,17 @@
 import { importSyntheticLibrary, SYNTHETIC_LIBRARY_ROOTS } from './mod-library-fixtures'
 import { expect, test, type Page } from '@playwright/test'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { skipInitialModSetup } from './local-data-helpers'
+import { skipInitialModSetup, selectedGuestPlannerName, waitForPlannerReady } from './local-data-helpers'
+import { readManagedGuestWorkspace } from './guest-planner-reader'
 import type { LocalData } from '../src/domain/types'
 
 async function stored(page: Page) {
-  return page.evaluate(async () => {
+  const managed = await readManagedGuestWorkspace(page)
+  if (managed) return { data: managed.planner.localData, catalogs: managed.planner.catalogs.map(catalog => ({ id: catalog.id, revisionId: catalog.revisionId })), sources: managed.planner.sources.map(source => source.original.byteLength) }
+  const name = await selectedGuestPlannerName(page)
+  return page.evaluate(async name => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('crykit')
+      const request = indexedDB.open(name)
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
@@ -21,7 +25,7 @@ async function stored(page: Page) {
       const [roots, catalogs, sources] = await Promise.all([read<{ localData: LocalData }>('localDatas'), read<{ id: string; revisionId: string }>('catalogs'), read<{ bytes: Uint8Array }>('sources')])
       return { data: roots[0]!.localData, catalogs: catalogs.map(catalog => ({ id: catalog.id, revisionId: catalog.revisionId })), sources: sources.map(source => source.bytes.byteLength) }
     } finally { database.close() }
-  })
+  }, name)
 }
 
 test('a skipped profile discovers an imported mod in a picker and enables it only for the new Build', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
@@ -55,5 +59,6 @@ test('a skipped profile discovers an imported mod in a picker and enables it onl
   expect(saved.data.referenceLibrary).toEqual(original.data.referenceLibrary)
   expect(saved.sources).toHaveLength(original.sources.length)
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Synthetic Class')
 })

@@ -1,5 +1,5 @@
 import { MOBILE_TEST_TAG } from './test-tags'
-import { skipInitialModSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openSwitchModPacks, replacePlannerData } from './local-data-helpers'
+import { skipInitialModSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openSwitchModPacks, replacePlannerData, choosePlaythrough } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { CLASS_MAP_FIXTURES, observedSkillMapCatalogFixture } from '../src/catalog/skill-maps.test-helpers'
 import { resolveDefinition } from '../src/domain/definitions'
@@ -27,11 +27,12 @@ async function loadFixture(page: Page, localData: LocalData = { ...screenshotTes
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   const archive = zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }) })
   const panel = await dataPanel(page)
-  await panel.locator('input[type="file"]').setInputFiles({ name: 'synthetic-learning.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
+  await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-learning.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await panel.getByText('File details and source notices', { exact: true }).click()
   await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
+  await choosePlaythrough(page, selectedPlaythrough(localData).label)
   await page.goto(`/#/characters/${CHARACTER}/current`)
   return localData
 }
@@ -102,7 +103,8 @@ async function mapSquares(page: Page) {
 async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await dataPanel(page)
   const download = page.waitForEvent('download')
-  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
+  await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const path = await (await download).path()
   const payload = JSON.parse(strFromU8(unzipSync(await readFile(path!))['bundle.json'])) as { localData: LocalData }
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
@@ -170,6 +172,7 @@ test('screenshots compile reviewed names offline, skip duplicates, and preserve 
   const wrong = await syntheticScreenshot(page, 'Equip')
   const panel = await dataPanel(page)
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await panel.getByRole('checkbox', { name: 'Screenshot recognition', exact: true }).check()
   await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(panel)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
@@ -216,7 +219,7 @@ test('failed screenshot writes retain review and recover through Retry save', as
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === 'localDatas') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })

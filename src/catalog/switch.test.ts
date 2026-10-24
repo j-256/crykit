@@ -53,7 +53,7 @@ describe('confirmed Switch skill identities', () => {
       if (entity.ppCost?.state === 'known') expect(entity.ppCost.sources).toContainEqual(expect.objectContaining({ sourceId: SWITCH_PASSIVE_PP_SOURCE.sourceId }))
       if (entity.kind === 'innate') {
         expect(entity.fields[LEARNABLE_INNATE_FIELD]).toMatchObject({ state: 'known', value: true })
-        expect(isPotentiallyLearnableInnate(entity)).toBe(true)
+        expect(isPotentiallyLearnableInnate(entity)).toBe(false)
       }
     }
     for (const [id, reason] of SWITCH_INNATE_PP_NOT_APPLICABLE) {
@@ -66,7 +66,7 @@ describe('confirmed Switch skill identities', () => {
       const entity = STARTER_CATALOG.entities[id]
       expect(entity.ppCost?.state).toBe('unknown')
       expect(entity.fields[LEARNABLE_INNATE_FIELD]).toBeUndefined()
-      expect(isPotentiallyLearnableInnate(entity)).toBe(true)
+      expect(isPotentiallyLearnableInnate(entity)).toBe(false)
     }
   })
 
@@ -106,6 +106,6 @@ it('uses recorded native and mod learning flags while preserving unknown and his
   const entity = { kind: 'innate' as const, fields: { 'Crystal Edit source record': known({ IsLearnable: false }) } }
   expect(isPotentiallyLearnableInnate(entity)).toBe(false)
   expect(isPotentiallyLearnableInnate({ ...entity, fields: { 'Crystal Edit source record': known({ IsLearnable: true }) } })).toBe(true)
-  expect(isPotentiallyLearnableInnate({ ...entity, fields: {} })).toBe(true)
-  expect(isPotentiallyLearnableInnate({ ...entity, fields: { [LEARNABLE_INNATE_FIELD]: known(true), 'Native source record': known({ IsLearnable: false }) } })).toBe(true)
+  expect(isPotentiallyLearnableInnate({ ...entity, fields: {} })).toBe(false)
+  expect(isPotentiallyLearnableInnate({ ...entity, fields: { [LEARNABLE_INNATE_FIELD]: known(true), 'Native source record': known({ IsLearnable: false }) } })).toBe(false)
 })

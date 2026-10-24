@@ -1,26 +1,27 @@
 import { openStatBreakdown } from './calculation-presentation-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import { NATIVE_DATA } from '../src/domain/calculation-rules'
 import type { LocalData } from '../src/domain/types'
-import { SYNTHETIC_LIBRARY_SOURCES, importSyntheticLibrary } from './mod-library-fixtures'
+import { SYNTHETIC_LIBRARY_SOURCES, importSyntheticLibrary, modLibraryTest as test } from './mod-library-fixtures'
 const syntheticSources = { mods: SYNTHETIC_LIBRARY_SOURCES }
 import { CURRENT_CATALOG, DEFAULT_CATALOG, compileBundledSourceId } from '../src/catalog/bundled'
 import { createSampleLocalData } from '../src/domain/sample-data'
 import { createPersonalDefinition } from '../src/domain'
 import { CRYSTAL_PROJECT_WORKSHOP_URL } from '../src/domain/mod-workshop'
 import { expectOfflineReady } from './offline-helpers'
-import { openBuildGameSetup, openGameSetupSection, waitForPlannerReady } from './local-data-helpers'
+import { openBuildGameSetup, openGameSetupSection, waitForPlannerReady, selectedGuestPlannerName, readLocalData as storedData } from './local-data-helpers'
 import { currentReferencePath, referencePath } from './reference-helpers'
 import { createHash } from 'node:crypto'
+import { readManagedGuestWorkspace } from './guest-planner-reader'
+import { blobIdentity } from '../src/workspace/blobs'
+import { readEditorContent } from '../src/workspace/editor-document'
+import type { WorkspaceState } from '../src/workspace/documents'
 import { readFile } from 'node:fs/promises'
 
 const MOD_LIBRARY_JOURNEY_TIMEOUT_MS = 90_000
-
-test.beforeEach(async ({ page }, testInfo) => {
-  if (!testInfo.title.startsWith('upgrades a historical')) await importSyntheticLibrary(page)
-})
+const HISTORICAL_PROFILE_SETUP_TIMEOUT_MS = 60_000
 
 async function includeObservedMod(page: Page, name: string) {
   const card = page.getByRole('region', { name, exact: true })
@@ -83,41 +84,51 @@ test('temporary mod details retain reporting without publishing or editing the c
   expect(await storedData(page)).toEqual(before)
 })
 
-test('upgrades a historical browser profile before Reference changes and a new build save', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
-  const before = createSampleLocalData({ ...DEFAULT_CATALOG, revisionId: 'catalog-v1' as typeof DEFAULT_CATALOG.revisionId })
-  const canonical = createPersonalDefinition(before, { name: 'Synthetic retained definition', kind: 'item' })
-  const legacyIds = ['base:class:warrior', 'base:class:cleric', 'base:class:rogue', 'base:class:wizard', 'base:item:short-sword', 'base:item:buckler', 'base:item:breastplate', 'base:item:short-staff', 'base:item:hemp-robe', 'base:item:dirk', 'base:item:leather-outfit', 'base:item:oak-wand']
-  const historical = (data: LocalData): LocalData => {
-    let json = JSON.stringify(data)
-    for (const id of legacyIds) json = json.replaceAll(compileBundledSourceId(id), id)
-    return JSON.parse(json) as LocalData
-  }
-  await page.goto('/icon.svg')
-  await page.evaluate(({ beforeText, afterText }) => new Promise<void>((resolve, reject) => {
-    const before = JSON.parse(beforeText) as LocalData
-    const after = JSON.parse(afterText) as LocalData
-    const HISTORICAL_NATIVE_DATABASE_VERSION = 40
-    const request = indexedDB.open('crykit', HISTORICAL_NATIVE_DATABASE_VERSION)
-    request.onupgradeneeded = () => {
-      const schemas: Record<string, string[]> = { localDatas: ['id', 'revision', 'updatedAt'], catalogs: ['key', 'id', 'revisionId', 'checksum'], evidence: ['id', 'sourceDigest', 'group'], sources: ['id', 'digest', 'format'], history: ['id', 'localDataId', '[localDataId+nextRevision]'], imports: ['id', 'sourceDigest', 'localDataId'], meta: ['key'] }
-      for (const [name, [keyPath, ...indexes]] of Object.entries(schemas)) {
-        const store = request.result.createObjectStore(name, { keyPath })
-        for (const index of indexes) store.createIndex(index, index === '[localDataId+nextRevision]' ? ['localDataId', 'nextRevision'] : index)
+// Cold legacy migration has a separate setup slot so its cost does not consume the editing checks' deadline
+const historicalProfileTest = test.extend<{ historicalProfile: LocalData }>({
+  // Historical admission must begin with empty storage and retain its actual import journey
+  storageState: async ({}, use) => { await use(undefined) },
+  historicalProfile: [async ({ page }, use) => {
+    const before = createSampleLocalData({ ...DEFAULT_CATALOG, revisionId: 'catalog-v1' as typeof DEFAULT_CATALOG.revisionId })
+    const canonical = createPersonalDefinition(before, { name: 'Synthetic retained definition', kind: 'item' })
+    const legacyIds = ['base:class:warrior', 'base:class:cleric', 'base:class:rogue', 'base:class:wizard', 'base:item:short-sword', 'base:item:buckler', 'base:item:breastplate', 'base:item:short-staff', 'base:item:hemp-robe', 'base:item:dirk', 'base:item:leather-outfit', 'base:item:oak-wand']
+    const historical = (data: LocalData): LocalData => {
+      let json = JSON.stringify(data)
+      for (const id of legacyIds) json = json.replaceAll(compileBundledSourceId(id), id)
+      return JSON.parse(json) as LocalData
+    }
+    await page.goto('/icon.svg')
+    await page.evaluate(({ beforeText, afterText }) => new Promise<void>((resolve, reject) => {
+      const before = JSON.parse(beforeText) as LocalData
+      const after = JSON.parse(afterText) as LocalData
+      const HISTORICAL_NATIVE_DATABASE_VERSION = 40
+      const request = indexedDB.open('crykit', HISTORICAL_NATIVE_DATABASE_VERSION)
+      request.onupgradeneeded = () => {
+        const schemas: Record<string, string[]> = { localDatas: ['id', 'revision', 'updatedAt'], catalogs: ['key', 'id', 'revisionId', 'checksum'], evidence: ['id', 'sourceDigest', 'group'], sources: ['id', 'digest', 'format'], history: ['id', 'localDataId', '[localDataId+nextRevision]'], imports: ['id', 'sourceDigest', 'localDataId'], meta: ['key'] }
+        for (const [name, [keyPath, ...indexes]] of Object.entries(schemas)) {
+          const store = request.result.createObjectStore(name, { keyPath })
+          for (const index of indexes) store.createIndex(index, index === '[localDataId+nextRevision]' ? ['localDataId', 'nextRevision'] : index)
+        }
       }
-    }
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const transaction = database.transaction(['localDatas', 'history'], 'readwrite')
-      transaction.objectStore('localDatas').put({ id: 'local-data-record', revision: after.revision, updatedAt: after.updatedAt, localData: after, lineage: { rootLocalDataId: before.id } })
-      transaction.objectStore('history').put({ id: 'synthetic-historical-save', localDataId: before.id, command: 'save', previousRevision: before.revision, nextRevision: after.revision, before, after, recordedAt: after.updatedAt })
-      transaction.oncomplete = () => { database.close(); resolve() }
-      transaction.onabort = () => { database.close(); reject(transaction.error) }
-    }
-  }), { beforeText: JSON.stringify(historical(before)), afterText: JSON.stringify(historical(canonical)) })
-  await page.goto('/#/mods')
-  await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
-  expect(await storedData(page)).toEqual(canonical)
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => {
+        const database = request.result
+        const transaction = database.transaction(['localDatas', 'history'], 'readwrite')
+        transaction.objectStore('localDatas').put({ id: 'local-data-record', revision: after.revision, updatedAt: after.updatedAt, localData: after, lineage: { rootLocalDataId: before.id } })
+        transaction.objectStore('history').put({ id: 'synthetic-historical-save', localDataId: before.id, command: 'save', previousRevision: before.revision, nextRevision: after.revision, before, after, recordedAt: after.updatedAt })
+        transaction.oncomplete = () => { database.close(); resolve() }
+        transaction.onabort = () => { database.close(); reject(transaction.error) }
+      }
+    }), { beforeText: JSON.stringify(historical(before)), afterText: JSON.stringify(historical(canonical)) })
+    await page.goto('/#/mods')
+    await waitForPlannerReady(page)
+    await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
+    expect(await storedData(page)).toEqual(canonical)
+    await use(canonical)
+  }, { timeout: HISTORICAL_PROFILE_SETUP_TIMEOUT_MS }],
+})
+
+historicalProfileTest('upgrades a historical browser profile before Reference changes and a new build save', { tag: MOBILE_TEST_TAG }, async ({ page, historicalProfile: canonical }) => {
   await importSyntheticLibrary(page)
   const archive = await archiveDigests(page)
   for (const title of ['Synthetic Shield', ...['Synthetic Moonlight', 'Synthetic Rules'].map(prefix => syntheticSources.mods.find(mod => mod.title.startsWith(prefix))!.title)]) {
@@ -129,17 +140,21 @@ test('upgrades a historical browser profile before Reference changes and a new b
     await toggle.click()
     await expect(toggle).toHaveAttribute('aria-pressed', String(included))
   }
-  const afterToggles = await storedData(page)
+  let afterArchive: Readonly<Record<string, string>> | undefined
+  // One head-checked admission supplies the adjacent metadata and exact original-byte proofs
+  const afterManaged = await readManagedGuestWorkspace(page, async state => { afterArchive = await archiveDigests(page, state) })
+  const afterToggles = afterManaged?.planner.localData ?? await storedData(page)
   expect(afterToggles.buildRevisions).toEqual(canonical.buildRevisions)
   expect(afterToggles.playthroughs).toEqual(canonical.playthroughs)
   expect(afterToggles.gameSetups).toEqual(canonical.gameSetups)
-  const afterArchive = await archiveDigests(page)
+  afterArchive ??= await archiveDigests(page)
   for (const table of ['catalogs', 'sources', 'evidence', 'imports', 'meta']) expect(afterArchive[table]).toBe(archive[table])
   await page.getByRole('button', { name: 'Game Setups', exact: true }).click()
   await page.getByRole('button', { name: 'New Game Setup', exact: true }).click()
   await page.getByRole('textbox', { name: 'Game Setup label', exact: true }).fill('Synthetic fresh setup')
   await page.getByRole('button', { name: 'Create Game Setup', exact: true }).click()
-  await page.getByRole('button', { name: 'Saved setups', exact: true }).click()
+  await expect(page.getByText('Saved revision 1', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Back to saved setups', exact: true }).click()
   const fresh = page.locator('.game-setup-library__item').filter({ has: page.getByRole('heading', { name: 'Synthetic fresh setup', exact: true }) })
   await fresh.getByRole('button', { name: 'Start a Build', exact: true }).click()
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
@@ -147,6 +162,7 @@ test('upgrades a historical browser profile before Reference changes and a new b
   await page.getByRole('button', { name: 'Save build', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Warrior')
   const saved = await storedData(page)
   for (const [id, revision] of Object.entries(canonical.buildRevisions)) expect(saved.buildRevisions[id]).toEqual(revision)
@@ -163,10 +179,10 @@ test('Reference save failures stay visible beside the action and retry without c
   await expect(toggle).toHaveAttribute('aria-pressed', 'true')
   const before = await storedData(page)
   await page.evaluate(() => {
-    const add = IDBObjectStore.prototype.add
-    IDBObjectStore.prototype.add = function (...args: Parameters<typeof add>) {
-      if (this.name === 'history' && this.transaction.db.name === 'crykit') { IDBObjectStore.prototype.add = add; throw new DOMException('Synthetic Reference save failure', 'QuotaExceededError') }
-      return add.apply(this, args)
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic Reference save failure', 'QuotaExceededError') }
+      return put.apply(this, args)
     }
   })
   await toggle.click()
@@ -213,10 +229,10 @@ test('a rolled-back save alert stays on screen while scrolling and can be dismis
   const card = page.getByRole('region', { name: 'Synthetic Shield', exact: true })
   await expect(card.getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
   await page.evaluate(() => {
-    const add = IDBObjectStore.prototype.add
-    IDBObjectStore.prototype.add = function (...args: Parameters<typeof add>) {
-      if (this.name === 'history' && this.transaction.db.name === 'crykit') { IDBObjectStore.prototype.add = add; throw new DOMException('Synthetic persistent alert failure', 'QuotaExceededError') }
-      return add.apply(this, args)
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic persistent alert failure', 'QuotaExceededError') }
+      return put.apply(this, args)
     }
   })
   await card.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
@@ -278,10 +294,10 @@ test('Reference retry retains the requested membership after another tab complet
   await other.goto('/#/mods')
   await expect(other.getByRole('region', { name: 'Synthetic Shield', exact: true }).getByRole('button', { name: 'Remove from Reference', exact: true })).toBeVisible()
   await page.evaluate(() => {
-    const add = IDBObjectStore.prototype.add
-    IDBObjectStore.prototype.add = function (...args: Parameters<typeof add>) {
-      if (this.name === 'history' && this.transaction.db.name === 'crykit') { IDBObjectStore.prototype.add = add; throw new DOMException('Synthetic Reference retry failure', 'QuotaExceededError') }
-      return add.apply(this, args)
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic Reference retry failure', 'QuotaExceededError') }
+      return put.apply(this, args)
     }
   })
   await card.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
@@ -298,23 +314,25 @@ test('Reference retry retains the requested membership after another tab complet
   expect(await storedData(page)).toEqual(loaded)
 })
 
-async function storedData(page: Page): Promise<LocalData> {
-  return page.evaluate(() => new Promise((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const database = request.result
-      const read = database.transaction('localDatas', 'readonly').objectStore('localDatas').getAll()
-      read.onerror = () => { database.close(); reject(read.error) }
-      read.onsuccess = () => { database.close(); resolve(read.result[0].localData) }
+async function archiveDigests(page: Page, captured?: WorkspaceState): Promise<Readonly<Record<string, string>>> {
+  const managed = captured ?? await readManagedGuestWorkspace(page)
+  if (managed) {
+    // Compare the selected logical archive, including actual original bytes, rather than retained ancestor tables
+    const sources = []
+    for (const source of managed.planner.sources) {
+      const blob = managed.blobs.find(blob => blobIdentity(blob.ref) === blobIdentity(source.original))
+      if (!blob) throw new Error('Selected source original is unavailable')
+      const digest = createHash('sha256')
+      for await (const chunk of blob.content.open()) digest.update(chunk)
+      sources.push({ ...source, actualSha256: digest.digest('hex') })
     }
-  }))
-}
-
-async function archiveDigests(page: Page): Promise<Readonly<Record<string, string>>> {
-  return page.evaluate(async () => {
+    const records = { catalogs: managed.planner.catalogs, sources, evidence: managed.planner.evidence, imports: managed.planner.localData.importReceipts, meta: { lineage: managed.planner.lineage, libraryDefaults: managed.libraryDefaults }, localDatas: managed.planner.localData, history: managed.planner.history }
+    return Object.fromEntries(Object.entries(records).map(([name, value]) => [name, createHash('sha256').update(JSON.stringify(value)).digest('hex')]))
+  }
+  const name = await selectedGuestPlannerName(page)
+  return page.evaluate(async name => {
     const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('crykit')
+      const request = indexedDB.open(name)
       request.onerror = () => reject(request.error)
       request.onsuccess = () => resolve(request.result)
     })
@@ -330,7 +348,7 @@ async function archiveDigests(page: Page): Promise<Readonly<Record<string, strin
       }))
       return Object.fromEntries(entries)
     } finally { database.close() }
-  })
+  }, name)
 }
 
 async function openDraft(page: Page, source = SOURCE) {
@@ -388,7 +406,13 @@ test('saves editor revisions into Mods, derives rules, and preserves pinned buil
   const pinned = await storedData(page)
   await page.goto('/#/mods')
   await mod.getByRole('button', { name: 'Edit mod JSON', exact: true }).click()
-  await expect(page).toHaveURL(/#\/mods\/editor\?draft=/)
+  await expect(page.getByRole('tab', { name: 'JSON Editor', exact: true })).toHaveAttribute('aria-selected', 'true')
+  const openedEditorId = await page.getByRole('combobox', { name: 'Files opened in this tool', exact: true }).inputValue()
+  expect(openedEditorId).not.toBe('')
+  const openedWorkspace = (await readManagedGuestWorkspace(page))!
+  const openedEditor = openedWorkspace.editorDocuments.find(file => file.id === openedEditorId)!
+  expect(openedEditor.filename).toBe('synthetic-library.json')
+  expect(await readEditorContent(openedWorkspace, openedEditor)).toMatchObject({ originalText: SOURCE, lastAppliedText: SOURCE, unfinishedText: SOURCE })
   await expect(page.getByRole('region', { name: 'Current file', exact: true })).toContainText('Original file')
   await page.getByRole('button', { name: 'Edit whole document JSON', exact: true }).click()
   await page.getByRole('textbox', { name: /^Exact JSON value/ }).fill(SOURCE.replace('"Version":"1"', '"Version":"2"').replace('"TwoHandedPAtkFlat":80', '"TwoHandedPAtkFlat":90').replace('"StrWhileUnarmedBonusFlat":60', '"StrWhileUnarmedBonusFlat":90'))
@@ -444,7 +468,8 @@ test('saves editor revisions into Mods, derives rules, and preserves pinned buil
 })
 
 test('keeps drafts after rejected planning imports and rolls back a failed save before retry', async ({ page }) => {
-  await openDraft(page, '{"Title":"Synthetic inspection only","EditorVersion":34}')
+  const original = '{"Title":"Synthetic inspection only","EditorVersion":34}'
+  await openDraft(page, original)
   const before = await storedData(page)
   await page.getByRole('button', { name: 'Save to CryKit', exact: true }).click()
   await expect(page.getByText('Mod not saved to CryKit', { exact: true })).toBeVisible()
@@ -453,17 +478,31 @@ test('keeps drafts after rejected planning imports and rolls back a failed save 
   await page.getByRole('textbox', { name: /^Exact JSON value/ }).fill(SOURCE)
   await page.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
+  // Library rollback starts after the independently saved Editor commands, preserving their complete journal
+  const beforeLibrarySave = await storedData(page)
+  const editorChanges = beforeLibrarySave.changes.slice(before.changes.length)
+  expect(editorChanges.map(change => change.command)).toEqual(['saveUnfinished', 'apply'])
+  for (const [index, change] of editorChanges.entries()) expect(change).toMatchObject({ previousRevision: before.revision + index, nextRevision: before.revision + index + 1, changedPaths: ['$'] })
+  expect(beforeLibrarySave.updatedAt).toBe(editorChanges.at(-1)!.recordedAt)
+  expect(beforeLibrarySave).toEqual({ ...before, revision: before.revision + editorChanges.length, updatedAt: beforeLibrarySave.updatedAt, changes: [...before.changes, ...editorChanges] })
   await page.evaluate(() => {
-    const add = IDBObjectStore.prototype.add
-    IDBObjectStore.prototype.add = function (...args) {
-      if (this.name === 'history' && this.transaction.db.name === 'crykit') { IDBObjectStore.prototype.add = add; throw new DOMException('Synthetic mod save failure', 'QuotaExceededError') }
-      return add.apply(this, args)
+    const state = window as unknown as { __crykitModSaveFaultHits: number }
+    state.__crykitModSaveFaultHits = 0
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { state.__crykitModSaveFaultHits++; IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic mod save failure', 'QuotaExceededError') }
+      return put.apply(this, args)
     }
   })
   await page.getByRole('button', { name: 'Save to CryKit', exact: true }).click()
   await expect(page.getByText('Mod not saved to CryKit', { exact: true })).toBeVisible()
-  expect(await storedData(page)).toEqual(before)
+  expect(await page.evaluate(() => (window as unknown as { __crykitModSaveFaultHits: number }).__crykitModSaveFaultHits)).toBe(1)
+  expect(await storedData(page)).toEqual(beforeLibrarySave)
   await expect(page.getByRole('textbox', { name: /^Exact JSON value/ })).toHaveValue(SOURCE)
+  const selectedEditorId = await page.getByRole('combobox', { name: 'Files opened in this tool', exact: true }).inputValue()
+  const workspace = (await readManagedGuestWorkspace(page))!
+  const selectedEditor = workspace.editorDocuments.find(file => file.id === selectedEditorId)!
+  expect(await readEditorContent(workspace, selectedEditor)).toMatchObject({ originalText: original, lastAppliedText: SOURCE, unfinishedText: SOURCE })
   await page.getByRole('button', { name: 'Save to CryKit', exact: true }).click()
   await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toBeVisible()
   await page.getByRole('tab', { name: 'Mod Library', exact: true }).click()
@@ -521,6 +560,9 @@ test('validates project identity for updates and links exact records when select
   const before = await storedData(page)
   const input = mod.getByLabel('Updated JSON for Synthetic Equipment', { exact: true })
   await input.setInputFiles({ name: 'wrong-project.json', mimeType: 'application/json', buffer: Buffer.from(SOURCE) })
+  await expect(page.getByRole('region', { name: 'Import mod choices', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Add mod JSON', exact: true }).click()
+  await page.getByRole('button', { name: 'Adding...', exact: true }).waitFor({ state: 'hidden' })
   await expect(page.getByRole('alert')).toContainText("different project ID")
   expect(await storedData(page)).toEqual(before)
   const source = syntheticSources.mods.find(mod => mod.title === 'Synthetic Equipment')!
@@ -528,6 +570,9 @@ test('validates project identity for updates and links exact records when select
   const identity = { modelId: 0 }
   const update = JSON.stringify({ ID: source.projectId, Title: source.title, Version: 'Synthetic update', EditorVersion: 34, Equipment: [{ ID: identity.modelId, Name: 'Synthetic revised equipment', EquipmentType: 0 }], FutureSetting: { value: null } })
   await input.setInputFiles({ name: 'synthetic-update.json', mimeType: 'application/json', buffer: Buffer.from(update) })
+  await expect(page.getByRole('region', { name: 'Import mod choices', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Add mod JSON', exact: true }).click()
+  await page.getByRole('button', { name: 'Adding...', exact: true }).waitFor({ state: 'hidden' })
   await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toBeVisible()
   await expect(mod).toContainText('Synthetic update')
   await mod.getByText('Versions', { exact: true }).click()
@@ -580,6 +625,9 @@ test('keeps source-less named mods and their catalog entries and supports manual
 test('keeps same-name projects distinct and binds manual additions to the chosen card', async ({ page }) => {
   await page.goto('/#/mods')
   await page.getByLabel('Import mod JSON', { exact: true }).setInputFiles({ name: 'synthetic-same-name.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ID: 'synthetic-unrelated-bloodmage', Title: 'Bloodmage', Version: 'synthetic', EditorVersion: 34, Equipment: [{ ID: 9001, Name: 'Synthetic foreign equipment' }] })) })
+  await expect(page.getByRole('region', { name: 'Import mod choices', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Add mod JSON', exact: true }).click()
+  await page.getByRole('button', { name: 'Adding...', exact: true }).waitFor({ state: 'hidden' })
   await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toBeVisible()
   await page.getByRole('searchbox', { name: 'Search mods', exact: true }).fill('Bloodmage')
   const cards = page.getByRole('region', { name: 'Bloodmage', exact: true })
@@ -680,10 +728,10 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
   await page.goto('/#/mods')
   await expect(mod).toContainText(`${count} catalog entries`)
   await page.evaluate(() => {
-    const add = IDBObjectStore.prototype.add
-    IDBObjectStore.prototype.add = function (...args) {
-      if (this.name === 'history' && this.transaction.db.name === 'crykit') { IDBObjectStore.prototype.add = add; throw new DOMException('Synthetic reference opt-in failure', 'QuotaExceededError') }
-      return add.apply(this, args)
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic reference opt-in failure', 'QuotaExceededError') }
+      return put.apply(this, args)
     }
   })
   await mod.getByRole('button', { name: 'Add to Reference', exact: true }).click()
@@ -703,10 +751,10 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
   await page.goto('/#/mods')
   const retained = await archiveDigests(page)
   await page.evaluate(() => {
-    const add = IDBObjectStore.prototype.add
-    IDBObjectStore.prototype.add = function (...args) {
-      if (this.name === 'history' && this.transaction.db.name === 'crykit') { IDBObjectStore.prototype.add = add; throw new DOMException('Synthetic reference removal failure', 'QuotaExceededError') }
-      return add.apply(this, args)
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function (...args) {
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic reference removal failure', 'QuotaExceededError') }
+      return put.apply(this, args)
     }
   })
   await mod.getByRole('button', { name: 'Remove from Reference', exact: true }).click()
@@ -738,6 +786,9 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
   for (const table of ['catalogs', 'sources', 'evidence', 'imports']) expect(restored[table]).toBe(retained[table])
   await page.goto('/#/mods')
   await mod.getByLabel(`Updated JSON for ${source.title}`, { exact: true }).setInputFiles({ name: 'synthetic-apotheosis-update.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ID: source.projectId, Title: source.title, Version: 'Synthetic updated Apotheosis', EditorVersion: 34, Jobs: [{ ID: 0, Name: 'Synthetic updated class' }] })) })
+  await expect(page.getByRole('region', { name: 'Import mod choices', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Add mod JSON', exact: true }).click()
+  await page.getByRole('button', { name: 'Adding...', exact: true }).waitFor({ state: 'hidden' })
   await expect(mod).toContainText('Synthetic updated Apotheosis')
   const updatedArchive = await archiveDigests(page)
   await mod.getByRole('button', { name: 'View catalog entries', exact: true }).click()
@@ -801,7 +852,7 @@ test('keeps failed source reads separate from the standing Reference library', a
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.get
     IDBObjectStore.prototype.get = function (...args) {
-      if (this.name === 'sources' && this.transaction.db.name === 'crykit') { IDBObjectStore.prototype.get = original; throw new DOMException('Synthetic source read failure', 'UnknownError') }
+      if (this.name === 'managedChunks' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.get = original; throw new DOMException('Synthetic source read failure', 'UnknownError') }
       return original.apply(this, args)
     }
   })

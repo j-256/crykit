@@ -11,11 +11,9 @@ const MOD_STATE_LABELS: Readonly<Record<DefinitionModAvailability['state'], stri
   enabled: 'Enabled',
   disabled: 'Disabled',
 })
-export const LEARNABLE_INNATE_SKILLS_MOD_LABEL = 'Learnable Innate Skills'
-
-export function LegacyInnateModBadge({ record }: { readonly record: Pick<CatalogEntity, 'fields'> }) {
+export function HistoricalInnateLearningBadge({ record }: { readonly record: Pick<CatalogEntity, 'fields'> }) {
   const availability = record.fields[LEARNABLE_INNATE_FIELD]
-  return availability?.state === 'known' && availability.value === true ? <ModBadge name={LEARNABLE_INNATE_SKILLS_MOD_LABEL}/> : null
+  return availability?.state === 'known' && availability.value === true ? <Badge tone="neutral">Historical learnability note</Badge> : null
 }
 
 function modStateTone(state?: DefinitionModAvailability['state']) {

@@ -2,8 +2,7 @@ import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { QUINTAR_BREEDING_STEPS, QUINTAR_STEP } from '../src/catalog/quintar-breeding'
-import type { LocalData } from '../src/domain/types'
-import { createBlankPlaythrough, selectedPlaythrough } from './local-data-helpers'
+import { createBlankPlaythrough, readLocalData, selectedPlaythrough } from './local-data-helpers'
 
 const RAPID_TOGGLE_COUNT = 23
 
@@ -38,23 +37,6 @@ async function expectSummaryArtwork(page: Page, stepId: string) {
   const tileImage = page.locator(`[data-step="${stepId}"] .quintar-tile__art img`)
   await expect(image).toHaveAttribute('src', (await tileImage.getAttribute('src'))!)
   await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true)
-}
-
-async function readLocalData(page: Page): Promise<LocalData> {
-  return page.evaluate(async () => {
-    const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('crykit')
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
-    })
-    try {
-      return await new Promise<LocalData>((resolve, reject) => {
-        const request = database.transaction('localDatas').objectStore('localDatas').getAll()
-        request.onsuccess = () => resolve(request.result[0].localData as LocalData)
-        request.onerror = () => reject(request.error)
-      })
-    } finally { database.close() }
-  })
 }
 
 async function openData(page: Page) {
@@ -237,7 +219,7 @@ test('a failed tile save rolls back and can be retried in place', { tag: MOBILE_
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function(value: unknown, key?: IDBValidKey) {
-      if (this.name === 'localDatas') {
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') {
         IDBObjectStore.prototype.put = original
         throw new DOMException('Synthetic quota failure', 'QuotaExceededError')
       }

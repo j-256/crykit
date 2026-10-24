@@ -5,7 +5,7 @@ import { zipSync } from 'fflate'
 import { DEFAULT_CATALOG } from '../src/catalog/bundled'
 import { createSampleLocalData } from '../src/domain/sample-data'
 import type { LocalData } from '../src/domain/types'
-import { skipInitialModSetup, createBlankPlaythrough, openGameSetupSection, replacePlannerData, selectedPlaythrough } from './local-data-helpers'
+import { skipInitialModSetup, createBlankPlaythrough, openGameSetupSection, replacePlannerData, selectedPlaythrough, readLocalData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 
 const settings = (page: Page) => page.getByRole('dialog', { name: 'Data & settings', exact: true })
@@ -13,18 +13,7 @@ const save = (page: Page) => settings(page).getByRole('button', { name: 'Save Ga
 
 async function readData(page: Page): Promise<LocalData> {
   await expect(page.getByRole('heading', { name: 'Opening Crystal Kit', exact: true })).toHaveCount(0)
-  return page.evaluate(() => new Promise<LocalData>((resolve, reject) => {
-    const request = indexedDB.open('crykit')
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => {
-      const db = request.result
-      const transaction = db.transaction('localDatas', 'readonly')
-      transaction.oncomplete = () => db.close()
-      transaction.onerror = () => { db.close(); reject(transaction.error) }
-      const records = transaction.objectStore('localDatas').getAll()
-      records.onsuccess = () => resolve(records.result[0].localData as LocalData)
-    }
-  }))
+  return readLocalData(page)
 }
 
 test('Playthrough assignment and Game Setup editing open distinct screens', async ({ page }) => {
@@ -180,7 +169,7 @@ test('applying a saved setup recovers a failed save without changing historical 
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === 'localDatas') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic apply failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic apply failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })
@@ -222,7 +211,8 @@ test('unrelated edits preserve unresolved knowledge and backup round trips', asy
   expect(saved.gameSetups[id]).toEqual(source)
   await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
   const download = page.waitForEvent('download')
-  await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
+  if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
+  await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const backup = await readFile((await (await download).path())!)
   await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-round-trip.zip', mimeType: 'application/zip', buffer: backup })
   await replacePlannerData(panel)
@@ -245,7 +235,7 @@ test('a failed new setup save retries inside the panel and survives offline relo
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === 'localDatas') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })

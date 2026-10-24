@@ -1,3 +1,4 @@
+import { teamSlots } from '../domain/team-checkpoints'
 import { savedCatalogVersion } from '../domain/legacy-definition.test-helpers'
 import { describe, expect, it } from 'vitest'
 import { deflateSync } from 'fflate'
@@ -325,9 +326,9 @@ describe('sharing snapshots', () => {
     const payload = createSharePayload(data, { kind: 'team', scenarioId: asId<ScenarioId>('scenario') })
     const result = saveSharedCopy(data, payload)
     const team = result.localData.teams[result.teamId!]!
-    expect(team.slots).toHaveLength(4)
-    expect(team.slots[0]).not.toBeNull()
-    expect(team.slots[1]).toBeNull()
+    expect(teamSlots(result.localData, team)).toHaveLength(4)
+    expect(teamSlots(result.localData, team)[0]).not.toBeNull()
+    expect(teamSlots(result.localData, team)[1]).toBeNull()
     expect(result.localData.playthroughs).toBe(data.playthroughs)
     validateNativeLocalDataGraph(result.localData, [])
   })

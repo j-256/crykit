@@ -7,6 +7,7 @@ import { nativeEquipmentFacts } from '../catalog/native-equipment-facts'
 import { preferredNativeReferenceId } from '../catalog/native-reference-links'
 import { partitionQuery } from '../domain/query'
 import { normalizeImportedFieldName } from '../interchange/field-names'
+import { isImmutableCatalogSnapshot } from '../interchange/native'
 import { projectSourceSemantics } from '../catalog/source-semantics'
 import { referenceCategoryKeys, referenceCategoryLabel } from './reference-categories'
 import { combineFacetKnowledge, facetStringValues, isReferenceArtifact, referenceAudience, referenceCategoryKnowledge, referenceFieldFacets, REFERENCE_FACETS, type FacetRecord, type ReferenceAudience, type ReferenceFacetFilters, type ReferenceFacetKey } from './reference-facets'
@@ -229,17 +230,38 @@ export function findReferenceSearchItem(catalogs: readonly CatalogSnapshot[], re
   return catalog && entity && !isReferenceArtifact(entity) ? catalogReferenceSearchItem(catalog, entity) : undefined
 }
 
+const immutableCatalogSearchItems = new WeakMap<CatalogSnapshot, readonly ReferenceSearchItem[]>()
+
+function catalogSearchItems(catalog: CatalogSnapshot): readonly ReferenceSearchItem[] {
+  const immutable = isImmutableCatalogSnapshot(catalog)
+  const cached = immutable ? immutableCatalogSearchItems.get(catalog) : undefined
+  if (cached) return cached
+  const claimsByEntity = new Map<string, CatalogClaim[]>()
+  for (const claim of catalog.claims) {
+    const claims = claimsByEntity.get(claim.entityId) ?? []
+    claims.push(claim)
+    claimsByEntity.set(claim.entityId, claims)
+  }
+  const items = Object.values(catalog.entities).filter(entity => !isReferenceArtifact(entity)).map(entity => catalogReferenceSearchItem(catalog, entity, claimsByEntity.get(entity.id) ?? []))
+  if (immutable) {
+    // These projections depend only on this exact admitted catalog, not personal records or Game Setup
+    // Freeze shared results so a consumer cannot alter another screen's facts; the catalog is already deeply frozen
+    const seen = new WeakSet<object>([catalog])
+    const freeze = (value: unknown): void => {
+      if (!value || typeof value !== 'object' || seen.has(value)) return
+      seen.add(value)
+      for (const child of Object.values(value)) freeze(child)
+      Object.freeze(value)
+    }
+    freeze(items)
+    // Weak keys release private projections with their catalog when its owning workspace is no longer retained
+    immutableCatalogSearchItems.set(catalog, items)
+  }
+  return items
+}
+
 export function buildReferenceSearchItems(catalogs: readonly CatalogSnapshot[]): readonly ReferenceSearchItem[] {
-  return catalogs
-    .flatMap((catalog) => {
-      const claimsByEntity = new Map<string, CatalogClaim[]>()
-      for (const claim of catalog.claims) {
-        const claims = claimsByEntity.get(claim.entityId) ?? []
-        claims.push(claim)
-        claimsByEntity.set(claim.entityId, claims)
-      }
-      return Object.values(catalog.entities).filter((entity) => !isReferenceArtifact(entity)).map((entity) => catalogReferenceSearchItem(catalog, entity, claimsByEntity.get(entity.id) ?? []))
-    })
+  return catalogs.flatMap(catalogSearchItems)
     .sort((left, right) => (
       compareText(left.entity.name, right.entity.name) ||
       compareText(left.entity.kind, right.entity.kind) ||
