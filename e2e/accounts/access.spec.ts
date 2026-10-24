@@ -586,7 +586,8 @@ test('rememberedWorkspaceReopensLocallyAndExplicitLockSuppressesReopening', asyn
   const reducedMotion = await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)
   const releaseStorage = await holdWorkspaceSelection(page)
   try {
-    await page.reload({ waitUntil: 'commit' })
+    // This fixture has no pre-script loader; finish module navigation before sampling the storage-held App phase
+    await page.reload()
     const loading = loadingScreen(page)
     await expect(loading.getByRole('status')).toHaveText('Opening saved workspace...')
     await expectLoadingMotion(loading, reducedMotion)
