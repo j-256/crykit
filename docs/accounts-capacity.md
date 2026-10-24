@@ -29,6 +29,8 @@ Physical storage estimates must include D1 pages/indexes, encrypted payloads, me
 
 Recovery admission uses the exact measured policy in [service recovery](accounts-recovery.md#capture-authority-and-lifetime). No policy means paused capture. Daily capture and up-to-30-day retention remain targets, not a runtime SLA. Keep last verified points when capture degrades, show their actual age and support independent private backup. Do not turn customer quotas into guessed capture ceilings or split the atomic capture into unsafe partial snapshots.
 
+The browser outbox checks independent upload readiness with the same bounded concurrency used for ciphertext transfer. A failed check stops new probes and waits for active requests to finish before recovery or publication continues. Transport chunk budgets, server retry floors, admission counters and exact stored command identities retain their existing bounds.
+
 ## Email and Access
 
 [Email Service pricing](https://developers.cloudflare.com/email-service/platform/pricing/) and [limits](https://developers.cloudflare.com/email-service/platform/limits/), checked on 2026-10-15, require Workers Paid for arbitrary recipients. The account-wide allowance is 3,000 accepted emails per billing month, then $0.35 per 1,000. Accepted hard bounces consume allowance; boundary rejections and suppressed recipients do not. Verified destinations are a Free-compatible restricted-testing option and do not consume those sending quotas; they do not support general public signup.
