@@ -8,7 +8,7 @@ import { requestSync } from '../account/sync/scheduler'
 import { exportAccountPlannerSnapshot } from './account-planner-export'
 import { prepareWorkspaceImport, prepareWorkspaceModSetup } from './import-commands'
 import Dexie from 'dexie'
-import { BUNDLED_CATALOGS } from '../catalog/bundled'
+import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
 import { CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
 import { createBlankLocalData } from '../domain/local-data'
 import type { LocalData } from '../domain/types'
@@ -28,6 +28,9 @@ import { blobIdentity, readBlob } from './blobs'
 import type { WorkspaceState } from './documents'
 import { WorkspaceError, type WorkspaceRepository } from './repository'
 
+// Fresh accounts need current definitions, not unused historical app catalogs in every private backup
+// Existing selected workspaces retain their complete captured catalog sets without filtering
+const INITIAL_ACCOUNT_CATALOGS = Object.freeze(BUNDLED_CATALOGS.filter(catalog => catalog === CURRENT_CATALOG))
 const accountRepositoryDisposers = new WeakMap<WorkspaceRepository, () => void>()
 async function readOwnedAccountReceipt<T>(token: ProfileToken, read: (database: AccountDatabase) => Promise<T>): Promise<T> {
   assertActiveProfile(token)
@@ -50,7 +53,7 @@ export async function openAccountRepository(token: ProfileToken): Promise<Worksp
       // Fresh profiles prepare the managed layout before editing, without manufacturing a legacy source
       const { initializeAccountWorkspace } = await import('./account-initialization')
       const localData = createBlankLocalData()
-      const state: WorkspaceState = { planner: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: BUNDLED_CATALOGS, evidence: [], sources: [], history: [] }, editorDocuments: [], saveDocuments: [], assets: [], libraryDefaults: { version: 1, layers: [] }, conflicts: [], retainedContent: [], blobs: [] }
+      const state: WorkspaceState = { planner: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: INITIAL_ACCOUNT_CATALOGS, evidence: [], sources: [], history: [] }, editorDocuments: [], saveDocuments: [], assets: [], libraryDefaults: { version: 1, layers: [] }, conflicts: [], retainedContent: [], blobs: [] }
       selected = await initializeAccountWorkspace(database, token, state)
     }
     if (!selected) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'No active encrypted workspace is available.')
@@ -115,7 +118,7 @@ async function accountRepository(token: ProfileToken, initialize: boolean): Prom
     if (!await database.profileMeta.get('active')) {
       if (!initialize) throw new Error('The saved account workspace is unavailable')
       const localData = createBlankLocalData()
-      const state: WorkspaceState = { planner: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: BUNDLED_CATALOGS, evidence: [], sources: [], history: [] }, editorDocuments: [], saveDocuments: [], assets: [], libraryDefaults: { version: 1, layers: [] }, conflicts: [], retainedContent: [], blobs: [] }
+      const state: WorkspaceState = { planner: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: INITIAL_ACCOUNT_CATALOGS, evidence: [], sources: [], history: [] }, editorDocuments: [], saveDocuments: [], assets: [], libraryDefaults: { version: 1, layers: [] }, conflicts: [], retainedContent: [], blobs: [] }
       const prepared = await prepareAccountWorkspace(database, token, state)
       try { await activateLocalAccountCommit(database, token, { version: 1, id: accountLocalId(), expected: undefined, head: prepared.head, records: prepared.records, intentStatus: 'mapped-local' }) }
       catch (error) { if (!(error instanceof WorkspaceError && error.code === 'LOCAL_REVISION_CONFLICT')) throw error }

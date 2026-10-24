@@ -287,13 +287,16 @@ async function resolveLocalDataRecord(
   return first ?? initializeStarterRecord(database)
 }
 
-function catalogReferences(localData: LocalData): Set<string> {
+// Addition checks may skip unchanged shared branches; complete retention checks omit the previous view
+// Setup locks remain explicit, and inert public context never grants catalog authority
+export function catalogReferences(localData: LocalData, previous?: LocalData): Set<string> {
   const inert = publicContextContainers(localData)
   const keys = new Set<string>()
-  const visit = (value: unknown): void => {
+  const visit = (value: unknown, before?: unknown): void => {
+    if (value === before) return
     if (!value || typeof value !== 'object') return
     if (Array.isArray(value)) {
-      for (const item of value) visit(item)
+      for (let index = 0; index < value.length; index++) visit(value[index], Array.isArray(before) ? before[index] : undefined)
       return
     }
     const record = value as Readonly<Record<string, unknown>>
@@ -304,9 +307,10 @@ function catalogReferences(localData: LocalData): Set<string> {
     ) {
       keys.add(catalogSnapshotKey(record.catalogId, record.catalogRevisionId))
     }
-    for (const [key, nested] of Object.entries(record)) if (key !== 'publicSourceContext' || !inert.has(record)) visit(nested)
+    const prior = before && typeof before === 'object' ? before as Readonly<Record<string, unknown>> : undefined
+    for (const [key, nested] of Object.entries(record)) if (key !== 'publicSourceContext' || !inert.has(record)) visit(nested, prior?.[key])
   }
-  visit(localData)
+  visit(localData, previous)
   for (const gameSetup of Object.values(localData.gameSetups)) {
     if (gameSetup.modComposition) for (const pin of [gameSetup.modComposition.baseline, ...gameSetup.modComposition.layers]) keys.add(catalogSnapshotKey(pin.catalogId, pin.catalogRevisionId))
     for (const [catalogId, revisionId] of Object.entries(gameSetup.catalogLock)) {
