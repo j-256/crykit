@@ -22,10 +22,28 @@ it('rejectsTruncationTrailingBytesAndFalseExpandedLengths', () => {
   const corrupt = page.slice(); corrupt[corrupt.length - 1] ^= 255
   expect(() => decodeBackupPage(corrupt)).toThrow()
 })
+it('checks complete canonical pages across several compressed input batches', () => {
+  // A fixed xorshift32 stream avoids a highly compressible fixture and keeps the boundary proof reproducible
+  const shifts = { first: 13, second: 17, third: 5 }
+  let seed = 1
+  const bytes = Uint8Array.from({ length: 64 * 1024 }, () => {
+    seed ^= seed << shifts.first; seed ^= seed >>> shifts.second; seed ^= seed << shifts.third
+    return seed & 255
+  })
+  const page = encodeBackupPage(bytes)
+  expect(page.length).toBeGreaterThan(4 * 1024)
+  expect(decodeBackupPage(page)).toEqual(bytes)
+  const trailing = new Uint8Array(page.length + 1); trailing.set(page)
+  expect(() => decodeBackupPage(trailing)).toThrow()
+  new DataView(page.buffer).setUint32(0, bytes.length - 1, true)
+  expect(() => decodeBackupPage(page)).toThrow(/expanded|length/i)
+})
 it('rejectsExpansionBombBeforeAcceptingThePage', () => {
   const compressed = deflateSync(new Uint8Array(WORKSPACE_BACKUP_LIMITS.payload + 1))
   const page = new Uint8Array(4 + compressed.length)
   new DataView(page.buffer).setUint32(0, WORKSPACE_BACKUP_LIMITS.payload, true); page.set(compressed, 4)
+  expect(() => decodeBackupPage(page)).toThrow(/expanded|length|bound/i)
+  new DataView(page.buffer).setUint32(0, 1, true)
   expect(() => decodeBackupPage(page)).toThrow(/expanded|length|bound/i)
   new DataView(page.buffer).setUint32(0, WORKSPACE_BACKUP_LIMITS.payload + 1, true)
   expect(() => decodeBackupPage(page)).toThrow(/bound/i)

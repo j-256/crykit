@@ -3,7 +3,7 @@ import { WORKSPACE_BACKUP_LIMITS } from './workspace-backup-schema'
 
 const LENGTH_BYTES = 4
 const DEFLATE_LEVEL = 6
-const COMPRESSED_INPUT_SLICE = 512
+const COMPRESSED_INPUT_SLICE = 4 * 1024
 
 // Canonical raw DEFLATE from pinned fflate at level 6 is part of token codec v1
 // Dependency upgrades must preserve these bytes or retain a versioned v1 decoder
@@ -21,7 +21,7 @@ export function decodeBackupPage(page: Uint8Array): Uint8Array {
   if (!length || length > WORKSPACE_BACKUP_LIMITS.payload) throw new Error('Backup metadata page exceeds its expanded bound')
   const output = new Uint8Array(length)
   let offset = 0
-  // Bounded pushes limit inflater emissions without copying its history window for every few bytes
+  // Bounded batches amortize inflater history-window copies while retaining early overflow rejection
   // Stop overflow before consuming later compressed input
   // A fixed inflateSync output alone would silently truncate oversized plaintext
   const inflater = new Inflate((bytes: Uint8Array) => {

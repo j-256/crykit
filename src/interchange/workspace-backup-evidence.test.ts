@@ -196,7 +196,7 @@ async function reidentifyHistorical(documents: WireDocument[], value: unknown) {
   current.historicalEvidence.snapshots[0].id = id
   await replaceMetadata(documents[0], current)
 }
-async function* reframe(documents: WireDocument[], version = '1.1.0', reachedEnd?: () => void) {
+async function* reframe(documents: WireDocument[], version = '1.1.0', reachedEnd?: () => void, terminalVector?: string) {
   const { createHash } = await import('node:crypto')
   const hash = (value: Uint8Array) => createHash('sha256').update(value).digest('hex')
   const word = (value: number) => { const output = Buffer.alloc(4); output.writeUInt32LE(value); return output }
@@ -210,11 +210,22 @@ async function* reframe(documents: WireDocument[], version = '1.1.0', reachedEnd
     yield framed
   }
   const current = await decoded(documents[0]) as unknown as { revisionVector: Readonly<Record<string, string>> }
-  const vector = hash(Buffer.from(JSON.stringify(Object.entries(current.revisionVector).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0))))
+  const vector = terminalVector ?? hash(Buffer.from(JSON.stringify(Object.entries(current.revisionVector).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0))))
   const metadata = Buffer.from(JSON.stringify({ kind: 'manifest', format: 'crykit-workspace-backup', version, frames: count, bytes: size, documents: documents.length, chain, vector }))
   yield Buffer.concat([word(metadata.length), metadata, word(0)])
   reachedEnd?.()
 }
+it('rejects a terminal vector that differs from the fully staged metadata and cleans staging', async () => {
+  const { default: Dexie } = await import('dexie')
+  const a = await original(), inherited = await backup.inheritWorkspaceSnapshot(a, [a])
+  const before = (await Dexie.getDatabaseNames()).sort()
+  let ended = false
+  try {
+    await expect(readWorkspaceBackup(reframe(await unpack(inherited), '1.1.0', () => { ended = true }, '0'.repeat(64)))).rejects.toThrow('Backup revision vector mismatch')
+    expect(ended).toBe(true)
+    expect((await Dexie.getDatabaseNames()).sort()).toEqual(before)
+  } finally { await disposeWorkspaceSnapshot(inherited) }
+})
 it('rejects historical body and annex failures only after complete terminal framing and cleans staging', async () => {
   const { default: Dexie } = await import('dexie')
   const fixture = JSON.parse(readFileSync(fixturePath, 'utf8'))[1]
@@ -475,7 +486,7 @@ it('hashes a staged shared large body once per archive pass and again when histo
       const content = document.key === JSON.stringify(['large-shared-body', 'original']) ? { byteLength: source.byteLength, async *open() { reads++; for await (const bytes of source.open()) { readBytes += bytes.length; largestRead = Math.max(largestRead, bytes.length); yield bytes } } } : source
       documents.push({ key: document.key, encoding: document.encoding, content })
     }
-    result = await finishEvidenceSnapshot(documents[0].content, documents.slice(1), storage)
+    result = await finishEvidenceSnapshot(documents[0].content, documents.slice(1), storage, await snapshots.vectorDigest(inherited.revisionVector))
     expect(reads).toBe(1)
     expect(readBytes).toBe(bodyBytes)
     expect(largestRead).toBeLessThanOrEqual(4 * 1024 * 1024)
