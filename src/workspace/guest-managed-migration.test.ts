@@ -110,8 +110,9 @@ it('migrates an actually published v2 restore with exact inherited history and l
     await stageGuestWorkspaceRestore(preview, registered.id)
     await activateGuestWorkspaceRestore(preview, registered.id)
     selected = await openGuestBindings(original)
+    // Admission preserves the complete native view; portable backups can omit unused app catalogs
+    const before = await readGuestWorkspace(selected)
     source = await captureGuestSnapshot(selected)
-    const before = source.state
     const destinationBefore = (await selected.planner.localDatas.get('local-data-record'))!.operativePlanner!.savedDestinationChanges
     const target = await migrateGuestWorkspace(selected)
     const actualRoot = await admitLocalRoot(createGuestLocalStore(selected.coordinator, () => {}).adapter, target.root, { check: () => {}, assertCurrent: async () => {} })

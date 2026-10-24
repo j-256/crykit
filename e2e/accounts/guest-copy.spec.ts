@@ -3,10 +3,12 @@ import { expect, test } from './test-fixture'
 import { createBlankLocalData } from '../../src/domain/local-data'
 import { StoredPre250LocalDataSchema } from '../../src/interchange/native-schema'
 
+const MAX_SYNC_FAILURE_DIAGNOSTICS = 8
+
 // Independent synthetic cases retain the real limiter within each journey
 test.beforeEach(async ({ request }) => { expect((await request.post('/__accounts/control/reset-rate-counters', { data: {} })).ok()).toBe(true) })
 
-test('signInNeverUploadsGuestData and explicit saved-draft copy keeps guest originals', async ({ page }) => {
+test('signInNeverUploadsGuestData and explicit saved-draft copy keeps guest originals', async ({ page }, testInfo) => {
   test.setTimeout(120_000)
   const username = `copy_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`
   const email = `${username}@example.org`, password = 'synthetic guest copy account password'
@@ -72,10 +74,27 @@ test('signInNeverUploadsGuestData and explicit saved-draft copy keeps guest orig
   await preview.getByRole('checkbox', { name: 'Exact inherited workspace originals (all original records, including unchecked records and samples) (Sample provenance)', exact: true }).check()
   await preview.getByText('Preparing local copy...', { exact: true }).waitFor({ state: 'hidden', timeout: 30_000 })
   await expect(preview.getByRole('button', { name: 'Copy selected work' })).toBeEnabled()
+  const started = Date.now(), responses: Record<string, number> = {}, failures: unknown[] = [], pendingDiagnostics: Promise<void>[] = []
+  let firstResponseMs: number | undefined, lastResponseMs: number | undefined, durableMs: number | undefined
+  const runtimeBefore = await (await page.request.get('/__accounts/measurement')).json()
+  page.on('response', response => {
+    if (!response.url().includes('/api/v1/sync/')) return
+    firstResponseMs ??= Date.now() - started; lastResponseMs = Date.now() - started
+    const key = `${new URL(response.url()).pathname.replace(/(\/uploads|\/mutations|\/revisions)\/[^/]+/g, '$1/:id')}:${response.status()}`
+    responses[key] = (responses[key] ?? 0) + 1
+    if (!response.ok() && pendingDiagnostics.length < MAX_SYNC_FAILURE_DIAGNOSTICS) {
+      const atMs = Date.now() - started
+      pendingDiagnostics.push(response.json().then((body: { error?: { code?: string; retryAfterSeconds?: number; continuation?: { processed?: number } } }) => {
+        // Record only transport progress and error codes, never ciphertext, identity or credential bodies
+        failures.push({ key, atMs, code: body.error?.code, retryAfterSeconds: body.error?.retryAfterSeconds, processed: body.error?.continuation?.processed })
+      }, () => { failures.push({ key, atMs, bodyUnavailable: true }) }))
+    }
+  })
   await test.step('Copy selected work is durable on this device', async () => {
     await preview.getByRole('button', { name: 'Copy selected work' }).click()
     await preview.getByText('Preparing local copy...', { exact: true }).waitFor({ state: 'hidden', timeout: 30_000 })
     await expect(preview.getByRole('status')).toContainText('Copied to this account')
+    durableMs = Date.now() - started
   })
   await test.step('Open the copied account workspace', async () => {
     await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
@@ -92,5 +111,11 @@ test('signInNeverUploadsGuestData and explicit saved-draft copy keeps guest orig
     request.onsuccess = () => { const database = request.result, read = database.transaction('drafts').objectStore('drafts').get('copy-browser-editor'); read.onsuccess = () => { database.close(); resolve(read.result) }; read.onerror = () => reject(read.error) }
   }))
   expect(guest).toEqual(original)
-  await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: 60_000 })
+  const waitStartedMs = Date.now() - started
+  try { await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: 60_000 }) }
+  finally {
+    await Promise.allSettled(pendingDiagnostics)
+    const runtimeAfter = await page.request.get('/__accounts/measurement').then(response => response.json()).catch(() => ({ unavailable: true }))
+    await testInfo.attach('guest-copy-sync', { body: Buffer.from(JSON.stringify({ totalMs: Date.now() - started, durableMs, waitStartedMs, firstResponseMs, lastResponseMs, responses, failures, runtimeBefore, runtimeAfter }, null, 2)), contentType: 'application/json' })
+  }
 })

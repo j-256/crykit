@@ -1,3 +1,4 @@
+import { deepStrictEqual } from 'node:assert'
 import 'fake-indexeddb/auto'
 import { afterEach, expect, it, vi } from 'vitest'
 import { AccountDatabase, activateLocalAccountCommit, type CipherRecord, type PreparedLocalActivation } from './account-database'
@@ -336,7 +337,7 @@ it.each(['local', 'pull'].flatMap(selector => [false, true].flatMap(nonempty => 
             else await database.encryptedRevisions.put({ ...evidenceRoot, payloadId: cache.accountLocalId() })
             const before = await exactAccountTables(database)
             await expect(activateLocalAccountCommit(database, token, { version: 1, id: cache.accountLocalId(), expected: await database.profileMeta.get('active'), head: candidate.head, records: [] }), fault).rejects.toThrow()
-            expect(await exactAccountTables(database), fault).toEqual(before)
+            deepStrictEqual(await exactAccountTables(database), before, fault)
             await database.encryptedRevisions.put(evidenceRoot)
           }
         }
@@ -358,14 +359,14 @@ it.each(['local', 'pull'].flatMap(selector => [false, true].flatMap(nonempty => 
           break
         }
         await expect(run()).rejects.toThrow()
-        expect(await exactAccountTables(database)).toEqual(before)
+        deepStrictEqual(await exactAccountTables(database), before)
       }
       const installedRecords = await database.encryptedRevisions.toArray()
       const retainedPayloads = new Set(installedRecords.map(record => record.payloadId))
       const retainedChunks = (await database.stagedCipherChunks.toArray()).filter(chunk => retainedPayloads.has(chunk.payloadId))
       await candidate.dispose()
-      expect(await database.encryptedRevisions.toArray()).toEqual(installedRecords)
-      expect(await database.stagedCipherChunks.toArray()).toEqual(retainedChunks)
+      deepStrictEqual(await database.encryptedRevisions.toArray(), installedRecords)
+      deepStrictEqual(await database.stagedCipherChunks.toArray(), retainedChunks)
     } finally { await candidate.dispose(); await origin.dispose(); await bootstrap.abandon() }
   },
 )

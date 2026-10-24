@@ -5,9 +5,12 @@ const TEXT_SLICE = 8192
 // V1 exports retain their original packing so accepted archives round-trip byte for byte
 const LEGACY_PAGE_BYTES = 64 * 1024
 const forbidden = new Set(['__proto__', 'constructor', 'prototype'])
+const NON_ASCII_TEXT = /[^\x00-\x7f]/
 type Token = readonly ['object' | 'array' | 'end' | 'string' | 'string-end'] | readonly ['key' | 'text' | 'text-value', string] | readonly ['value', null | boolean | number]
 
 function utf8Length(text: string): number {
+  // ASCII JSON tokens have one byte per code unit; avoid scanning their individual characters in JavaScript
+  if (!NON_ASCII_TEXT.test(text)) return text.length
   let bytes = 0
   for (let index = 0; index < text.length; index++) {
     const code = text.charCodeAt(index)
