@@ -79,12 +79,25 @@ export class EncryptedOutbox {
     const state = await this.read(mutationId)
     if (!state) throw new SyncError('LOCAL_INTEGRITY_FAILED')
     // Receipts prove historical acceptance; finishing checks readiness of the actual current generation
-    for (const upload of state.uploads) {
-      const start = UploadStartSchema.parse(JSON.parse(upload.start))
-      try { await client.finishUpload(start.uploadId) }
-      catch (error) { if (error instanceof SyncError && ['NOT_FOUND', 'INTEGRITY_FAILED'].includes(error.code)) return false; throw error }
+    let offset = 0, ready = true, failed = false
+    // Upload identities are independent; reuse the transfer concurrency bound without skipping any probe
+    // Drain active requests before returning failure so no check outlives its captured publication turn
+    const worker = async () => {
+      while (ready && !failed) {
+        const upload = state.uploads[offset++]
+        if (!upload) return
+        try {
+          const start = UploadStartSchema.parse(JSON.parse(upload.start))
+          await client.finishUpload(start.uploadId)
+        } catch (error) {
+          if (error instanceof SyncError && ['NOT_FOUND', 'INTEGRITY_FAILED'].includes(error.code)) { ready = false; return }
+          failed = true; throw error
+        }
+      }
     }
-    return true
+    const results = await Promise.allSettled(Array.from({ length: MAX_CONCURRENT_UPLOADS }, worker))
+    for (const result of results) if (result.status === 'rejected') throw result.reason
+    return ready
   }
   async prepareRevival(mutationId: string): Promise<string> {
     const state = await this.read(mutationId)

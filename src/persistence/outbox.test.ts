@@ -3,13 +3,76 @@ import { afterEach, expect, it } from 'vitest'
 import { AccountDatabase } from './account-database'
 import { installProfile, invalidateProfile } from '../account/profile'
 import { stageAccountBytes } from '../workspace/account-cache'
-import { EncryptedOutbox, transferBudget } from '../account/sync/outbox'
+import { EncryptedOutbox, MAX_CONCURRENT_UPLOADS, transferBudget } from '../account/sync/outbox'
 import type { SyncClient } from '../account/sync/client'
 import type { CommitRequest, UploadStart } from '../account/protocol'
 
 const accountId = 'AAAAAAAAAAAAAAAAAAAAAA'
 let database: AccountDatabase | undefined
 afterEach(async () => { invalidateProfile(); await database?.delete(); database = undefined })
+
+it('checks every retained upload with the existing bounded concurrency and leaves its journal unchanged', async () => {
+  const token = installProfile(accountId, new Uint8Array(32).fill(7))
+  database = new AccountDatabase(accountId)
+  const records = []
+  for (let index = 0; index <= MAX_CONCURRENT_UPLOADS; index++) records.push(await stageAccountBytes(database, token, new Uint8Array([index]), []))
+  await database.encryptedRevisions.bulkAdd(records)
+  const input: CommitRequest = { version: 1, mutationId: 'BBBBBBBBBBBBBBBBBBBBBA', revisions: records.map(record => record.descriptor), heads: [], expected: [] }
+  const outbox = new EncryptedOutbox(database, token)
+  await outbox.prepare(input)
+  const before = await outbox.read(input.mutationId), releases: (() => void)[] = []
+  const gates = records.map(() => new Promise<void>(resolve => { releases.push(resolve) }))
+  let started = 0, active = 0, maximum = 0
+  const client = { finishUpload: async (uploadId: string) => {
+    const index = started++
+    active++; maximum = Math.max(maximum, active)
+    try { await gates[index]; return { uploadId } }
+    finally { active-- }
+  } } as unknown as SyncClient
+  const checked = outbox.verifyReadiness(input.mutationId, client)
+  try {
+    await expect.poll(() => started).toBe(MAX_CONCURRENT_UPLOADS)
+    releases[0]!()
+    await expect.poll(() => started).toBe(records.length)
+    for (const release of releases) release()
+    await expect(checked).resolves.toBe(true)
+    expect(maximum).toBe(MAX_CONCURRENT_UPLOADS)
+    expect(await outbox.read(input.mutationId)).toEqual(before)
+  } finally { for (const release of releases) release(); await checked }
+})
+
+it.each(['NOT_FOUND', 'AUTH_REQUIRED'] as const)('drains active readiness checks and stops new work after %s', async code => {
+  const { SyncError } = await import('../account/sync/client')
+  const token = installProfile(accountId, new Uint8Array(32).fill(7))
+  database = new AccountDatabase(accountId)
+  const records = []
+  for (let index = 0; index <= MAX_CONCURRENT_UPLOADS; index++) records.push(await stageAccountBytes(database, token, new Uint8Array([index]), []))
+  await database.encryptedRevisions.bulkAdd(records)
+  const input: CommitRequest = { version: 1, mutationId: 'BBBBBBBBBBBBBBBBBBBBBA', revisions: records.map(record => record.descriptor), heads: [], expected: [] }
+  const outbox = new EncryptedOutbox(database, token)
+  await outbox.prepare(input)
+  const before = await outbox.read(input.mutationId)
+  let release!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  let started = 0, settled = false
+  const client = { finishUpload: async (uploadId: string) => {
+    if (started++ === 0) throw new SyncError(code)
+    await gate
+    return { uploadId }
+  } } as unknown as SyncClient
+  const checked = outbox.verifyReadiness(input.mutationId, client).then(value => { settled = true; return value }, error => { settled = true; return error })
+  try {
+    await expect.poll(() => started).toBe(MAX_CONCURRENT_UPLOADS)
+    expect(settled).toBe(false)
+    release()
+    const result = await checked
+    if (code === 'NOT_FOUND') expect(result).toBe(false)
+    else expect(result).toMatchObject({ code })
+    expect(started).toBe(MAX_CONCURRENT_UPLOADS)
+    expect(await outbox.read(input.mutationId)).toEqual(before)
+  } finally { release(); await checked }
+})
+
 it('persistsExactContinuationBeforeSchedulingAndDoesNotResetItsIncarnationOnRestart', async () => {
   const { commitRequestDigest } = await import('../account/sync/commit-progress')
   const { SyncError } = await import('../account/sync/client')
