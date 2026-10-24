@@ -192,24 +192,33 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
         // Capture readiness and the clock together so later automation queries cannot extend this boundary
         // Use the field's retained focus; locator.press would refocus it and hide a continuation regression
         await page.keyboard.press('Space')
-        editorProbe = await page.evaluate(() => {
-          const element = document.activeElement
-          if (!(element instanceof HTMLTextAreaElement) || !element.matches('.inspector-editor textarea')) throw new Error('The editor lost focus during autosave')
-          const value = element.value
-          const apply = [...document.querySelectorAll<HTMLButtonElement>('.inspector-actions button')].find(button => button.textContent?.trim() === 'Apply JSON edit')
-          return { value, canApply: !!apply?.matches(':enabled'), work: window.finishSaveWork() }
-        })
       } else {
-        expect(await field.inputValue()).toBe(value)
-        await field.fill(`${value} `)
-        expect(await page.getByRole('button', { name: 'Apply JSON edit', exact: true }).isEnabled()).toBe(true)
+        const displayed = await field.evaluate(element => {
+          if (!(element instanceof HTMLTextAreaElement)) throw new Error('The editor field is unavailable')
+          // Match filling's end cursor without retransmitting the complete document
+          element.setSelectionRange(element.value.length, element.value.length)
+          return element.value
+        })
+        expect(displayed).toBe(value)
+        // Focus follows the same explicit field interaction as filling, while one trusted key avoids resending the document
+        await field.press('Space')
       }
+      editorProbe = await page.evaluate(() => {
+        const element = document.activeElement
+        if (!(element instanceof HTMLTextAreaElement) || !element.matches('.inspector-editor textarea')) throw new Error('The editor lost focus during autosave')
+        const value = element.value
+        const apply = [...document.querySelectorAll<HTMLButtonElement>('.inspector-actions button')].find(button => button.textContent?.trim() === 'Apply JSON edit')
+        return { value, canApply: !!apply?.matches(':enabled'), work: window.finishSaveWork() }
+      })
       expected = value
     }
     const work = editorProbe?.work ?? await page.evaluate(() => window.finishSaveWork())
-    // End the real next-input probe before the durable reader; a slow oracle must not autosave its own probe
-    // Returning to the exact acknowledged input coalesces this edit without another command or history frame
-    if (operation.includes('Editor')) await page.getByLabel('Exact JSON value').fill(expected as string)
+    // Keep the probe and its real undo adjacent: protocol queries can otherwise outlast the quiet-save delay
+    // Check the restored text before the durable oracle so its own probe cannot create an extra history frame
+    if (operation.includes('Editor')) {
+      await page.keyboard.press('Backspace')
+      expect(await page.getByLabel('Exact JSON value').inputValue()).toBe(expected)
+    }
     const persisted = await inspect(page, operation === 'Save inventory' ? 'save' : operation.includes('Editor') ? 'editor' : 'planner')
     measures.push({ index, work, expected, persisted, ...(beforeInventory ? { beforeInventory } : {}), ...(editorProbe ? { nextInput: { exactText: editorProbe.value === `${expected} `, applyEnabled: editorProbe.canApply } } : {}) })
     expect(work.elapsedMs).toBeLessThanOrEqual(SAVE_CEILING_MS)
