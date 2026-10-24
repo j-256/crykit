@@ -213,10 +213,11 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       expected = value
     }
     const work = editorProbe?.work ?? await page.evaluate(() => window.finishSaveWork())
-    // Keep the probe and its real undo adjacent: protocol queries can otherwise outlast the quiet-save delay
-    // Check the restored text before the durable oracle so its own probe cannot create an extra history frame
+    // The trusted probe and undo are ordinary autosaved input after the timed readiness boundary
+    // Drain only their local command before the durable oracle; real background mapping stays live
     if (operation.includes('Editor')) {
       await page.keyboard.press('Backspace')
+      await idle(page, 'editor')
       expect(await page.getByLabel('Exact JSON value').inputValue()).toBe(expected)
     }
     const persisted = await inspect(page, operation === 'Save inventory' ? 'save' : operation.includes('Editor') ? 'editor' : 'planner')
