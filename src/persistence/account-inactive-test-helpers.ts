@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import { expect } from 'vitest'
 import type { ProfileToken } from '../account/profile'
 import type { AccountDatabase } from './account-database'
@@ -50,7 +51,8 @@ export async function completeInactiveCandidate(database: AccountDatabase, token
     if (nonempty) {
       if (segmentedMetadata) expect(pages.length).toBeGreaterThan(1)
       else expect(pages).toHaveLength(1)
-      expect(await metadataPages(sources.members[0].metadata)).toEqual(pages)
+      // Native equality checks every byte and page boundary without enumerating typed-array keys
+      expect(isDeepStrictEqual(await metadataPages(sources.members[0].metadata), pages), 'Exact binary data and metadata').toBe(true)
       expect(sources.members[0].subset).toEqual(historical.state.blobs.map(value => value.ref))
       expect(await readBlob(sources.bodies.find(value => value.ref.documentId === body.ref.documentId)!.content, bytes.length)).toEqual(bytes)
       expect(opened.workspace.state.blobs.some(value => value.ref.documentId === body.ref.documentId)).toBe(false)

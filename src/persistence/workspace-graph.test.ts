@@ -1,4 +1,7 @@
 import 'fake-indexeddb/auto'
+// Native equality checks exact bytes and table metadata without enumerating typed-array keys
+// A boolean assertion also avoids constructing a multi-megabyte diagnostic diff on failure
+import { isDeepStrictEqual } from 'node:util'
 import { expect, it, vi } from 'vitest'
 import { installProfile, invalidateProfile } from '../account/profile'
 import { createBlankLocalData } from '../domain/local-data'
@@ -881,7 +884,7 @@ it.each([false, true])('authenticates a legacy projection without mapping or sel
     const { exactAccountTables } = await import('./account-inactive-test-helpers')
     const before = await exactAccountTables(f.database)
     for (const inputFormat of ['workspace-graph', 'legacy-local-graph'] as const) await expect(f.inactive.openInactiveAccountWorkspace(f.database, f.token, cipherRef(root), { owner: installed ? undefined : f.blank.owner, inputFormat })).rejects.toThrow()
-    expect(await exactAccountTables(f.database)).toEqual(before)
+    expect(isDeepStrictEqual(await exactAccountTables(f.database), before), 'Exact binary data and metadata').toBe(true)
     const opened = await f.inactive.openInactiveAccountWorkspace(f.database, f.token, cipherRef(root), { owner: installed ? undefined : f.blank.owner, inputFormat: 'legacy-projection' })
     expect(opened.origin).toBe('legacy-v1-empty')
     expect(await readBlob(opened.workspace.state.blobs[0].content, bytes.length)).toEqual(bytes)
@@ -916,7 +919,7 @@ it('reopens complete inactive nonempty history from immutable ciphertext after a
     const next = await f.inactive.prepareInactiveAccountWorkspace(f.database, f.token, current.state, { owner: f.blank.owner, sourceOrigin: f.blank.opened, inheritedEvidence: inherited, rootFormat: 'upgrade-v2' })
     expect(next.opened.workspace.state.blobs).toEqual([])
     const before = await f.inactive.inactiveAccountInheritedSources(next.opened)
-    expect(await pages(before.members[0].metadata)).toEqual(originals)
+    expect(isDeepStrictEqual(await pages(before.members[0].metadata), originals), 'Exact binary data and metadata').toBe(true)
     expect(before.members[0].subset).toEqual(historical.state.blobs.map(body => body.ref))
     const preserved = await f.inactive.prepareInactiveAccountWorkspace(f.database, f.token, current.state, { owner: f.blank.owner, sourceOrigin: next.opened, inheritedEvidence: inherited, rootFormat: 'preserve' })
     expect(preserved.opened.version).toBe(2)
@@ -929,7 +932,7 @@ it('reopens complete inactive nonempty history from immutable ciphertext after a
     fresh = database
     const reopened = await f.inactive.openInactiveAccountWorkspace(database, token, preserved.head)
     const after = await f.inactive.inactiveAccountInheritedSources(reopened)
-    expect(await pages(after.members[0].metadata)).toEqual(originals)
+    expect(isDeepStrictEqual(await pages(after.members[0].metadata), originals), 'Exact binary data and metadata').toBe(true)
     expect(after.members[0].subset).toEqual(historical.state.blobs.map(body => body.ref))
     expect(await readBlob(after.bodies.find(body => body.ref.documentId === 'zz-history-only')!.content, native.length)).toEqual(native)
     expect(reopened.workspace.state.blobs).toEqual([])
@@ -1234,7 +1237,7 @@ it('rejects C adoption when the distinct target parent retires during the final 
     await f.blank.opened.check()
     await evidence.dispose()
     expect(await f.database.encryptedRevisions.toArray()).toEqual(installed)
-    expect(await f.database.stagedCipherChunks.toArray()).toEqual(sourceChunks)
+    expect(isDeepStrictEqual(await f.database.stagedCipherChunks.toArray(), sourceChunks), 'Exact binary data and metadata').toBe(true)
     expect(await f.database.profileMeta.toArray()).toEqual([])
   } finally { vi.restoreAllMocks(); await evidence.dispose(); await parent.abandon(); await f.close() }
 })
@@ -1284,7 +1287,7 @@ it('transfers nonempty C and D twice while preserving borrowed ciphertext and an
     const chunks = (await f.database.stagedCipherChunks.toArray()).filter(chunk => keep.has(chunk.payloadId))
     await parent.abandon()
     expect(await f.database.encryptedRevisions.toArray()).toEqual(installed)
-    expect(await f.database.stagedCipherChunks.toArray()).toEqual(chunks)
+    expect(isDeepStrictEqual(await f.database.stagedCipherChunks.toArray(), chunks), 'Exact binary data and metadata').toBe(true)
   } finally { await candidate.dispose(); await parent.abandon(); await f.close() }
 })
 
@@ -1353,11 +1356,11 @@ it.each(['C-root', 'C-descendant', 'C-final', 'D-root', 'D-descendant', 'D-C-roo
       for (const name of ['profileMeta', 'documentHeads', 'migrationJournal', 'outbox', 'conflicts', 'syncState']) expect(failed[name]).toEqual(baseline[name])
       expect((failed.stagedCipherChunks as unknown[]).length).toBeGreaterThan(keepChunks.length)
       if (childC) await childC.dispose(); else await candidate.owner.abandon()
-      expect(await exactAccountTables(f.database)).toEqual(failed)
+      expect(isDeepStrictEqual(await exactAccountTables(f.database), failed), 'Exact binary data and metadata').toBe(true)
       cleanupDenied = false
       await parent.abandon()
       if (childC) await candidate.dispose()
-      expect(await f.database.stagedCipherChunks.toArray()).toEqual(keepChunks)
+      expect(isDeepStrictEqual(await f.database.stagedCipherChunks.toArray(), keepChunks), 'Exact binary data and metadata').toBe(true)
       await f.blank.opened.check()
       // Installed source data remains independently readable after parent retry
       const borrowed = await f.inactive.openInactiveAccountWorkspace(f.database, f.token, f.blank.head)
@@ -1475,7 +1478,7 @@ it.each(associationCases)('preserves original source snapshot: view=$view, $chan
             await f.database.documentHeads.put(candidate!.head)
             await f.database.syncState.put({ id: 'synthetic-transaction-pointer', ref: candidate!.head })
           })).rejects.toThrow()
-          expect(await exactAccountTables(f.database)).toEqual(before)
+          expect(isDeepStrictEqual(await exactAccountTables(f.database), before), 'Exact binary data and metadata').toBe(true)
         }
       }
     }
@@ -1552,18 +1555,18 @@ it.each([false, true])('races distinct blank native selectors and awaits loser c
     const outcome = recovery.then(() => undefined, error => error)
     await entered
     expect(reopened).toBe(false)
-    expect(await database.stagedCipherChunks.toArray()).toEqual(selected.stagedCipherChunks)
+    expect(isDeepStrictEqual(await database.stagedCipherChunks.toArray(), selected.stagedCipherChunks), 'Exact binary data and metadata').toBe(true)
     release()
     if (cleanupFailure) {
       expect(await outcome).toMatchObject({ message: 'Inactive workspace cleanup failed' })
       expect(reopened).toBe(false)
-      expect(await database.stagedCipherChunks.toArray()).toEqual(selected.stagedCipherChunks)
+      expect(isDeepStrictEqual(await database.stagedCipherChunks.toArray(), selected.stagedCipherChunks), 'Exact binary data and metadata').toBe(true)
       await recover()
     } else expect(await outcome).toBeUndefined()
     expect(reopened).toBe(true)
     expect(await readAccountBytes(database, token, cipherRef(borrowed))).toEqual(new Uint8Array([19, 23]))
     expect(await database.encryptedRevisions.toArray()).toEqual(installed)
-    expect(await database.stagedCipherChunks.toArray()).toEqual(chunks)
+    expect(isDeepStrictEqual(await database.stagedCipherChunks.toArray(), chunks), 'Exact binary data and metadata').toBe(true)
     for (const table of [database.profileMeta, database.documentHeads, database.migrationJournal, database.syncState, database.outbox, database.conflicts]) expect(await table.toArray()).toEqual(selected[table.name])
   } finally { release?.(); await Promise.allSettled([recovery]); vi.restoreAllMocks(); for (const operation of operations) await operation.abandon(); invalidateProfile(); await database.delete() }
 })
@@ -1633,7 +1636,7 @@ it.each(['signal', 'profile'].flatMap(mode => ['workspace', 'C', 'final'].map(ph
     await expect(f.inactive.rebindInactiveAccountWorkspace(f.database, f.token, signed, parent)).rejects.toThrow()
     expect(retired).toBe(true)
     expect(await f.database.encryptedRevisions.toArray()).toEqual(installed)
-    expect(await f.database.stagedCipherChunks.toArray()).toEqual(chunks)
+    expect(isDeepStrictEqual(await f.database.stagedCipherChunks.toArray(), chunks), 'Exact binary data and metadata').toBe(true)
     expect(await f.database.profileMeta.toArray()).toEqual([])
   } finally { vi.restoreAllMocks(); await signed.dispose(); await candidate.dispose(); await parent.abandon(); await f.close() }
 })
@@ -1675,7 +1678,7 @@ it.each([false, true])('legacy-local dispatch denies valid inactive v2 with none
       const ordinary = await f.inactive.openInactiveAccountWorkspace(f.database, f.token, head, { owner: candidate.owner })
       await candidate.assertContents(ordinary); await ordinary.dispose()
     }
-    expect(await exactAccountTables(f.database)).toEqual(before)
+    expect(isDeepStrictEqual(await exactAccountTables(f.database), before), 'Exact binary data and metadata').toBe(true)
   } finally { await candidate.dispose(); await f.close() }
 })
 
@@ -1767,7 +1770,7 @@ it.each(['subtree', 'evidence', 'new-projection'] as const)('lateDOrCEvidenceHan
     // Sibling failures belong to the outer owner, never a fabricated inner operation primary
     const carrier = readAccountPreparationFailure(rejected)
     expect(carrier?.primary ?? rejected).toBeInstanceOf(Error)
-    expect(await exactAccountTables(f.database)).toEqual(before)
+    expect(isDeepStrictEqual(await exactAccountTables(f.database), before), 'Exact binary data and metadata').toBe(true)
     await f.blank.opened.check()
     expect(() => f.blank.owner.check()).not.toThrow()
   } finally { resume.resolve(); vi.restoreAllMocks(); await prepared?.opened.dispose(); await inherited?.dispose(); await f.close() }
@@ -1798,7 +1801,7 @@ it('managed D final source await denies a separately retired target and preserve
     resume.resolve()
     expect(await opening).toBeInstanceOf(Error)
     await f.blank.opened.check()
-    expect(await exactAccountTables(f.database)).toEqual(before)
+    expect(isDeepStrictEqual(await exactAccountTables(f.database), before), 'Exact binary data and metadata').toBe(true)
   } finally { resume.resolve(); vi.restoreAllMocks(); await f.close() }
 })
 
@@ -1873,7 +1876,7 @@ it('managed D settles its pending checks and every real stream cleanup once with
     vi.restoreAllMocks()
     await f.blank.opened.check()
     expect(() => f.blank.owner.check()).not.toThrow()
-    expect(await exactAccountTables(f.database)).toEqual(before)
+    expect(isDeepStrictEqual(await exactAccountTables(f.database), before), 'Exact binary data and metadata').toBe(true)
   } finally { resume.resolve(); await Promise.allSettled([reading, disposal]); vi.restoreAllMocks(); await prepared?.opened.dispose(); await f.close() }
 })
 
@@ -1982,7 +1985,7 @@ it('managed D reports a normal dispatch cleanup failure without inventing an ope
     expect((await dispatchJoin!.request()).status).toBe('failed')
     expect(attempts).toBe(1)
     expect(failedReturns).toBe(physicalReturns)
-    expect(await exactAccountTables(f.database)).toEqual(before)
+    expect(isDeepStrictEqual(await exactAccountTables(f.database), before), 'Exact binary data and metadata').toBe(true)
     await f.blank.opened.check()
     expect(() => f.blank.owner.check()).not.toThrow()
   } finally { vi.restoreAllMocks(); await f.close() }
@@ -2023,7 +2026,7 @@ it.each(['cleanup-only', 'primary-undefined', 'literal-undefined'] as const)('A 
       expect(readAccountCleanupOnlyFailure(rejected)).toBeUndefined()
     } else expect(rejected).toBeUndefined()
     if (first) expect(await nested.request()).toBe(first)
-    expect(await exactAccountTables(f.database)).toEqual(before)
+    expect(isDeepStrictEqual(await exactAccountTables(f.database), before), 'Exact binary data and metadata').toBe(true)
     expect(() => f.owner.check()).not.toThrow()
   } finally { await f.dispose() }
 })
@@ -2087,7 +2090,7 @@ it.each((['projection', 'subtree'] as const).flatMap(route => [{ route, localFai
     expect(localAttempts).toBe(localFailure ? 1 : 0)
     if (historicalRetry) expect((await nested.request()).status).toBe('succeeded')
     else expect(await nested.request()).toBe(first)
-    expect(await exactAccountTables(f.database)).toEqual(before)
+    expect(isDeepStrictEqual(await exactAccountTables(f.database), before), 'Exact binary data and metadata').toBe(true)
     await f.blank.opened.check()
     expect(() => f.blank.owner.check()).not.toThrow()
   } finally { vi.restoreAllMocks(); await f.close() }
@@ -2164,7 +2167,7 @@ it('D retains an aborted native deletion after retry beside a later physical str
     expect(returns).toBe(1)
     expect(deletes).toBe(2)
     expect((await nested.request()).status).toBe('succeeded')
-    expect(await exactAccountTables(f.database)).toEqual(before)
+    expect(isDeepStrictEqual(await exactAccountTables(f.database), before), 'Exact binary data and metadata').toBe(true)
     await f.blank.opened.check()
   } finally { vi.restoreAllMocks(); await owner.abandon(); await f.close() }
 })

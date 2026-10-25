@@ -79,6 +79,8 @@ Node persistence tests require `fake-indexeddb` 6.2.6 or later. Version 6.2.5 re
 
 Persistence journeys that start real Miniflare backends use `persistence-service` and share the native shard budget. Ordinary persistence tests retain their separate parallel pool, and `npm run test:persistence` includes both persistence projects. Keep backend composition files in `SERVICE_PERSISTENCE_TEST_FILES` so their runtime load stays bounded.
 
+For complete ciphertext tables and segmented byte pages, use Node's `isDeepStrictEqual` and assert its boolean result. It checks every byte, page boundary and metadata field without generic typed-array key enumeration; asserting the boolean also avoids constructing an enormous diagnostic diff on failure. Preserve the original fixture sizes and all surrounding lifecycle assertions.
+
 The [verification coverage map](verification-coverage.md) assigns expensive composed journeys and payload-size boundaries to explicit owners. Consolidate repeated setup and cross-products only when a retained test proves the same invariant; preserve browser-specific storage, security and lifecycle checks.
 
 Browser tests use the production build. The desktop project runs every scenario; the mobile project selects tests tagged with `MOBILE_TEST_TAG` from `e2e/test-tags.ts`. Mobile coverage exercises responsive layouts, touch controls, queued tile boards, and representative editing, import, sharing, and offline journeys. Detailed data, validation, calculation, persistence, and recovery combinations run on desktop alongside their unit and component coverage.
