@@ -143,6 +143,30 @@ it('automatically saves later input after the pending command hydrates its succe
   expect(file.pendingForm).toMatchObject({ fields: { currency: 'later V+1' } })
   expect(await readSaveContent(state, file)).toEqual({ originalBytes: bytes, workingBytes: bytes })
 })
+it('flushes an inventory filter selection without waiting for the typing debounce', async () => {
+  await open()
+  const begin = vi.spyOn(workspace, 'beginSaveCommand')
+  afterNextGuestPublication(() => {
+    const stock = container.querySelectorAll<HTMLSelectElement>('.save-editor__inventory-tools select')[1]
+    stock.value = 'carried'; stock.dispatchEvent(new Event('change', { bubbles: true }))
+  })
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  try {
+    await act(async () => {
+      const category = container.querySelector<HTMLSelectElement>('.save-editor__inventory-tools select')!
+      category.value = 'item'; category.dispatchEvent(new Event('change', { bubbles: true }))
+    })
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(begin).toHaveBeenCalledWith(expect.anything(), 'savePending')
+  } finally { vi.useRealTimers() }
+  await wait(() => {
+    expect(workspace.fileCommandPending()).toBe(false)
+    expect(workspace.saveSession.controller.snapshot().dirty).toBe(false)
+  })
+  const state = await workspace.repository.readWorkspace(), file = state.saveDocuments.find(value => value.id === savedId)!
+  expect(file.pendingForm).toMatchObject({ presentation: { inventoryKind: 'item', stockFilter: 'carried' } })
+  expect(await readSaveContent(state, file)).toEqual({ originalBytes: bytes, workingBytes: bytes })
+})
 it.each(['composition', 'pointer'] as const)('actual Save %s input remains live through publication and transfers its final value', async interaction => {
   await open(); await type('captured V')
   const old = workspace, oldView = old.saveSession.transferView!
