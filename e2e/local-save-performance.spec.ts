@@ -7,6 +7,7 @@ import { PERFORMANCE_EDITOR_ID, PERFORMANCE_SAVE_ID } from '../worker/testing/lo
 const SAVE_CEILING_MS = 1000
 const REPEATED_SAVES = 30
 const MAX_MAPPING_SAMPLE_ATTEMPTS = 2
+const NEXT_INPUT_KEY = 'Space'
 const operations = ['Build notes', 'progress tile', 'invalid Editor draft', 'valid Editor Apply', 'Save inventory'] as const
 type Operation = typeof operations[number]
 interface BodyRecord { key: string; kind: string; ref: { documentId: string; revisionId: string }; digest: string; storageId: string }
@@ -135,15 +136,31 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
     })() : undefined
     let expected: unknown
     let editorProbe: { value: string; canApply: boolean; work: ReturnType<Window['finishSaveWork']> } | undefined
+    let nextInputWork: ReturnType<Window['finishSaveWork']> | undefined
     if (operation === 'Build notes') {
       const notes = page.getByPlaceholder('Optional play notes', { exact: true }), value = `Synthetic performance note ${index}`
       await notes.fill(value)
       await arm(page, 'click', 'button[type=submit]', mode === 'account-mapping')
       await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
-      await page.waitForFunction(revision => document.querySelector('select[title="View or edit the latest checkpoint."] option:checked')?.textContent?.startsWith(`r${revision}`) && document.querySelector('.context-status--saved')?.textContent?.includes('Saved locally'), index + 2, { timeout: SAVE_CEILING_MS })
-      await expect(notes).toBeVisible({ timeout: SAVE_CEILING_MS })
-      expect(await notes.inputValue()).toBe(value)
-      await notes.fill(`${value} next`)
+      // Observe saved revision, editable visibility and exact text together so driver round trips do not serialize these checks
+      await page.waitForFunction(({ revision, value }) => {
+        const field = document.querySelector<HTMLTextAreaElement>('textarea[placeholder="Optional play notes"]'), bounds = field?.getBoundingClientRect()
+        const ready = document.querySelector('select[title="View or edit the latest checkpoint."] option:checked')?.textContent?.startsWith(`r${revision}`)
+          && document.querySelector('.context-status--saved')?.textContent?.includes('Saved locally')
+          && !!field && !field.disabled && !field.readOnly && !!bounds?.width && !!bounds?.height && getComputedStyle(field).visibility === 'visible' && field.value === value
+        // Match filling's end cursor without making caret retention another save requirement
+        if (ready && field) {
+          if (window.saveWork) window.saveWork.readyMs ??= performance.now() - window.saveWork.started
+          field.setSelectionRange(field.value.length, field.value.length)
+        }
+        return ready
+      }, { revision: index + 2, value }, { timeout: SAVE_CEILING_MS })
+      await notes.press(NEXT_INPUT_KEY)
+      nextInputWork = await page.evaluate(value => {
+        const field = document.activeElement
+        if (!(field instanceof HTMLTextAreaElement) || !field.matches('textarea[placeholder="Optional play notes"]') || field.value !== `${value} `) throw new Error('The Build lost its next trusted input after saving')
+        return window.finishSaveWork()
+      }, value)
       expected = value
     } else if (operation === 'Save inventory') {
       const row = page.locator('.save-editor__inventory-row').filter({ hasText: 'Item #0 ·' }), input = row.getByRole('textbox'), value = String(3 + index % 2)
@@ -191,7 +208,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
         // Type one real next character instead of retransmitting the complete document
         // Capture readiness and the clock together so later automation queries cannot extend this boundary
         // Use the field's retained focus; locator.press would refocus it and hide a continuation regression
-        await page.keyboard.press('Space')
+        await page.keyboard.press(NEXT_INPUT_KEY)
       } else {
         const displayed = await field.evaluate(element => {
           if (!(element instanceof HTMLTextAreaElement)) throw new Error('The editor field is unavailable')
@@ -201,7 +218,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
         })
         expect(displayed).toBe(value)
         // Focus follows the same explicit field interaction as filling, while one trusted key avoids resending the document
-        await field.press('Space')
+        await field.press(NEXT_INPUT_KEY)
       }
       editorProbe = await page.evaluate(() => {
         const element = document.activeElement
@@ -212,7 +229,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       })
       expected = value
     }
-    const work = editorProbe?.work ?? await page.evaluate(() => window.finishSaveWork())
+    const work = editorProbe?.work ?? nextInputWork ?? await page.evaluate(() => window.finishSaveWork())
     // The trusted probe and undo are ordinary autosaved input after the timed readiness boundary
     // Drain only their local command before the durable oracle; real background mapping stays live
     if (operation.includes('Editor')) {
@@ -221,7 +238,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       expect(await page.getByLabel('Exact JSON value').inputValue()).toBe(expected)
     }
     const persisted = await inspect(page, operation === 'Save inventory' ? 'save' : operation.includes('Editor') ? 'editor' : 'planner')
-    measures.push({ index, work, expected, persisted, ...(beforeInventory ? { beforeInventory } : {}), ...(editorProbe ? { nextInput: { exactText: editorProbe.value === `${expected} `, applyEnabled: editorProbe.canApply } } : {}) })
+    measures.push({ index, work, expected, persisted, ...(beforeInventory ? { beforeInventory } : {}), ...(editorProbe ? { nextInput: { exactText: editorProbe.value === `${expected} `, applyEnabled: editorProbe.canApply } } : nextInputWork ? { nextInput: { exactText: true, focused: true } } : {}) })
     expect(work.elapsedMs).toBeLessThanOrEqual(SAVE_CEILING_MS)
     if (editorProbe) {
       expect(editorProbe.value).toBe(`${expected} `)
