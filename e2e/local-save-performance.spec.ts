@@ -18,9 +18,9 @@ function consumedKeys(file: any, operation: Operation): Set<string> {
   return new Set()
 }
 
-async function arm(page: Page, event: 'click' | 'input', selector: string, withMapping = false) {
+async function arm(page: Page, event: 'click' | 'input', selector: string, withMapping = false, nextInput?: { selector: string; value: string; budgetMs: number }) {
   if (withMapping) await ensureMapping(page)
-  await page.evaluate(({ event, selector }) => window.armSaveWork(event, selector), { event, selector })
+  await page.evaluate(({ event, selector, nextInput }) => window.armSaveWork(event, selector, nextInput), { event, selector, nextInput })
 }
 async function ensureMapping(page: Page) {
   // Reuse real in-flight projection across edits; draining it per save serializes bulk work
@@ -140,7 +140,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
     if (operation === 'Build notes') {
       const notes = page.getByPlaceholder('Optional play notes', { exact: true }), value = `Synthetic performance note ${index}`
       await notes.fill(value)
-      await arm(page, 'click', 'button[type=submit]', mode === 'account-mapping')
+      await arm(page, 'click', 'button[type=submit]', mode === 'account-mapping', { selector: 'textarea[placeholder="Optional play notes"]', value: `${value} `, budgetMs: SAVE_CEILING_MS })
       await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
       // Observe saved revision, editable visibility and exact text together so driver round trips do not serialize these checks
       await page.waitForFunction(({ revision, value }) => {
@@ -151,16 +151,13 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
         // Match filling's end cursor without making caret retention another save requirement
         if (ready && field) {
           if (window.saveWork) window.saveWork.readyMs ??= performance.now() - window.saveWork.started
+          field.focus({ preventScroll: true })
           field.setSelectionRange(field.value.length, field.value.length)
         }
         return ready
       }, { revision: index + 2, value }, { timeout: SAVE_CEILING_MS })
-      await notes.press(NEXT_INPUT_KEY)
-      nextInputWork = await page.evaluate(value => {
-        const field = document.activeElement
-        if (!(field instanceof HTMLTextAreaElement) || !field.matches('textarea[placeholder="Optional play notes"]') || field.value !== `${value} `) throw new Error('The Build lost its next trusted input after saving')
-        return window.finishSaveWork()
-      }, value)
+      await page.keyboard.press(NEXT_INPUT_KEY)
+      nextInputWork = await page.evaluate(() => window.finishNextInputWork())
       expected = value
     } else if (operation === 'Save inventory') {
       const row = page.locator('.save-editor__inventory-row').filter({ hasText: 'Item #0 ·' }), input = row.getByRole('textbox'), value = String(3 + index % 2)
@@ -238,8 +235,9 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       expect(await page.getByLabel('Exact JSON value').inputValue()).toBe(expected)
     }
     const persisted = await inspect(page, operation === 'Save inventory' ? 'save' : operation.includes('Editor') ? 'editor' : 'planner')
-    measures.push({ index, work, expected, persisted, ...(beforeInventory ? { beforeInventory } : {}), ...(editorProbe ? { nextInput: { exactText: editorProbe.value === `${expected} `, applyEnabled: editorProbe.canApply } } : nextInputWork ? { nextInput: { exactText: true, focused: true } } : {}) })
+    measures.push({ index, work, expected, persisted, ...(beforeInventory ? { beforeInventory } : {}), ...(editorProbe ? { nextInput: { exactText: editorProbe.value === `${expected} `, applyEnabled: editorProbe.canApply } } : nextInputWork ? { nextInput: { exactText: nextInputWork.nextInputReady === true, focused: nextInputWork.nextInputReady === true } } : {}) })
     expect(work.elapsedMs).toBeLessThanOrEqual(SAVE_CEILING_MS)
+    if (nextInputWork) expect(nextInputWork.nextInputReady).toBe(true)
     if (editorProbe) {
       expect(editorProbe.value).toBe(`${expected} `)
       expect(editorProbe.canApply).toBe(true)
