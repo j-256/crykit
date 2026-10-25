@@ -118,6 +118,8 @@ Each independent journey receives an isolated browser context and establishes it
 
 Account test proxies send requests only to their owned literal loopback endpoint. Browser-supplied paths cannot choose another authority, and redirects are not followed. The immutable HTTPS runtime supplies its public certificate to its parent fixture so Node clients can verify that certificate explicitly; they never disable TLS verification.
 
+The account status-recovery journey separates account setup and cloud publication from delayed-upload edits, offline reload and reconnect through serial checkpoints in the same owned context. Its `local-recovery-journey-receipt` measures setup and both phases together; the later publication and storage-recovery continuations remain required. The separate bulk setup budget does not change foreground save deadlines or establish faster verification.
+
 CI account acceptance stops after a failed case and its cleanup, retaining the acceptance report, trace and screenshot paths. Passing runs still execute every selected case. The artifact upload names the synthetic acceptance outputs explicitly so enabling hidden-file collection cannot include runtime keys or unrelated private inputs.
 
 Wait for a new tab's document to load before asserting application content, matching the navigation readiness provided by `page.goto`. A context's page event identifies the opened tab before that navigation finishes. Keep navigation readiness separate from the existing rendering assertion budget.
