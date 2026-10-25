@@ -67581,6 +67581,21 @@
       },
       "reasons": []
     },
+    "https://www.w3.org/TR/2017/REC-WebCryptoAPI-20170126/#SubtleCrypto-method-digest": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/accounts-security.md",
+        "src/account/crypto/sha256.ts"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
     "https://www.youtube.com/playlist?list=PLANilMSTqLAoCfo-Y8WjYxvBFZPdimzg6": {
       "disposition": "claim-specific",
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",

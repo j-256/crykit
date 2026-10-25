@@ -30,6 +30,19 @@ async function encrypt(payload: Uint8Array, parts = [payload]) {
 }
 
 describe('authenticated immutable revisions', () => {
+  it('decrypts the exact captured ciphertext when the producer changes its buffer during native hashing', async () => {
+    const payload = new Uint8Array([1, 2, 3]), encrypted = await encrypt(payload)
+    const digest = crypto.subtle.digest.bind(crypto.subtle)
+    vi.spyOn(crypto.subtle, 'digest').mockImplementation((algorithm, data) => {
+      const pending = digest(algorithm, data)
+      encrypted.chunks[0].fill(0)
+      return pending
+    })
+    const sink = plainSink()
+    await decryptRevision(key, encrypted.descriptor, source(encrypted.chunks), sink)
+    expect(sink.value()).toEqual(payload)
+    expect(sink.committed).toBe(true)
+  })
   it.each([0, 1, 4 * 1024 * 1024, 4 * 1024 * 1024 + 23])('authenticatesEmptyBoundaryAndMultiChunkPayloads (%i bytes)', async size => {
     const payload = new Uint8Array(size).fill(42)
     const { descriptor, stagedPayloadId, chunks } = await encrypt(payload, [payload.subarray(0, 13), payload.subarray(13)])
