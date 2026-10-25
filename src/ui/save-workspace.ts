@@ -16,6 +16,8 @@ const DOWNLOAD_URL_LIFETIME_MS = 1_000
 export interface OpenSaveDocument { readonly file: SaveWorkspaceDocument; readonly content: Awaited<ReturnType<typeof readSaveContent>>; readonly exportStatus: Awaited<ReturnType<typeof saveExportStatus>> }
 export interface SaveSession {
   readonly controller: SaveInputController
+  // A discrete choice may arrive during publication and must flush after the successor hydrates
+  immediateInputSave?: boolean
   operation?: SaveOperation
   phase: 'idle' | 'staging' | 'reconciling' | 'hydrating' | 'recovery'
   transferView?: SaveViewIncarnation
