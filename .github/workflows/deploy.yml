@@ -28,12 +28,14 @@ jobs:
           - { name: unit, script: 'test:unit' }
           - { name: dom, script: 'test:dom' }
           # Separate runners retain fixture isolation and serial pools within the existing job deadline
-          - { name: 'persistence 1/6', script: 'test:persistence -- --shard=1/6' }
-          - { name: 'persistence 2/6', script: 'test:persistence -- --shard=2/6' }
-          - { name: 'persistence 3/6', script: 'test:persistence -- --shard=3/6' }
-          - { name: 'persistence 4/6', script: 'test:persistence -- --shard=4/6' }
-          - { name: 'persistence 5/6', script: 'test:persistence -- --shard=5/6' }
-          - { name: 'persistence 6/6', script: 'test:persistence -- --shard=6/6' }
+          # The complete sync journey file owns a runner so unrelated files cannot consume its deadline
+          - { name: 'persistence sync', script: 'test:persistence -- src/persistence/sync-integration.test.ts' }
+          - { name: 'persistence 1/6', script: 'test:persistence -- --exclude=src/persistence/sync-integration.test.ts --shard=1/6' }
+          - { name: 'persistence 2/6', script: 'test:persistence -- --exclude=src/persistence/sync-integration.test.ts --shard=2/6' }
+          - { name: 'persistence 3/6', script: 'test:persistence -- --exclude=src/persistence/sync-integration.test.ts --shard=3/6' }
+          - { name: 'persistence 4/6', script: 'test:persistence -- --exclude=src/persistence/sync-integration.test.ts --shard=4/6' }
+          - { name: 'persistence 5/6', script: 'test:persistence -- --exclude=src/persistence/sync-integration.test.ts --shard=5/6' }
+          - { name: 'persistence 6/6', script: 'test:persistence -- --exclude=src/persistence/sync-integration.test.ts --shard=6/6' }
           - { name: 'worker 1/6', script: 'test:worker -- --shard=1/6' }
           - { name: 'worker 2/6', script: 'test:worker -- --shard=2/6' }
           - { name: 'worker 3/6', script: 'test:worker -- --shard=3/6' }
