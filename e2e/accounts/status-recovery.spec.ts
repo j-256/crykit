@@ -7,16 +7,24 @@ import { waitForPlannerReady } from '../local-data-helpers'
 import type * as auth from '../../src/account/auth-client'
 
 const password = 'synthetic status recovery password'
+const STATUS_RECOVERY_PHASE_TIMEOUT_MS = 120_000
+const LOCAL_RECOVERY_TITLE = 'local saves and queued tiles remain durable through network delay and offline reload'
 let page: Page, context: BrowserContext
 const syncResponses: Record<string, number> = {}
 let started: number
 let runtimeBefore: unknown
 let network: Awaited<ReturnType<typeof accountConnectivity>>
+let setupCompleted = false
 test.describe.configure({ mode: 'serial' })
-test.beforeAll(async ({ browser, accountRuntime, viewport, isMobile, hasTouch, userAgent, colorScheme, ignoreHTTPSErrors }) => { network = await accountConnectivity(accountRuntime.origin, accountRuntime.certificate); context = await browser.newContext({ baseURL: network.origin, viewport, isMobile, hasTouch, userAgent, colorScheme, ignoreHTTPSErrors }); page = await context.newPage(); started = Date.now(); runtimeBefore = await (await page.request.get('/__accounts/measurement')).json(); page.on('response', response => { if (response.url().includes('/api/v1/sync/')) { const key = `${new URL(response.url()).pathname.replace(/(\/uploads|\/mutations)\/[^/]+/g, '$1/:id')}:${response.status()}`; syncResponses[key] = (syncResponses[key] ?? 0) + 1 } }) })
+test.beforeAll(async ({ browser, accountRuntime, viewport, isMobile, hasTouch, userAgent, colorScheme, ignoreHTTPSErrors }) => { started = Date.now(); network = await accountConnectivity(accountRuntime.origin, accountRuntime.certificate); context = await browser.newContext({ baseURL: network.origin, viewport, isMobile, hasTouch, userAgent, colorScheme, ignoreHTTPSErrors }); page = await context.newPage(); runtimeBefore = await (await page.request.get('/__accounts/measurement')).json(); page.on('response', response => { if (response.url().includes('/api/v1/sync/')) { const key = `${new URL(response.url()).pathname.replace(/(\/uploads|\/mutations)\/[^/]+/g, '$1/:id')}:${response.status()}`; syncResponses[key] = (syncResponses[key] ?? 0) + 1 } }) })
 test.afterAll(async () => { try { await context.close() } finally { await network.dispose() } })
-test('local saves and queued tiles remain durable through network delay and offline reload', async ({ browserName }) => {
-  test.setTimeout(120_000)
+test.afterEach(async ({}, info) => {
+  if (info.title !== LOCAL_RECOVERY_TITLE) return
+  // Include both serial phases and their setup; the extra phase budget is not a throughput improvement
+  await info.attach('local-recovery-journey-receipt', { contentType: 'application/json', body: JSON.stringify({ elapsedFromJourneyStartMs: Date.now() - started, setupCompleted, checksCompleted: info.status === 'passed', sameContextAcrossCheckpoints: true, setupIncluded: true }) })
+})
+test('account setup and Playthrough publication establish the status recovery workspace', async () => {
+  test.setTimeout(STATUS_RECOVERY_PHASE_TIMEOUT_MS)
   await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined }) })
   await page.request.post('/__accounts/control/reset-rate-counters', { data: {} })
   await page.goto('/__accounts-proof/')
@@ -52,6 +60,12 @@ test('local saves and queued tiles remain durable through network delay and offl
   await expect(remote).toHaveText('Synced', { timeout: 60_000 })
   await page.getByRole('button', { name: 'Load updated data', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Load updated data', exact: true })).toBeHidden()
+  setupCompleted = true
+})
+// The continuation owns the same page and native workspace; failed setup blocks all later checkpoints
+test(LOCAL_RECOVERY_TITLE, async ({ browserName }) => {
+  test.setTimeout(STATUS_RECOVERY_PHASE_TIMEOUT_MS)
+  const status = page.getByRole('complementary', { name: 'Account sync' }), remote = status.getByRole('status')
   const tile = page.locator('.unlock-tile input').first(), surrounding = page.locator('.unlock-tile input').nth(1)
   await page.evaluate(() => {
     const original = window.fetch, gate: { arrived: boolean; release?: () => void } = { arrived: false }
