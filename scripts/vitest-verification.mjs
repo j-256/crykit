@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { VerificationError } from './integration-verification.mjs'
 
 const VITEST_CLI = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url))
-const NATIVE_SHARDS = 4
+const NATIVE_SHARDS = 6
 const LANES = Object.freeze([
   { name: 'node', projects: ['unit', 'dom', 'persistence'] },
   // A failing serial shard can bail after cleanup without aborting another active database case
