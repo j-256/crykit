@@ -29,7 +29,9 @@ Physical storage estimates must include D1 pages/indexes, encrypted payloads, me
 
 Recovery admission uses the exact measured policy in [service recovery](accounts-recovery.md#capture-authority-and-lifetime). No policy means paused capture. Daily capture and up-to-30-day retention remain targets, not a runtime SLA. Keep last verified points when capture degrades, show their actual age and support independent private backup. Do not turn customer quotas into guessed capture ceilings or split the atomic capture into unsafe partial snapshots.
 
-The browser outbox checks independent upload readiness with the same bounded concurrency used for ciphertext transfer. A failed check stops new probes and waits for active requests to finish before recovery or publication continues. Transport chunk budgets, server retry floors, admission counters and exact stored command identities retain their existing bounds.
+The browser outbox checks independent upload readiness with the same bounded concurrency used for ciphertext transfer. A failed check stops new probes and waits for active requests to finish before recovery or publication continues. Transport chunk budgets, failure and rate-limit retry floors, admission counters and exact stored command identities retain their existing bounds.
+
+An authenticated publication continuation carries a zero retry hint so successful bounded passes resume on the next task without an artificial one-second wait. The client still requires matching work identity and increasing progress. Real failures, nonadvancing responses and rate limits retain their retry delays; every continuation remains subject to native admission and the same per-request work budget.
 
 ## Email and Access
 

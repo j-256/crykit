@@ -11,6 +11,7 @@ import { borrowCertifiedMember, issueCertificate, workIdentityGuard, workIdentit
 // A retry continues the same durable frontier; this is a work budget, not a graph-size limit
 export const closureStepsPerCall = 48
 export const closureRetryAfterSeconds = 1
+const PROGRESS_RETRY_AFTER_SECONDS = 0
 interface RevisionRow { descriptor: string; document_id: string }
 interface WorkRow { digest: string; state: string; expires_at: number; work_id: string | null; processed_steps: number | null }
 export async function mutationReceipt(principal: CustomerPrincipal, mutationId: string, context: ServiceContext): Promise<CommitReceipt | null> {
@@ -128,7 +129,9 @@ async function prepareClosure(principal: CustomerPrincipal, input: CommitRequest
   context.emit({ operation: 'sync', stage: 'closure-budget', code: 'SERVICE_UNAVAILABLE', mutationId: input.mutationId })
   const observed = await readWork()
   const continuation = observed?.state === 'validating' && observed.expires_at > context.now() && observed.work_id === work.work_id ? CommitContinuationSchema.parse({ mutationId: input.mutationId, requestDigest, workId: observed.work_id, expiresAt: observed.expires_at, processed: observed.processed_steps }) : undefined
-  throw new ApiFailure('SERVICE_UNAVAILABLE', closureRetryAfterSeconds, continuation)
+  // The client admits only matching, advancing continuations and resumes on another task
+  // Native admission still guards each request; unavailable work keeps its normal retry floor
+  throw new ApiFailure('SERVICE_UNAVAILABLE', continuation ? PROGRESS_RETRY_AFTER_SECONDS : closureRetryAfterSeconds, continuation)
 }
 export async function commitRevisions(principal: CustomerPrincipal, input: CommitRequest, context: ServiceContext): Promise<CommitReceipt> {
   input = CommitRequestSchema.parse(input)
