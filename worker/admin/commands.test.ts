@@ -137,7 +137,7 @@ it('auditsFullEmailDetailWithoutLoggingSearch', async () => {
   expect(
     await f.db.prepare("SELECT target_id FROM admin_audit WHERE action='accounts.detail'").first('target_id'),
   ).toBe(accountId)
-  expect(JSON.stringify(f.events())).not.toContain('customer@example.org')
+  expect(JSON.stringify(await f.events())).not.toContain('customer@example.org')
 })
 
 async function confirm(s: Awaited<ReturnType<typeof setup>>, input: unknown) {

@@ -6,7 +6,7 @@ const e2eBaseUrl = `http://127.0.0.1:${e2ePort}`
 const END_TO_END_TEST_TIMEOUT_MS = 60_000
 const CI_END_TO_END_WORKERS = 1
 // Bound concurrent offline cache installs so the preview server can serve the map assets
-const LOCAL_END_TO_END_WORKERS = 3
+const LOCAL_END_TO_END_WORKERS = 6
 // Mobile offline journeys share the bounded global browser budget
 const MOBILE_END_TO_END_WORKERS = 2
 const END_TO_END_TIMING_REPORT_PATH = 'test-results/timings.json'

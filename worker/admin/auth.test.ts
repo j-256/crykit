@@ -522,7 +522,7 @@ it('retainsAuditForNinetyDaysAndCleansExpiredSessionsWithoutSecrets', async () =
   const serialized =
     JSON.stringify(await f.db.prepare('SELECT * FROM admin_sessions').all()) +
     JSON.stringify(await f.db.prepare('SELECT * FROM admin_security_audit').all()) +
-    JSON.stringify(f.events())
+    JSON.stringify(await f.events())
   for (const secret of [token, signed.headers.cookie.split('=')[1], signed.csrf])
     expect(serialized).not.toContain(secret)
   await cleanupAdminSessions(nodeContext(f, config, now + 90 * 24 * 60 * 60 * 1000))
@@ -635,7 +635,7 @@ it('newMemberLoginCommitsAuditAtomicallyWithoutAuditingRefreshes', async () => {
       .status,
   ).toBe(503)
   expect(await f.db.prepare('SELECT count(*) n FROM admin_sessions').first('n')).toBe(1)
-  expect(f.events()).toContainEqual(
+  expect(await f.events()).toContainEqual(
     expect.objectContaining({ operation: 'admin', code: 'AUDIT_TRANSACTION_UNAVAILABLE' }),
   )
 })

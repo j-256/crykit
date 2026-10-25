@@ -70,8 +70,8 @@ it.each(['ledger.event.written','ledger.index.written','ledger.head.written','de
   expect((await f.request('/__accounts/control/initialize-revocations',{method:'POST',headers:{'content-type':'application/json'},body:'{}'})).status).toBe(200)
   expect((await start(f,owner,capability)).status).toBe(202)
   f.failNext(stage)
-  for(let step=0;step<80 && !f.events().some(event=>event.stage===stage);step++){await f.runJobs();f.advance(60_000)}
-  expect(f.events().some(event=>event.stage===stage)).toBe(true)
+  for(let step=0;step<80 && !(await f.events()).some(event=>event.stage===stage);step++){await f.runJobs();f.advance(60_000)}
+  expect((await f.events()).some(event=>event.stage===stage)).toBe(true)
   expect((await status(f,capability)).state).toBe('pending')
   expect(await drain(f,capability)).toEqual({state:'complete',phase:'complete'})
   expect(await f.db.prepare('SELECT * FROM credentials').all()).toMatchObject({results:[]})

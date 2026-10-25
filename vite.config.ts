@@ -9,8 +9,8 @@ const PERSISTENCE_TEST_TIMEOUT_MS = 30_000
 const CI_TEST_WORKERS = 2
 // Bound isolated local files within one shared pool
 const LOCAL_TEST_WORKERS = '25%'
-// Sustained parallel Miniflare binding RPC hit EADDRNOTAVAIL on local TCP allocation
-// Backend composition cases share this serial pool; unrelated local persistence stays parallel
+// Local verification runs independent serial shards so failure never aborts a sibling database case
+// Standalone and hosted commands retain one native worker per invocation
 const WORKER_TEST_WORKERS = 1
 const SERVICE_PERSISTENCE_TEST_FILES = [
   'src/persistence/conflicts.test.ts',

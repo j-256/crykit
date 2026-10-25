@@ -107,7 +107,7 @@ it('invitationRequiresMatchingIdentityAndSingleUse', async () => {
   expect(
     await s.f.db.prepare('SELECT eligible FROM email_jobs WHERE id=?').bind(receipt.jobId).first('eligible'),
   ).toBe(0)
-  expect(JSON.stringify(s.f.events())).not.toContain(mail.capability)
+  expect(JSON.stringify(await s.f.events())).not.toContain(mail.capability)
 })
 it('invitationCancellationExpiryDuplicateAndAuditFailureAreExplicit', async () => {
   const s = await setup(),

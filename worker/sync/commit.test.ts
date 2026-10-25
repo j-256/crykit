@@ -192,7 +192,7 @@ it('boundedDurableClosureResumesBeyondDirectDependencyLimitAndRetainsEveryExactG
   expect(response.status).toBe(200)
   expect(await f.db.prepare('SELECT COUNT(*) AS n FROM publication_pins WHERE mutation_id = ? AND done = 1').bind(publish.mutationId).first('n')).toBe(261)
   expect(await claimGenerationCleanup(signed.accountId,generation!,context)).toBe(false)
-  await measurement('graph',{revisions:261,calls,invocations,elapsedMs:Math.round(performance.now()-started),quota:(await f.db.prepare('SELECT * FROM quota_counters ORDER BY scope').all()).results,transactions:f.events().filter(e=>e.operation==='sync'&&e.stage==='transaction')})
+  await measurement('graph',{revisions:261,calls,invocations,elapsedMs:Math.round(performance.now()-started),quota:(await f.db.prepare('SELECT * FROM quota_counters ORDER BY scope').all()).results,transactions:(await f.events()).filter(e=>e.operation==='sync'&&e.stage==='transaction')})
   const dense=[]
   for(let index=0;index<32;index++)dense.push((await prepared(f,signed,{dependencies:leaves.slice(0,256).map(i=>({documentId:i.descriptor.documentId,revisionId:i.descriptor.revisionId}))})).descriptor)
   const denseCommand=command(dense,leaves.slice(0,32).map(i=>({documentId:i.descriptor.documentId,revisionId:i.descriptor.revisionId})))

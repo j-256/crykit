@@ -10,6 +10,10 @@ import { skipInitialModSetup } from './local-data-helpers'
 import { modWorkspaceRoute } from '../src/ui/mod-workspace'
 import { formatAppRoute } from '../src/ui/navigation'
 
+// Bound live canvas and physical gesture workloads within each browser project
+// Default mode keeps fresh per-test contexts and continues after failures without a shared serial journey
+test.describe.configure({ mode: 'default' })
+
 const FILENAME = 'synthetic-map-editor.json'
 const ID = 'a1943ce8-2a42-486a-9549-d497685b671e'
 const TREASURE = '{"ID":1,"Coord":{"X":-12,"Y":99,"Z":4,"FutureCoordinate":9007199254740993},"BiomeID":1,"EntityType":5,"TreasureData":{"LootType":2,"LootValue":18,"Condition":{"ConditionType":0,"Data":null,"IsNegation":false}},"FutureRecord":0.12345678901234567890123456789}'

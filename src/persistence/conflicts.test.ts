@@ -205,7 +205,7 @@ it.each(['editor', 'stale', 'build', 'build-stale', 'stale-before-save'] as cons
     if (path.includes('/revisions/')) { if (path.includes('/chunks/')) transfers.chunks++; else transfers.descriptors++ }
     const headers = new Headers(init.headers); headers.set('cookie', session.headers.cookie); headers.set('origin', 'http://127.0.0.1')
     const response = await fixture.request(path, { ...init, headers })
-    if (response.status === 429) timing({ journey: scenario, phase: 'admission-rejection', requests: requestTimes.length, peakRequestsPerMinute, stages: fixture.events().filter(value => value.operation === 'admission' && value.code === 'RATE_LIMITED').map(value => value.stage) })
+    if (response.status === 429) timing({ journey: scenario, phase: 'admission-rejection', requests: requestTimes.length, peakRequestsPerMinute, stages: (await fixture.events()).filter(value => value.operation === 'admission' && value.code === 'RATE_LIMITED').map(value => value.stage) })
     if (response.status === 503) transfers.unavailable++
     if (path.endsWith('/commits') && JSON.parse(init.body as string).heads.length) {
       const input = JSON.parse(init.body as string)

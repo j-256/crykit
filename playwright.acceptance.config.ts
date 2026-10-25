@@ -4,9 +4,9 @@ import { CHROMIUM_STATUS_COMPLETION_TAG } from './e2e/test-tags'
 // Acceptance owns an immutable HTTPS fixture; ordinary guest suites keep their separate static server
 delete process.env.NO_COLOR
 process.env.CRYKIT_OWN_ACCOUNT_RUNTIME = '1'
-// Concurrent bulk fixtures exceeded unchanged deadlines alongside the guest browser lane
-// Cross-device and mapper concurrency remain inside their individual journeys
-const ACCOUNT_ACCEPTANCE_WORKERS = 1
+// Each worker owns its backend; local fixture telemetry stays inside the Worker until requested
+// Keep the hosted runner budget independent of the qualified local concurrency
+const ACCOUNT_ACCEPTANCE_WORKERS = process.env.CI ? 1 : 3
 // CI stops after the failed case and cleanup; local runs retain the remaining cases
 const ACCOUNT_ACCEPTANCE_MAX_FAILURES = process.env.CI ? 1 : 0
 export default defineConfig({

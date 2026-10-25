@@ -160,7 +160,7 @@ it('fails closed on retained local inconsistencies instead of emitting partial o
   }
   // Removing an intermediate interval can leave valid earlier rows; only lifecycle completeness excludes it
   // These checks deliberately do not claim to establish deployed provenance from surviving counts
-  expect(f.events().filter(event => event.stage === 'mutation-transition' && event.code === 'INTEGRITY_FAILED').length).toBe(corruptions.length)
+  expect((await f.events()).filter(event => event.stage === 'mutation-transition' && event.code === 'INTEGRITY_FAILED').length).toBe(corruptions.length)
 })
 it.each(['known', 'unknown', 'history-unavailable'] as const)('rechecks final live authority for %s outcome and separates native database failure', async kind => {
   const { readMutationTransition } = await import('./transitions')

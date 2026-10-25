@@ -190,34 +190,6 @@
       },
       "reasons": []
     },
-    "http://control/flush": {
-      "disposition": "retain",
-      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
-      "files": [
-        "worker/testing/local-entry.ts"
-      ],
-      "catalogs": [],
-      "outcomes": {
-        "corroborated": 0,
-        "partial": 0,
-        "retained": 0
-      },
-      "reasons": []
-    },
-    "http://control/state": {
-      "disposition": "retain",
-      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
-      "files": [
-        "worker/testing/local-entry.ts"
-      ],
-      "catalogs": [],
-      "outcomes": {
-        "corroborated": 0,
-        "partial": 0,
-        "retained": 0
-      },
-      "reasons": []
-    },
     "http://dig.ccmixter.org/files/_ghost/25389": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
