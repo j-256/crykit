@@ -1,14 +1,32 @@
 import type { BlobSource, WorkspaceBlobRef } from './file-types'
 import { WorkspaceError } from './repository'
 import { getSodium } from '../account/crypto/sodium'
+import { sha256Hex } from '../account/crypto/sha256'
+import { plainChunkBytes } from '../account/protocol'
 
 export const BLOB_CHUNK_BYTES = 64 * 1024
+// Bound native digest materialization to the same memory unit as revision transport
+const NATIVE_HASH_BYTES = plainChunkBytes
+function canBufferNativeHash(source: BlobSource): boolean { return typeof crypto !== 'undefined' && !!crypto.subtle && source.byteLength <= NATIVE_HASH_BYTES }
 export function blobIdentity(ref: Pick<WorkspaceBlobRef, 'documentId' | 'revisionId'>): string { return JSON.stringify([ref.documentId, ref.revisionId]) }
 export function memoryBlob(bytes: Uint8Array): BlobSource {
   const owned = bytes.slice()
   return { byteLength: owned.byteLength, async *open() { for (let at = 0; at < owned.byteLength; at += BLOB_CHUNK_BYTES) yield owned.slice(at, at + BLOB_CHUNK_BYTES) } }
 }
 export async function hashBlob(source: BlobSource): Promise<string> {
+  // Materialize only bounded metadata; large sources retain incremental hashing and backpressure
+  if (canBufferNativeHash(source)) {
+    const buffer = new Uint8Array(source.byteLength)
+    let length = 0
+    try {
+      for await (const chunk of source.open()) {
+        if (chunk.length > buffer.length - length) throw new Error('Trailing blob bytes')
+        buffer.set(chunk, length); length += chunk.length
+      }
+      if (length !== source.byteLength) throw new Error('Truncated blob bytes')
+      return await sha256Hex(buffer)
+    } finally { buffer.fill(0) }
+  }
   const sodium = await getSodium()
   const state = sodium.crypto_hash_sha256_init()
   let finalized = false
@@ -54,6 +72,21 @@ export async function readBlob(source: BlobSource, limit: number, exact = true):
 // Streaming consumers must abort their destination if iteration fails at EOF
 export function verifiedBlob(source: BlobSource, digest: string): BlobSource {
   return { byteLength: source.byteLength, async *open() {
+    if (canBufferNativeHash(source)) {
+      const buffer = new Uint8Array(source.byteLength)
+      let length = 0
+      try {
+        for await (const bytes of source.open()) {
+          if (bytes.length > buffer.length - length) throw new Error('Verified blob length mismatch')
+          // Preserve source chunk boundaries and hash before-consumer bytes, even if a consumer mutates its view
+          buffer.set(bytes, length); length += bytes.length
+          yield bytes
+        }
+        if (length !== source.byteLength) throw new Error('Verified blob is truncated')
+        if (await sha256Hex(buffer) !== digest) throw new Error('Verified blob digest mismatch')
+      } finally { buffer.fill(0) }
+      return
+    }
     const sodium = await getSodium(), state = sodium.crypto_hash_sha256_init()
     let finalized = false, length = 0
     try {

@@ -4,6 +4,7 @@ import { descriptorContext, streamContext } from './context'
 import { unwrapSecret, wrapSecret } from './envelopes'
 import { decodeBytes, encodeBytes, getSodium, releaseStreamState } from './sodium'
 import { accountKeyBytes, assertKey, CryptoError } from './types'
+import { digestSha256 } from './sha256'
 import type { AccountKey, CipherSink, EncryptedRevision, PlainSink, RevisionContext, RevisionDescriptor } from './types'
 
 export async function encryptRevision(key: AccountKey, context: RevisionContext, uploadId: string, source: AsyncIterable<Uint8Array>, sink: CipherSink): Promise<EncryptedRevision> {
@@ -25,7 +26,7 @@ export async function encryptRevision(key: AccountKey, context: RevisionContext,
     async function push(final: boolean) {
       const index = chunks.length
       const bytes = sodium.crypto_secretstream_xchacha20poly1305_push(stream.state, buffer.subarray(0, buffered), streamContext(context, index), final ? sodium.crypto_secretstream_xchacha20poly1305_TAG_FINAL : sodium.crypto_secretstream_xchacha20poly1305_TAG_MESSAGE)
-      chunks.push({ index, cipherBytes: bytes.length, cipherDigest: encodeBytes(sodium, sodium.crypto_hash_sha256(bytes)) })
+      chunks.push({ index, cipherBytes: bytes.length, cipherDigest: encodeBytes(sodium, await digestSha256(bytes)) })
       // Await each staged write before pulling more source: memory stays bounded independently of document size
       await sink.write(index, bytes)
       buffer.fill(0)
@@ -70,17 +71,23 @@ export async function decryptRevision(key: AccountKey, descriptor: RevisionDescr
     let total = 0
     for await (const chunk of chunks) {
       const expected = descriptor.chunks[count]
-      if (!expected || !(chunk instanceof Uint8Array) || chunk.length !== expected.cipherBytes || encodeBytes(sodium, sodium.crypto_hash_sha256(chunk)) !== expected.cipherDigest) throw new CryptoError('INTEGRITY_FAILED')
-      const result = sodium.crypto_secretstream_xchacha20poly1305_pull(state, chunk, streamContext(descriptor, count))
-      if (!result) throw new CryptoError('INTEGRITY_FAILED')
-      // A successful pull owns plaintext even when its authenticated tag violates the stream contract
+      if (!expected || !(chunk instanceof Uint8Array) || chunk.length !== expected.cipherBytes) throw new CryptoError('INTEGRITY_FAILED')
+      // Hashing yields to native crypto; the subsequent pull must consume that exact captured ciphertext
+      // A producer must not retarget a valid descriptor by changing its buffer during the await
+      const captured = Uint8Array.from(chunk)
       try {
-        const final = count === descriptor.chunks.length - 1
-        if (result.tag !== (final ? sodium.crypto_secretstream_xchacha20poly1305_TAG_FINAL : sodium.crypto_secretstream_xchacha20poly1305_TAG_MESSAGE)) throw new CryptoError('INTEGRITY_FAILED')
-        total += result.message.length
-        await sink.write(result.message)
-        count++
-      } finally { sodium.memzero(result.message) }
+        if (encodeBytes(sodium, await digestSha256(captured)) !== expected.cipherDigest) throw new CryptoError('INTEGRITY_FAILED')
+        const result = sodium.crypto_secretstream_xchacha20poly1305_pull(state, captured, streamContext(descriptor, count))
+        if (!result) throw new CryptoError('INTEGRITY_FAILED')
+        // A successful pull owns plaintext even when its authenticated tag violates the stream contract
+        try {
+          const final = count === descriptor.chunks.length - 1
+          if (result.tag !== (final ? sodium.crypto_secretstream_xchacha20poly1305_TAG_FINAL : sodium.crypto_secretstream_xchacha20poly1305_TAG_MESSAGE)) throw new CryptoError('INTEGRITY_FAILED')
+          total += result.message.length
+          await sink.write(result.message)
+          count++
+        } finally { sodium.memzero(result.message) }
+      } finally { captured.fill(0) }
     }
     if (count !== descriptor.chunks.length || total !== descriptor.plainBytes) throw new CryptoError('INTEGRITY_FAILED')
     // Commit marks whole-stream completion; a streaming sink may already have delivered early chunks
