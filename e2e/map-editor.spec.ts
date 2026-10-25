@@ -237,7 +237,12 @@ async function scenePoints(page: Page, coords: readonly { X: number; Y: number; 
   // Capture one visible canvas's camera and screen transform atomically before projecting the real touch point
   await expect.poll(async () => {
     // Field edits can recenter and reflow the canvas before the next physical pointer action
-    await svg.scrollIntoViewIfNeeded()
+    try { await svg.scrollIntoViewIfNeeded() }
+    catch (error) {
+      // Scrolling owns a handle that a quiet save can detach; retry the current locator within this poll's deadline
+      if (!(error instanceof Error) || !error.message.includes('Element is not attached to the DOM')) throw error
+      return false
+    }
     projection = await svg.evaluate(element => {
       if (!element.isConnected || !element.getClientRects().length) return undefined
       const matrix = (element as SVGSVGElement).getScreenCTM()
