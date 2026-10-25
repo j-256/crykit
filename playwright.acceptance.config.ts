@@ -6,7 +6,7 @@ delete process.env.NO_COLOR
 process.env.CRYKIT_OWN_ACCOUNT_RUNTIME = '1'
 // Each worker owns its backend; local fixture telemetry stays inside the Worker until requested
 // Keep the hosted runner budget independent of the qualified local concurrency
-const ACCOUNT_ACCEPTANCE_WORKERS = process.env.CI ? 1 : 3
+const ACCOUNT_ACCEPTANCE_WORKERS = process.env.CI ? 1 : 2
 // CI stops after the failed case and cleanup; local runs retain the remaining cases
 const ACCOUNT_ACCEPTANCE_MAX_FAILURES = process.env.CI ? 1 : 0
 export default defineConfig({

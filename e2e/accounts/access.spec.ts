@@ -205,10 +205,10 @@ test('explainsARealRateLimitAndKeepsContactAndLocalEditingAvailable', async ({ p
 // Allow the real five-second status poll plus browser scheduling and rendering
 const approvalPollJourneyMs = 10_000
 const uiPassword = 'synthetic account UI password'
-async function uiSignup(page: import('@playwright/test').Page) {
+async function uiSignup(page: import('@playwright/test').Page, path = uiPath) {
   const username = `ui_${crypto.randomUUID().replaceAll('-', '').slice(0, 15)}`
   const email = `${username}@example.org`
-  await page.goto(uiPath)
+  await page.goto(path)
   await page.getByRole('button', { name: 'Create account', exact: true }).click()
   await page.getByLabel('Email', { exact: true }).fill(email)
   await page.getByLabel('Public screen name', { exact: true }).fill(username)
@@ -221,7 +221,7 @@ async function uiSignup(page: import('@playwright/test').Page) {
   const capability = emails.find(message => message.recipient === email)!.capability
   let verifies = 0
   page.on('request', request => { if (request.url().endsWith('/auth/verify')) verifies++ })
-  await page.goto(`${uiPath}#/account/verify/${capability}`)
+  await page.goto(`${path.split('#')[0]}#/account/verify/${capability}`)
   await expect(page.getByRole('heading', { name: 'Confirm email' })).toBeVisible()
   expect(new URL(page.url()).hash).toBe('#/settings/account')
   expect(verifies).toBe(0)
@@ -497,9 +497,10 @@ test.describe('actualWorkspaceSwitchesDistinctAccountsAndRecoveryWithoutCrossing
   test.afterAll(async () => { await context.close() })
   test('captures distinct principals and retains the saved private backup under a foreign cookie', async () => {
     started = Date.now()
-    const first = await uiSignup(page)
-    second = await uiSignup(other)
-    await page.goto(workspacePath)
+    // Register through the real App without reloading a second harness before opening its workspace
+    // No account is unlocked by registration, and the two pages must retain their distinct live owners below
+    const first = await uiSignup(page, workspacePath)
+    second = await uiSignup(other, workspacePath)
     await openWorkspaceAccount(page, first)
     before = await workspaceProof(page)
     expect(before.kind).toBe('account')
@@ -515,7 +516,6 @@ test.describe('actualWorkspaceSwitchesDistinctAccountsAndRecoveryWithoutCrossing
     expect(firstSaved.titles).toEqual(['Synthetic private account A Build'])
     expect(firstSaved.backupTitles).toEqual(firstSaved.titles)
     await page.evaluate(() => (window as unknown as { workspaceProof: WorkspaceProof }).workspaceProof.queueDefinition('Obsolete account A draft'))
-    await other.goto(workspacePath)
     await openWorkspaceAccount(other, second)
     otherOpened = await workspaceProof(other)
     expect(otherOpened.token?.accountId).toBe(otherOpened.principal)
