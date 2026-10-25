@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { CommitRequestSchema, CommitReceiptSchema, ChangePageSchema } from '../../src/account/protocol'
+import { CommitRequestSchema, CommitReceiptSchema, ChangePageSchema, ApiErrorSchema } from '../../src/account/protocol'
 const id = 'AAAAAAAAAAAAAAAAAAAAAA'
 it('requiresPublicationEpochOnReceiptsAndDistinguishesOmissionFromZero', () => {
   const input = { version: 1, mutationId: id, revisions: [], expected: [{ documentId: id, revisionId: null }], heads: [{ documentId: id, revisionId: id }] }
@@ -167,6 +167,13 @@ it('boundedDurableClosureResumesBeyondDirectDependencyLimitAndRetainsEveryExactG
     // Registration validates its full closure too, so the exact staging identity must resume
     const stage=command([page.descriptor],[],[])
     let response=await post(f,'sync/commits',stage,signed.headers)
+    if(index===0){
+      expect(response.status).toBe(503)
+      const progress=ApiErrorSchema.parse(await response.clone().json()).error
+      expect(progress.continuation?.processed).toBeGreaterThan(0)
+      expect(progress.retryAfterSeconds).toBe(0)
+      expect(response.headers.get('retry-after')).toBe('0')
+    }
     for(let retry=0;response.status===503 && retry<4;retry++)response=await post(f,'sync/commits',stage,signed.headers)
     expect(response.status).toBe(200);pages.push(page)
   }
