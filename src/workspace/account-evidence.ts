@@ -52,6 +52,22 @@ export function capturedRecordReader(database: AccountDatabase, token: ProfileTo
 
 export async function validateCapturedWorkspaceRecords(read: CapturedRecordReader, roots: readonly CipherRef[], allocations: ReadonlyMap<string, string>, retained: ReadonlyMap<string, readonly WorkspaceBlobRef[]>, legacyLocal = false, reader?: AccountWorkspaceGraphReader): Promise<void> {
   const heights = new Map<string, number>(), pending = new Set<string>()
+  // Several exact references can name one captured body, such as original/applied/draft
+  // Authenticate that source once in this traversal, but compare every edge's digest and
+  // length independently and reject capability rebinding; the next traversal reads again
+  // Only digests are retained here, never plaintext or authority for a later storage read
+  const bodies = new WeakMap<BlobSource, { open: BlobSource['open']; byteLength: number; digest: string }>()
+  async function bodyDigest(source: BlobSource): Promise<string> {
+    const previous = bodies.get(source)
+    if (previous) {
+      if (previous.open !== source.open || previous.byteLength !== source.byteLength) throw new Error('Captured body source changed')
+      return previous.digest
+    }
+    const open = source.open, byteLength = source.byteLength, digest = await hashBlob(source)
+    if (open !== source.open || byteLength !== source.byteLength) throw new Error('Captured body source changed')
+    bodies.set(source, { open, byteLength, digest })
+    return digest
+  }
   async function visit(ref: CipherRef, depth = 0): Promise<number> {
     reader?.depth(depth)
     const id = blobIdentity(ref)
@@ -78,7 +94,7 @@ export async function validateCapturedWorkspaceRecords(read: CapturedRecordReade
     const exact = document.kind === 'blob' ? retained.get((JSON.parse(document.key) as string[])[1]) ?? [] : archiveTypedReferences(document.kind, document.value)
     for (const ref of exact) {
       const child = bindings.get(JSON.stringify(['blob', blobIdentity(ref)]))
-      if (!child || !isBlobSource(child.document.value) || child.document.value.byteLength !== ref.byteLength || await hashBlob(child.document.value) !== ref.sha256) throw new Error('Missing or mismatched captured body')
+      if (!child || !isBlobSource(child.document.value) || child.document.value.byteLength !== ref.byteLength || await bodyDigest(child.document.value) !== ref.sha256) throw new Error('Missing or mismatched captured body')
       expected.push(child.ref)
     }
     for (const key of resolvedDomainClosureKeys(document, documents, record.sourceBookkeeping?.scenarioDependencies ?? 'legacy-s02')) {
