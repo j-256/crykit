@@ -54,7 +54,13 @@ jobs:
         run: npm ci
       - name: Install native recovery test browser
         if: startsWith(matrix.check.name, 'worker ')
-        run: npx playwright install --with-deps chromium
+        run: |
+          # The Azure apt mirror can stall on hosted runners before Playwright installs its browsers
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
+          fi
+          printf 'Acquire::Retries "1";\nAcquire::http::Timeout "15";\nAcquire::https::Timeout "15";\n' | sudo tee /etc/apt/apt.conf.d/99playwright-network > /dev/null
+          npx playwright install --with-deps chromium
       - name: Download application assets for native route checks
         if: startsWith(matrix.check.name, 'worker ')
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -185,7 +191,13 @@ jobs:
           name: application
           path: dist/
       - name: Install test browsers
-        run: npx playwright install --with-deps chromium firefox webkit
+        run: |
+          # The Azure apt mirror can stall on hosted runners before Playwright installs its browsers
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf '%s\n' 'https://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
+          fi
+          printf 'Acquire::Retries "1";\nAcquire::http::Timeout "15";\nAcquire::https::Timeout "15";\n' | sudo tee /etc/apt/apt.conf.d/99playwright-network > /dev/null
+          npx playwright install --with-deps chromium firefox webkit
       - name: Verify isolated account acceptance
         run: |
           npm run build:account-tests
