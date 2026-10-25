@@ -1,6 +1,6 @@
 import { openStatBreakdown } from './calculation-presentation-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { expect, type Page } from '@playwright/test'
+import { expect, type BrowserContext, type Locator, type Page, type TestInfo } from '@playwright/test'
 import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import { NATIVE_DATA } from '../src/domain/calculation-rules'
 import type { LocalData } from '../src/domain/types'
@@ -86,91 +86,116 @@ test('temporary mod details retain reporting without publishing or editing the c
   expect(await storedData(page)).toEqual(before)
 })
 
-// Cold legacy migration has a separate setup slot so its cost does not consume the editing checks' deadline
-const historicalProfileTest = test.extend<{ historicalProfile: LocalData }>({
-  // Historical admission must begin with empty storage and retain its actual import journey
-  storageState: async ({}, use) => { await use(undefined) },
-  historicalProfile: [async ({ page }, use) => {
-    const before = createSampleLocalData({ ...DEFAULT_CATALOG, revisionId: 'catalog-v1' as typeof DEFAULT_CATALOG.revisionId })
-    const canonical = createPersonalDefinition(before, { name: 'Synthetic retained definition', kind: 'item' })
-    const legacyIds = ['base:class:warrior', 'base:class:cleric', 'base:class:rogue', 'base:class:wizard', 'base:item:short-sword', 'base:item:buckler', 'base:item:breastplate', 'base:item:short-staff', 'base:item:hemp-robe', 'base:item:dirk', 'base:item:leather-outfit', 'base:item:oak-wand']
-    const historical = (data: LocalData): LocalData => {
-      let json = JSON.stringify(data)
-      for (const id of legacyIds) json = json.replaceAll(compileBundledSourceId(id), id)
-      return JSON.parse(json) as LocalData
-    }
-    await page.goto('/icon.svg')
-    await page.evaluate(({ beforeText, afterText }) => new Promise<void>((resolve, reject) => {
-      const before = JSON.parse(beforeText) as LocalData
-      const after = JSON.parse(afterText) as LocalData
-      const HISTORICAL_NATIVE_DATABASE_VERSION = 40
-      const request = indexedDB.open('crykit', HISTORICAL_NATIVE_DATABASE_VERSION)
-      request.onupgradeneeded = () => {
-        const schemas: Record<string, string[]> = { localDatas: ['id', 'revision', 'updatedAt'], catalogs: ['key', 'id', 'revisionId', 'checksum'], evidence: ['id', 'sourceDigest', 'group'], sources: ['id', 'digest', 'format'], history: ['id', 'localDataId', '[localDataId+nextRevision]'], imports: ['id', 'sourceDigest', 'localDataId'], meta: ['key'] }
-        for (const [name, [keyPath, ...indexes]] of Object.entries(schemas)) {
-          const store = request.result.createObjectStore(name, { keyPath })
-          for (const index of indexes) store.createIndex(index, index === '[localDataId+nextRevision]' ? ['localDataId', 'nextRevision'] : index)
-        }
-      }
-      request.onerror = () => reject(request.error)
-      request.onsuccess = () => {
-        const database = request.result
-        const transaction = database.transaction(['localDatas', 'history'], 'readwrite')
-        transaction.objectStore('localDatas').put({ id: 'local-data-record', revision: after.revision, updatedAt: after.updatedAt, localData: after, lineage: { rootLocalDataId: before.id } })
-        transaction.objectStore('history').put({ id: 'synthetic-historical-save', localDataId: before.id, command: 'save', previousRevision: before.revision, nextRevision: after.revision, before, after, recordedAt: after.updatedAt })
-        transaction.oncomplete = () => { database.close(); resolve() }
-        transaction.onabort = () => { database.close(); reject(transaction.error) }
-      }
-    }), { beforeText: JSON.stringify(historical(before)), afterText: JSON.stringify(historical(canonical)) })
-    await page.goto('/#/mods')
-    await waitForPlannerReady(page)
-    await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
-    expect(await storedData(page)).toEqual(canonical)
-    await use(canonical)
-  }, { timeout: HISTORICAL_PROFILE_SETUP_TIMEOUT_MS }],
-})
-
-historicalProfileTest('upgrades a historical browser profile before Reference changes and a new build save', { tag: MOBILE_TEST_TAG }, async ({ page, historicalProfile: canonical }) => {
-  await importSyntheticLibrary(page)
-  const archive = await archiveDigests(page)
-  for (const title of ['Synthetic Shield', ...['Synthetic Moonlight', 'Synthetic Rules'].map(prefix => syntheticSources.mods.find(mod => mod.title.startsWith(prefix))!.title)]) {
-    const card = page.getByRole('region', { name: title, exact: true })
-    const toggle = card.getByRole('button', { name: /^(Add to Reference|Remove from Reference)$/ })
-    const included = await toggle.getAttribute('aria-pressed') === 'true'
-    await toggle.click()
-    await expect(toggle).toHaveAttribute('aria-pressed', String(!included))
-    await toggle.click()
-    await expect(toggle).toHaveAttribute('aria-pressed', String(included))
+async function finishModLibraryJourney(context: BrowserContext | undefined, startedAt: number, checksCompleted: boolean, info: TestInfo): Promise<void> {
+  let cleanupCompleted = false
+  try { await context?.close(); cleanupCompleted = true }
+  finally {
+    await info.attach('complete-journey-receipt', { contentType: 'application/json', body: JSON.stringify({ elapsedMs: startedAt ? Date.now() - startedAt : undefined, setupStarted: startedAt > 0, checksCompleted, cleanupCompleted, sameContextAcrossCheckpoints: true, setupAndCleanupIncluded: true, qualification: 'One native browser context and database continue across every checkpoint. The editor group uses the separately timed worker-scoped synthetic library seed; full verification includes that preparation too.' }) })
   }
-  let afterArchive: Readonly<Record<string, string>> | undefined
-  // One head-checked admission supplies the adjacent metadata and exact original-byte proofs
-  const afterManaged = await readManagedGuestWorkspace(page, async state => { afterArchive = await archiveDigests(page, state) })
-  const afterToggles = afterManaged?.planner.localData ?? await storedData(page)
-  expect(afterToggles.buildRevisions).toEqual(canonical.buildRevisions)
-  expect(afterToggles.playthroughs).toEqual(canonical.playthroughs)
-  expect(afterToggles.gameSetups).toEqual(canonical.gameSetups)
-  afterArchive ??= await archiveDigests(page)
-  for (const table of ['catalogs', 'sources', 'evidence', 'imports', 'meta']) expect(afterArchive[table]).toBe(archive[table])
-  await page.getByRole('button', { name: 'Game Setups', exact: true }).click()
-  await page.getByRole('button', { name: 'New Game Setup', exact: true }).click()
-  await page.getByRole('textbox', { name: 'Game Setup label', exact: true }).fill('Synthetic fresh setup')
-  await page.getByRole('button', { name: 'Create Game Setup', exact: true }).click()
-  await expect(page.getByText('Saved revision 1', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Back to saved setups', exact: true }).click()
-  const fresh = page.locator('.game-setup-library__item').filter({ has: page.getByRole('heading', { name: 'Synthetic fresh setup', exact: true }) })
-  await fresh.getByRole('button', { name: 'Start a Build', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
-  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option', { name: /^Warrior Class ·/ }).click()
-  await page.getByRole('button', { name: 'Save build', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
-  await page.reload()
+}
+
+// Cold legacy admission retains its separate setup deadline and an empty native context
+async function openHistoricalProfile(page: Page): Promise<LocalData> {
+  const before = createSampleLocalData({ ...DEFAULT_CATALOG, revisionId: 'catalog-v1' as typeof DEFAULT_CATALOG.revisionId })
+  const canonical = createPersonalDefinition(before, { name: 'Synthetic retained definition', kind: 'item' })
+  const legacyIds = ['base:class:warrior', 'base:class:cleric', 'base:class:rogue', 'base:class:wizard', 'base:item:short-sword', 'base:item:buckler', 'base:item:breastplate', 'base:item:short-staff', 'base:item:hemp-robe', 'base:item:dirk', 'base:item:leather-outfit', 'base:item:oak-wand']
+  const historical = (data: LocalData): LocalData => {
+    let json = JSON.stringify(data)
+    for (const id of legacyIds) json = json.replaceAll(compileBundledSourceId(id), id)
+    return JSON.parse(json) as LocalData
+  }
+  await page.goto('/icon.svg')
+  await page.evaluate(({ beforeText, afterText }) => new Promise<void>((resolve, reject) => {
+    const before = JSON.parse(beforeText) as LocalData
+    const after = JSON.parse(afterText) as LocalData
+    const HISTORICAL_NATIVE_DATABASE_VERSION = 40
+    const request = indexedDB.open('crykit', HISTORICAL_NATIVE_DATABASE_VERSION)
+    request.onupgradeneeded = () => {
+      const schemas: Record<string, string[]> = { localDatas: ['id', 'revision', 'updatedAt'], catalogs: ['key', 'id', 'revisionId', 'checksum'], evidence: ['id', 'sourceDigest', 'group'], sources: ['id', 'digest', 'format'], history: ['id', 'localDataId', '[localDataId+nextRevision]'], imports: ['id', 'sourceDigest', 'localDataId'], meta: ['key'] }
+      for (const [name, [keyPath, ...indexes]] of Object.entries(schemas)) {
+        const store = request.result.createObjectStore(name, { keyPath })
+        for (const index of indexes) store.createIndex(index, index === '[localDataId+nextRevision]' ? ['localDataId', 'nextRevision'] : index)
+      }
+    }
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const database = request.result
+      const transaction = database.transaction(['localDatas', 'history'], 'readwrite')
+      transaction.objectStore('localDatas').put({ id: 'local-data-record', revision: after.revision, updatedAt: after.updatedAt, localData: after, lineage: { rootLocalDataId: before.id } })
+      transaction.objectStore('history').put({ id: 'synthetic-historical-save', localDataId: before.id, command: 'save', previousRevision: before.revision, nextRevision: after.revision, before, after, recordedAt: after.updatedAt })
+      transaction.oncomplete = () => { database.close(); resolve() }
+      transaction.onabort = () => { database.close(); reject(transaction.error) }
+    }
+  }), { beforeText: JSON.stringify(historical(before)), afterText: JSON.stringify(historical(canonical)) })
+  await page.goto('/#/mods')
   await waitForPlannerReady(page)
-  await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Warrior')
-  const saved = await storedData(page)
-  for (const [id, revision] of Object.entries(canonical.buildRevisions)) expect(saved.buildRevisions[id]).toEqual(revision)
-  expect(saved.playthroughs).toEqual(canonical.playthroughs)
-  expect(saved.personalDefinitions).toEqual(canonical.personalDefinitions)
-  await expect(page.getByRole('alert').filter({ hasText: 'Change not saved' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
+  expect(await storedData(page)).toEqual(canonical)
+  return canonical
+}
+
+test.describe('upgrades a historical browser profile before Reference changes and a new build save', () => {
+  test.describe.configure({ mode: 'serial' })
+  // Override the inherited seed before Playwright configures manually owned contexts
+  test.use({ storageState: { cookies: [], origins: [] } })
+  let context: BrowserContext | undefined, page: Page, canonical: LocalData
+  let startedAt = 0, checksCompleted = false
+  // These checkpoints share the migrated database; a later checkpoint cannot replace its predecessor
+  test.beforeAll(async ({ browser, baseURL, viewport, isMobile, hasTouch, userAgent, deviceScaleFactor, colorScheme, serviceWorkers, ignoreHTTPSErrors }, info) => {
+    info.setTimeout(HISTORICAL_PROFILE_SETUP_TIMEOUT_MS)
+    startedAt = Date.now()
+    context = await browser.newContext({ baseURL, viewport, isMobile, hasTouch, userAgent, deviceScaleFactor, colorScheme, serviceWorkers, ignoreHTTPSErrors })
+    page = await context.newPage()
+    canonical = await openHistoricalProfile(page)
+  })
+  test.afterAll(async ({}, info) => { await finishModLibraryJourney(context, startedAt, checksCompleted, info) })
+
+  test('retains historical metadata and exact original bytes through Reference changes', { tag: MOBILE_TEST_TAG }, async () => {
+    await importSyntheticLibrary(page)
+    const archive = await archiveDigests(page)
+    for (const title of ['Synthetic Shield', ...['Synthetic Moonlight', 'Synthetic Rules'].map(prefix => syntheticSources.mods.find(mod => mod.title.startsWith(prefix))!.title)]) {
+      const card = page.getByRole('region', { name: title, exact: true })
+      const toggle = card.getByRole('button', { name: /^(Add to Reference|Remove from Reference)$/ })
+      const included = await toggle.getAttribute('aria-pressed') === 'true'
+      await toggle.click()
+      await expect(toggle).toHaveAttribute('aria-pressed', String(!included))
+      await toggle.click()
+      await expect(toggle).toHaveAttribute('aria-pressed', String(included))
+    }
+    let afterArchive: Readonly<Record<string, string>> | undefined
+    // One head-checked admission supplies the adjacent metadata and exact original-byte proofs
+    const afterManaged = await readManagedGuestWorkspace(page, async state => { afterArchive = await archiveDigests(page, state) })
+    const afterToggles = afterManaged?.planner.localData ?? await storedData(page)
+    expect(afterToggles.buildRevisions).toEqual(canonical.buildRevisions)
+    expect(afterToggles.playthroughs).toEqual(canonical.playthroughs)
+    expect(afterToggles.gameSetups).toEqual(canonical.gameSetups)
+    afterArchive ??= await archiveDigests(page)
+    for (const table of ['catalogs', 'sources', 'evidence', 'imports', 'meta']) expect(afterArchive[table]).toBe(archive[table])
+  })
+
+  test('saves and reopens the new Build while retaining the migrated records', { tag: MOBILE_TEST_TAG }, async () => {
+    await page.getByRole('button', { name: 'Game Setups', exact: true }).click()
+    await page.getByRole('button', { name: 'New Game Setup', exact: true }).click()
+    await page.getByRole('textbox', { name: 'Game Setup label', exact: true }).fill('Synthetic fresh setup')
+    await page.getByRole('button', { name: 'Create Game Setup', exact: true }).click()
+    await expect(page.getByText('Saved revision 1', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Back to saved setups', exact: true }).click()
+    const fresh = page.locator('.game-setup-library__item').filter({ has: page.getByRole('heading', { name: 'Synthetic fresh setup', exact: true }) })
+    await fresh.getByRole('button', { name: 'Start a Build', exact: true }).click()
+    await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
+    await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option', { name: /^Warrior Class ·/ }).click()
+    await page.getByRole('button', { name: 'Save build', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
+    await page.reload()
+    await waitForPlannerReady(page)
+    await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Warrior')
+    const saved = await storedData(page)
+    for (const [id, revision] of Object.entries(canonical.buildRevisions)) expect(saved.buildRevisions[id]).toEqual(revision)
+    expect(saved.playthroughs).toEqual(canonical.playthroughs)
+    expect(saved.personalDefinitions).toEqual(canonical.personalDefinitions)
+    await expect(page.getByRole('alert').filter({ hasText: 'Change not saved' })).toHaveCount(0)
+    checksCompleted = true
+  })
 })
 
 test('Reference save failures stay visible beside the action and retry without changing other records', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
@@ -359,114 +384,137 @@ async function openDraft(page: Page, source = SOURCE) {
   await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
 }
 
-test('saves editor revisions into Mods, derives rules, and preserves pinned build settings', async ({ page, baseURL }) => {
-  await openDraft(page)
-  const before = await storedData(page)
-  await page.getByRole('button', { name: 'Save to CryKit', exact: true }).click()
-  await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toBeVisible()
-  const first = await storedData(page)
-  expect(first.gameSetups).toEqual(before.gameSetups)
-  expect(first.playthroughs).toEqual(before.playthroughs)
-  await page.getByRole('button', { name: 'Save to CryKit', exact: true }).click()
-  await expect(page.getByText('This mod revision is already saved', { exact: true })).toBeVisible()
-  expect((await storedData(page)).revision).toBe(first.revision)
-  await page.getByRole('tab', { name: 'Mod Library', exact: true }).click()
-  const mod = page.getByRole('region', { name: 'Synthetic calculation mod', exact: true })
-  await expect(mod).toContainText('Version 1')
-  await page.goto('/#/builds/library/new')
-  await openBuildGameSetup(page)
-  await page.getByRole('combobox', { name: 'Game version', exact: true }).selectOption('1.6.9')
-  await page.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('0')
-  await page.locator('.game-setup-base-details > summary').click()
-  await page.getByRole('combobox', { name: 'Game mode', exact: true }).selectOption('Vanilla')
-  await page.locator('.game-setup-mods > summary').click()
-  await page.getByText('Add another mod', { exact: true }).click()
-  await page.getByRole('searchbox', { name: 'Search available mods', exact: true }).fill('Synthetic calculation mod')
-  const buildMod = page.getByRole('region', { name: 'Mod Synthetic calculation mod', exact: true })
-  await expect(buildMod.getByRole('combobox', { name: 'Version of Synthetic calculation mod', exact: true }).locator('option:checked')).toHaveText('1 · saved · format 34')
-  await buildMod.getByRole('button', { name: 'Enable Synthetic calculation mod for this build', exact: true }).click()
-  await page.locator('.game-setup-derived > summary').click()
-  await expect(page.locator('.game-setup-derived')).toContainText('TwoHandedPAtkFlat')
-  await expect(page.locator('.game-setup-derived')).toContainText('80')
-  await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
-  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
-  await expect(page.getByText('Balance mode: vanilla · from Game Setup', { exact: true })).toBeVisible()
-  await expect(page.getByRole('combobox', { name: 'PC balance mode', exact: true })).toHaveCount(0)
-  await page.getByRole('combobox', { name: 'Equipped passive 1', exact: true }).fill('Synthetic unarmed')
-  await page.getByRole('listbox', { name: 'Choose Equipped passive 1', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic unarmed$/ }) }).click()
-  await page.getByRole('combobox', { name: 'Calculation gender', exact: true }).selectOption('male')
-  await openStatBreakdown(page)
-  const strength = page.getByRole('table', { name: 'Planned build stats', exact: true }).getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Strength', exact: true }) })
-  await expect(strength.getByRole('cell').nth(1)).toHaveText('+60')
-  const total = await strength.getByRole('cell').last().innerText()
-  const detailedStrength = page.getByRole('table', { name: 'Calculated character stats', exact: true }).getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Strength', exact: true }) })
-  await expect(detailedStrength.getByRole('cell').first()).toHaveText(total)
-  await page.getByLabel('Build title').fill('Synthetic pinned rules')
-  await page.getByRole('button', { name: 'Save build', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Synthetic pinned rules', exact: true })).toBeVisible()
-  const pinned = await storedData(page)
-  await page.goto('/#/mods')
-  await mod.getByRole('button', { name: 'Edit mod JSON', exact: true }).click()
-  await expect(page.getByRole('tab', { name: 'JSON Editor', exact: true })).toHaveAttribute('aria-selected', 'true')
-  const openedEditorId = await page.getByRole('combobox', { name: 'Files opened in this tool', exact: true }).inputValue()
-  expect(openedEditorId).not.toBe('')
-  const openedWorkspace = (await readManagedGuestWorkspace(page))!
-  const openedEditor = openedWorkspace.editorDocuments.find(file => file.id === openedEditorId)!
-  expect(openedEditor.filename).toBe('synthetic-library.json')
-  expect(await readEditorContent(openedWorkspace, openedEditor)).toMatchObject({ originalText: SOURCE, lastAppliedText: SOURCE, unfinishedText: SOURCE })
-  await expect(page.getByRole('region', { name: 'Current file', exact: true })).toContainText('Original file')
-  await page.getByRole('button', { name: 'Edit whole document JSON', exact: true }).click()
-  await page.getByRole('textbox', { name: /^Exact JSON value/ }).fill(SOURCE.replace('"Version":"1"', '"Version":"2"').replace('"TwoHandedPAtkFlat":80', '"TwoHandedPAtkFlat":90').replace('"StrWhileUnarmedBonusFlat":60', '"StrWhileUnarmedBonusFlat":90'))
-  await expect(page.getByRole('button', { name: 'Save to CryKit', exact: true })).toBeDisabled()
-  await page.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
-  await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
-  await page.getByRole('button', { name: 'Save to CryKit', exact: true }).click()
-  await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toBeVisible()
-  const after = await storedData(page)
-  expect(after.gameSetups).toEqual(pinned.gameSetups)
-  expect(after.buildRevisions).toEqual(pinned.buildRevisions)
-  expect(after.playthroughs).toEqual(pinned.playthroughs)
-  await page.getByRole('tab', { name: 'Mod Library', exact: true }).click()
-  await expect(mod).toContainText('Version 2')
-  await mod.getByText('Versions', { exact: true }).click()
-  await expect(mod).toContainText('Version 1')
-  await page.reload()
-  await expect(mod).toContainText('Version 2')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  const build = Object.values(pinned.builds).find(build => build.title === 'Synthetic pinned rules')!
-  await page.goto(createShareUrl(createSharePayload(pinned, { kind: 'build', revisionId: build.latestRevisionId! }), `${baseURL}/`))
-  await expect(page.getByRole('heading', { name: 'Synthetic pinned rules', exact: true }).first()).toBeVisible()
-  await openStatBreakdown(page)
-  await expect(strength.getByRole('cell').nth(1)).toHaveText('+60')
-  await expect(strength.getByRole('cell').last()).toHaveText(total)
-  await expect(detailedStrength.getByRole('cell').first()).toHaveText(total)
-  await expect(page.getByText('Gender: Male', { exact: true })).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Shared build loadout', exact: true }).locator('input, select, textarea')).toHaveCount(0)
-  await page.goto(`/#/builds/library/${build.id}`)
-  await openStatBreakdown(page)
-  await expect(strength.getByRole('cell').nth(1)).toHaveText('+60')
-  await page.locator('.build-behavior > summary').click()
-  await openGameSetupSection(page.locator('.build-behavior'), 'Mods')
-  const version = buildMod.getByRole('combobox', { name: 'Version of Synthetic calculation mod', exact: true })
-  await expect(version.locator('option:checked')).toHaveText('1 · saved · format 34')
-  await version.selectOption({ label: '2 · saved · format 34' })
-  await buildMod.getByRole('button', { name: 'Use selected version of Synthetic calculation mod', exact: true }).click()
-  await expect(strength.getByRole('cell').nth(1)).toHaveText('+90')
-  expect((await storedData(page)).gameSetups).toEqual(after.gameSetups)
-  await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
-  await expect(page.getByRole('combobox', { name: /^Editor checkpoint/ }).locator('option:checked')).toContainText('r2')
-  const revised = await storedData(page)
-  expect(revised.playthroughs).toEqual(pinned.playthroughs)
-  for (const [id, revision] of Object.entries(pinned.buildRevisions)) expect(revised.buildRevisions[id]).toEqual(revision)
-  for (const [id, setup] of Object.entries(pinned.gameSetups)) expect(revised.gameSetups[id]).toEqual(setup)
-  await page.reload()
-  await openStatBreakdown(page)
-  await expect(strength.getByRole('cell').nth(1)).toHaveText('+90')
-  await page.getByRole('combobox', { name: /^Editor checkpoint/ }).selectOption(build.latestRevisionId!)
-  await openStatBreakdown(page)
-  await expect(strength.getByRole('cell').nth(1)).toHaveText('+60')
-  await expect(strength.getByRole('cell').last()).toHaveText(total)
+test.describe('saves editor revisions into Mods, derives rules, and preserves pinned build settings', () => {
+  test.describe.configure({ mode: 'serial' })
+  let context: BrowserContext | undefined, page: Page, baseURL: string | undefined
+  let mod: Locator, buildMod: Locator, strength: Locator, detailedStrength: Locator
+  let total: string, pinned: LocalData, after: LocalData
+  let startedAt = 0, checksCompleted = false
+  // The seed is copied once into this journey; no checkpoint receives a fresh writable context
+  test.beforeAll(async ({ browser, importedLibraryState, baseURL: configuredBaseURL, viewport, isMobile, hasTouch, userAgent, deviceScaleFactor, colorScheme, serviceWorkers, ignoreHTTPSErrors }) => {
+    startedAt = Date.now()
+    baseURL = configuredBaseURL
+    context = await browser.newContext({ baseURL, viewport, isMobile, hasTouch, userAgent, deviceScaleFactor, colorScheme, serviceWorkers, ignoreHTTPSErrors, storageState: importedLibraryState })
+    page = await context.newPage()
+  })
+  test.afterAll(async ({}, info) => { await finishModLibraryJourney(context, startedAt, checksCompleted, info) })
+
+  test('saves the first mod revision and its pinned Build with the original calculations', async () => {
+    await openDraft(page)
+    const before = await storedData(page)
+    await page.getByRole('button', { name: 'Save to CryKit', exact: true }).click()
+    await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toBeVisible()
+    const first = await storedData(page)
+    expect(first.gameSetups).toEqual(before.gameSetups)
+    expect(first.playthroughs).toEqual(before.playthroughs)
+    await page.getByRole('button', { name: 'Save to CryKit', exact: true }).click()
+    await expect(page.getByText('This mod revision is already saved', { exact: true })).toBeVisible()
+    expect((await storedData(page)).revision).toBe(first.revision)
+    await page.getByRole('tab', { name: 'Mod Library', exact: true }).click()
+    mod = page.getByRole('region', { name: 'Synthetic calculation mod', exact: true })
+    await expect(mod).toContainText('Version 1')
+    await page.goto('/#/builds/library/new')
+    await openBuildGameSetup(page)
+    await page.getByRole('combobox', { name: 'Game version', exact: true }).selectOption('1.6.9')
+    await page.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('0')
+    await page.locator('.game-setup-base-details > summary').click()
+    await page.getByRole('combobox', { name: 'Game mode', exact: true }).selectOption('Vanilla')
+    await page.locator('.game-setup-mods > summary').click()
+    await page.getByText('Add another mod', { exact: true }).click()
+    await page.getByRole('searchbox', { name: 'Search available mods', exact: true }).fill('Synthetic calculation mod')
+    buildMod = page.getByRole('region', { name: 'Mod Synthetic calculation mod', exact: true })
+    await expect(buildMod.getByRole('combobox', { name: 'Version of Synthetic calculation mod', exact: true }).locator('option:checked')).toHaveText('1 · saved · format 34')
+    await buildMod.getByRole('button', { name: 'Enable Synthetic calculation mod for this build', exact: true }).click()
+    await page.locator('.game-setup-derived > summary').click()
+    await expect(page.locator('.game-setup-derived')).toContainText('TwoHandedPAtkFlat')
+    await expect(page.locator('.game-setup-derived')).toContainText('80')
+    await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
+    await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
+    await expect(page.getByText('Balance mode: vanilla · from Game Setup', { exact: true })).toBeVisible()
+    await expect(page.getByRole('combobox', { name: 'PC balance mode', exact: true })).toHaveCount(0)
+    await page.getByRole('combobox', { name: 'Equipped passive 1', exact: true }).fill('Synthetic unarmed')
+    await page.getByRole('listbox', { name: 'Choose Equipped passive 1', exact: true }).getByRole('option').filter({ has: page.locator('strong', { hasText: /^Synthetic unarmed$/ }) }).click()
+    await page.getByRole('combobox', { name: 'Calculation gender', exact: true }).selectOption('male')
+    await openStatBreakdown(page)
+    strength = page.getByRole('table', { name: 'Planned build stats', exact: true }).getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Strength', exact: true }) })
+    await expect(strength.getByRole('cell').nth(1)).toHaveText('+60')
+    total = await strength.getByRole('cell').last().innerText()
+    detailedStrength = page.getByRole('table', { name: 'Calculated character stats', exact: true }).getByRole('row').filter({ has: page.getByRole('rowheader', { name: 'Strength', exact: true }) })
+    await expect(detailedStrength.getByRole('cell').first()).toHaveText(total)
+    await page.getByLabel('Build title').fill('Synthetic pinned rules')
+    await page.getByRole('button', { name: 'Save build', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Synthetic pinned rules', exact: true })).toBeVisible()
+    pinned = await storedData(page)
+  })
+
+  test('retains the exact original while saving the next mod revision and reopening Mods', async () => {
+    await page.goto('/#/mods')
+    await mod.getByRole('button', { name: 'Edit mod JSON', exact: true }).click()
+    await expect(page.getByRole('tab', { name: 'JSON Editor', exact: true })).toHaveAttribute('aria-selected', 'true')
+    const openedEditorId = await page.getByRole('combobox', { name: 'Files opened in this tool', exact: true }).inputValue()
+    expect(openedEditorId).not.toBe('')
+    const openedWorkspace = (await readManagedGuestWorkspace(page))!
+    const openedEditor = openedWorkspace.editorDocuments.find(file => file.id === openedEditorId)!
+    expect(openedEditor.filename).toBe('synthetic-library.json')
+    expect(await readEditorContent(openedWorkspace, openedEditor)).toMatchObject({ originalText: SOURCE, lastAppliedText: SOURCE, unfinishedText: SOURCE })
+    await expect(page.getByRole('region', { name: 'Current file', exact: true })).toContainText('Original file')
+    await page.getByRole('button', { name: 'Edit whole document JSON', exact: true }).click()
+    await page.getByRole('textbox', { name: /^Exact JSON value/ }).fill(SOURCE.replace('"Version":"1"', '"Version":"2"').replace('"TwoHandedPAtkFlat":80', '"TwoHandedPAtkFlat":90').replace('"StrWhileUnarmedBonusFlat":60', '"StrWhileUnarmedBonusFlat":90'))
+    await expect(page.getByRole('button', { name: 'Save to CryKit', exact: true })).toBeDisabled()
+    await page.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
+    await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
+    await page.getByRole('button', { name: 'Save to CryKit', exact: true }).click()
+    await expect(page.getByText('Mod revision saved to CryKit', { exact: true })).toBeVisible()
+    after = await storedData(page)
+    expect(after.gameSetups).toEqual(pinned.gameSetups)
+    expect(after.buildRevisions).toEqual(pinned.buildRevisions)
+    expect(after.playthroughs).toEqual(pinned.playthroughs)
+    await page.getByRole('tab', { name: 'Mod Library', exact: true }).click()
+    await expect(mod).toContainText('Version 2')
+    await mod.getByText('Versions', { exact: true }).click()
+    await expect(mod).toContainText('Version 1')
+    await page.reload()
+    await expect(mod).toContainText('Version 2')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  })
+
+  test('shares the original rules and reopens both explicitly selected Build checkpoints', async () => {
+    const build = Object.values(pinned.builds).find(build => build.title === 'Synthetic pinned rules')!
+    await page.goto(createShareUrl(createSharePayload(pinned, { kind: 'build', revisionId: build.latestRevisionId! }), `${baseURL}/`))
+    await expect(page.getByRole('heading', { name: 'Synthetic pinned rules', exact: true }).first()).toBeVisible()
+    await openStatBreakdown(page)
+    await expect(strength.getByRole('cell').nth(1)).toHaveText('+60')
+    await expect(strength.getByRole('cell').last()).toHaveText(total)
+    await expect(detailedStrength.getByRole('cell').first()).toHaveText(total)
+    await expect(page.getByText('Gender: Male', { exact: true })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Shared build loadout', exact: true }).locator('input, select, textarea')).toHaveCount(0)
+    await page.goto(`/#/builds/library/${build.id}`)
+    await openStatBreakdown(page)
+    await expect(strength.getByRole('cell').nth(1)).toHaveText('+60')
+    await page.locator('.build-behavior > summary').click()
+    await openGameSetupSection(page.locator('.build-behavior'), 'Mods')
+    const version = buildMod.getByRole('combobox', { name: 'Version of Synthetic calculation mod', exact: true })
+    await expect(version.locator('option:checked')).toHaveText('1 · saved · format 34')
+    await version.selectOption({ label: '2 · saved · format 34' })
+    await buildMod.getByRole('button', { name: 'Use selected version of Synthetic calculation mod', exact: true }).click()
+    await expect(strength.getByRole('cell').nth(1)).toHaveText('+90')
+    expect((await storedData(page)).gameSetups).toEqual(after.gameSetups)
+    await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
+    await expect(page.getByRole('combobox', { name: /^Editor checkpoint/ }).locator('option:checked')).toContainText('r2')
+    const revised = await storedData(page)
+    expect(revised.playthroughs).toEqual(pinned.playthroughs)
+    for (const [id, revision] of Object.entries(pinned.buildRevisions)) expect(revised.buildRevisions[id]).toEqual(revision)
+    for (const [id, setup] of Object.entries(pinned.gameSetups)) expect(revised.gameSetups[id]).toEqual(setup)
+    await page.reload()
+    await openStatBreakdown(page)
+    await expect(strength.getByRole('cell').nth(1)).toHaveText('+90')
+    await page.getByRole('combobox', { name: /^Editor checkpoint/ }).selectOption(build.latestRevisionId!)
+    await openStatBreakdown(page)
+    await expect(strength.getByRole('cell').nth(1)).toHaveText('+60')
+    await expect(strength.getByRole('cell').last()).toHaveText(total)
+    checksCompleted = true
+  })
 })
 
 test('keeps drafts after rejected planning imports and rolls back a failed save before retry', async ({ page }) => {
