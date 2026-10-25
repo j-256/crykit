@@ -723,12 +723,15 @@ test('expands terrain with zoom and navigates the orientation map without editin
   expect(await page.locator('.iso-canvas *').count()).toBeLessThan(100)
   const map = page.locator('.map-orientation-canvas')
   await map.scrollIntoViewIfNeeded()
-  const target = await map.evaluate(svg => {
+  const position = await map.evaluate(svg => {
     const point = new DOMPoint(28, 24).matrixTransform((svg as SVGSVGElement).getScreenCTM()!)
-    return { x: point.x, y: point.y }
+    const bounds = svg.getBoundingClientRect()
+    return { x: point.x - bounds.x, y: point.y - bounds.y }
   })
-  if (testInfo.project.name === 'mobile') await page.touchscreen.tap(target.x, target.y)
-  else await page.mouse.click(target.x, target.y)
+  // Geometry loading can remove a message above the map between measuring and clicking
+  // Locator-relative input preserves the world point while checking the current hit target
+  if (testInfo.project.name === 'mobile') await map.tap({ position })
+  else await map.click({ position })
   await expect(map).toHaveAttribute('data-center', '28,24')
   await expect(page.locator('.iso-canvas')).toHaveAttribute('data-camera', /^28,\d+,24$/)
   const navigator = page.getByRole('region', { name: 'Navigate editor camera', exact: true })
