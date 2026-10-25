@@ -64,7 +64,9 @@ it('maps activates and reopens more exact per-record retaining edges than a desc
   const database = new AccountDatabase(token.accountId)
   try {
     const localData = createBlankLocalData()
-    const catalogs = Array.from({ length: 257 }, (_, i) => ({ ...BUNDLED_CATALOGS[0], id: `crystal-edit:wide-${i}` as typeof BUNDLED_CATALOGS[0]['id'], revisionId: `sha256:${i.toString(16).padStart(64, '0')}:rules-v1:library-v1` as typeof BUNDLED_CATALOGS[0]['revisionId'], entities: {}, claims: [], checksum: `sha256:${i.toString(16).padStart(64, '0')}` }))
+    // Width is the subject; copied native lookup tables add payload work unrelated to synthetic catalog edges
+    const { legacy: _legacy, ...catalogTemplate } = BUNDLED_CATALOGS[0]!
+    const catalogs = Array.from({ length: 257 }, (_, i) => ({ ...catalogTemplate, id: `crystal-edit:wide-${i}` as typeof BUNDLED_CATALOGS[0]['id'], revisionId: `sha256:${i.toString(16).padStart(64, '0')}:rules-v1:library-v1` as typeof BUNDLED_CATALOGS[0]['revisionId'], entities: {}, claims: [], checksum: `sha256:${i.toString(16).padStart(64, '0')}` }))
     const state: WorkspaceState = { planner: { localData, lineage: { rootLocalDataId: localData.id }, catalogs, evidence: [], sources: [], history: [] }, editorDocuments: [], saveDocuments: [], assets: [], conflicts: [], retainedContent: [], blobs: [], libraryDefaults: { version: 1, layers: catalogs.map(c => ({ catalogId: c.id, catalogRevisionId: c.revisionId, enabled: true })) } }
     const { memoryBlob, hashBlob, readBlob } = await import('../workspace/blobs')
     const content = memoryBlob(new Uint8Array([0, 255, 17]))
