@@ -2,8 +2,9 @@ import type { Page } from '@playwright/test'
 
 export interface SaveWork {
   started: number
-  // Diagnostic acknowledgement time; the gated elapsed interval still includes the actual next input
+  // Diagnostic acknowledgement time; passing samples include trusted next input and paint
   readyMs?: number
+  nextInputReady?: boolean
   transactions: Record<string, number>
   requests: Record<string, number>
   rowsRead: Record<string, number>
@@ -19,12 +20,14 @@ export interface SaveWork {
   longTasks: number[]
   activeMappings: string[]
 }
+interface NextInputCapture { selector: string; value: string; budgetMs: number }
 declare global {
   interface Window {
     mapperEvents: { at: number; direction: 'sent' | 'received'; kind?: string; id?: string; pending?: boolean; status?: string }[]
     saveWork?: SaveWork
-    armSaveWork(event: 'click' | 'input', selector: string): void
+    armSaveWork(event: 'click' | 'input', selector: string, nextInput?: NextInputCapture): void
     finishSaveWork(): SaveWork & { elapsedMs: number }
+    finishNextInputWork(): Promise<SaveWork & { elapsedMs: number }>
   }
 }
 
@@ -91,7 +94,11 @@ export async function installSaveWorkCounters(page: Page) {
     TextEncoder.prototype.encode = function (...args) { const result = encode.apply(this, args); if (window.saveWork) window.saveWork.encoded += result.byteLength; return result }
     TextDecoder.prototype.decode = function (...args) { const result = decode.apply(this, args); if (window.saveWork) window.saveWork.decoded += args[0]?.byteLength ?? 0; return result }
     new PerformanceObserver(list => { if (window.saveWork) for (const entry of list.getEntries()) if (entry.startTime >= window.saveWork.started) window.saveWork.longTasks.push(entry.duration) }).observe({ type: 'longtask', buffered: true })
-    window.armSaveWork = (event, selector) => {
+    let nextInputWork: Promise<SaveWork & { elapsedMs: number }> | undefined
+    let cancelCapture: (() => void) | undefined
+    window.armSaveWork = (event, selector, nextInput) => {
+      cancelCapture?.()
+      nextInputWork = undefined
       const controller = new AbortController()
       document.addEventListener(event, received => {
         if (!(received.target instanceof Element) || !received.target.closest(selector)) return
@@ -99,6 +106,33 @@ export async function installSaveWorkCounters(page: Page) {
         const replies = new Set(window.mapperEvents.filter(event => event.direction === 'received').map(event => event.id))
         const activeMappings = window.mapperEvents.filter(event => event.direction === 'sent' && event.kind === 'map' && event.id && !replies.has(event.id)).map(event => event.id!)
         window.saveWork = { started: performance.now(), transactions: {}, requests: {}, rowsRead: {}, rowsWritten: {}, recordsRead: {}, recordsWritten: {}, payloadRead: 0, payloadWritten: 0, encoded: 0, decoded: 0, encrypted: 0, decrypted: 0, longTasks: [], activeMappings }
+        if (nextInput) {
+          const work = window.saveWork, capture = new AbortController()
+          nextInputWork = new Promise(resolve => {
+            let settled = false
+            const finish = (ready: boolean) => {
+              if (settled) return
+              settled = true
+              clearTimeout(deadline)
+              capture.abort()
+              if (window.saveWork === work) window.saveWork = undefined
+              resolve({ ...work, elapsedMs: performance.now() - work.started, nextInputReady: ready })
+            }
+            // Capture the user-visible endpoint inside the browser, before driver result transport
+            // Expiry is a failed sample even if delayed input arrives after acknowledgement
+            const deadline = setTimeout(() => finish(false), nextInput.budgetMs)
+            cancelCapture = () => finish(false)
+            document.addEventListener('input', received => {
+              const field = received.target
+              if (!received.isTrusted || !(field instanceof HTMLTextAreaElement) || !field.matches(nextInput.selector) || field.value !== nextInput.value) return
+              requestAnimationFrame(() => requestAnimationFrame(() => {
+                const bounds = field.getBoundingClientRect()
+                const ready = document.activeElement === field && field.isConnected && !field.disabled && !field.readOnly && !!bounds.width && !!bounds.height && getComputedStyle(field).visibility === 'visible' && field.value === nextInput.value
+                if (ready) finish(true)
+              }))
+            }, { capture: true, signal: capture.signal })
+          })
+        }
       }, { capture: true, signal: controller.signal })
     }
     window.finishSaveWork = () => {
@@ -107,6 +141,10 @@ export async function installSaveWorkCounters(page: Page) {
       const elapsedMs = performance.now() - result.started
       window.saveWork = undefined
       return { ...result, elapsedMs }
+    }
+    window.finishNextInputWork = () => {
+      if (!nextInputWork) throw new Error('The save and its next-input measurement were not observed')
+      return nextInputWork
     }
   })
 }
