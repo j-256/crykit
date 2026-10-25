@@ -2,6 +2,8 @@ import type { Page } from '@playwright/test'
 
 export interface SaveWork {
   started: number
+  // Diagnostic acknowledgement time; the gated elapsed interval still includes the actual next input
+  readyMs?: number
   transactions: Record<string, number>
   requests: Record<string, number>
   rowsRead: Record<string, number>
