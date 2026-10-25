@@ -20,7 +20,7 @@ export interface SaveWork {
   longTasks: number[]
   activeMappings: string[]
 }
-interface NextInputCapture { selector: string; value: string; budgetMs: number }
+interface NextInputCapture { selector: string; value: string; budgetMs: number; enabledSelector?: string }
 declare global {
   interface Window {
     mapperEvents: { at: number; direction: 'sent' | 'received'; kind?: string; id?: string; pending?: boolean; status?: string }[]
@@ -124,10 +124,11 @@ export async function installSaveWorkCounters(page: Page) {
             cancelCapture = () => finish(false)
             document.addEventListener('input', received => {
               const field = received.target
-              if (!received.isTrusted || !(field instanceof HTMLTextAreaElement) || !field.matches(nextInput.selector) || field.value !== nextInput.value) return
+              if (!received.isTrusted || !(field instanceof HTMLTextAreaElement || field instanceof HTMLInputElement) || !field.matches(nextInput.selector) || field.value !== nextInput.value) return
               requestAnimationFrame(() => requestAnimationFrame(() => {
                 const bounds = field.getBoundingClientRect()
-                const ready = document.activeElement === field && field.isConnected && !field.disabled && !field.readOnly && !!bounds.width && !!bounds.height && getComputedStyle(field).visibility === 'visible' && field.value === nextInput.value
+                const nextActionReady = !nextInput.enabledSelector || document.querySelector(nextInput.enabledSelector)?.matches(':enabled')
+                const ready = document.activeElement === field && field.isConnected && !field.disabled && !field.readOnly && !!bounds.width && !!bounds.height && getComputedStyle(field).visibility === 'visible' && field.value === nextInput.value && !!nextActionReady
                 if (ready) finish(true)
               }))
             }, { capture: true, signal: capture.signal })

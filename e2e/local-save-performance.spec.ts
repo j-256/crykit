@@ -18,7 +18,7 @@ function consumedKeys(file: any, operation: Operation): Set<string> {
   return new Set()
 }
 
-async function arm(page: Page, event: 'click' | 'input', selector: string, withMapping = false, nextInput?: { selector: string; value: string; budgetMs: number }) {
+async function arm(page: Page, event: 'click' | 'input', selector: string, withMapping = false, nextInput?: Parameters<Window['armSaveWork']>[2]) {
   if (withMapping) await ensureMapping(page)
   await page.evaluate(({ event, selector, nextInput }) => window.armSaveWork(event, selector, nextInput), { event, selector, nextInput })
 }
@@ -166,15 +166,26 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       expected = value
     } else if (operation === 'Save inventory') {
       const row = page.locator('.save-editor__inventory-row').filter({ hasText: 'Item #0 ·' }), input = row.getByRole('textbox'), value = String(3 + index % 2)
+      const name = await input.getAttribute('aria-label')
+      if (!name) throw new Error('The inventory input has no accessible name')
+      const selector = `.save-editor__inventory-row input[aria-label=${JSON.stringify(name)}]`, nextValue = String(3 + (index + 1) % 2)
       await input.fill(value)
-      await arm(page, 'click', '.save-editor__inventory-row button', mode === 'account-mapping')
+      await arm(page, 'click', '.save-editor__inventory-row button', mode === 'account-mapping', { selector, value: nextValue, budgetMs: SAVE_CEILING_MS, enabledSelector: `.save-editor__inventory-row:has(input[aria-label=${JSON.stringify(name)}]) button` })
       await row.getByRole('button').click()
-      await idle(page, 'save')
-      await expect(row.getByRole('button')).toBeDisabled({ timeout: SAVE_CEILING_MS })
-      await expect(page.locator('.save-editor__state').filter({ hasText: /^Saved locally/ })).toBeVisible({ timeout: SAVE_CEILING_MS })
-      expect(await input.inputValue()).toBe(value)
-      await input.fill(String(3 + (index + 1) % 2))
-      expect(await row.getByRole('button').isEnabled()).toBe(true)
+      // Read the same durable and visible conditions together; driver queries are not separate user actions
+      // The clock still includes the next trusted input, enabled Apply action and paint
+      await page.waitForFunction(({ selector, value }) => {
+        const state = (window as any).localSaveProof.diagnostics(), field = document.querySelector<HTMLInputElement>(selector)
+        const action = field?.closest('form')?.querySelector<HTMLButtonElement>('button'), label = document.querySelector<HTMLElement>('.save-editor__state')
+        const bounds = label?.getBoundingClientRect(), fieldBounds = field?.getBoundingClientRect()
+        const ready = state.current && !state.pending && state.savePhase === 'idle' && !state.saveDirty && !state.saveHydrating
+          && !!action?.disabled && !!label?.textContent?.startsWith('Saved locally') && !!bounds?.width && !!bounds?.height && getComputedStyle(label).visibility === 'visible'
+          && !!field && !field.disabled && !field.readOnly && !!fieldBounds?.width && !!fieldBounds?.height && getComputedStyle(field).visibility === 'visible' && field.value === value
+        if (ready && window.saveWork) window.saveWork.readyMs ??= performance.now() - window.saveWork.started
+        return ready
+      }, { selector, value }, { timeout: SAVE_CEILING_MS })
+      await input.fill(nextValue)
+      nextInputWork = await page.evaluate(() => window.finishNextInputWork())
       expected = Number(value)
     } else if (operation === 'progress tile') {
       const tile = page.locator('.summon-tile').filter({ has: page.getByRole('button', { name: /^Shaku, Deity of/ }) })
