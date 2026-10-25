@@ -230,7 +230,7 @@ async function* additiveBulkComparisonJourney() {
     a = await service.device(0); expect((await a.settle()).state).toBe('synced')
     expect((await (await a.open()).readWorkspace()).editorDocuments.find(file => file.id === fixture.file.id)!.filename).toBe('Pending allocation.json')
     if (phasePath) {
-      const transactions = service.fixture.events().filter(event => event.operation === 'sync' && event.stage === 'transaction')
+      const transactions = (await service.fixture.events()).filter(event => event.operation === 'sync' && event.stage === 'transaction')
       const liabilities = await service.fixture.db.prepare(`SELECT
         (SELECT COUNT(*) FROM publication_certificates) AS certificates,
         (SELECT COALESCE(SUM(metadata_bytes),0) FROM publication_certificates) AS certificate_bytes,

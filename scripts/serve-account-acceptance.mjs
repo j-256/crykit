@@ -50,18 +50,7 @@ execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days
 const server = createServer({ key: await readFile(key), cert: await readFile(cert) })
 await new Promise((resolve, reject) => { server.once('error', reject); server.listen(Number(port), '127.0.0.1', resolve) })
 const origin = `https://127.0.0.1:${server.address().port}`, emails = []
-const measurement = { workerRequests: 0, events: 0, eventBytes: 0, eventGroups: {} }
-const localControl = async request => {
-  if (new URL(request.url).pathname === '/state') return LocalResponse.json({ now: Date.now(), localIdentity: false })
-  const { events } = await request.json()
-  for (const event of events) {
-    measurement.events++
-    measurement.eventBytes += Buffer.byteLength(JSON.stringify(event))
-    const key = JSON.stringify([event.operation, event.stage, event.code])
-    measurement.eventGroups[key] = (measurement.eventGroups[key] ?? 0) + 1
-  }
-  return LocalResponse.json({ ok: true })
-}
+const measurement = { workerRequests: 0 }
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.wasm': 'application/wasm', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.webmanifest': 'application/manifest+json' }
 // Apply the actual built static policy to copied assets, including proof pages
 const staticHeaders = []
@@ -101,7 +90,7 @@ const shared = {
 }
 // Every invocation owns fresh in-memory storage and copied modules; source writes cannot reset sessions
 const mf = new Miniflare(convertV4MiniflareOptions({ host: '127.0.0.1', port: 0, workers: [
-  { ...shared, name: 'local', modules: bundles.local, modulesRoot: resolve(inputDirectory, 'local'), serviceBindings: { ...shared.serviceBindings, PRODUCTION: 'production', WASM_PROBE: 'wasm', OPAQUE_ADAPTER: 'opaque-adapter', LOCAL_CONTROL: localControl } },
+  { ...shared, name: 'local', modules: bundles.local, modulesRoot: resolve(inputDirectory, 'local'), serviceBindings: { ...shared.serviceBindings, PRODUCTION: 'production', WASM_PROBE: 'wasm', OPAQUE_ADAPTER: 'opaque-adapter' } },
   { ...shared, name: 'production', modules: bundles.production, modulesRoot: resolve(inputDirectory, 'production') },
   { ...shared, name: 'opaque-adapter', modules: bundles['opaque-adapter'], modulesRoot: resolve(inputDirectory, 'opaque-adapter') },
   { name: 'wasm', compatibilityDate: shared.compatibilityDate, modules: bundles.wasm, modulesRoot: resolve(inputDirectory, 'wasm') },
@@ -117,7 +106,14 @@ server.on('request', async (request, response) => {
     if (!host || !/^127\.0\.0\.1:\d+$/.test(host)) { response.writeHead(400).end(); return }
     const url = new URL(request.url, `https://${host}`)
     // Only aggregate authored event roles and byte totals; no payloads, identities or capabilities are retained
-    if (url.pathname === '/__accounts/measurement') { response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({ ...measurement, processMemory: process.memoryUsage() })); return }
+    if (url.pathname === '/__accounts/measurement') {
+      // Read native aggregates only when a proof requests them, without per-request Node callbacks
+      const telemetry = await mf.dispatchFetch('http://127.0.0.1/__accounts/probe/measurement')
+      if (!telemetry.ok) throw new Error(`Local measurement rejected (${telemetry.status})`)
+      response.writeHead(200, { 'content-type': 'application/json' })
+      response.end(JSON.stringify({ ...measurement, ...await telemetry.json(), processMemory: process.memoryUsage() }))
+      return
+    }
     if (url.pathname === '/__accounts/emails') { response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify(emails)); return }
     const parts = []; for await (const part of request) parts.push(part)
     // Match wrangler.local run_worker_first; static precache requests cannot consume Worker invocations

@@ -110,7 +110,7 @@ it('loads the independent emitted server-adapter WASM and leaves production prob
   const finish = await f.request('/__accounts/probe/opaque-adapter', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ operation: 'finish', state: server.state, request: loginFinish.request }) })
   expect(await finish.json()).toEqual({ ok: true })
   expect((await f.request('/__accounts/production/opaque', { method: 'POST' })).status).toBe(404)
-  const serverDump = JSON.stringify({ events: f.events(), emails: await f.emails(), tables: await f.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all(), objects: await f.objects.list() })
+  const serverDump = JSON.stringify({ events: await f.events(), emails: await f.emails(), tables: await f.db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all(), objects: await f.objects.list() })
   expect(serverDump).not.toContain(password)
   expect(serverDump).not.toContain(Buffer.from(registered.exportKey).toString('base64url'))
 })

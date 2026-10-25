@@ -33,15 +33,15 @@ test('prepared Node and native lanes overlap and merging waits for both', async 
   } })
   try {
     await turn()
-    assert.deepEqual(calls.map(call => call.name), ['node', 'native'])
-    assert.ok(calls[1].args.includes('--maxWorkers=1'))
-    assert.ok(calls[1].args.includes('--bail=1'))
+    assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native', 'native', 'native'])
+    assert.deepEqual(calls.slice(1).map(call => call.args.find(arg => arg.startsWith('--shard='))), ['--shard=1/4', '--shard=2/4', '--shard=3/4', '--shard=4/4'])
+    assert.ok(calls.slice(1).every(call => call.args.includes('--maxWorkers=1') && call.args.includes('--bail=1')))
     assert.equal(calls[0].args.some(arg => arg.startsWith('--bail=')), false)
-    assert.deepEqual(calls.flatMap(call => call.args.filter(arg => arg.startsWith('--project=')).map(arg => arg.slice('--project='.length))).sort(), [...PROJECTS].sort())
+    assert.deepEqual([...new Set(calls.flatMap(call => call.args.filter(arg => arg.startsWith('--project=')).map(arg => arg.slice('--project='.length))))].sort(), [...PROJECTS].sort())
     node.resolve(); await turn()
-    assert.equal(calls.length, 2)
+    assert.equal(calls.length, 5)
   } finally { node.resolve(); native.resolve(); await pending }
-  assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'merge'])
+  assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native', 'native', 'native', 'merge'])
 })
 
 test('a failed lane drains its active sibling and cannot report success', async t => {
@@ -91,7 +91,8 @@ function realFixture(t, bodies) {
   const f = fixture(t)
   delete f.readProjects
   writeFileSync(join(f.cwd, 'package.json'), JSON.stringify({ type: 'module' }))
-  writeFileSync(join(f.cwd, 'vite.config.ts'), `export default { test: { maxWorkers: 1, projects: ${JSON.stringify(PROJECTS.map(name => ({ test: { name, include: name === 'unit' ? ['node.test.mjs'] : name === 'worker' ? ['native.test.mjs'] : [] } })))} } }`)
+  // Tiny runner fixtures deliberately leave some shards empty; the repository gate keeps its no-tests guard
+  writeFileSync(join(f.cwd, 'vite.config.ts'), `export default { test: { maxWorkers: 1, passWithNoTests: true, projects: ${JSON.stringify(PROJECTS.map(name => ({ test: { name, include: name === 'unit' ? ['node.test.mjs'] : name === 'worker' ? ['native*.test.mjs'] : [] } })))} } }`)
   const entry = pathToFileURL(scriptPath('../node_modules/vitest/dist/index.js')).href
   for (const [name, body] of Object.entries(bodies)) writeFileSync(join(f.cwd, `${name}.test.mjs`), `import { test, expect, afterEach } from ${JSON.stringify(entry)};\n${body}\n`)
   return f
@@ -101,12 +102,13 @@ test('real pinned Vitest lanes merge every executed case without running them ag
   const f = realFixture(t, {
     node: `import { appendFileSync } from 'node:fs'; test('node case', () => { appendFileSync('executed.txt', 'node\\n'); expect(1).toBe(1) })`,
     native: `import { appendFileSync } from 'node:fs'; test('native case', () => { appendFileSync('executed.txt', 'native\\n'); expect(2).toBe(2) }); test('later native case', () => { appendFileSync('executed.txt', 'native-later\\n'); expect(3).toBe(3) })`,
+    'native-peer': `import { appendFileSync } from 'node:fs'; test('independent native case', () => { appendFileSync('executed.txt', 'native-peer\\n'); expect(4).toBe(4) })`,
   })
   await verifyVitest({ ...f, report: () => {} })
   const report = JSON.parse(readFileSync(join(f.cwd, '.account-tests/vitest-results.json'), 'utf8'))
-  assert.equal(report.numPassedTests, 3)
+  assert.equal(report.numPassedTests, 4)
   assert.equal(report.numFailedTests, 0)
-  assert.deepEqual(readFileSync(join(f.cwd, 'executed.txt'), 'utf8').trim().split('\n').sort(), ['native', 'native-later', 'node'])
+  assert.deepEqual(readFileSync(join(f.cwd, 'executed.txt'), 'utf8').trim().split('\n').sort(), ['native', 'native-later', 'native-peer', 'node'])
 })
 
 test('a native failure finishes asynchronous transaction cleanup before stopping later cases', async t => {
@@ -125,7 +127,7 @@ test('later native case must not start', () => { writeFileSync('unexpected', 'ye
   })
   const sqliteFlags = process.allowedNodeEnvironmentFlags.has('--experimental-sqlite') ? ['--experimental-sqlite'] : []
   f.env.NODE_OPTIONS = [f.env.NODE_OPTIONS, ...sqliteFlags].filter(Boolean).join(' ')
-  await assert.rejects(verifyVitest({ ...f, report: () => {} }), /native lane failed/)
+  await assert.rejects(verifyVitest({ ...f, report: () => {} }), /native-\d+ lane failed/)
   assert.equal(readFileSync(join(f.cwd, 'cleaned'), 'utf8'), 'yes')
   assert.equal(existsSync(join(f.cwd, 'unexpected')), false)
   const count = execFileSync(process.execPath, [...sqliteFlags, '--input-type=module', '-e', "import { DatabaseSync } from 'node:sqlite'; const db = new DatabaseSync('retained.sqlite'); console.log(db.prepare('SELECT COUNT(*) AS count FROM records').get().count); db.close()"], { cwd: f.cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()

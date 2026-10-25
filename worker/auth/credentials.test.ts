@@ -84,9 +84,10 @@ it('recoveryAuthenticatesAndDecryptsBeforeReplacement', async () => {
   expect((await loginWithRecovery(email, newCode, false)).key).toEqual(h.unlocked.key)
   const rawSecret = recoveryCredentialSecret(await parseRecoveryCode(code))
   const dump = JSON.stringify(await h.f.db.prepare('SELECT * FROM credentials').all())
+  const events = JSON.stringify(await h.f.events())
   for (const secret of [code, rawSecret, password, replacement, Buffer.from(h.unlocked.key).toString('base64url')]) {
     expect(JSON.stringify(h.bodies)).not.toContain(secret)
-    expect(JSON.stringify(h.f.events())).not.toContain(secret)
+    expect(events).not.toContain(secret)
     expect(dump).not.toContain(secret)
   }
 })

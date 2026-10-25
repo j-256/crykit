@@ -13,8 +13,10 @@ import { ServiceEmailSchema } from '../email/templates'
 import { capturedEmailTransport } from './email-capture'
 import { captureServiceSnapshotStep } from './capture-step'
 import { captureStepPath, CaptureStepRequestSchema } from './capture-step-contract'
+import { databaseRequestPath, executeDatabaseRequest } from './database-request'
+import { fixtureClockHeader, fixtureEvents, fixtureEventsPath, fixtureMeasurement, fixtureMeasurementPath, recordFixtureEvent } from './fixture-control'
 
-interface LocalEnv extends ServiceEnv { LOCAL_CONTROL?: Fetcher; PRODUCTION?: Fetcher; WASM_PROBE?: Fetcher; OPAQUE_ADAPTER?: Fetcher }
+interface LocalEnv extends ServiceEnv { LOCAL_REQUEST_CONTEXT?: string; LOCAL_IDENTITY?: string; LOCAL_RETAIN_EVENTS?: string; PRODUCTION?: Fetcher; WASM_PROBE?: Fetcher; OPAQUE_ADAPTER?: Fetcher }
 const capturedEmails: ServiceEmail[] = []
 const pendingFaults: string[] = []
 // Excluded browser harness: hold actual Worker responses so tests observe native header/body ordering
@@ -35,6 +37,10 @@ export class EmailCapture extends WorkerEntrypoint {
 }
 export default {
   async fetch(request: Request, env: LocalEnv, execution: ExecutionContext): Promise<Response> {
+    // Fixture database administration has no application clock or fault checkpoints
+    if (new URL(request.url).pathname === databaseRequestPath && request.method === 'POST' && env.DB) return executeDatabaseRequest(request, env.DB)
+    if (new URL(request.url).pathname === fixtureEventsPath) return jsonResponse(fixtureEvents())
+    if (new URL(request.url).pathname === fixtureMeasurementPath) return jsonResponse(fixtureMeasurement())
     // Test-only frontend connectivity toggles retain the same Worker state and exact Origin checks
     if (localServiceOrigin) env = { ...env, SERVICE_ORIGIN: localServiceOrigin }
     // Miniflare supplies a loopback header by default; explicit non-loopback network proofs retain their identity
@@ -45,9 +51,13 @@ export default {
       request = new Request(request, { headers })
     }
     const events: SafeEvent[] = []
-    const state = env.LOCAL_CONTROL ? await (await env.LOCAL_CONTROL.fetch('http://control/state')).json() as { now: number; localIdentity: boolean } : { now: Date.now(), localIdentity: false }
+    // Only the Node fixture enables an injected clock; browser acceptance keeps real time
+    // Carrying it on the owned request avoids a separate Node callback for every API operation
+    const injectedNow = env.LOCAL_REQUEST_CONTEXT === 'true' ? request.headers.get(fixtureClockHeader) : null
+    const state = { now: injectedNow === null ? Date.now() : Number(injectedNow), localIdentity: env.LOCAL_IDENTITY === 'true' }
+    if (!Number.isFinite(state.now)) throw new TypeError('Invalid fixture clock')
     const runtime: ServiceRuntime = {
-      now: () => state.now, emit: event => { events.push(event) },
+      now: () => state.now, emit: event => { events.push(event); recordFixtureEvent(event, env.LOCAL_RETAIN_EVENTS === 'true') },
       // Capture exists only in this excluded entry and rejects nonreserved domains
       emailTransport: capturedEmailTransport(env.EMAIL, () => state.now),
       fail(stage) {
@@ -156,7 +166,6 @@ export default {
       originFailureDiagnostics++
       console.warn(JSON.stringify({ event: 'local-origin-rejection', requestId: context.requestId, path: new URL(request.url).pathname, origin: request.headers.get('origin'), serviceOrigin: env.SERVICE_ORIGIN }))
     }
-    if (env.LOCAL_CONTROL) await env.LOCAL_CONTROL.fetch('http://control/flush', { method: 'POST', body: JSON.stringify({ events }) })
     const gate = responseGate
     if (gate && new URL(request.url).pathname === gate.path && !gate.arrived) {
       gate.arrived = true

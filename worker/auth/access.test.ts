@@ -89,7 +89,7 @@ it('activatesOnlyVerifiedAtomicRegistration', async () => {
   expect(dump).not.toContain(signed.cookie.split('=')[1])
   const cap = await f.db.prepare('SELECT token_hash FROM verification_capabilities').first('token_hash')
   expect(cap).not.toBe(capability)
-  const events = JSON.stringify(f.events())
+  const events = JSON.stringify(await f.events())
   for (const secret of [capability, password, registered.exportKeyEncoded, registered.key.toString('base64url'), signed.cookie.split('=')[1]]) expect(events).not.toContain(secret)
   expect(f.emailCaptureStats().outboundNetworkMessages).toBe(0)
 })

@@ -5,9 +5,11 @@ import { fileURLToPath } from 'node:url'
 import { VerificationError } from './integration-verification.mjs'
 
 const VITEST_CLI = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url))
+const NATIVE_SHARDS = 4
 const LANES = Object.freeze([
   { name: 'node', projects: ['unit', 'dom', 'persistence'] },
-  { name: 'native', projects: ['worker', 'persistence-service'], workers: 1, bail: 1 },
+  // A failing serial shard can bail after cleanup without aborting another active database case
+  ...Array.from({ length: NATIVE_SHARDS }, (_, index) => ({ name: `native-${index + 1}`, projects: ['worker', 'persistence-service'], workers: 1, bail: 1, shard: `${index + 1}/${NATIVE_SHARDS}` })),
 ])
 
 async function configuredProjects({ cwd, configFile }) {
@@ -46,7 +48,7 @@ export async function verifyVitest({ cwd = process.cwd(), env = process.env, run
     return
   }
   const projects = await readProjects({ cwd, configFile })
-  const assigned = LANES.flatMap(lane => lane.projects)
+  const assigned = [...new Set(LANES.flatMap(lane => lane.projects))]
   // Filters must cover the complete configured matrix; a new project requires an explicit lane assignment
   // Read and pass the same config so discovery cannot silently disagree with the executed commands
   if (projects.length !== assigned.length || new Set(projects).size !== projects.length || assigned.some(name => !projects.includes(name))) throw new VerificationError('The configured Vitest projects do not match the prepared lane assignments')
@@ -55,7 +57,8 @@ export async function verifyVitest({ cwd = process.cwd(), env = process.env, run
   const results = await Promise.allSettled(LANES.map(lane => (async () => {
     const args = ['run', `--config=${configFile}`, ...lane.projects.map(name => `--project=${name}`)]
     if (lane.workers) args.push(`--maxWorkers=${lane.workers}`)
-    // Only the serial lane can stop after a failed case without aborting a sibling's active body
+    if (lane.shard) args.push(`--shard=${lane.shard}`)
+    // Serial shards stop after a failed case without aborting another shard's active body
     if (lane.bail) args.push(`--bail=${lane.bail}`)
     args.push('--reporter=default', '--reporter=blob', `--outputFile.blob=${join(blobs, `${lane.name}.json`)}`)
     await execute(args, `${lane.name} lane`)

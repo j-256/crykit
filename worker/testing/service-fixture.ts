@@ -10,8 +10,11 @@ import { unstable_splitSqlQuery as splitSqlQuery } from 'wrangler'
 import { localProjectCapacityBytes, type SafeEvent } from '../../src/account/protocol'
 import type { ServiceEmail } from '../email/types'
 import { captureStepPath, type CaptureStepOutcome, type CaptureStepResult } from './capture-step-contract'
+import { databaseRequestPath, requestDatabase } from './database-request'
+import { fixtureClockHeader, fixtureEventsPath } from './fixture-control'
 
 export interface FixtureOptions {
+  readonly databaseTransport?: 'binding' | 'request'
   readonly cloudRequestBudget?: { readonly daily: number; readonly monthly: number }
   readonly cloudWorkBudget?: { readonly daily: number; readonly monthly: number }
   readonly admissionLimits?: Partial<Record<'network' | 'account' | 'auth' | 'location', number>>
@@ -39,7 +42,7 @@ export interface ServiceFixture {
   readonly revocations: R2Bucket
   emails(): Promise<readonly ServiceEmail[]>
   emailCaptureStats(): { readonly outboundNetworkMessages: number }
-  events(): readonly SafeEvent[]
+  events(): Promise<readonly SafeEvent[]>
   failNext(stage: string): void
   runJobs(): Promise<void>
   dispose(): Promise<void>
@@ -52,7 +55,6 @@ export async function createServiceFixture(options: FixtureOptions = {}): Promis
   const adapter = JSON.parse(await readFile(resolve(root, 'opaque-adapter/manifest.json'), 'utf8')) as { modules: V4ModuleDefinition[] }
   let now = options.now ?? Date.now()
   const faults: string[] = []
-  const events: SafeEvent[] = []
   const emails: ServiceEmail[] = []
   const emailResponses = [...options.emailResponses ?? []]
   let outboundNetworkMessages = 0
@@ -109,13 +111,7 @@ export async function createServiceFixture(options: FixtureOptions = {}): Promis
   const mf = new Miniflare(convertV4MiniflareOptions({
     handleStructuredLogs: options.onLog,
     host: '127.0.0.1', port: 0, workers: [
-      { ...shared, name: 'local', modules: local.modules, modulesRoot: resolve(root, 'local'), serviceBindings: { ...shared.serviceBindings, PRODUCTION: 'production', WASM_PROBE: 'wasm-probe', OPAQUE_ADAPTER: 'opaque-adapter', LOCAL_CONTROL: async (request: LocalRequest) => {
-        const path = new URL(request.url).pathname
-        if (path === '/state') return LocalResponse.json({ now, localIdentity: options.localIdentity ?? false })
-        const payload = await request.json() as { events: SafeEvent[] }
-        events.push(...payload.events)
-        return LocalResponse.json({ ok: true })
-      } } },
+      { ...shared, name: 'local', modules: local.modules, modulesRoot: resolve(root, 'local'), bindings: { ...bindings, LOCAL_REQUEST_CONTEXT: 'true', LOCAL_IDENTITY: String(options.localIdentity ?? false), LOCAL_RETAIN_EVENTS: 'true' }, serviceBindings: { ...shared.serviceBindings, PRODUCTION: 'production', WASM_PROBE: 'wasm-probe', OPAQUE_ADAPTER: 'opaque-adapter' } },
       { ...shared, name: 'production', modules: production.modules, modulesRoot: resolve(root, 'production'), ...(options.assets ? { assets: { ...options.assets, binding: 'ASSETS', routerConfig: { has_user_worker: true } }, serviceBindings: { EMAIL: shared.serviceBindings.EMAIL } } : {}) },
       { ...shared, name: 'opaque-adapter', modules: adapter.modules, modulesRoot: resolve(root, 'opaque-adapter') },
       { name: 'wasm-probe', compatibilityDate: '2026-09-28', modules: wasm.modules, modulesRoot: resolve(root, 'wasm') },
@@ -124,7 +120,13 @@ export async function createServiceFixture(options: FixtureOptions = {}): Promis
   }))
   try {
     await mf.ready
-    const db = await mf.getD1Database('DB', 'local')
+    const binding = await mf.getD1Database('DB', 'local')
+    const localWorker = options.production ? await mf.getWorker('local') : undefined
+    const db = options.databaseTransport === 'binding' ? binding : requestDatabase(binding, async body => {
+      const url = `http://127.0.0.1${databaseRequestPath}`
+      const init = { method: 'POST', headers: { 'content-type': 'application/json' }, body }
+      return await (localWorker ? localWorker.fetch(url, init) : mf.dispatchFetch(url, init)) as unknown as Response
+    })
     // Each fixture owns a fresh database and applies the authored migrations in filename order
     const migrations = resolve('worker/migrations')
     for (const name of (await readdir(migrations)).filter(name => /^\d+[-\w]*\.sql$/.test(name) && (!options.migrationThrough || name <= options.migrationThrough)).sort()) {
@@ -143,7 +145,9 @@ export async function createServiceFixture(options: FixtureOptions = {}): Promis
       }
       await controlTail
       // Miniflare uses Undici types; the fixture retains the standard Worker/browser fetch surface
-      return await mf.dispatchFetch(new URL(path, options.serviceOrigin ?? 'http://127.0.0.1').href, init as unknown as Parameters<Miniflare['dispatchFetch']>[1]) as unknown as Response
+      const headers = new Headers(init?.headers)
+      headers.set(fixtureClockHeader, String(now))
+      return await mf.dispatchFetch(new URL(path, options.serviceOrigin ?? 'http://127.0.0.1').href, { ...init, headers: Object.fromEntries(headers) } as unknown as Parameters<Miniflare['dispatchFetch']>[1]) as unknown as Response
     }
     return {
       request,
@@ -161,12 +165,18 @@ export async function createServiceFixture(options: FixtureOptions = {}): Promis
       db,
       objects: await mf.getR2Bucket('OBJECTS', 'local') as unknown as R2Bucket,
       revocations: await mf.getR2Bucket('REVOCATION_LEDGER', 'local') as unknown as R2Bucket,
-      emails: async () => [...emails], events: () => [...events], failNext: stage => { faults.push(stage) },
+      emails: async () => [...emails],
+      async events() {
+        const response = localWorker ? await localWorker.fetch(`http://127.0.0.1${fixtureEventsPath}`) : await request(fixtureEventsPath)
+        if (!response.ok) throw new Error(`Local events rejected (${response.status})`)
+        return await response.json() as SafeEvent[]
+      },
+      failNext: stage => { faults.push(stage) },
       emailCaptureStats: () => ({ outboundNetworkMessages }),
       runJobs: async () => {
         // Production routing does not expose the local scheduler endpoint
         const response = options.production
-          ? await (await mf.getWorker('local')).fetch('http://127.0.0.1/__accounts/jobs', { method: 'POST' })
+          ? await localWorker!.fetch('http://127.0.0.1/__accounts/jobs', { method: 'POST', headers: { [fixtureClockHeader]: String(now) } })
           : await request('/__accounts/jobs', { method: 'POST' })
         if (!response.ok) throw new Error('Local jobs failed')
       },
