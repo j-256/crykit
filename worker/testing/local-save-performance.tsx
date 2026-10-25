@@ -111,17 +111,22 @@ async function inspect(kind: 'planner' | 'save' | 'editor') {
       const file = EditorWorkspaceDocumentSchema.parse(await find('editor', PERFORMANCE_EDITOR_ID))
       return { file, applied: decodeEditorText(await body(file.lastApplied)), unfinished: decodeEditorText(await body(file.unfinished.text)), records }
     }
-    const values = await Promise.all(index.entries.filter(entry => ['build', 'build-checkpoint', 'progress'].includes(entry.kind)).map(document))
+    // Per-save assertions consume checkpoints and progress; unrelated Builds are admitted by full()
+    // Reading every Build here repeats unrelated encrypted payload work between measured operations
+    const values = await Promise.all(index.entries.filter(entry => ['build-checkpoint', 'progress'].includes(entry.kind)).map(document))
     return { revision: root.localRevision, values, records }
   })
 }
 
 async function bodyRecords(entries: readonly LocalWorkspaceEntry[], account?: AccountDatabase) {
-  return Promise.all(entries.filter(entry => entry.kind === 'blob' || entry.kind === 'catalog').map(async entry => {
-    const record = account && await account.encryptedRevisions.get(entry.ref.revisionId)
+  const bodies = entries.filter(entry => entry.kind === 'blob' || entry.kind === 'catalog')
+  // One fresh native transaction captures the same immutable identities without opening one transaction per row
+  const encrypted = account && await account.encryptedRevisions.bulkGet(bodies.map(entry => entry.ref.revisionId))
+  return bodies.map((entry, index) => {
+    const record = encrypted && encrypted[index]
     if (account && !record) throw new Error('Missing immutable oracle record')
     return { key: entry.key, kind: entry.kind, ref: entry.ref, digest: entry.digest, storageId: record ? record.payloadId : entry.ref.revisionId }
-  }))
+  })
 }
 
 function Entry() {

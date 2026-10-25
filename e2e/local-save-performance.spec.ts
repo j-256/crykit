@@ -58,6 +58,11 @@ async function openOperation(page: Page, operation: Operation) {
     await page.evaluate(() => { location.hash = '#/save-editor' })
     await page.locator('select').filter({ has: page.locator(`option[value="${PERFORMANCE_SAVE_ID}"]`) }).selectOption(PERFORMANCE_SAVE_ID)
     await page.getByRole('heading', { name: 'synthetic-performance.sav', exact: true }).waitFor()
+    // Opening authenticates the selected file before the category change begins its bounded local save
+    await page.waitForFunction(() => {
+      const state = (window as any).localSaveProof.diagnostics()
+      return state.current && state.savePhase === 'idle' && !state.saveHydrating && !state.pending
+    })
     await page.getByRole('combobox', { name: 'Inventory category', exact: true }).selectOption('item')
     await page.getByRole('combobox', { name: 'Stock filter', exact: true }).selectOption('carried')
     // The category is durable presentation; finish opening before capturing the timed operation's baseline
@@ -251,10 +256,11 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
     const consumed = consumedKeys(previousFile, operation)
     const observedReads = new Set(Object.values(work.recordsRead).flat())
     const observedWrites = new Set(Object.values(work.recordsWritten).flat())
+    const persistedRecords = new Map(persisted.records.map((record: BodyRecord) => [record.key, record]))
     for (const record of previousRecords) {
       // Existing immutable bodies and catalogs retain their authenticated storage identities
       // Only the edited file's actual current dependencies may be consumed by this foreground operation
-      expect(persisted.records.find((value: BodyRecord) => value.key === record.key)).toEqual(record)
+      expect(persistedRecords.get(record.key)).toEqual(record)
       expect(observedWrites.has(record.storageId)).toBe(false)
       if (!consumed.has(record.key)) expect(observedReads.has(record.storageId)).toBe(false)
     }
