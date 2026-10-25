@@ -282,7 +282,7 @@ export default function IsometricPlacementView({ initialCamera, onCameraInput, m
       </div>
       {!brushAction && <label className="map-editor-checkbox"><input type="checkbox" checked={mode === 'height'} onChange={event => setMode(event.target.checked ? 'height' : 'ground')}/>Drag placements vertically</label>}
       {constructionPlane && <div className="iso-plane-controls">
-        <Field label="Construction height Y"><input type="number" step={1} min={MAP_EDITOR_LIMITS.intMin} max={MAP_EDITOR_LIMITS.intMax} value={planeHeight ?? ''} disabled={disabled} aria-invalid={planeY === undefined} onChange={event => changePlane(event.target.value)}/></Field>
+        <Field label="Construction height Y"><input data-editor-focus="map-construction-height" type="number" step={1} min={MAP_EDITOR_LIMITS.intMin} max={MAP_EDITOR_LIMITS.intMax} value={planeHeight ?? ''} disabled={disabled} aria-invalid={planeY === undefined} onChange={event => changePlane(event.target.value)}/></Field>
         <IconButton icon="minus" label="Lower construction plane" disabled={disabled || planeY === undefined || planeY <= MAP_EDITOR_LIMITS.intMin} onClick={() => changePlane(String(planeY! - 1))}/>
         <IconButton icon="plus" label="Raise construction plane" disabled={disabled || planeY === undefined || planeY >= MAP_EDITOR_LIMITS.intMax} onClick={() => changePlane(String(planeY! + 1))}/>
         <IconButton icon="compass" label="Center on construction plane" disabled={planeY === undefined} onClick={() => { voxelBrush.cancel(); setCenter(previous => ({ ...previous, Y: planeY! })) }}/>
