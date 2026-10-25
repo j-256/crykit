@@ -329,14 +329,17 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
       else controller.rememberFocus(viewOwner, undefined)
     }
     storage.session.captureFocus = capture
+    restoreFocus()
+    if (active && tab !== 'map' && storage.session.scroll?.tab === tab) restoreScroll()
+    return () => { if (storage.session.captureFocus === capture) storage.session.captureFocus = undefined }
+  }, [active, storage, tab])
+  function restoreFocus() {
     const focus = controller.snapshot().focus
     if (focus?.key) {
       const element = focus.key === 'json' ? viewElement.current?.querySelector<HTMLTextAreaElement>('textarea') : [...(viewElement.current?.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-editor-focus]') ?? [])].find(element => element.dataset.editorFocus === focus.key)
       if (element && (!document.activeElement || document.activeElement === document.body)) { element.focus(); if (!(element instanceof HTMLSelectElement) && focus.start !== null && focus.end !== null) element.setSelectionRange(focus.start, focus.end, focus.direction ?? undefined) }
     }
-    if (active && tab !== 'map' && storage.session.scroll?.tab === tab) restoreScroll()
-    return () => { if (storage.session.captureFocus === capture) storage.session.captureFocus = undefined }
-  }, [active, storage, tab])
+  }
   function restoreScroll() {
     const position = storage.session.scroll
     if (!position) return
@@ -645,7 +648,10 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
       {!active && <div className="inspector-panel inspector-empty"><h2>Create or Open a Map Mod</h2><p>New map mod starts with an empty Crystal Edit project. Open JSON file edits a separate browser copy of an existing project.</p></div>}
       {active && <div className="inspector-actions"><strong>{fileInfo?.title ?? active.filename}</strong><Button disabled={blockedSwitch} onClick={() => { setTab('document'); void prepareReview() }}>Review map export</Button><Button tone="secondary" onClick={() => downloadOriginal(active)}>{active.originalBytes ? 'Download original' : 'Download original text'}</Button></div>}
       {active && tab === 'map' && <Button disabled={saving.current || busy || controller.snapshot().input?.text === active.draftText} onClick={() => void apply()}>Apply document changes</Button>}
-      {active && parsed && (mapOpened || tab === 'map') && <Suspense fallback={<p role="status">Opening map editor...</p>}><MapPlacementEditor key={renderedMapIncarnation} onReady={() => { if (tab === 'map' && isMapCurrent()) restoreScroll() }} document={parsed} disabled={busy || removing || reviewBusy || editorDirty} initialInput={(controller.snapshot().input?.fieldState as Record<string, import('../domain/types').JsonValue> | null)?.map} onInput={(key, value) => { if (!isMapCurrent()) return; controller.editMapField(viewOwner, key, value); controller.editField(viewOwner, 'tab', 'map'); setInputEpoch(value => value + 1); setMapDirty(true); onDraftChange?.(true, registeredActions) }} onGesture={value => { if (!isMapCurrent()) return; controller.setInteraction(viewOwner, 'gesture', value); if (!value) setInputEpoch(epoch => epoch + 1) }} onChange={(next, expected) => isMapCurrent() && applyMapText(next, expected)} onDraftChange={onMapDraftChange} onInspect={index => { if (!isMapCurrent()) return; select(['Entities', index]); setTab('document') }}/></Suspense>}
+      {active && parsed && (mapOpened || tab === 'map') && <Suspense fallback={<p role="status">Opening map editor...</p>}><MapPlacementEditor key={renderedMapIncarnation} onReady={() => {
+        // The lazy map can mount after the owner's layout effect, so restore its focused field when it exists
+        if (tab === 'map' && isMapCurrent()) { restoreFocus(); restoreScroll() }
+      }} document={parsed} disabled={busy || removing || reviewBusy || editorDirty} initialInput={(controller.snapshot().input?.fieldState as Record<string, import('../domain/types').JsonValue> | null)?.map} onInput={(key, value) => { if (!isMapCurrent()) return; controller.editMapField(viewOwner, key, value); controller.editField(viewOwner, 'tab', 'map'); setInputEpoch(value => value + 1); setMapDirty(true); onDraftChange?.(true, registeredActions) }} onGesture={value => { if (!isMapCurrent()) return; controller.setInteraction(viewOwner, 'gesture', value); if (!value) setInputEpoch(epoch => epoch + 1) }} onChange={(next, expected) => isMapCurrent() && applyMapText(next, expected)} onDraftChange={onMapDraftChange} onInspect={index => { if (!isMapCurrent()) return; select(['Entities', index]); setTab('document') }}/></Suspense>}
     </section>
     <section className="inspector-tab-panel" role="tabpanel" id={`${tabsId}-dictionary-panel`} aria-labelledby={`${tabsId}-dictionary-tab`} tabIndex={0} hidden={tab !== 'dictionary'}><EnumDictionary/></section>
   </div>

@@ -24,6 +24,7 @@ import { Icon, type IconName } from './icons'
 import './save-editor.css'
 
 const INVENTORY_PAGE_SIZE = 30
+const SAVE_INPUT_DEBOUNCE_MS = 650
 const MAX_MOD_DEFINITION_FILES = 100
 const MAX_BUNDLED_SAVE_SOURCE_CACHE = 8
 const SAVE_EDITOR_RULES_LABEL = nativeGameplayScopeLabel(NATIVE_GAME_DATA.source.platform, NATIVE_GAME_DATA.source.gameVersion)
@@ -301,14 +302,16 @@ export function SaveEditorView({ storage, localData: localDataProp, onDraftChang
     return () => { live = false; request++; unsubscribe() }
   }, [storage])
   useEffect(() => {
-    if (!formSupported || !dirty || storage.pending() || busy || modBusy || bundledBusy) return
+    // Later input can remain dirty across a saved owner's remount
+    // Hydration clears the pending command without changing that input, so its completion must restart autosave
+    if (!hydrated || !formSupported || !dirty || storage.pending() || busy || modBusy || bundledBusy) return
     const timer = window.setTimeout(() => {
       // Explicit commands can start without a render, so a scheduled quiet save must check the live owner again
       if (!storage.isCurrent() || storage.pending() || !storage.controller.snapshot().dirty || !storage.controller.canTransfer()) return
       void storage.save().catch(reason => { if (storage.isCurrent()) setError(errorMessage(reason)) })
-    }, 650)
+    }, SAVE_INPUT_DEBOUNCE_MS)
     return () => window.clearTimeout(timer)
-  }, [storage, inputVersion, dirty, busy, modBusy, bundledBusy, formSupported])
+  }, [storage, inputVersion, dirty, busy, modBusy, bundledBusy, formSupported, hydrated])
   useEffect(() => {
     if (!opened?.original || !hydrated || storage.pending()) return
     const candidates = bundledDefinitionsForSave(opened.original)

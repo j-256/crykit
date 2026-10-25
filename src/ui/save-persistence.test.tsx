@@ -127,6 +127,22 @@ it('pending-only V is durable while pointer-gap V+1 survives and saves on the ve
   expect((await workspace.repository.readWorkspace()).saveDocuments[0].pendingForm).toMatchObject({ fields: { currency: 'later V+1' } })
   expect(workspace.saveSession.controller.snapshot().dirty).toBe(false)
 })
+it('automatically saves later input after the pending command hydrates its successor', { timeout: SAVE_SUCCESSOR_TRANSACTIONS_MS }, async () => {
+  await open(); await type('captured V')
+  afterNextGuestPublication(() => {
+    const field = container.querySelector<HTMLInputElement>('[aria-label="Copper"]')!
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, 'later V+1')
+    field.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await act(async () => { await actions!.save() })
+  await wait(() => expect(workspace.fileCommandPending()).toBe(false))
+  expect(workspace.saveSession.document!.file.pendingForm).toMatchObject({ fields: { currency: 'captured V' } })
+  // The remounted owner must resume quiet saving without another edit or explicit save action
+  await wait(() => expect(workspace.saveSession.controller.snapshot().dirty).toBe(false))
+  const state = await workspace.repository.readWorkspace(), file = state.saveDocuments.find(value => value.id === savedId)!
+  expect(file.pendingForm).toMatchObject({ fields: { currency: 'later V+1' } })
+  expect(await readSaveContent(state, file)).toEqual({ originalBytes: bytes, workingBytes: bytes })
+})
 it.each(['composition', 'pointer'] as const)('actual Save %s input remains live through publication and transfers its final value', async interaction => {
   await open(); await type('captured V')
   const old = workspace, oldView = old.saveSession.transferView!

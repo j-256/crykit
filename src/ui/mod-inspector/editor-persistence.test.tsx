@@ -502,6 +502,23 @@ async function openSelectedMap() {
 async function fillMap(key: string, value: string) {
   await act(async () => { const field = container.querySelector<HTMLInputElement>(`[data-editor-focus="${key}"]`)!; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, value); field.dispatchEvent(new Event('input', { bubbles: true })) })
 }
+it('returns focus to the construction height after its saved map owner reopens', { timeout: LOCAL_EDITOR_COMMAND_MS }, async () => {
+  await openSelectedMap()
+  await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Construction plane"]')!.click())
+  const field = container.querySelector<HTMLInputElement>('.iso-plane-controls input')!
+  await act(async () => {
+    field.focus()
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, '141')
+    field.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await flush()
+  await wait(() => expect(container.querySelector('.iso-plane-controls input')).not.toBe(field))
+  const reopened = container.querySelector<HTMLInputElement>('.iso-plane-controls input')!
+  expect(reopened).not.toBeNull()
+  expect(reopened.value).toBe('141')
+  expect(document.activeElement).toBe(reopened)
+  expect((await stored())!.file.unfinished.fieldState).toMatchObject({ map: { camera: { planeHeight: '141' } } })
+})
 it('retains the map scroll position through an owned quiet-save handoff', { timeout: LOCAL_EDITOR_COMMAND_MS }, async () => {
   await openSelectedMap()
   const manifest = await worldMap.loadWorldMap()
