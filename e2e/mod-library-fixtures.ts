@@ -46,7 +46,7 @@ export const modLibraryTest = base.extend<{}, { importedLibraryState: ImportedLi
     console.info(JSON.stringify({ fixture: 'synthetic-mod-library', project: workerInfo.project.name, durationMs: Date.now() - started }))
     await use(state)
   }, { scope: 'worker' }],
-  // Each test still owns a fresh context and native database copy, never a shared writable workspace
+  // Each independent journey owns a fresh context and native database copy
   // The real UI prepares the seed inside each run; no prepared fixture state is reused between runs
   storageState: async ({ importedLibraryState }, use) => { await use(importedLibraryState) },
 })
