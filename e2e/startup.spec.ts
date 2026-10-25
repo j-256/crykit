@@ -3,6 +3,10 @@ import { waitForPlannerReady } from './local-data-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectLoadingMotion, holdWorkspaceSelection, loadingScreen } from './startup-helpers'
 
+// Each storage hold keeps a real IndexedDB transaction alive with queued reads
+// Run motion variants sequentially per browser so concurrent holders do not starve module startup
+test.describe.configure({ mode: 'default' })
+
 for (const reducedMotion of ['no-preference', 'reduce'] as const) {
   test.describe(`startup with ${reducedMotion} motion`, () => {
     test.use({ reducedMotion })

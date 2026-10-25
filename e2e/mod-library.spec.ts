@@ -452,7 +452,10 @@ test.describe('saves editor revisions into Mods, derives rules, and preserves pi
     await page.goto('/#/mods')
     await mod.getByRole('button', { name: 'Edit mod JSON', exact: true }).click()
     await expect(page.getByRole('tab', { name: 'JSON Editor', exact: true })).toHaveAttribute('aria-selected', 'true')
-    const openedEditorId = await page.getByRole('combobox', { name: 'Files opened in this tool', exact: true }).inputValue()
+    const editorFiles = page.getByRole('combobox', { name: 'Files opened in this tool', exact: true })
+    // Selecting the tab precedes asynchronous file admission; inspect only its opened document
+    await expect(editorFiles).not.toHaveValue('')
+    const openedEditorId = await editorFiles.inputValue()
     expect(openedEditorId).not.toBe('')
     const openedWorkspace = (await readManagedGuestWorkspace(page))!
     const openedEditor = openedWorkspace.editorDocuments.find(file => file.id === openedEditorId)!

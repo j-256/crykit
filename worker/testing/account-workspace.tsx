@@ -17,7 +17,12 @@ import { disposeWorkspaceSnapshot } from '../../src/workspace/snapshot'
 import { sha256 } from '../../src/interchange/util'
 import { accountLocalId } from '../../src/workspace/account-cache'
 import { createBlankLocalData } from '../../src/domain/local-data'
+import { captureEmailCapability } from '../../src/account/email-capability'
 import '../../src/styles.css'
+
+// Match the real entry's email-link intake before App navigation can retain the capability
+captureEmailCapability()
+window.addEventListener('hashchange', () => { if (captureEmailCapability()) window.dispatchEvent(new Event('account-email-link')) })
 
 // Local-only observability drives the actual App/provider and recovery boundary, never production assets
 type PublicSharingFixture = { readonly effect: string; readonly filename: string; readonly artwork: string; readonly source: string; readonly allocation: string; readonly note: string }
