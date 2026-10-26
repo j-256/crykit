@@ -192,7 +192,9 @@ it('does not restart an elapsed typing pause when later input transfers to its s
       container.querySelector('[aria-label="Copper"]')!.dispatchEvent(new Event('compositionend', { bubbles: true }))
       await pending
     })
-    await wait(() => expect(workspace.fileCommandPending()).toBe(false))
+    // Polling with fake timers would also execute the successor's due autosave before this boundary is observed
+    await act(async () => { await workspace.saveSession.hydration?.confirmation })
+    expect(workspace.fileCommandPending()).toBe(false)
     expect(workspace.saveSession.document!.file.pendingForm).toMatchObject({ fields: { currency: 'captured V' } })
     expect(controller.snapshot()).toMatchObject({ dirty: true, input: { fields: { currency: 'later V+1' } } })
     await act(async () => { await vi.advanceTimersByTimeAsync(0) })
