@@ -175,7 +175,7 @@ test('renders native walls and trunks below map surfaces while loading only near
   expect(JSON.parse(await exportDraft(page)).Entities).toEqual([])
 })
 
-test('retains map context and the exact draft when native geometry loading fails, then retries', async ({ page }) => {
+test('retains map context and the exact draft when native geometry loading fails, then retries', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.route('**/*geometry*.bin*', route => route.fulfill({ status: 503, body: 'Synthetic unavailable tile' }))
   await page.goto('/#/mods/editor')
   await page.getByLabel('Open mod JSON file', { exact: true }).setInputFiles({ name: FILENAME, mimeType: 'application/json', buffer: Buffer.from(SOURCE) })
@@ -186,9 +186,27 @@ test('retains map context and the exact draft when native geometry loading fails
   await expect(canvas).toHaveAttribute('data-geometry-runs', '0')
   await expect.poll(() => canvas.getAttribute('data-terrain-cells').then(Number)).toBeGreaterThan(0)
   await page.unroute('**/*geometry*.bin*')
-  await page.getByRole('button', { name: 'Retry native geometry', exact: true }).click()
-  await expectMap(page)
-  await expect(page.getByText('Native geometry needs attention', { exact: true })).toHaveCount(0)
+  const bounds = () => canvas.evaluate(element => {
+    const box = element.getBoundingClientRect()
+    return { x: box.x + scrollX, y: box.y + scrollY, width: box.width, height: box.height }
+  })
+  const retry = page.getByRole('button', { name: 'Retry native geometry', exact: true })
+  // Finish intentional scrolling before checking movement caused by background status
+  await retry.scrollIntoViewIfNeeded()
+  const beforeRetry = await bounds()
+  let releaseLoading!: () => void
+  const loading = new Promise<void>(resolve => { releaseLoading = resolve })
+  await page.route('**/*geometry*.bin*', async route => { await loading; await route.continue() })
+  try {
+    await retry.click()
+    await expect(page.getByText('Loading nearby native voxel geometry...', { exact: true })).toBeVisible()
+    // Background status must not move the coordinate surface beneath a prepared physical gesture
+    expect(await bounds()).toEqual(beforeRetry)
+    releaseLoading()
+    await expectMap(page)
+    await expect(page.getByText('Native geometry needs attention', { exact: true })).toHaveCount(0)
+    expect(await bounds()).toEqual(beforeRetry)
+  } finally { releaseLoading(); await page.unrouteAll({ behavior: 'wait' }) }
   expect(await exportDraft(page)).toBe(SOURCE)
 })
 
