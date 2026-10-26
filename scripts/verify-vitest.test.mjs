@@ -33,15 +33,15 @@ test('prepared Node and native lanes overlap and merging waits for both', async 
   } })
   try {
     await turn()
-    assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native', 'native', 'native'])
-    assert.deepEqual(calls.slice(1).map(call => call.args.find(arg => arg.startsWith('--shard='))), ['--shard=1/4', '--shard=2/4', '--shard=3/4', '--shard=4/4'])
+    assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native'])
+    assert.deepEqual(calls.slice(1).map(call => call.args.find(arg => arg.startsWith('--shard='))), ['--shard=1/2', '--shard=2/2'])
     assert.ok(calls.slice(1).every(call => call.args.includes('--maxWorkers=1') && call.args.includes('--bail=1')))
     assert.equal(calls[0].args.some(arg => arg.startsWith('--bail=')), false)
     assert.deepEqual([...new Set(calls.flatMap(call => call.args.filter(arg => arg.startsWith('--project=')).map(arg => arg.slice('--project='.length))))].sort(), [...PROJECTS].sort())
     node.resolve(); await turn()
-    assert.equal(calls.length, 5)
+    assert.equal(calls.length, 3)
   } finally { node.resolve(); native.resolve(); await pending }
-  assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native', 'native', 'native', 'merge'])
+  assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native', 'merge'])
 })
 
 test('a failed lane drains its active sibling and cannot report success', async t => {
