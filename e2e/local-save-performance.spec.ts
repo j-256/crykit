@@ -89,6 +89,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
   let baseline: any, startingEditor: any, previousFile: any
   let previousRecords: BodyRecord[]
   const errors: string[] = [], measures: unknown[] = []
+  const draftPreparations: unknown[] = []
 
   async function releaseJourney() {
     try { await retainedContext?.close() }
@@ -98,7 +99,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       retainedContext = undefined
       baseline = startingEditor = previousFile = undefined
       previousRecords = []
-      measures.length = 0; errors.length = 0
+      measures.length = 0; errors.length = 0; draftPreparations.length = 0
     }
   }
   // Independent cases release their own observations without creating file-level shard groups
@@ -215,10 +216,15 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
         // A separate automation query delays the next real input without testing more application work
         await idle(page, 'editor', 'Saved JSON edit; not applied', true)
       } else {
-        await field.fill(value)
         // The quiet draft is a distinct command; Apply starts at its actual durable boundary
-        // Observe its visible acknowledgement with that boundary instead of polling the label separately
-        await idle(page, 'editor', 'Saved JSON edit; not applied')
+        // Retain its work on failure too, before the Apply measurement replaces the counters
+        await arm(page, 'input', '.inspector-editor textarea')
+        try {
+          await field.fill(value)
+          await idle(page, 'editor', 'Saved JSON edit; not applied')
+        } finally {
+          draftPreparations.push({ index, work: await page.evaluate(() => window.saveWork ? window.finishSaveWork() : undefined).catch(() => undefined) })
+        }
         await arm(page, 'click', '.inspector-actions button', mode === 'account-mapping')
         await page.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
         await idle(page, 'editor', mode === 'guest' ? 'Saved in this browser' : 'Saved on this device', true)
@@ -319,7 +325,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
   async function attach(info: TestInfo, samples: readonly unknown[] = measures) {
     // JSON reporters inline body attachments, so the combined exact evidence can exceed V8's string limit
     // Keep every sample and integrity observation in a linked per-test file instead
-    const receipt = JSON.stringify({ operation, mode, size, browser: browserVersion, hardware: { cpu: cpus()[0]?.model, memoryBytes: totalmem(), platform: platform(), release: release() }, setup: await page.evaluate(() => (window as any).localSaveProof?.setup).catch(() => undefined), measures: samples, diagnostics: await diagnostics(page).catch(() => undefined), mapperEvents: await page.evaluate(() => window.mapperEvents).catch(() => undefined), errors, qualification: 'Prepared synthetic managed root; installed account key is local-only. Main-thread payload/work observations exclude untimed durable oracles, worker activity and physical disk allocation. Long tasks are observed callbacks, not a complete trace. Mapping mode uses the actual profile-owned worker with encrypted queued projection; it does not establish cloud publication or complete portable restore.' }, (_key, value) => typeof value === 'bigint' ? { bigint: value.toString() } : value, 2)
+    const receipt = JSON.stringify({ operation, mode, size, browser: browserVersion, hardware: { cpu: cpus()[0]?.model, memoryBytes: totalmem(), platform: platform(), release: release() }, setup: await page.evaluate(() => (window as any).localSaveProof?.setup).catch(() => undefined), measures: samples, draftPreparations: draftPreparations.splice(0), diagnostics: await diagnostics(page).catch(() => undefined), mapperEvents: await page.evaluate(() => window.mapperEvents).catch(() => undefined), errors, qualification: 'Prepared synthetic managed root; installed account key is local-only. Main-thread payload/work observations exclude untimed durable oracles, worker activity and physical disk allocation. Long tasks are observed callbacks, not a complete trace. Mapping mode uses the actual profile-owned worker with encrypted queued projection; it does not establish cloud publication or complete portable restore.' }, (_key, value) => typeof value === 'bigint' ? { bigint: value.toString() } : value, 2)
     const path = info.outputPath(`save-work-receipt-${receiptIndex++}.json`)
     await writeFile(path, receipt)
     await info.attach('save-work-receipt', { contentType: 'application/json', path })
