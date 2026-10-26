@@ -319,7 +319,9 @@ export function SaveEditorView({ storage, localData: localDataProp, onDraftChang
       // Explicit commands can start without a render, so a scheduled quiet save must check the live owner again
       if (!storage.isCurrent() || storage.pending() || !storage.controller.snapshot().dirty || !storage.controller.canTransfer()) return
       storage.session.immediateInputSave = false
-      void storage.save().catch(reason => { if (storage.isCurrent()) setError(errorMessage(reason)) })
+      // A background failure must not take focus from typing or navigation recovery controls
+      // The alert still announces the error; explicit failed commands reveal it with focus
+      void storage.save().catch(reason => { if (storage.isCurrent()) setErrorMessage(errorMessage(reason)) })
     }, storage.session.immediateInputSave ? 0 : Math.max(0, storage.session.inputSaveDeadline.at - performance.now()))
     return () => window.clearTimeout(timer)
   }, [storage, inputVersion, dirty, busy, modBusy, bundledBusy, formSupported, hydrated])
