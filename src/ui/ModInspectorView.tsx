@@ -288,6 +288,35 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
     return () => clearTimeout(timer)
   }, [editor, path, text, mapDirty, active, saveState, inputEpoch])
   useEffect(() => {
+    const element = viewElement.current
+    if (tab !== 'document' || !element) return
+    let held = false, releaseTimer: ReturnType<typeof setTimeout> | undefined
+    const finish = () => {
+      clearTimeout(releaseTimer)
+      if (!held) return
+      held = false
+      if (storage.isCurrent()) { controller.setInteraction(viewOwner, 'gesture', false); setInputEpoch(value => value + 1) }
+    }
+    const begin = (event: PointerEvent) => {
+      if (event.button !== 0 || !storage.isCurrent()) return
+      clearTimeout(releaseTimer)
+      held = true
+      controller.setInteraction(viewOwner, 'gesture', true)
+    }
+    // A quiet save must keep the pressed node mounted until its click handler records the selection
+    // Pointerup precedes click; the task fallback also releases gestures whose click was suppressed
+    const release = () => { if (held) releaseTimer = setTimeout(finish, 0) }
+    element.addEventListener('pointerdown', begin, true)
+    window.addEventListener('pointerup', release); window.addEventListener('click', finish)
+    window.addEventListener('pointercancel', finish); window.addEventListener('blur', finish)
+    return () => {
+      element.removeEventListener('pointerdown', begin, true)
+      window.removeEventListener('pointerup', release); window.removeEventListener('click', finish)
+      window.removeEventListener('pointercancel', finish); window.removeEventListener('blur', finish)
+      finish()
+    }
+  }, [storage, tab])
+  useEffect(() => {
     if (storage.session.document) {
       open(inspectorDraft(storage.session.document), tab, true)
       void storage.ready().then(async () => {
