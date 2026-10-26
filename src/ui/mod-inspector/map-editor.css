@@ -48,6 +48,9 @@
 .map-orientation-center { pointer-events: none; fill: none; stroke: #fff; }
 .map-orientation-position { font-variant-numeric: tabular-nums; }
 .iso-scene { position: relative; min-width: 0; aspect-ratio: 8 / 5; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: #10151b; }
+.iso-loading-notices { position: absolute; inset: .5rem .5rem auto; max-height: calc(100% - 1rem); overflow-y: auto; pointer-events: none; }
+.iso-loading-notices > p { width: fit-content; margin: 0; padding: .4rem .6rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--ink-900); }
+.iso-loading-notices > .notice { margin: 0; pointer-events: auto; background: var(--ink-900); }
 .iso-scene-bitmap, .iso-plane-bitmap, .iso-brush-bitmap, .iso-canvas { display: block; position: absolute; inset: 0; width: 100%; height: 100%; }
 .iso-canvas { touch-action: none; user-select: none; cursor: grab; }
 .iso-cube polygon { stroke: #101820; stroke-width: .7; stroke-linejoin: round; }

@@ -290,10 +290,6 @@ export default function IsometricPlacementView({ initialCamera, onCameraInput, m
       </div>}
     </div>
     {constructionPlane && planeY === undefined && <p role="status">Enter an integer construction height Y before painting.</p>}
-    {error && <InlineNotice title="Isometric preview needs attention" tone="warning"><p>{error}</p><Button tone="secondary" onClick={() => setAttempt(value => value + 1)}>Retry surface heights</Button></InlineNotice>}
-    {!surface && !error && <p role="status">Opening native surface heights...</p>}
-    {geometry.pending && <p role="status">Loading nearby native voxel geometry...</p>}
-    {geometry.error && <InlineNotice title="Native geometry needs attention" tone="warning"><p>{geometry.error}</p><Button tone="secondary" onClick={() => setAttempt(value => value + 1)}>Retry native geometry</Button></InlineNotice>}
     <div className="iso-workspace"><div className="iso-scene"><IsometricScene active={active} terrain={terrain} placements={visible} camera={camera} colors={colors} selectedId={selected?.id} preview={preview?.id === undefined ? undefined : preview}/><IsometricConstructionPlane active={active && constructionPlane} height={planeY} mappedHeight={planeSurface?.height} camera={camera}/><IsometricBrushOverlay active={active} stroke={voxelBrush.stroke} camera={camera} color={brushAction === 'erase' ? '#ed7777' : colors?.[String(brush?.voxelId)] ?? DEFAULT_COLOR}/><svg ref={svgRef} className={`iso-canvas${brushAction ? ' iso-canvas--brush' : ''}`} tabIndex={0} onKeyDown={event => { if (event.key === 'Escape') { voxelBrush.cancel(); if (dragRef.current) onGestureChange(false); cancelFrame(); dragRef.current = undefined; setPreview(undefined) } }} onContextMenu={event => event.preventDefault()} viewBox={`0 0 ${ISO.viewWidth} ${ISO.viewHeight}`} role="img" aria-label="Isometric terrain and authored placements" data-camera={`${center.X},${center.Y},${center.Z}`} data-zoom={zoom} data-rotation={rotation * ISO.angleStep} data-elevation={elevation} data-terrain-cells={terrain.length} onPointerDown={event => start(event)} onPointerMove={update} onPointerUp={event => finish(event)} onPointerCancel={event => finish(event, true)} onLostPointerCapture={event => finish(event, true)}>
       {sorted.map(value => value.render)}
       {contextMarkers}
@@ -303,7 +299,14 @@ export default function IsometricPlacementView({ initialCamera, onCameraInput, m
       {!brushAction && groundPoint && basePoint && <g className="iso-height-guide"><line x1={basePoint.x} y1={basePoint.y} x2={groundPoint.x} y2={groundPoint.y}/><ellipse cx={groundPoint.x} cy={groundPoint.y} rx={10} ry={5}/><text x={groundPoint.x + 14} y={groundPoint.y + 5} style={{ fontSize: 12 / canvasScale, strokeWidth: 3 / canvasScale }}>Surface Y {mappedGround!.height}</text></g>}
       {handle && !brushAction && (selected || brush) && <g className="iso-height-handle" data-height-handle={selected?.id ?? 'brush'} onPointerDown={event => start(event, selected, true, !selected)}><title>Drag height Y for {selected?.name ?? 'new blocks'}</title><line x1={handle.x} x2={handle.x} y1={handle.y} y2={handle.y - handleOffset}/><circle cx={handle.x} cy={handle.y - handleOffset} r={handleRadius}/><text x={handle.x} y={handle.y - handleOffset + 5 / canvasScale} textAnchor="middle" style={{ fontSize: 14 / canvasScale }}>Y</text></g>}
       <g className="iso-axis-legend" style={{ fontSize: 12 / canvasScale, strokeWidth: 3 / canvasScale }} transform="translate(85 530)">{axisVectors.map(axis => <g key={axis.axis}><path d={`M 0 0 L ${axis.x} ${axis.y}`}/><text x={axis.x * 1.3} y={axis.y * 1.3 + 5}>{axis.axis}</text></g>)}<path d="M 0 0 L 0 -45"/><text x="0" y="-52">Y</text></g>
-    </svg></div><MapOrientation manifest={manifest} layerId={layerId} camera={camera} onNavigate={(x, z) => {
+    </svg>
+    {/* Background status changes must not move the coordinate surface beneath a physical gesture */}
+    <div className="iso-loading-notices">
+      {error && <InlineNotice title="Isometric preview needs attention" tone="warning"><p>{error}</p><Button tone="secondary" onClick={() => setAttempt(value => value + 1)}>Retry surface heights</Button></InlineNotice>}
+      {!surface && !error && <p role="status">Opening native surface heights...</p>}
+      {geometry.pending && <p role="status">Loading nearby native voxel geometry...</p>}
+      {geometry.error && <InlineNotice title="Native geometry needs attention" tone="warning"><p>{geometry.error}</p><Button tone="secondary" onClick={() => setAttempt(value => value + 1)}>Retry native geometry</Button></InlineNotice>}
+    </div></div><MapOrientation manifest={manifest} layerId={layerId} camera={camera} onNavigate={(x, z) => {
       // Plane editing keeps its height in view; other navigation follows the mapped surface
       cancelFrame(); dragRef.current = undefined; setPreview(undefined); voxelBrush.cancel()
       setCenter({ X: x, Y: constructionPlane && planeY !== undefined ? planeY : (surface && mapSurfaceCell(surface, x, z)?.height) ?? center.Y, Z: z })
