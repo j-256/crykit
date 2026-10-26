@@ -7,6 +7,7 @@ import { expect, test } from './test-fixture'
 import type { UnlockResult } from '../../src/account/auth-client'
 import { expectLoadingMotion, holdWorkspaceSelection, loadingScreen } from '../startup-helpers'
 import { WORKSPACE_STARTUP_MARK } from '../../src/diagnostics/workspace-startup'
+import { errors } from '@playwright/test'
 
 // Reset only between independent synthetic journeys; every case keeps the real limiter
 const CROSS_ACCOUNT_CONTINUATION = 'continues captured account switch through logout and queued rejection'
@@ -296,7 +297,17 @@ test('actualScreensKeepDistinctAccountKeysAlignedDuringRenewalAndPreserveForeign
   expect(second.token?.accountId).toBe(second.principal)
   expect(second.principal).not.toBe(first.principal)
   expect(second.digest).not.toBe(first.digest)
-  await page.getByRole('button', { name: 'Refresh devices and approvals' }).click()
+  // Renewal releases its session lock before refreshing metadata, so the foreign sign-in can
+  // disconnect this tab automatically and remove its online controls before the manual refresh
+  const refreshDevices = page.getByRole('button', { name: 'Refresh devices and approvals' })
+  const optionalRefreshTimeoutMs = 1_000
+  if (await refreshDevices.isVisible()) {
+    try { await refreshDevices.click({ timeout: optionalRefreshTimeoutMs }) }
+    catch (reason) {
+      if (!(reason instanceof errors.TimeoutError)) throw reason
+      await expect(page.getByRole('alert')).toContainText('Online access expired.')
+    }
+  }
   await expect(page.getByRole('alert')).toContainText('Online access expired.')
   const disconnected = await page.evaluate(() => (window as unknown as { accountUiProof: UiProof }).accountUiProof.inspect())
   expect(disconnected.access).toBe('disconnected')
