@@ -85,7 +85,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
   let previousRecords: BodyRecord[]
   const errors: string[] = [], measures: unknown[] = []
 
-  test.afterAll(async () => {
+  async function releaseJourney() {
     try { await retainedContext?.close() }
     finally {
       // Collected suite callbacks outlive their browser context in the test worker
@@ -95,7 +95,11 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       previousRecords = []
       measures.length = 0; errors.length = 0
     }
-  })
+  }
+  // Independent cases release their own observations without creating file-level shard groups
+  // Mapping journeys retain afterAll cleanup because beforeAll owns their browser context
+  if (mode === 'account-mapping') test.afterAll(releaseJourney)
+  else test.afterEach(releaseJourney)
 
   async function prepare(ownedPage: Page, ownedContext: BrowserContext, version: string) {
     page = ownedPage; context = ownedContext; browserVersion = version; startedAt = Date.now()
@@ -208,8 +212,8 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       } else {
         await field.fill(value)
         // The quiet draft is a distinct command; Apply starts at its actual durable boundary
-        await page.getByText('Saved JSON edit; not applied', { exact: true }).waitFor()
-        await idle(page, 'editor')
+        // Observe its visible acknowledgement with that boundary instead of polling the label separately
+        await idle(page, 'editor', 'Saved JSON edit; not applied')
         await arm(page, 'click', '.inspector-actions button', mode === 'account-mapping')
         await page.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
         await idle(page, 'editor')
