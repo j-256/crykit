@@ -356,7 +356,9 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
       const main = document.querySelector<HTMLElement>('.main-shell')
       storage.session.scroll = { tab, x: window.scrollX, y: window.scrollY, mainLeft: main?.scrollLeft ?? 0, mainTop: main?.scrollTop ?? 0 }
       const element = document.activeElement
-      if ((element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement || element instanceof HTMLSelectElement) && viewElement.current?.contains(element)) controller.rememberFocus(viewOwner, { key: element instanceof HTMLTextAreaElement ? 'json' : element.dataset.editorFocus ?? '', start: element instanceof HTMLSelectElement ? null : element.selectionStart, end: element instanceof HTMLSelectElement ? null : element.selectionEnd, direction: element instanceof HTMLSelectElement ? null : element.selectionDirection })
+      const textField = element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement
+      // The canvas is a keyboard target too; losing it during an owned save drops the next map shortcut
+      if ((textField || element instanceof HTMLSelectElement || element instanceof SVGElement && element.dataset.editorFocus) && viewElement.current?.contains(element)) controller.rememberFocus(viewOwner, { key: element instanceof HTMLTextAreaElement ? 'json' : element.dataset.editorFocus ?? '', start: textField ? element.selectionStart : null, end: textField ? element.selectionEnd : null, direction: textField ? element.selectionDirection : null })
       else controller.rememberFocus(viewOwner, undefined)
     }
     storage.session.captureFocus = capture
@@ -367,8 +369,8 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
   function restoreFocus() {
     const focus = controller.snapshot().focus
     if (focus?.key) {
-      const element = focus.key === 'json' ? viewElement.current?.querySelector<HTMLTextAreaElement>('textarea') : [...(viewElement.current?.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-editor-focus]') ?? [])].find(element => element.dataset.editorFocus === focus.key)
-      if (element && (!document.activeElement || document.activeElement === document.body)) { element.focus(); if (!(element instanceof HTMLSelectElement) && focus.start !== null && focus.end !== null) element.setSelectionRange(focus.start, focus.end, focus.direction ?? undefined) }
+      const element = focus.key === 'json' ? viewElement.current?.querySelector<HTMLTextAreaElement>('textarea') : [...(viewElement.current?.querySelectorAll<HTMLElement | SVGElement>('[data-editor-focus]') ?? [])].find(element => element.dataset.editorFocus === focus.key)
+      if (element && (!document.activeElement || document.activeElement === document.body)) { element.focus(); if ((element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) && focus.start !== null && focus.end !== null) element.setSelectionRange(focus.start, focus.end, focus.direction ?? undefined) }
     }
   }
   function restoreScroll() {

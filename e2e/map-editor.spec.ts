@@ -553,8 +553,13 @@ test('switches icon tools with scoped shortcuts while preserving typing and pend
   const height = page.getByRole('spinbutton', { name: 'Construction height Y', exact: true })
   await expect(height).toHaveValue('140')
   await expect(page.getByRole('button', { name: 'Paint blocks', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  const beforeHeightSave = await svg.elementHandle()
   await page.keyboard.press(']')
   await expect(height).toHaveValue('141')
+  // The next shortcut must keep its target after the owned quiet-save handoff
+  await expect.poll(() => beforeHeightSave!.evaluate(element => element.isConnected)).toBe(false)
+  await beforeHeightSave!.dispose()
+  await expect(svg).toBeFocused()
   await page.keyboard.press('[')
   await expect(height).toHaveValue('140')
   await height.focus()
