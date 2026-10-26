@@ -6,6 +6,7 @@ import { readFile, stat, writeFile } from 'node:fs/promises'
 import { expect, test } from './test-fixture'
 import type { UnlockResult } from '../../src/account/auth-client'
 import { expectLoadingMotion, holdWorkspaceSelection, loadingScreen } from '../startup-helpers'
+import { WORKSPACE_STARTUP_MARK } from '../../src/diagnostics/workspace-startup'
 
 // Reset only between independent synthetic journeys; every case keeps the real limiter
 const CROSS_ACCOUNT_CONTINUATION = 'continues captured account switch through logout and queued rejection'
@@ -421,26 +422,40 @@ async function databaseDump(page: import('@playwright/test').Page, name: string)
   }, name)
 }
 
-test('normalAppSignInOpensIndependentEncryptedWorkspaceAndLocksOnReload', async ({ page }) => {
-  const account = await uiSignup(page)
-  const writes: string[] = []
-  page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method()) && /\/api\/v1\/(uploads|sync|documents)/.test(request.url())) writes.push(request.url()) })
-  await openAccountSettingsInMountedPlanner(page)
-  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
-  const guestBefore = await databaseDump(page, 'crykit')
-  await page.getByLabel('Email', { exact: true }).fill(account.email)
-  await page.getByLabel('Password', { exact: true }).fill(uiPassword)
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('heading', { name: `Signed in as ${account.username}` })).toBeVisible()
-  await page.getByRole('button', { name: 'Open account workspace' }).click()
-  await expect(page.getByRole('heading', { name: 'Plan your next Build' })).toBeVisible()
-  expect(await databaseDump(page, 'crykit')).toBe(guestBefore)
-  expect(writes).toEqual([])
-  await page.reload()
-  await expect(page.getByRole('heading', { name: 'Account workspace locked' })).toBeVisible()
-  await page.getByRole('button', { name: 'Continue using this device' }).click()
-  await expect(page.getByRole('button', { name: 'New Build', exact: true })).toBeVisible()
-  expect(await databaseDump(page, 'crykit')).toBe(guestBefore)
+test('normalAppSignInOpensIndependentEncryptedWorkspaceAndLocksOnReload', async ({ page }, testInfo) => {
+  const prefix = 'workspace-startup '
+  const startup: { navigationId: string; phase: string; elapsedMilliseconds: number }[] = []
+  page.on('console', message => { if (message.text().startsWith(prefix)) startup.push(JSON.parse(message.text().slice(prefix.length))) })
+  await page.addInitScript(({ mark, prefix }) => {
+    const navigationId = crypto.randomUUID()
+    new PerformanceObserver(list => {
+      for (const entry of list.getEntries()) if (entry.name === mark) console.info(prefix + JSON.stringify({ navigationId, phase: (entry as PerformanceMark).detail.phase, elapsedMilliseconds: entry.startTime }))
+    }).observe({ entryTypes: ['mark'] })
+  }, { mark: WORKSPACE_STARTUP_MARK, prefix })
+  try {
+    const account = await uiSignup(page)
+    const writes: string[] = []
+    page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method()) && /\/api\/v1\/(uploads|sync|documents)/.test(request.url())) writes.push(request.url()) })
+    await openAccountSettingsInMountedPlanner(page)
+    await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+    const guestBefore = await databaseDump(page, 'crykit')
+    await page.getByLabel('Email', { exact: true }).fill(account.email)
+    await page.getByLabel('Password', { exact: true }).fill(uiPassword)
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await expect(page.getByRole('heading', { name: `Signed in as ${account.username}` })).toBeVisible()
+    await page.getByRole('button', { name: 'Open account workspace' }).click()
+    await expect(page.getByRole('heading', { name: 'Plan your next Build' })).toBeVisible()
+    expect(await databaseDump(page, 'crykit')).toBe(guestBefore)
+    expect(writes).toEqual([])
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Account workspace locked' })).toBeVisible()
+    await page.getByRole('button', { name: 'Continue using this device' }).click()
+    await expect(page.getByRole('button', { name: 'New Build', exact: true })).toBeVisible()
+    expect(await databaseDump(page, 'crykit')).toBe(guestBefore)
+  } finally {
+    // Console observations survive a stalled admission without another evaluation on the failing page
+    await testInfo.attach('workspace-startup', { body: JSON.stringify(startup), contentType: 'application/json' })
+  }
 })
 
 test('normalAppRemountRejectsForeignCookieAndKeepsLocalProfile', async ({ page, context }) => {

@@ -1,5 +1,6 @@
 import { GuestManagedRecoverySelectionSchema } from './guest-managed-contract'
 import Dexie from 'dexie'
+import { recordWorkspaceStartup, WORKSPACE_STARTUP_PHASE } from '../diagnostics/workspace-startup'
 import { asAppDataError } from '../interchange/errors'
 import { isImmutableCatalogSnapshot } from '../interchange/native'
 import { captureManagedRecovery, inspectManagedRecovery, exportManagedRecovery, prepareManagedRecoveryCopy, withManagedRecoverySource, type ManagedRecoveryCapture } from './guest-managed-recovery'
@@ -88,14 +89,20 @@ export async function openGuestManagedRepository(database: GuestCoordinatorDatab
   // A complete divergent result still permits inspecting the selected data, but cannot authorize a write
   const assertMayWrite = () => { profile.assertCurrent(); monitor.assertReady() }
   try {
+    // Mark before awaiting the worker so an interrupted reopen identifies its pending admission step
+    recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.guestMonitor)
     await monitor.compare(profile.signal)
+    recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.guestCompared)
     unsubscribe = subscribeLocalData(() => monitor.notifyStorageChange())
     const initial = await admitLocalRoot(store.adapter, manifest.root, lifetime)
+    recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.root)
     // Admission still validates the complete archive; bounded reads authenticate both digests in one native window
     const evidence = await readLocalEvidence(store.adapter, initial.root.inheritedEvidence, async () => profile.assertCurrent(), (ref, limit, digest) => store.readBounded(ref, limit, manifest, profile.assertCurrent, digest))
     if (evidence) await validateGuestCurrentBodies(initial.state, evidence)
+    recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.evidence)
     await store.assertCurrent(manifest)
     store.finishAdmission()
+    recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.repository)
     return wrapper(initial, manifest)
   } catch (error) { monitor.dispose(); throw error }
   function wrapper(snapshot: AdmittedLocalSnapshot, captured: GuestManagedManifest): WorkspaceRepository {
