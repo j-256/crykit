@@ -2,8 +2,11 @@ import type { Page } from '@playwright/test'
 
 export interface SaveWork {
   started: number
-  // Diagnostic acknowledgement time; passing samples include trusted next input and paint
+  // Browser-observed acknowledgement; editor application time also includes trusted next-key handling and paint
   readyMs?: number
+  applicationElapsedMs?: number
+  driverGapMs?: number
+  nextInputResponseMs?: number
   nextInputReady?: boolean
   transactions: Record<string, number>
   requests: Record<string, number>
@@ -21,17 +24,20 @@ export interface SaveWork {
   activeMappings: string[]
 }
 interface NextInputCapture { selector: string; value: string; budgetMs: number; enabledSelector?: string }
+interface EditorNextInputCapture extends NextInputCapture { key: string }
 declare global {
   interface Window {
     mapperEvents: { at: number; direction: 'sent' | 'received'; kind?: string; id?: string; pending?: boolean; status?: string }[]
     saveWork?: SaveWork
     armSaveWork(event: 'click' | 'input', selector: string, nextInput?: NextInputCapture): void
+    armEditorNextInputWork(input: EditorNextInputCapture): void
     finishSaveWork(): SaveWork & { elapsedMs: number }
     finishNextInputWork(): Promise<SaveWork & { elapsedMs: number }>
+    finishEditorInputWork(): Promise<SaveWork & { elapsedMs: number }>
   }
 }
 
-// Installed before Dexie captures native methods; only the product operation interval is counted
+// Installed before Dexie captures native methods; counters span the full interval, including separately reported driver delay
 // Payload bytes describe stored buffers, not physical browser disk allocation
 export async function installSaveWorkCounters(page: Page) {
   await page.addInitScript(() => {
@@ -96,8 +102,11 @@ export async function installSaveWorkCounters(page: Page) {
     new PerformanceObserver(list => { if (window.saveWork) for (const entry of list.getEntries()) if (entry.startTime >= window.saveWork.started) window.saveWork.longTasks.push(entry.duration) }).observe({ type: 'longtask', buffered: true })
     let nextInputWork: Promise<SaveWork & { elapsedMs: number }> | undefined
     let cancelCapture: (() => void) | undefined
+    let finishMissingEditorInput: (() => void) | undefined
     window.armSaveWork = (event, selector, nextInput) => {
       cancelCapture?.()
+      cancelCapture = undefined
+      finishMissingEditorInput = undefined
       nextInputWork = undefined
       const controller = new AbortController()
       document.addEventListener(event, received => {
@@ -136,6 +145,51 @@ export async function installSaveWorkCounters(page: Page) {
         }
       }, { capture: true, signal: controller.signal })
     }
+    window.armEditorNextInputWork = input => {
+      const work = window.saveWork
+      if (!work || work.readyMs === undefined || !Number.isFinite(work.readyMs) || work.readyMs < 0) throw new Error('Editor readiness was not observed')
+      // Start before the driver issues input: native event timestamps can omit a command queued behind application work
+      // This conservatively includes dispatch overhead instead of hiding blocked input as driver delay
+      const readyMs = work.readyMs, responseStarted = performance.now(), capture = new AbortController()
+      let trustedKey = false
+      let deadline: number | undefined
+      let finish!: (ready: boolean) => void
+      nextInputWork = new Promise(resolve => {
+        let settled = false
+        finish = ready => {
+          if (settled) return
+          settled = true
+          clearTimeout(deadline)
+          capture.abort()
+          const ended = performance.now(), elapsedMs = ended - work.started
+          const timing = {
+            driverGapMs: responseStarted - work.started - readyMs,
+            nextInputResponseMs: ended - responseStarted,
+            applicationElapsedMs: readyMs + ended - responseStarted,
+          }
+          if (window.saveWork === work) window.saveWork = undefined
+          resolve({ ...work, ...timing, elapsedMs, nextInputReady: ready && trustedKey && timing.applicationElapsedMs <= input.budgetMs })
+        }
+        deadline = window.setTimeout(() => finish(false), Math.max(0, input.budgetMs - readyMs))
+        window.addEventListener('keydown', event => {
+          const field = event.target
+          if (!event.isTrusted || event.key !== input.key || !(field instanceof HTMLTextAreaElement) || !field.matches(input.selector)) return
+          trustedKey = true
+        }, { capture: true, signal: capture.signal })
+        document.addEventListener('input', event => {
+          const field = event.target
+          if (!trustedKey || !event.isTrusted || !(field instanceof HTMLTextAreaElement) || !field.matches(input.selector)) return
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            const bounds = field.getBoundingClientRect()
+            const nextActionReady = !input.enabledSelector || document.querySelector(input.enabledSelector)?.matches(':enabled')
+            finish(document.activeElement === field && field.isConnected && !field.disabled && !field.readOnly && !!bounds.width && !!bounds.height && getComputedStyle(field).visibility === 'visible' && field.value === input.value && !!nextActionReady)
+          }))
+        }, { capture: true, signal: capture.signal })
+      })
+      cancelCapture = () => finish(false)
+      // A completed driver command without a trusted key is a failed receipt, not an unbounded wait
+      finishMissingEditorInput = () => { if (!trustedKey) finish(false) }
+    }
     window.finishSaveWork = () => {
       const result = window.saveWork
       if (!result) throw new Error('The actual UI request was not observed')
@@ -146,6 +200,11 @@ export async function installSaveWorkCounters(page: Page) {
     window.finishNextInputWork = () => {
       if (!nextInputWork) throw new Error('The save and its next-input measurement were not observed')
       return nextInputWork
+    }
+    window.finishEditorInputWork = () => {
+      if (!finishMissingEditorInput) throw new Error('The editor next-input measurement was not armed')
+      finishMissingEditorInput()
+      return window.finishNextInputWork()
     }
   })
 }

@@ -36,14 +36,19 @@ async function ensureMapping(page: Page) {
 }
 async function diagnostics(page: Page) { return page.evaluate(() => (window as any).localSaveProof.diagnostics()) }
 async function inspect(page: Page, kind: 'planner' | 'save' | 'editor') { return page.evaluate(kind => (window as any).localSaveProof.inspect(kind), kind) }
-async function idle(page: Page, kind: 'save' | 'editor', savedLabel?: string) {
-  await page.waitForFunction(({ kind, savedLabel }) => {
+async function idle(page: Page, kind: 'save' | 'editor', savedLabel?: string, captureReadiness = false) {
+  await page.waitForFunction(({ kind, savedLabel, captureReadiness }) => {
     const state = (window as any).localSaveProof.diagnostics()
     const label = savedLabel === undefined ? undefined : document.querySelector<HTMLElement>('.inspector-save-state')
     const bounds = label?.getBoundingClientRect()
     const acknowledged = savedLabel === undefined || !!label && label.textContent === savedLabel && !!bounds?.width && !!bounds?.height && getComputedStyle(label).visibility === 'visible'
-    return acknowledged && state.current && !state.pending && state[`${kind}Phase`] === 'idle' && !state[`${kind}Dirty`] && !state[`${kind}Hydrating`]
-  }, { kind, savedLabel }, { timeout: SAVE_CEILING_MS })
+    const field = captureReadiness ? document.querySelector<HTMLTextAreaElement>('.inspector-editor textarea') : undefined
+    const fieldBounds = field?.getBoundingClientRect()
+    const editable = !captureReadiness || !!field && !field.disabled && !field.readOnly && !!fieldBounds?.width && !!fieldBounds?.height && getComputedStyle(field).visibility === 'visible'
+    const ready = editable && acknowledged && state.current && !state.pending && state[`${kind}Phase`] === 'idle' && !state[`${kind}Dirty`] && !state[`${kind}Hydrating`]
+    if (ready && captureReadiness && window.saveWork) window.saveWork.readyMs ??= performance.now() - window.saveWork.started
+    return ready
+  }, { kind, savedLabel, captureReadiness }, { timeout: SAVE_CEILING_MS })
 }
 
 async function openOperation(page: Page, operation: Operation) {
@@ -208,7 +213,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
         await field.fill(value)
         // Observe durability and its visible acknowledgement in one browser turn
         // A separate automation query delays the next real input without testing more application work
-        await idle(page, 'editor', 'Saved JSON edit; not applied')
+        await idle(page, 'editor', 'Saved JSON edit; not applied', true)
       } else {
         await field.fill(value)
         // The quiet draft is a distinct command; Apply starts at its actual durable boundary
@@ -216,17 +221,9 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
         await idle(page, 'editor', 'Saved JSON edit; not applied')
         await arm(page, 'click', '.inspector-actions button', mode === 'account-mapping')
         await page.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
-        await idle(page, 'editor')
-        await expect(page.locator('.inspector-save-state')).toHaveText(mode === 'guest' ? 'Saved in this browser' : 'Saved on this device', { timeout: SAVE_CEILING_MS })
+        await idle(page, 'editor', mode === 'guest' ? 'Saved in this browser' : 'Saved on this device', true)
       }
-      if (operation === 'invalid Editor draft') {
-        // Exact saved text and the complete next-input text are checked below
-        // Another full textarea read here only adds automation work to the measured interval
-        // Type one real next character instead of retransmitting the complete document
-        // Capture readiness and the clock together so later automation queries cannot extend this boundary
-        // Use the field's retained focus; locator.press would refocus it and hide a continuation regression
-        await page.keyboard.press(NEXT_INPUT_KEY)
-      } else {
+      if (operation === 'valid Editor Apply') {
         const displayed = await field.evaluate(element => {
           if (!(element instanceof HTMLTextAreaElement)) throw new Error('The editor field is unavailable')
           // Match filling's end cursor without retransmitting the complete document
@@ -234,15 +231,23 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
           return element.value
         })
         expect(displayed).toBe(value)
+      }
+      await page.evaluate(({ value, budgetMs }) => window.armEditorNextInputWork({ selector: '.inspector-editor textarea', value: `${value} `, key: ' ', enabledSelector: '.inspector-editor .inspector-actions button:first-child', budgetMs }), { value, budgetMs: SAVE_CEILING_MS })
+      if (operation === 'invalid Editor draft') {
+        // Preserve the field's retained focus; locator.press would hide a continuation regression
+        // One real character avoids retransmitting the complete document before checking its exact next text
+        await page.keyboard.press(NEXT_INPUT_KEY)
+      } else {
         // Focus follows the same explicit field interaction as filling, while one trusted key avoids resending the document
         await field.press(NEXT_INPUT_KEY)
       }
-      editorProbe = await page.evaluate(() => {
+      editorProbe = await page.evaluate(async () => {
+        const work = await window.finishEditorInputWork()
         const element = document.activeElement
         if (!(element instanceof HTMLTextAreaElement) || !element.matches('.inspector-editor textarea')) throw new Error('The editor lost focus during autosave')
         const value = element.value
         const apply = [...document.querySelectorAll<HTMLButtonElement>('.inspector-actions button')].find(button => button.textContent?.trim() === 'Apply JSON edit')
-        return { value, canApply: !!apply?.matches(':enabled'), work: window.finishSaveWork() }
+        return { value, canApply: !!apply?.matches(':enabled'), work }
       })
       expected = value
     }
@@ -256,9 +261,11 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
     }
     const persisted = await inspect(page, operation === 'Save inventory' ? 'save' : operation.includes('Editor') ? 'editor' : 'planner')
     measures.push({ index, work, expected, persisted, ...(beforeInventory ? { beforeInventory } : {}), ...(editorProbe ? { nextInput: { exactText: editorProbe.value === `${expected} `, applyEnabled: editorProbe.canApply } } : nextInputWork ? { nextInput: { exactText: nextInputWork.nextInputReady === true, focused: nextInputWork.nextInputReady === true } } : {}) })
-    expect(work.elapsedMs).toBeLessThanOrEqual(SAVE_CEILING_MS)
+    // Editor receipts retain the entire interval; only the measured driver gap is excluded from the application budget
+    expect(editorProbe ? work.applicationElapsedMs : work.elapsedMs).toBeLessThanOrEqual(SAVE_CEILING_MS)
     if (nextInputWork) expect(nextInputWork.nextInputReady).toBe(true)
     if (editorProbe) {
+      expect(work.nextInputReady).toBe(true)
       expect(editorProbe.value).toBe(`${expected} `)
       expect(editorProbe.canApply).toBe(true)
     }
