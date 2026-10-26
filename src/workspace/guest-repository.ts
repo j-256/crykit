@@ -1,5 +1,6 @@
 import { GuestManagedManifestSchema } from './guest-managed-contract'
 import { prepareGuestStartup } from './guest-managed-startup'
+import { recordWorkspaceStartup, WORKSPACE_STARTUP_PHASE } from '../diagnostics/workspace-startup'
 import { openGuestManagedRepository, managedGuestSelection, checkManagedGuestRecovery, managedGuestRecoveryNotices, observeManagedGuestRecovery, inspectManagedGuestRecovery, exportManagedGuestRecovery, copyManagedGuestRecovery } from './guest-managed-repository'
 import { registerDeferredOwnedFileCommitter } from './owned-file-command'
 import { registerWorkspaceCapture, type WorkspaceSnapshot } from './snapshot'
@@ -194,8 +195,10 @@ export function createGuestRepository(original?: CryKitDatabase): WorkspaceRepos
     if (!opening) {
       opening = (async () => {
         profile.assertCurrent()
+        recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.guest)
         const startup = await prepareGuestStartup(original ?? getDatabase())
         profile.assertCurrent()
+        recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.guestPrepared)
         return startup.kind === 'managed' ? openGuestManagedRepository(startup.coordinator, startup.manifest) : guestRepository(Promise.resolve(startup.binding))
       })()
       void opening.catch(() => {})

@@ -3,6 +3,7 @@ export const WORKSPACE_STARTUP_PHASE = Object.freeze({
   begin: 'begin', selection: 'selection', profiles: 'profiles', unlocked: 'unlocked',
   sodiumImported: 'sodium-imported', sodiumReady: 'sodium-ready',
   managed: 'managed-repository', root: 'admitted-root', evidence: 'admitted-evidence',
+  guest: 'guest-preparation', guestPrepared: 'guest-prepared', guestMonitor: 'guest-retained-comparison', guestCompared: 'guest-retained-compared',
   repository: 'repository', failed: 'failed',
 } as const)
 type StartupPhase = typeof WORKSPACE_STARTUP_PHASE[keyof typeof WORKSPACE_STARTUP_PHASE]
