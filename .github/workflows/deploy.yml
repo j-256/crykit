@@ -70,7 +70,16 @@ jobs:
           name: application
           path: dist/
       - name: Verify ${{ matrix.check.name }}
-        run: npm run ${{ matrix.check.script }}
+        # Native SQLite/R2 fixtures retain file-backed semantics on isolated tmpfs storage
+        # Avoid making the sync deadline depend on disposable runner disk I/O latency
+        env:
+          CRYKIT_SYNC_MEMORY_SCRATCH: ${{ matrix.check.name == 'persistence sync' && 'true' || 'false' }}
+        run: |
+          if [ "$CRYKIT_SYNC_MEMORY_SCRATCH" = true ]; then
+            TMPDIR="$(mktemp -d /dev/shm/crykit-sync.XXXXXX)"
+            export TMPDIR
+          fi
+          npm run ${{ matrix.check.script }}
 
   # Browsers need the built artifact; merging and deployment also require verify
   build:
