@@ -299,6 +299,8 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
     }
     const begin = (event: PointerEvent) => {
       if (event.button !== 0 || !storage.isCurrent()) return
+      // Recovery and file commands require an idle controller and must not block on their own clicks
+      if (!(event.target instanceof Element) || !event.target.closest('.inspector-tree-panel, .inspector-context')) return
       clearTimeout(releaseTimer)
       held = true
       controller.setInteraction(viewOwner, 'gesture', true)

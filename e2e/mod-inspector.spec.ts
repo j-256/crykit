@@ -162,10 +162,21 @@ test('rejects invalid imports without replacing saved data', async ({ page }) =>
 
 test('keeps a conflicting tab recoverable without overwriting the winning draft', async ({ page, context }) => {
   await importMod(page)
+  await selectPath(page, '$.Title')
+  // Field selection is autosaved too; both tabs must start from that same durable revision
+  // Otherwise a setup-only save can make the intended winning editor stale before its edit
+  await expect.poll(async () => {
+    try { return (await readManagedGuestWorkspace(page))?.editorDocuments.find(file => file.filename === FILENAME)?.unfinished.editedPath }
+    catch (error) {
+      // A publication crossing this read is the transition being awaited; other admission failures stay fatal
+      if (error instanceof Error && error.message === 'The selected guest changed during inspection') return undefined
+      throw error
+    }
+  }).toEqual(['Title'])
+  await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
   const other = await context.newPage()
   await other.goto(ROUTE)
   await reopenFile(other)
-  await selectPath(page, '$.Title')
   await selectPath(other, '$.Title')
   await page.getByRole('textbox', { name: /^Exact JSON value/ }).fill('"Winning draft"')
   await page.getByRole('button', { name: 'Apply JSON edit', exact: true }).click()
