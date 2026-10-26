@@ -13,6 +13,8 @@ const LOCAL_TEST_WORKERS = '25%'
 // Standalone and hosted commands retain one native worker per invocation
 const WORKER_TEST_WORKERS = 1
 const SERVICE_PERSISTENCE_TEST_FILES = [
+  // This cross-runtime proof owns a real Worker fixture and must share the native service budget
+  'e2e/accounts/cleanup-persistence.proof.mjs',
   'src/persistence/conflicts.test.ts',
   'src/persistence/copied-conflict-journey.test.ts',
   'src/persistence/lineage-conflicts.test.ts',
@@ -20,6 +22,8 @@ const SERVICE_PERSISTENCE_TEST_FILES = [
   'src/persistence/mapping-conflicts.test.ts',
   'src/persistence/publication-empty-page.test.ts',
   'src/persistence/sync-integration.test.ts',
+  'src/persistence/sync-integration-originals.test.ts',
+  'src/persistence/sync-integration-managed.test.ts',
 ]
 const CI_PERSISTENCE_TEST_WORKERS = 1
 const persistenceTestWorkers = process.env.CI ? CI_PERSISTENCE_TEST_WORKERS : undefined
@@ -76,7 +80,7 @@ export default defineConfig({
       { test: { name: 'worker', include: ['worker/**/*.test.ts'], globalSetup: ['worker/testing/watch-setup.ts'], testTimeout: 30_000, maxWorkers: WORKER_TEST_WORKERS } },
       { test: { name: 'unit', include: ['src/**/*.test.ts', 'src/**/*.test.tsx'], exclude: ['src/persistence/**', ...DOM_TEST_FILES] } },
       { test: { name: 'dom', environment: 'jsdom', include: DOM_TEST_FILES } },
-      { test: { name: 'persistence', include: ['src/persistence/**/*.test.ts', 'e2e/accounts/cleanup-persistence.proof.mjs'], exclude: SERVICE_PERSISTENCE_TEST_FILES, testTimeout: PERSISTENCE_TEST_TIMEOUT_MS, maxWorkers: persistenceTestWorkers } },
+      { test: { name: 'persistence', include: ['src/persistence/**/*.test.ts'], exclude: SERVICE_PERSISTENCE_TEST_FILES, testTimeout: PERSISTENCE_TEST_TIMEOUT_MS, maxWorkers: persistenceTestWorkers } },
       { test: { name: 'persistence-service', include: SERVICE_PERSISTENCE_TEST_FILES, testTimeout: PERSISTENCE_TEST_TIMEOUT_MS, maxWorkers: WORKER_TEST_WORKERS } },
     ],
   },
