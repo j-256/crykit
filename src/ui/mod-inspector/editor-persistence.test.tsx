@@ -342,10 +342,15 @@ it('recovery reopening locks controls and retains the old draft until the saved 
   expect(container.textContent).not.toContain('Synthetic save failure')
 })
 
+let downloadSequence = 0
 function downloads() {
   const exported: { blob: Blob; url: string; filename?: string }[] = []
   const revoke = vi.fn()
-  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: (blob: Blob) => { const url = `blob:editor-${exported.length}`; exported.push({ blob, url }); return url }, revokeObjectURL: revoke }))
+  // Browser URLs are unique across downloads, including delayed cleanup from a preceding case
+  vi.stubGlobal('URL', class extends URL {
+    static createObjectURL(blob: Blob) { const url = `blob:editor-${downloadSequence++}`; exported.push({ blob, url }); return url }
+    static revokeObjectURL = revoke
+  })
   vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { exported.at(-1)!.filename = this.download })
   return { exported, revoke }
 }
@@ -370,11 +375,16 @@ it.each(['original', 'reviewed', 'recovery'] as const)('revokes the %s Editor do
     await act(async () => { await actions!.save() })
   }
   const { exported, revoke } = downloads()
-  await click(kind === 'original' ? 'Download original' : kind === 'reviewed' ? 'Download mod' : 'Download unsaved draft for recovery')
-  expect(exported).toHaveLength(1)
-  expect(revoke).not.toHaveBeenCalled()
-  await act(async () => invalidateProfile())
-  expect(revoke).toHaveBeenCalledWith(exported[0].url)
+  // Prove profile revocation before the independent expiry timer, regardless of host load
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  try {
+    await click(kind === 'original' ? 'Download original' : kind === 'reviewed' ? 'Download mod' : 'Download unsaved draft for recovery')
+    expect(exported).toHaveLength(1)
+    expect(revoke).not.toHaveBeenCalledWith(exported[0].url)
+    await act(async () => invalidateProfile())
+    expect(revoke).toHaveBeenCalledWith(exported[0].url)
+    await act(async () => { await vi.runOnlyPendingTimersAsync() })
+  } finally { vi.useRealTimers() }
 })
 it('cleans up an Editor URL immediately when download initiation throws', async () => {
   const file = await createEditorRepository(createGuestRepository(db)).importFile({ filename: 'exact.json', bytes: new TextEncoder().encode(originalText), text: originalText, referenceId: 'synthetic' })
