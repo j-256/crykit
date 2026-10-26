@@ -167,6 +167,45 @@ it('flushes an inventory filter selection without waiting for the typing debounc
   expect(file.pendingForm).toMatchObject({ presentation: { inventoryKind: 'item', stockFilter: 'carried' } })
   expect(await readSaveContent(state, file)).toEqual({ originalBytes: bytes, workingBytes: bytes })
 })
+it('does not restart an elapsed typing pause when later input transfers to its saved successor', { timeout: SAVE_SUCCESSOR_TRANSACTIONS_MS }, async () => {
+  await open()
+  const controller = workspace.saveSession.controller
+  const capture = vi.spyOn(controller, 'capture')
+  let published!: () => void
+  const publication = new Promise<void>(resolve => { published = resolve })
+  afterNextGuestPublication(() => {
+    const field = container.querySelector<HTMLInputElement>('[aria-label="Copper"]')!
+    field.dispatchEvent(new Event('compositionstart', { bubbles: true }))
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, 'later V+1')
+    field.dispatchEvent(new Event('input', { bubbles: true }))
+    published()
+  })
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] })
+  try {
+    await type('captured V')
+    let pending!: Promise<boolean>
+    await act(async () => { pending = actions!.save(); await publication })
+    await act(async () => { await vi.advanceTimersByTimeAsync(650) })
+    expect(capture).toHaveBeenCalledTimes(1)
+    expect(workspace.fileCommandPending()).toBe(true)
+    await act(async () => {
+      container.querySelector('[aria-label="Copper"]')!.dispatchEvent(new Event('compositionend', { bubbles: true }))
+      await pending
+    })
+    await wait(() => expect(workspace.fileCommandPending()).toBe(false))
+    expect(workspace.saveSession.document!.file.pendingForm).toMatchObject({ fields: { currency: 'captured V' } })
+    expect(controller.snapshot()).toMatchObject({ dirty: true, input: { fields: { currency: 'later V+1' } } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    expect(capture).toHaveBeenCalledTimes(2)
+  } finally { vi.useRealTimers() }
+  await wait(() => {
+    expect(workspace.fileCommandPending()).toBe(false)
+    expect(controller.snapshot().dirty).toBe(false)
+  })
+  const state = await workspace.repository.readWorkspace(), file = state.saveDocuments.find(value => value.id === savedId)!
+  expect(file.pendingForm).toMatchObject({ fields: { currency: 'later V+1' } })
+  expect(await readSaveContent(state, file)).toEqual({ originalBytes: bytes, workingBytes: bytes })
+})
 it.each(['composition', 'pointer'] as const)('actual Save %s input remains live through publication and transfers its final value', async interaction => {
   await open(); await type('captured V')
   const old = workspace, oldView = old.saveSession.transferView!

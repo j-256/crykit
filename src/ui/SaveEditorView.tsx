@@ -305,17 +305,22 @@ export function SaveEditorView({ storage, localData: localDataProp, onDraftChang
     return () => { live = false; request++; unsubscribe() }
   }, [storage])
   useEffect(() => {
-    // Later input can remain dirty across a saved owner's remount
-    // Hydration clears the pending command without changing that input, so its completion must restart autosave
-    if (!dirty) storage.session.immediateInputSave = false
-    if (!hydrated || !formSupported || !dirty || storage.pending() || busy || modBusy || bundledBusy) return
+    const input = storage.controller.snapshot().input
+    if (!dirty || !input) {
+      storage.session.immediateInputSave = false
+      storage.session.inputSaveDeadline = undefined
+      return
+    }
+    // Count time already spent waiting for a previous save or interaction before the successor can save
+    if (storage.session.inputSaveDeadline?.input !== input) storage.session.inputSaveDeadline = { input, at: performance.now() + SAVE_INPUT_DEBOUNCE_MS }
+    if (!hydrated || !formSupported || storage.pending() || busy || modBusy || bundledBusy) return
     // Discrete selections need no typing pause; a task still coalesces changes from the same event
     const timer = window.setTimeout(() => {
       // Explicit commands can start without a render, so a scheduled quiet save must check the live owner again
       if (!storage.isCurrent() || storage.pending() || !storage.controller.snapshot().dirty || !storage.controller.canTransfer()) return
       storage.session.immediateInputSave = false
       void storage.save().catch(reason => { if (storage.isCurrent()) setError(errorMessage(reason)) })
-    }, storage.session.immediateInputSave ? 0 : SAVE_INPUT_DEBOUNCE_MS)
+    }, storage.session.immediateInputSave ? 0 : Math.max(0, storage.session.inputSaveDeadline.at - performance.now()))
     return () => window.clearTimeout(timer)
   }, [storage, inputVersion, dirty, busy, modBusy, bundledBusy, formSupported, hydrated])
   useEffect(() => {

@@ -2,7 +2,7 @@ import { collectRecoveryCopy, writeRecoveryCopy, RECOVERY_FALLBACK_BYTES, type S
 import { useMemo, useReducer } from 'react'
 import type { AppRoute } from './navigation'
 import { useWorkspace } from './WorkspaceProvider'
-import { SaveInputController, emptySavePending, savePendingJson, type SaveInputTicket, type SaveViewIncarnation, type SaveContentBase } from '../workspace/save-input-controller'
+import { SaveInputController, emptySavePending, savePendingJson, type SaveInputTicket, type SaveViewIncarnation, type SaveContentBase, type SavePending } from '../workspace/save-input-controller'
 import { parseSavePending } from '../workspace/save-pending'
 import { createSaveRepository, readSaveContent, saveExportStatus, type SaveOperation } from '../workspace/save-repository'
 import type { SaveWorkspaceDocument } from '../workspace/documents'
@@ -18,6 +18,8 @@ export interface SaveSession {
   readonly controller: SaveInputController
   // A discrete choice may arrive during publication and must flush after the successor hydrates
   immediateInputSave?: boolean
+  // The typing pause belongs to the input, so ownership transfers must not restart it
+  inputSaveDeadline?: { readonly input: SavePending; readonly at: number }
   operation?: SaveOperation
   phase: 'idle' | 'staging' | 'reconciling' | 'hydrating' | 'recovery'
   transferView?: SaveViewIncarnation

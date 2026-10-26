@@ -117,6 +117,8 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
     saveSession.captureFocus = undefined
     saveSession.sources = []
     saveSession.candidate = undefined
+    saveSession.inputSaveDeadline = undefined
+    saveSession.immediateInputSave = false
     saveSession.phase = 'idle'
     saveSession.operation = undefined
     editorSession.controller.revoke()
