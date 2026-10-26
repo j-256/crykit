@@ -380,7 +380,12 @@ it('recovery reopening locks controls and retains the old draft until the saved 
   let release!: () => void
   const gate = new Promise<void>(resolve => { release = resolve })
   vi.spyOn(workspace.repository, 'readWorkspace').mockImplementation(async () => { await gate; return read() })
-  await click('Reopen saved version')
+  const reopen = [...container.querySelectorAll('button')].find(button => button.textContent === 'Reopen saved version')!
+  await act(async () => {
+    reopen.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }))
+    reopen.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0 }))
+    reopen.click()
+  })
   expect(container.querySelector('fieldset')?.disabled).toBe(true)
   expect(container.querySelector('textarea')?.value).toBe('{"broken":')
   await edit('{"intruder":1}')
