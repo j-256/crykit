@@ -33,6 +33,7 @@ async function expectMap(page: Page) {
   await expect.poll(() => page.locator('.iso-scene-bitmap').getAttribute('data-geometry-runs').then(Number)).toBeGreaterThan(0)
   await expect(page.getByText('Loading nearby native voxel geometry...', { exact: true })).toHaveCount(0)
   await expect.poll(() => page.locator('.map-editor .world-map-terrain img').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true)
+  await expect(page.locator('.map-editor .world-map-image-status')).toHaveCount(0)
 }
 
 test('opens Map Editor directly from Mods menus and preserves view history and pending moves', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }, testInfo) => {
