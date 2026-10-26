@@ -144,6 +144,53 @@ it('keeps a later explorer search focused through an owned field-selection save'
   expect((await stored())!.content.lastAppliedText).toBe(originalText)
 })
 
+it('keeps a JSON selection click alive while an earlier quiet save reopens its owner', async () => {
+  await open()
+  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Select $.Count"]')!.click())
+  const view = workspace.editorSession.transferView
+  const target = container.querySelector<HTMLButtonElement>('[aria-label="Select $.Values"]')!
+  let release!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  let reached = false, returned = false
+  const resolve = receipts.resolveOwnedFileReceipt
+  vi.spyOn(receipts, 'resolveOwnedFileReceipt').mockImplementation(async receipt => {
+    const completion = await resolve(receipt)
+    return { ...completion, assertCurrent: async () => {
+      await completion.assertCurrent()
+      if (!reached) { reached = true; await gate; returned = true }
+    } }
+  })
+  let saving: Promise<boolean> | undefined
+  try {
+    await act(async () => { saving = actions!.save() })
+    await wait(() => expect(reached).toBe(true))
+    await act(async () => {
+      target.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }))
+      release()
+    })
+    await wait(() => expect(returned).toBe(true))
+    expect(workspace.editorSession.controller.canTransfer()).toBe(false)
+    expect(workspace.editorSession.transferView).toBe(view)
+    expect(target.isConnected).toBe(true)
+    await act(async () => {
+      target.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0 }))
+      expect(workspace.editorSession.controller.canTransfer()).toBe(false)
+      target.click()
+      await saving
+    })
+    await wait(() => expect(workspace.fileCommandPending()).toBe(false))
+    expect(container.querySelector('.inspector-path')?.textContent).toBe('$.Values')
+    await flush()
+    const document = (await stored())!
+    expect(document.file.unfinished.editedPath).toEqual(['Values'])
+    expect(document.content.originalText).toBe(originalText)
+    expect(document.content.lastAppliedText).toBe(originalText)
+  } finally {
+    release()
+    await act(async () => { window.dispatchEvent(new Event('pointercancel')); await saving })
+  }
+})
+
 it('clears navigation draft presence when typing returns to the exact saved unfinished text', async () => {
   await open(); await click('Edit whole document JSON'); await edit('{"broken":'); await flush()
   const revision = workspace.editorSession.controller.snapshot().revision
