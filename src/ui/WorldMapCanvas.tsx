@@ -22,10 +22,11 @@ const midpoint = (a: ScreenPoint, b: ScreenPoint): ScreenPoint => ({ x: (a.x + b
 
 export function WorldMapCanvas({ manifest, markers, layerId, selected, onSelect, onVisibleChange, coordinatePick }: { readonly manifest: WorldMapManifest; readonly markers: readonly WorldMarker[]; readonly layerId: number; readonly selected?: WorldMarker; readonly onSelect: (marker: WorldMarker) => void; readonly onVisibleChange: (markers: readonly WorldMarker[]) => void; readonly coordinatePick?: { readonly label: string; readonly onPick: (point: { readonly x: number; readonly z: number }) => void } }) {
   const viewportRef = useRef<HTMLDivElement>(null)
+  const imageRef = useRef<HTMLImageElement>(null)
   const bounds = manifest.bounds
   const [size, setSize] = useState({ width: 0, height: 0 })
   const [view, setView] = useState<View>(() => ({ x: bounds.x + bounds.width / 2, z: bounds.z + bounds.height / 2, zoom: 1 }))
-  const [imageStatus, setImageStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [imageResult, setImageResult] = useState<{ key: string; status: 'ready' | 'error' }>()
   const [retry, setRetry] = useState(0)
   const [expanded, setExpanded] = useState<WorldMapCluster>()
   const gesture = useRef<Gesture | null>(null)
@@ -39,6 +40,13 @@ export function WorldMapCanvas({ manifest, markers, layerId, selected, onSelect,
   const clusters = useMemo(() => worldMapClusters(visible.filter(marker => marker.id !== selected?.id && Math.abs(marker.x - view.x) * scale <= size.width / 2 && Math.abs(marker.z - view.z) * scale <= size.height / 2), { zoom: view.zoom, pixelsPerUnit: scale, maxGroups }), [visible, selected?.id, view, scale, size, maxGroups])
   const terrainLayer = manifest.layers.find(layer => layer.id === layerId)
   const image = terrainLayer ? worldMapImage(terrainLayer) : ''
+  // Cached image events can precede passive effects, so a later reset must not overwrite readiness
+  const imageKey = JSON.stringify([layerId, retry, image])
+  const imageStatus = imageResult?.key === imageKey ? imageResult.status : 'loading'
+  const finishImage = (element: HTMLImageElement, status: 'ready' | 'error') => {
+    // Events from a detached request cannot replace the active image's result
+    if (element === imageRef.current) setImageResult({ key: imageKey, status })
+  }
   useEffect(() => { onVisibleChange(visible) }, [visible, onVisibleChange])
   useEffect(() => { setExpanded(undefined) }, [layerId, markers, view])
   useEffect(() => {
@@ -50,7 +58,6 @@ export function WorldMapCanvas({ manifest, markers, layerId, selected, onSelect,
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
-  useEffect(() => { setImageStatus('loading') }, [layerId, retry])
   const clamp = (next: View): View => {
     const nextScale = fitScale * next.zoom
     const halfWidth = Math.min(bounds.width / 2, size.width / nextScale / 2)
@@ -162,7 +169,7 @@ export function WorldMapCanvas({ manifest, markers, layerId, selected, onSelect,
   return <div className="world-map-stage">
     <div aria-label="Interactive world map" aria-describedby="world-map-controls-help" className={`world-map-viewport${coordinatePick ? ' world-map-viewport--picking' : ''}`} onDoubleClick={event => { if (!coordinatePick && !(event.target as HTMLElement).closest('button')) { const rect = event.currentTarget.getBoundingClientRect(); setView(previous => zoomAt(previous, previous.zoom * ZOOM_STEP, { x: event.clientX - rect.left, y: event.clientY - rect.top })) } }} onKeyDown={keyboard} onPointerCancel={pointerUp} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} ref={viewportRef} role="region" tabIndex={0}>
       <div aria-hidden="true" className="world-map-terrain" style={{ width: bounds.width, height: bounds.height, transform: `translate(${size.width / 2 + (bounds.x - view.x) * scale}px, ${size.height / 2 + (bounds.z - view.z) * scale}px) scale(${scale})` }}>
-        {image && <img alt="" draggable={false} height={bounds.height} key={`${layerId}:${retry}`} onError={() => setImageStatus('error')} onLoad={() => setImageStatus('ready')} src={image} width={bounds.width}/>}
+        {image && <img alt="" draggable={false} height={bounds.height} key={imageKey} onError={event => finishImage(event.currentTarget, 'error')} onLoad={event => finishImage(event.currentTarget, 'ready')} ref={imageRef} src={image} width={bounds.width}/>}
       </div>
       {imageStatus === 'ready' && <div aria-hidden="true" className="world-map-region-labels">{labels.map(region => <span className="world-map-region-label" key={region.id} style={position(region)}>{region.name}</span>)}</div>}
       {imageStatus === 'ready' && clusters.filter(cluster => !selected || Math.hypot(cluster.x - selected.x, cluster.z - selected.z) * scale >= SELECTED_CLEARANCE_PIXELS).map(cluster => {

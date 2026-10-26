@@ -24,6 +24,7 @@ const SERVICE_PERSISTENCE_TEST_FILES = [
 const CI_PERSISTENCE_TEST_WORKERS = 1
 const persistenceTestWorkers = process.env.CI ? CI_PERSISTENCE_TEST_WORKERS : undefined
 const DOM_TEST_FILES = [
+  'src/ui/WorldMapCanvas.test.tsx',
   'src/ui/admin/admin.test.tsx',
   'src/ui/admin/admin-workflows.test.tsx',
   'src/ui/PublicSharedView.viewer.test.tsx',
