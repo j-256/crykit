@@ -102,6 +102,25 @@ it('actual dirty Save view refuses marker initiation without discarding its form
   expect(container.querySelector<HTMLInputElement>('[aria-label="Copper"]')!.value).toBe('not a number')
   expect(workspace.saveSession.controller.snapshot().dirty).toBe(true)
 })
+it('a quiet save failure reports the problem without taking focus from recovery controls', async () => {
+  await open()
+  let rejectSave!: (reason: Error) => void
+  const failure = new Promise<never>((_, reject) => { rejectSave = reject })
+  const commit = vi.spyOn(ownedFiles, 'commitOwnedFile').mockReturnValueOnce(failure)
+  await type('789')
+  await wait(() => expect(commit).toHaveBeenCalledOnce())
+  const recovery = document.createElement('div')
+  recovery.tabIndex = -1
+  container.append(recovery)
+  recovery.focus()
+  await act(async () => { rejectSave(new Error('Synthetic quiet save failure')) })
+  await wait(() => expect(container.querySelector('[role="alert"]')?.textContent).toContain('Synthetic quiet save failure'))
+  expect(document.activeElement).toBe(recovery)
+  expect(container.querySelector<HTMLInputElement>('[aria-label="Copper"]')!.value).toBe('789')
+  expect(workspace.saveSession.controller.snapshot().dirty).toBe(true)
+  const state = await workspace.repository.readWorkspace()
+  expect(await readSaveContent(state, state.saveDocuments.find(file => file.id === savedId)!)).toEqual({ originalBytes: bytes, workingBytes: bytes })
+})
 it('pending-only V is durable while pointer-gap V+1 survives and saves on the verified successor', { timeout: SAVE_SUCCESSOR_TRANSACTIONS_MS }, async () => {
   await open(); await type('captured V')
   const old = workspace, view = old.saveSession.transferView!
