@@ -92,6 +92,8 @@ export function useVoxelBrush({ camera, cells, action, size, depth = size, activ
     if (!action || disabled || !active) return false
     const pick = pickAt(point)
     if (!pick || action === 'erase' && (pick.id === undefined || !erasableIds.has(pick.id))) { setHint(action === 'erase' ? 'Erase targets added stationary blocks. Native terrain and other entities stay unchanged.' : action === 'platform' ? 'Point at a visible face, or enter a valid Placement height Y to place a platform in empty space.' : 'Point at a visible block face to place blocks.'); return false }
+    // Pre-stroke hover work must not add cells that the new gesture never visited
+    stopFrame()
     gesture.current = { pointerId, pick, camera, source, coords: new Map(), ids: new Set(), last: pick.adjacent, point, start: point, size, depth }
     setHint(''); onGestureChange(true); process(point)
     return Boolean(gesture.current)
