@@ -20,7 +20,9 @@ export default defineConfig({
     // Chromium's context certificate override does not cover ServiceWorker installation
     // This process is dedicated to synthetic loopback fixtures and does not change OS trust or production policy
     { name: 'desktop', use: { ...devices['Desktop Chrome'], launchOptions: { args: ['--ignore-certificate-errors'] } } },
-    { name: 'local-saves', workers: 2, testDir: './e2e', testMatch: 'local-save-performance.spec.ts', timeout: 180_000, use: { ...devices['Desktop Chrome'], launchOptions: { args: ['--ignore-certificate-errors'] } } },
+    // DOM snapshots run before trusted input and can consume the save budget themselves
+    // Keep action logs, filmstrip screenshots and exact receipts without instrumenting each input with a DOM walk
+    { name: 'local-saves', workers: 2, testDir: './e2e', testMatch: 'local-save-performance.spec.ts', timeout: 180_000, use: { ...devices['Desktop Chrome'], trace: { mode: 'retain-on-failure', snapshots: false }, launchOptions: { args: ['--ignore-certificate-errors'] } } },
     // Keep queued tiles and physical offline reload on every engine; compose only completion phases
     { name: 'firefox', grepInvert: new RegExp(CHROMIUM_STATUS_COMPLETION_TAG), use: { ...devices['Desktop Firefox'] } },
     { name: 'webkit', grepInvert: new RegExp(CHROMIUM_STATUS_COMPLETION_TAG), use: { ...devices['Desktop Safari'] } },
