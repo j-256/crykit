@@ -204,7 +204,10 @@ jobs:
         run: |
           npm run build:account-tests
           npm exec vite build -- --config vite.accounts.config.ts
-          npm run test:e2e:accounts:prepared -- --shard=${{ matrix.shard }}/4
+          # Shard the long save journeys separately so one job cannot receive the whole save matrix
+          npm run test:e2e:accounts:prepared -- --project=desktop --project=firefox --project=webkit --shard=${{ matrix.shard }}/4 --output=.account-tests/acceptance-artifacts/account
+          mv .account-tests/acceptance-results.json .account-tests/acceptance-artifacts/account-results.json
+          npm run test:e2e:accounts:prepared -- --project=local-saves --shard=${{ matrix.shard }}/4 --output=.account-tests/acceptance-artifacts/local-saves
       - name: Save account failure evidence
         if: failure() || cancelled()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
