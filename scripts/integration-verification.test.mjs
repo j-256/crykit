@@ -9,7 +9,7 @@ import { checkPushVerification, verificationContext, verificationRecordPath, ver
 import { coordinateVerification } from './verification-coordination.mjs'
 
 const ZERO_OID = '0'.repeat(40)
-const VERIFICATION_COMMANDS = ['prepare:verification', 'check:deterministic:base', 'test:vitest:prepared', 'test:e2e', 'test:e2e:accounts:prepared']
+const VERIFICATION_COMMANDS = ['prepare:verification', 'check:deterministic:base', 'test:e2e:saves:prepared', 'test:vitest:prepared', 'test:e2e', 'test:e2e:accounts:remaining']
 const scriptPath = name => fileURLToPath(new URL(name, import.meta.url))
 
 function fixture(t) {
@@ -43,6 +43,41 @@ test('only complete successful verification creates a record for the exact tree'
   checkPushVerification(f.input(), f.options)
   f.git(['commit', '--quiet', '--allow-empty', '-m', 'Metadata only'])
   checkPushVerification(f.input(), f.options)
+})
+
+test('publication account phases partition the complete matrix and preserve separate evidence', () => {
+  const cwd = fileURLToPath(new URL('..', import.meta.url))
+  const list = command => {
+    const scripts = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8')).scripts
+    const args = scripts[command].split(' ')
+    assert.equal(args.shift(), 'playwright')
+    const report = JSON.parse(execFileSync(process.execPath, [join(cwd, 'node_modules/@playwright/test/cli.js'), ...args, '--list', '--reporter=json'], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }))
+    assert.deepEqual(report.errors, [])
+    const cases = []
+    const collect = (suite, ancestors = []) => {
+      const titles = [...ancestors, suite.title]
+      for (const spec of suite.specs ?? []) for (const test of spec.tests) cases.push(JSON.stringify([titles, spec.file, spec.line, spec.title, test.projectName, test.timeout, test.expectedStatus, spec.tags]))
+      for (const child of suite.suites ?? []) collect(child, titles)
+    }
+    for (const suite of report.suites) collect(suite)
+    return { cases, config: report.config }
+  }
+  const complete = list('test:e2e:accounts:prepared')
+  const saves = list('test:e2e:saves:prepared')
+  const remaining = list('test:e2e:accounts:remaining')
+  assert.deepEqual(saves.config.projects.map(project => project.name), ['local-saves'])
+  assert.ok(remaining.config.projects.every(project => project.name !== 'local-saves'))
+  assert.ok(saves.cases.length > 0 && remaining.cases.length > 0)
+  assert.deepEqual([...saves.cases, ...remaining.cases].sort(), complete.cases.sort())
+  assert.equal(new Set([...saves.cases, ...remaining.cases]).size, complete.cases.length)
+  for (const project of saves.config.projects) for (const other of remaining.config.projects) assert.notEqual(project.outputDir, other.outputDir)
+  for (const phase of [saves, remaining]) {
+    assert.equal(phase.config.workers, complete.config.workers)
+    for (const project of phase.config.projects) {
+      const original = complete.config.projects.find(item => item.name === project.name)
+      assert.deepEqual({ ...project, outputDir: original.outputDir }, original)
+    }
+  }
 })
 
 test('changed source invalidates verification, including after synchronization adds files', async t => {
@@ -114,7 +149,7 @@ test('failed and interrupted reruns invalidate earlier success before checks sta
       if (command === failedCommand) throw new Error('Synthetic failure or interruption')
     } }), /Synthetic failure/)
     const index = VERIFICATION_COMMANDS.indexOf(failedCommand)
-    assert.deepEqual(commands, VERIFICATION_COMMANDS.slice(0, index < 3 ? index + 1 : 5))
+    assert.deepEqual(commands, VERIFICATION_COMMANDS.slice(0, index < 4 ? index + 1 : VERIFICATION_COMMANDS.length))
     assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
   }
 })
@@ -131,10 +166,12 @@ test('a failed prerequisite check prevents Vitest and browser startup and invali
   assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
 })
 
-test('prerequisites finish before Vitest and browser siblings overlap without publishing partial success', async t => {
+test('prerequisites and exclusive saves finish before Vitest and browser siblings overlap without publishing partial success', async t => {
   const f = fixture(t)
   const preparation = Promise.withResolvers()
   const checks = Promise.withResolvers()
+  const saves = Promise.withResolvers()
+  const savesStarted = Promise.withResolvers()
   const vitest = Promise.withResolvers()
   const browsers = Promise.withResolvers()
   const checksStarted = Promise.withResolvers()
@@ -147,11 +184,14 @@ test('prerequisites finish before Vitest and browser siblings overlap without pu
     else if (command === 'check:deterministic:base') {
       checksStarted.resolve()
       await checks.promise
+    } else if (command === 'test:e2e:saves:prepared') {
+      savesStarted.resolve()
+      await saves.promise
     } else if (command === 'test:vitest:prepared') {
       vitestStarted.resolve()
       await vitest.promise
     } else {
-      if (commands.length === 5) browsersStarted.resolve()
+      if (commands.length === VERIFICATION_COMMANDS.length) browsersStarted.resolve()
       await browsers.promise
     }
   } })
@@ -162,8 +202,12 @@ test('prerequisites finish before Vitest and browser siblings overlap without pu
     assert.deepEqual(commands, VERIFICATION_COMMANDS.slice(0, 2))
     assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
     checks.resolve()
-    await vitestStarted.promise
+    await savesStarted.promise
     assert.deepEqual(commands, VERIFICATION_COMMANDS.slice(0, 3))
+    assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
+    saves.resolve()
+    await vitestStarted.promise
+    assert.deepEqual(commands, VERIFICATION_COMMANDS.slice(0, 4))
     assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
     vitest.resolve()
     await browsersStarted.promise
@@ -172,12 +216,12 @@ test('prerequisites finish before Vitest and browser siblings overlap without pu
     browsers.resolve()
     assert.equal((await pending).recorded, true)
     checkPushVerification(f.input(), f.options)
-  } finally { preparation.resolve(); checks.resolve(); vitest.resolve(); browsers.resolve(); await pending }
+  } finally { preparation.resolve(); checks.resolve(); saves.resolve(); vitest.resolve(); browsers.resolve(); await pending }
 })
 
 test('a failed browser lane drains its running sibling and prevents publication', async t => {
   const f = fixture(t)
-  const phase = VERIFICATION_COMMANDS.slice(3)
+  const phase = VERIFICATION_COMMANDS.slice(4)
   for (const failedCommand of phase) {
     await verifyIntegration(f.options)
     const sibling = Promise.withResolvers()
@@ -206,7 +250,7 @@ test('real npm prerequisites finish before Vitest and archives finish before con
   const f = fixture(t)
   const events = join(f.directory, 'events')
   mkdirSync(events)
-  const stages = ['prepare', 'checks', 'vitest', 'browser', 'accounts']
+  const stages = ['prepare', 'checks', 'saves', 'vitest', 'browser', 'accounts']
   writeFileSync(join(f.cwd, 'package.json'), JSON.stringify({ scripts: Object.fromEntries(VERIFICATION_COMMANDS.map((command, i) => [command, `node stages.mjs ${stages[i]}`])) }))
   writeFileSync(join(f.cwd, 'stages.mjs'), `
 import assert from 'node:assert/strict'
@@ -224,6 +268,8 @@ else {
   const names = ['browser', 'accounts']
   if (stage === 'checks') assert.equal(existsSync(marker('vitest')), false)
   else assert.ok(existsSync(marker('checks-passed')))
+  if (stage === 'vitest') assert.ok(existsSync(marker('saves-passed')))
+  if (stage === 'saves') assert.equal(existsSync(marker('vitest')), false)
   if (names.includes(stage)) assert.ok(existsSync(marker('vitest-passed')))
   else for (const name of names) assert.equal(existsSync(marker(name)), false)
   mark(stage)
@@ -248,7 +294,7 @@ test('a real npm prerequisite failure leaves long consumers unstarted and public
   const f = fixture(t)
   const events = join(f.directory, 'events')
   mkdirSync(events)
-  const stages = ['prepare', 'checks', 'vitest', 'browser', 'accounts']
+  const stages = ['prepare', 'checks', 'saves', 'vitest', 'browser', 'accounts']
   writeFileSync(join(f.cwd, 'package.json'), JSON.stringify({ scripts: Object.fromEntries(VERIFICATION_COMMANDS.map((command, i) => [command, `node stages.mjs ${stages[i]}`])) }))
   writeFileSync(join(f.cwd, 'stages.mjs'), `
 import { writeFileSync } from 'node:fs'
@@ -263,7 +309,7 @@ if (stage === 'checks') throw new Error('Synthetic source audit failure')
   await assert.rejects(verifyIntegration({ cwd: f.cwd, env: { ...f.env, CRYKIT_VERIFICATION_FIXTURE: events }, report: () => {} }), /check:deterministic:base failed/)
   assert.equal(readFileSync(join(events, 'prepare'), 'utf8'), 'Started')
   assert.equal(readFileSync(join(events, 'checks'), 'utf8'), 'Started')
-  for (const stage of ['vitest', 'browser', 'accounts']) assert.throws(() => readFileSync(join(events, stage)), { code: 'ENOENT' })
+  for (const stage of ['saves', 'vitest', 'browser', 'accounts']) assert.throws(() => readFileSync(join(events, stage)), { code: 'ENOENT' })
   assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
 })
 

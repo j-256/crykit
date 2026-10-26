@@ -5,7 +5,7 @@ import { homedir } from 'node:os'
 import { dirname, isAbsolute, join } from 'node:path'
 
 const RECORD_VERSION = 1
-const VERIFICATION_STEPS = Object.freeze({ prepare: 'prepare:verification', checks: 'check:deterministic:base', tests: 'test:vitest:prepared', browser: 'test:e2e', accounts: 'test:e2e:accounts:prepared' })
+const VERIFICATION_STEPS = Object.freeze({ prepare: 'prepare:verification', checks: 'check:deterministic:base', saves: 'test:e2e:saves:prepared', tests: 'test:vitest:prepared', browser: 'test:e2e', accounts: 'test:e2e:accounts:remaining' })
 const VERIFICATION_COMMANDS = Object.freeze(Object.values(VERIFICATION_STEPS))
 const OBJECT_ID_PATTERN = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/
 const MAX_GIT_OUTPUT_BYTES = 32 * 1024 * 1024
@@ -81,6 +81,9 @@ async function runVerificationCommands(run, options) {
   // Reject prerequisite failures before starting the long suite
   // Cancelling an active Vitest case can run teardown before its database command finishes
   await run(VERIFICATION_STEPS.checks, options)
+  // Qualify foreground save deadlines without unrelated verification load
+  // The saves project retains real background mapping and its existing worker cap
+  await run(VERIFICATION_STEPS.saves, options)
   await run(VERIFICATION_STEPS.tests, options)
   // Archive admission has measured deadline failures when browser preparation competes with it
   // Keep that CPU-heavy phase separate, then overlap independent browser suites

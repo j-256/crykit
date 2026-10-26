@@ -77,6 +77,8 @@
     "dev:accounts": "node scripts/build-account-tests.mjs --dev",
     "prepare:verification": "npm run build:account-tests && npm run build:assets && vite build --config vite.accounts.config.ts",
     "test:vitest:prepared": "node scripts/verify-vitest.mjs",
+    "test:e2e:saves:prepared": "playwright test --config playwright.saves.config.ts",
+    "test:e2e:accounts:remaining": "playwright test --config playwright.acceptance-remaining.config.ts",
     "test:e2e:accounts:prepared": "playwright test --config playwright.acceptance.config.ts"
   },
   "dependencies": {

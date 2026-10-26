@@ -4,7 +4,8 @@ import { verifyIntegration } from './integration-verification.mjs'
 import { coordinateVerification } from './verification-coordination.mjs'
 
 const USAGE = `Usage: npm run verify -- [-h|--help] [-I|--if-needed]
-Prepare each required build once, then pass prerequisite checks before Vitest.
+Prepare each required build once, then pass prerequisite checks and exclusive saves.
+Run Vitest only after the complete save-performance project passes.
 After Vitest passes, run guest browsers alongside isolated HTTPS account journeys.
 Every required command must pass; ownership lasts until running siblings settle.
 Requires Node.js, npm, Git, npm ci, openssl, and Playwright Chromium, Firefox, WebKit.
