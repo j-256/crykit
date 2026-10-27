@@ -7,6 +7,7 @@ import * as modSearch from '../catalog/mod-search'
 import { asId, observeInventory, createPersonalDefinition } from '../domain'
 import { createTestLocalData, TEST_GAME_SETUP_REVISION_ID, TEST_NOW } from '../domain/test-helpers'
 import { savedCatalogVersion } from '../domain/legacy-definition.test-helpers'
+import { immutableCatalogSnapshot } from '../interchange/native'
 import type { CatalogId, CatalogRevisionId, CatalogSnapshot, EntityId, LocalData } from '../domain/types'
 import { buildDefinitionOptions, DefinitionProvider, useDefinitionLibrary } from './definitions'
 
@@ -93,10 +94,10 @@ it.each(['loaded', 'failed'])('defers bundled discovery until requested and reta
   }
 })
 
-it('reuses only recursively immutable catalog projections after an owned view remount', async () => {
+it.each(['admitted', 'frozen'] as const)('reuses only recursively immutable %s catalog projections after an owned view remount', async source => {
   ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
   const freeze = <T,>(value: T): T => { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value) }; return value }
-  const immutable = freeze(structuredClone(catalog))
+  const immutable = source === 'admitted' ? immutableCatalogSnapshot(structuredClone(catalog)) : freeze(structuredClone(catalog))
   const description = vi.spyOn(descriptions, 'referenceDescription')
   const container = document.createElement('div'), root = createRoot(container)
   const initial = createTestLocalData()
