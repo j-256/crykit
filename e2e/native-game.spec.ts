@@ -65,7 +65,10 @@ test('enemy loot preserves modified clicks, opens a new tab, and navigates in ap
   const modifiedTab = await modifiedTabOpened
   await expect(cookie).toHaveAttribute('data-modified-click', 'true:false')
   await expect(page.getByRole('heading', { name: 'Woke Quintar', exact: true })).toBeVisible()
-  await expect(modifiedTab).toHaveURL(new RegExp(`${cookiePath}$`), { timeout: NEW_TAB_REFERENCE_READY_TIMEOUT_MS })
+  // Observe navigation directly: the DOM URL matcher can wait again on a pending initial
+  // navigation after reporting its matching commit, without ever evaluating the URL
+  const cookieUrl = new URL(cookiePath, page.url()).href
+  await expect(modifiedTab).toHaveURL(url => url.href === cookieUrl, { timeout: NEW_TAB_REFERENCE_READY_TIMEOUT_MS })
   await modifiedTab.close()
   const opened = context.waitForEvent('page')
   await cookie.click({ button: 'middle' })
