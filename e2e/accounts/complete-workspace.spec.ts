@@ -1,5 +1,6 @@
 import { accountConnectivity, prepareAccountProofCache } from './network-fixture'
 import { WORKSPACE_STARTUP_MARK } from '../../src/diagnostics/workspace-startup'
+import { WORKSPACE_BACKUP_MARK } from '../../src/diagnostics/workspace-backup'
 import { assertAccountStorageRecovery } from './storage-recovery'
 import 'fake-indexeddb/auto'
 import { readFile, writeFile } from 'node:fs/promises'
@@ -283,50 +284,60 @@ test('twoDevicesRestoreCompleteWorkspaceWithoutLeakingToViewerOrAdmin', async ({
   }
 })
 
-test('failureRecoveryPreservesUnknownsPinsAndDrafts', async ({ page }) => {
-  test.setTimeout(JOURNEY_BUDGET_MS)
-  const backup = await fixture(), expectedPrivateWorkspace = await privateContent(backup)
-  await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined }) })
-  await page.goto(`${app}#/builds`)
-  await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
-  const managed = await readManagedGuestPlanner(page)
-  const guestBefore = managed ? { localData: managed.localData, lineage: managed.lineage, history: managed.history } : await page.evaluate(name => new Promise<{ localData: LocalDataRecord['localData']; lineage: LocalDataRecord['lineage']; history: PersistedHistoryEntry[] }>((resolve, reject) => {
-    const open = indexedDB.open(name)
-    open.onerror = () => reject(open.error)
-    open.onsuccess = () => {
-      const db = open.result, transaction = db.transaction(['localDatas', 'history'], 'readonly')
-      const root = transaction.objectStore('localDatas').get('local-data-record'), history = transaction.objectStore('history').getAll()
-      transaction.oncomplete = () => { db.close(); resolve({ localData: root.result.localData, lineage: root.result.lineage, history: history.result }) }
-      transaction.onabort = () => { db.close(); reject(transaction.error) }
-    }
-  }), await selectedGuestPlannerName(page))
-  await page.evaluate(() => { location.hash = '#/settings/data' })
-  const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await panel.getByLabel('Choose complete workspace backup').setInputFiles({ name: 'complete.crykit', mimeType: 'application/octet-stream', buffer: backup })
-  await expect(panel.getByText('Complete workspace preview', { exact: true })).toBeVisible()
-  await panel.getByLabel('Confirm complete workspace replacement').check()
-  const reopened = page.waitForEvent('load')
-  await panel.getByRole('button', { name: 'Replace saved workspace', exact: true }).click()
-  await reopened
-  const backupRestoredWorkspace = await privateContent(await downloadBackup(page))
-  expect(backupRestoredWorkspace.originals).toEqual(expectedPrivateWorkspace.originals)
-  expect(backupRestoredWorkspace.metadata.editorDocuments).toEqual(expectedPrivateWorkspace.metadata.editorDocuments)
-  expect(backupRestoredWorkspace.metadata.saveDocuments).toEqual(expectedPrivateWorkspace.metadata.saveDocuments)
-  // Guest capture materializes exact packaged catalogs in addition to every imported snapshot
-  expect(backupRestoredWorkspace.metadata.planner.catalogs).toEqual({ ...await catalogDigests(BUNDLED_CATALOGS), ...expectedPrivateWorkspace.metadata.planner.catalogs })
-  const inherited = [...guestBefore.history, ...expectedPrivateWorkspace.metadata.planner.history]
-  expect(backupRestoredWorkspace.metadata.planner.history.filter(entry => inherited.some(source => source.id === entry.id))).toEqual(inherited)
-  const transitions = backupRestoredWorkspace.metadata.planner.history.filter(entry => !inherited.some(source => source.id === entry.id))
-  expect(transitions).toHaveLength(1)
-  expect(transitions[0].command).toBe('guest-restore')
-  expect(transitions[0].localDataId).toBe(guestBefore.localData.id)
-  expect(transitions[0].previousRevision).toBe(guestBefore.localData.revision)
-  expect(transitions[0].nextRevision).toBe(backupRestoredWorkspace.metadata.planner.localData.revision)
-  expect(backupRestoredWorkspace.metadata.planner.lineage).toMatchObject({ rootLocalDataId: guestBefore.lineage.rootLocalDataId, parentLocalDataId: guestBefore.localData.id, sourceLocalDataId: expectedPrivateWorkspace.metadata.planner.localData.id, sourceRevision: expectedPrivateWorkspace.metadata.planner.localData.revision })
-  expect(transitions[0].before).toEqual(guestBefore.localData)
-  expect(transitions[0].after).toEqual(backupRestoredWorkspace.metadata.planner.localData)
-  expect(backupRestoredWorkspace.metadata.retainedContent).toEqual(expectedPrivateWorkspace.metadata.retainedContent)
-  await panel.getByLabel('Choose complete workspace backup').setInputFiles({ name: 'corrupt.crykit', mimeType: 'application/octet-stream', buffer: backup.subarray(0, backup.length - 1) })
-  await expect(panel.getByText('Backup could not be opened', { exact: true })).toBeVisible()
-  expect(await privateContent(await downloadBackup(page))).toEqual(backupRestoredWorkspace)
+test('failureRecoveryPreservesUnknownsPinsAndDrafts', async ({ page }, testInfo) => {
+  const prefix = 'workspace-backup '
+  const phases: unknown[] = []
+  page.on('console', message => { if (message.text().startsWith(prefix)) phases.push(JSON.parse(message.text().slice(prefix.length))) })
+  await page.addInitScript(({ mark, prefix }) => {
+    new PerformanceObserver(list => {
+      for (const entry of list.getEntries()) if (entry.name === mark) console.info(prefix + JSON.stringify({ phase: (entry as PerformanceMark).detail.phase, elapsedMilliseconds: entry.startTime, observedMilliseconds: performance.now(), visibility: document.visibilityState }))
+    }).observe({ entryTypes: ['mark'] })
+  }, { mark: WORKSPACE_BACKUP_MARK, prefix })
+  try {
+    test.setTimeout(JOURNEY_BUDGET_MS)
+    const backup = await fixture(), expectedPrivateWorkspace = await privateContent(backup)
+    await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined }) })
+    await page.goto(`${app}#/builds`)
+    await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
+    const managed = await readManagedGuestPlanner(page)
+    const guestBefore = managed ? { localData: managed.localData, lineage: managed.lineage, history: managed.history } : await page.evaluate(name => new Promise<{ localData: LocalDataRecord['localData']; lineage: LocalDataRecord['lineage']; history: PersistedHistoryEntry[] }>((resolve, reject) => {
+      const open = indexedDB.open(name)
+      open.onerror = () => reject(open.error)
+      open.onsuccess = () => {
+        const db = open.result, transaction = db.transaction(['localDatas', 'history'], 'readonly')
+        const root = transaction.objectStore('localDatas').get('local-data-record'), history = transaction.objectStore('history').getAll()
+        transaction.oncomplete = () => { db.close(); resolve({ localData: root.result.localData, lineage: root.result.lineage, history: history.result }) }
+        transaction.onabort = () => { db.close(); reject(transaction.error) }
+      }
+    }), await selectedGuestPlannerName(page))
+    await page.evaluate(() => { location.hash = '#/settings/data' })
+    const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+    await panel.getByLabel('Choose complete workspace backup').setInputFiles({ name: 'complete.crykit', mimeType: 'application/octet-stream', buffer: backup })
+    await expect(panel.getByText('Complete workspace preview', { exact: true })).toBeVisible()
+    await panel.getByLabel('Confirm complete workspace replacement').check()
+    const reopened = page.waitForEvent('load')
+    await panel.getByRole('button', { name: 'Replace saved workspace', exact: true }).click()
+    await reopened
+    const backupRestoredWorkspace = await privateContent(await downloadBackup(page))
+    expect(backupRestoredWorkspace.originals).toEqual(expectedPrivateWorkspace.originals)
+    expect(backupRestoredWorkspace.metadata.editorDocuments).toEqual(expectedPrivateWorkspace.metadata.editorDocuments)
+    expect(backupRestoredWorkspace.metadata.saveDocuments).toEqual(expectedPrivateWorkspace.metadata.saveDocuments)
+    // Guest capture materializes exact packaged catalogs in addition to every imported snapshot
+    expect(backupRestoredWorkspace.metadata.planner.catalogs).toEqual({ ...await catalogDigests(BUNDLED_CATALOGS), ...expectedPrivateWorkspace.metadata.planner.catalogs })
+    const inherited = [...guestBefore.history, ...expectedPrivateWorkspace.metadata.planner.history]
+    expect(backupRestoredWorkspace.metadata.planner.history.filter(entry => inherited.some(source => source.id === entry.id))).toEqual(inherited)
+    const transitions = backupRestoredWorkspace.metadata.planner.history.filter(entry => !inherited.some(source => source.id === entry.id))
+    expect(transitions).toHaveLength(1)
+    expect(transitions[0].command).toBe('guest-restore')
+    expect(transitions[0].localDataId).toBe(guestBefore.localData.id)
+    expect(transitions[0].previousRevision).toBe(guestBefore.localData.revision)
+    expect(transitions[0].nextRevision).toBe(backupRestoredWorkspace.metadata.planner.localData.revision)
+    expect(backupRestoredWorkspace.metadata.planner.lineage).toMatchObject({ rootLocalDataId: guestBefore.lineage.rootLocalDataId, parentLocalDataId: guestBefore.localData.id, sourceLocalDataId: expectedPrivateWorkspace.metadata.planner.localData.id, sourceRevision: expectedPrivateWorkspace.metadata.planner.localData.revision })
+    expect(transitions[0].before).toEqual(guestBefore.localData)
+    expect(transitions[0].after).toEqual(backupRestoredWorkspace.metadata.planner.localData)
+    expect(backupRestoredWorkspace.metadata.retainedContent).toEqual(expectedPrivateWorkspace.metadata.retainedContent)
+    await panel.getByLabel('Choose complete workspace backup').setInputFiles({ name: 'corrupt.crykit', mimeType: 'application/octet-stream', buffer: backup.subarray(0, backup.length - 1) })
+    await expect(panel.getByText('Backup could not be opened', { exact: true })).toBeVisible()
+    expect(await privateContent(await downloadBackup(page))).toEqual(backupRestoredWorkspace)
+  } finally { await testInfo.attach('workspace-backup', { body: JSON.stringify(phases), contentType: 'application/json' }) }
 })
