@@ -1,11 +1,10 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
-import { importSyntheticLibrary, syntheticReferencePath } from './mod-library-fixtures'
+import { modLibraryTest as test, syntheticReferencePath } from './mod-library-fixtures'
 import { referencePath } from './reference-helpers'
 
 test('an imported model sharing a native ID does not acquire unrelated artwork or source proof', async ({ page }) => {
-  await importSyntheticLibrary(page)
   await page.goto(syntheticReferencePath(0, 'Equipment', 0, 'Synthetic Blade'))
   await expect(page.getByRole('heading', { name: 'Synthetic Blade', exact: true })).toBeVisible()
   await expect(page.locator('[data-artwork-source="game"]')).toHaveCount(0)
@@ -21,9 +20,8 @@ test('an imported model sharing a native ID does not acquire unrelated artwork o
   await expect.poll(() => native.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
 })
 
-test('an imported class without verified artwork remains selectable and saved offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
-  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message))
-  await importSyntheticLibrary(page)
+test('an imported class without verified artwork remains selectable and saved offline', { tag: MOBILE_TEST_TAG }, async ({ page, context, importedLibrarySeed }) => {
+  const errors: string[] = [...importedLibrarySeed.pageErrors]; page.on('pageerror', error => errors.push(error.message))
   await page.goto(syntheticReferencePath(1, 'Jobs', 26, 'Synthetic Class'))
   await expect(page.getByRole('heading', { name: 'Synthetic Class', exact: true })).toBeVisible()
   await expect(page.locator('[data-artwork-source="mod"]')).toHaveCount(0)
