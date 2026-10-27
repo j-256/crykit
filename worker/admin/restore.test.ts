@@ -174,10 +174,12 @@ const policy = JSON.stringify({
   maxStatements: 100,
   maxRowBytes: 1900000,
 })
-async function capture(c: ServiceContext) {
+// These fixtures share the admin clock and unmodified native bindings with the local Worker
+// Keep legacy projection overrides and staged restore contexts on their direct calls below
+async function capture(fixture: ServiceFixture) {
   const snapshot = randomId()
   for (let step = 0; step < 1500; step++) {
-    const receipt = await captureServiceSnapshot(c, snapshot)
+    const { receipt } = await fixture.captureStep(snapshot)
     if (receipt.state === 'complete') return snapshot
     if (receipt.state === 'waiting') throw new Error('Capture paused')
   }
@@ -242,7 +244,7 @@ it('restoreCannotResurrectRevokedAccess', async () => {
   const remove = adminCommand({ type: 'operators.remove' }, { kind: 'operator', id: removed })
   await admin.confirm(remove)
   expect((await admin.f.request('/api/admin/v1/access-session', { headers: admin.headers })).status).toBe(200)
-  const snapshot = await capture(c)
+  const snapshot = await capture(admin.f)
   const stop = adminCommand({ type: 'shares.revoke' }, { kind: 'share', id: shareId })
   await admin.confirm(stop)
   expect((await admin.post('actions', stop)).status).toBe(200)
@@ -512,7 +514,7 @@ it('qualifiesRestoredOwnerCeilingBeforeReopening', async () => {
   fixtures.push(f)
   const c = context(f)
   await initializeRevocationLedger(c)
-  const snapshot = await capture(c),
+  const snapshot = await capture(f),
     target = await createServiceFixture({
       now: adminTestNow,
       recoveryPolicy: policy,
@@ -566,7 +568,7 @@ it('rejectsAStagingTargetWithPreexistingDisposableAdminAuthority', async () => {
   fixtures.push(source)
   const c = context(source)
   await initializeRevocationLedger(c)
-  const snapshot = await capture(c)
+  const snapshot = await capture(source)
   const target = await createServiceFixture({
     now: adminTestNow,
     recoveryPolicy: policy,
