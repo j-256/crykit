@@ -12,7 +12,8 @@ import { screenshotTestLocalData, CHARACTER } from '../src/domain/skill-trees.te
 import { addTestDefinition, TEST_NOW } from '../src/domain/test-helpers'
 import type { LocalData } from '../src/domain/types'
 
-const DEFAULT_CATALOG = observedSkillMapCatalogFixture(CURRENT_CATALOG)
+// The helper supplies every observed map; unrelated catalog records are not inputs to these screenshot journeys
+const DEFAULT_CATALOG = observedSkillMapCatalogFixture({ ...CURRENT_CATALOG, entities: {}, claims: [] })
 
 async function dataPanel(page: Page) {
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
