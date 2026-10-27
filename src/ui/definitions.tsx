@@ -30,6 +30,7 @@ import { bundledModSearchCatalogs } from '../catalog/mod-search'
 import { isModSearchPreview, mergeModSearchCatalogs } from '../domain/mod-search'
 import { preservedNativeDefinition } from '../domain/preserved-native-definitions'
 import type { ImportPreview } from '../interchange/types'
+import { isImmutableCatalogSnapshot } from '../interchange/native'
 
 const DEFINITION_RESULT_PAGE_SIZE = 100
 const defaultOptionLabel = (option: DefinitionOption) => option.name
@@ -129,6 +130,12 @@ function recursivelyImmutable(value: unknown, visiting = new Set<object>()): boo
   return immutable
 }
 
+function immutableCatalogInput(snapshot: CatalogSnapshot): boolean {
+  // Admission already proved deep immutability for this exact object, including nested provenance
+  // Other frozen inputs still need the recursive check; a frozen shell does not establish it
+  return isImmutableCatalogSnapshot(snapshot) || recursivelyImmutable(snapshot)
+}
+
 function buildCatalogDefinitionOptions(catalogs: readonly CatalogSnapshot[]): readonly CatalogDefinitionOption[] {
   return catalogs.flatMap(snapshot => {
     const cached = immutableCatalogOptions.get(snapshot)
@@ -149,7 +156,7 @@ function buildCatalogDefinitionOptions(catalogs: readonly CatalogSnapshot[]): re
         preferred: true, record: entity,
       }
     })
-    if (recursivelyImmutable(snapshot)) immutableCatalogOptions.set(snapshot, options)
+    if (immutableCatalogInput(snapshot)) immutableCatalogOptions.set(snapshot, options)
     return options
   })
 }
@@ -231,8 +238,9 @@ function useCurrentDefinitionOptions(localData: LocalData, catalogs: readonly Ca
   if (sameOptions) { cached.current = undefined; return sameOptions }
   // These are the exact inputs used by stock, personal lineage, mod availability and preserved-pin projections
   // Notes, Build history and file edits do not change them; mutable or shallow-frozen inputs never qualify
-  const inputs = [localData.personalDefinitions, localData.gameSetups, localData.planningGameSetupRevisionId, selectedPlaythrough(localData)?.inventory, ...catalogs]
-  const immutable = inputs.every(input => recursivelyImmutable(input))
+  const localInputs = [localData.personalDefinitions, localData.gameSetups, localData.planningGameSetupRevisionId, selectedPlaythrough(localData)?.inventory]
+  const inputs = [...localInputs, ...catalogs]
+  const immutable = localInputs.every(input => recursivelyImmutable(input)) && catalogs.every(immutableCatalogInput)
   const prior = cached.current
   if (immutable && prior && inputs.length === prior.inputs.length && inputs.every((input, index) => input === prior.inputs[index])) return prior.options
   const options = buildDefinitionOptions(localData, catalogs)
