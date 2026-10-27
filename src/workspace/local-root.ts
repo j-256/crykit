@@ -1,4 +1,5 @@
 import { immutableHistory, immutableHistoryEndpoint, parseImmutableHistory } from './history-admission'
+import { WORKSPACE_STARTUP_PHASE } from '../diagnostics/workspace-startup'
 import { z } from 'zod'
 import type { CipherRef } from '../persistence/account-database'
 import { asId, asTimestamp } from '../domain/core'
@@ -259,14 +260,18 @@ export async function prepareLocalWorkspace(adapter: LocalStoreAdapter, operatio
   return { head, snapshot: snapshot(head, root, state, { adapter, lifetime, documents, index, allocations, bookkeeping, history, destination, journal, originals, journalIndex }) }
 }
 
-export async function admitLocalRoot(adapter: LocalStoreAdapter, head: LocalRecordRef, lifetime: CapturedLocalLifetime): Promise<AdmittedLocalSnapshot> {
+// Progress reports completed admission stages only; callers choose whether this is an observed startup
+// Keep identities and content out of labels, and retain every admission check regardless of observation
+export async function admitLocalRoot(adapter: LocalStoreAdapter, head: LocalRecordRef, lifetime: CapturedLocalLifetime, progress?: (phase: 'root-header' | 'root-indexes' | 'root-documents' | 'root-history' | 'root-closure') => void): Promise<AdmittedLocalSnapshot> {
   lifetime.check(); await lifetime.assertCurrent()
   const root = LocalWorkspaceRootV3Schema.parse(await jsonRead(adapter, head))
+  progress?.(WORKSPACE_STARTUP_PHASE.rootHeader)
   const read = (ref: LocalRecordRef) => { lifetime.check(); return jsonRead(adapter, ref) }
   const index = await readLocalIndex(root.contentIndex, read, entrySchema.parse)
   const allocations = await readLocalIndex(root.allocationIndex, read, allocationSchema.parse)
   const bookkeeping = await readLocalIndex(root.bookkeepingIndex, read, bookkeepingSchema.parse)
   const history = await readLocalIndex(root.historyIndex, read, historyEntrySchema.parse)
+  progress?.(WORKSPACE_STARTUP_PHASE.rootIndexes)
   const allocationMap = new Map(allocations.entries.map(entry => [entry.key, entry.documentId]))
   if (allocationMap.size !== allocations.entries.length || new Set(allocations.entries.map(entry => entry.documentId)).size !== allocations.entries.length) throw new Error('Duplicate local allocation')
   const documentReads = new Map<string, { claim: string; value: Promise<WorkspaceDocument> }>()
@@ -292,6 +297,7 @@ export async function admitLocalRoot(adapter: LocalStoreAdapter, head: LocalReco
     lifetime.check()
   }
   if (keys.size !== allocationMap.size) throw new Error('Missing allocated local record')
+  progress?.(WORKSPACE_STARTUP_PHASE.rootDocuments)
   const endpointCache = new Map<string, Promise<LocalData>>()
   // Semantic history and the operative journal can retain the same physical checkpoint
   // Share its complete admission only within this invocation, with an exact identity claim
@@ -329,6 +335,7 @@ export async function admitLocalRoot(adapter: LocalStoreAdapter, head: LocalReco
   const nativeHistory = await readHistory(history.entries)
   const journalIndex = root.journal && await readLocalIndex(root.journal.checkpoints, read, historyEntrySchema.parse)
   const journalHistory = journalIndex ? await readHistory(journalIndex.entries) : []
+  progress?.(WORKSPACE_STARTUP_PHASE.rootHistory)
   const changes = await readLocalIndex(root.operativeChanges, read, NativeLocalDataSchema.shape.changes.element.parse)
   const journal = root.journal ? { version: 1 as const, changes: changes!.entries as unknown as LocalData['changes'], checkpoints: journalHistory, undoable: root.journal.undoable } : undefined
   for (const value of nativeHistory) records.push({ version: 1, kind: 'history', key: privateRecordKey('history', value.id), value: value as unknown as JsonValue })
@@ -345,6 +352,7 @@ export async function admitLocalRoot(adapter: LocalStoreAdapter, head: LocalReco
   const destination = await readLocalIndex(root.destinationChanges, read, value => NativeLocalDataSchema.shape.changes.element.parse(value) as unknown as ChangeEntry)
   validateDestinationChanges(destination.entries, restored.planner.localData)
   await validateWorkspaceClosure(restored)
+  progress?.(WORKSPACE_STARTUP_PHASE.rootClosure)
   await lifetime.assertCurrent(); lifetime.check()
   const originals = await prepareLocalHistory(nativeHistory, async value => history.entries.find(entry => entry.id === value.id)!.ref)
   const admittedHistory = await prepareLocalHistory(journalHistory, async value => journalIndex!.entries.find(entry => entry.id === value.id)!.ref)

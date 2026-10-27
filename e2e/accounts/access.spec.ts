@@ -435,12 +435,24 @@ async function databaseDump(page: import('@playwright/test').Page, name: string)
 
 test('normalAppSignInOpensIndependentEncryptedWorkspaceAndLocksOnReload', async ({ page }, testInfo) => {
   const prefix = 'workspace-startup '
-  const startup: { navigationId: string; phase: string; elapsedMilliseconds: number }[] = []
+  const startup: { navigationId: string; phase: string; elapsedMilliseconds: number; observedMilliseconds: number; lastTimerDelayMilliseconds: number; visibility: string }[] = []
   page.on('console', message => { if (message.text().startsWith(prefix)) startup.push(JSON.parse(message.text().slice(prefix.length))) })
   await page.addInitScript(({ mark, prefix }) => {
     const navigationId = crypto.randomUUID()
+    const intervalMilliseconds = 100
+    let expected = performance.now() + intervalMilliseconds
+    let lastTimerDelayMilliseconds = 0
+    // Timer drift measures callback starvation, not CPU usage or the cause of a slow storage read
+    // Emit only phase observations and large delays so a stalled page needs no diagnostic evaluation
+    const observe = (phase: string, elapsedMilliseconds: number) => console.info(prefix + JSON.stringify({ navigationId, phase, elapsedMilliseconds, observedMilliseconds: performance.now(), lastTimerDelayMilliseconds, visibility: document.visibilityState }))
+    setInterval(() => {
+      const now = performance.now()
+      lastTimerDelayMilliseconds = Math.max(0, now - expected)
+      expected = now + intervalMilliseconds
+      if (lastTimerDelayMilliseconds >= intervalMilliseconds * 2) observe('scheduler-delay', now)
+    }, intervalMilliseconds)
     new PerformanceObserver(list => {
-      for (const entry of list.getEntries()) if (entry.name === mark) console.info(prefix + JSON.stringify({ navigationId, phase: (entry as PerformanceMark).detail.phase, elapsedMilliseconds: entry.startTime }))
+      for (const entry of list.getEntries()) if (entry.name === mark) observe((entry as PerformanceMark).detail.phase, entry.startTime)
     }).observe({ entryTypes: ['mark'] })
   }, { mark: WORKSPACE_STARTUP_MARK, prefix })
   try {

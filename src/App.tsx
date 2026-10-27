@@ -1,4 +1,5 @@
 import { editCopiedCheckpoint } from './interchange/public-checkpoint-edit'
+import { recordWorkspaceStartup, WORKSPACE_STARTUP_PHASE } from './diagnostics/workspace-startup'
 import type { SaveCopiedCheckpoint } from './ui/PublicSharedView'
 import { copyPublicSnapshot } from './interchange/public-share-enrichment'
 import type { PublicSnapshot } from './interchange/public-share-schema'
@@ -256,8 +257,10 @@ export default function App() {
 
   useEffect(() => {
     let live = true
+    recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.plannerLoading)
     void loadLocalData().then((loaded) => {
       if (!live) return
+      recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.plannerLoaded)
       loadedDataRef.current = loaded
       persistedRevisionRef.current = loaded.localData.revision
       setLoadedData(loaded)
@@ -265,6 +268,15 @@ export default function App() {
     }).catch((error: unknown) => { if (live) setLoadingError(formatAppError(error, 'Local records could not be opened.')) })
     return () => { live = false }
   }, [])
+
+  const startupCommitted = useRef(false)
+  useLayoutEffect(() => {
+    // Repository admission precedes planner loading and React's DOM commit; it is not UI readiness
+    // Only mark the initial view, without retaining data or instrumenting ordinary saves
+    if (!loadedData || startupCommitted.current) return
+    startupCommitted.current = true
+    recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.plannerCommitted)
+  }, [loadedData])
 
   const setFormDraftDirty = useCallback<DraftChangeHandler>((value, actions) => {
     formDirtyRef.current = value
