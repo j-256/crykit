@@ -32,20 +32,32 @@ export async function importSyntheticLibrary(page: Page, exclude = true, roots: 
 }
 
 type ImportedLibraryState = Awaited<ReturnType<BrowserContext['storageState']>>
+interface ImportedLibrarySeed {
+  readonly state: ImportedLibraryState
+  readonly pageErrors: readonly string[]
+  readonly externalRequests: readonly string[]
+}
 
-export const modLibraryTest = base.extend<{}, { importedLibraryState: ImportedLibraryState }>({
-  importedLibraryState: [async ({ browser }, use, workerInfo) => {
+export const modLibraryTest = base.extend<{}, { importedLibraryState: ImportedLibraryState; importedLibrarySeed: ImportedLibrarySeed }>({
+  importedLibrarySeed: [async ({ browser }, use, workerInfo) => {
     const started = Date.now()
     const { baseURL, viewport, isMobile, hasTouch, userAgent, deviceScaleFactor, colorScheme } = workerInfo.project.use
+    if (!baseURL) throw new Error('The synthetic library fixture requires a base URL')
+    const origin = new URL(baseURL).origin, pageErrors: string[] = [], externalRequests: string[] = []
     const context = await browser.newContext({ baseURL, viewport, isMobile, hasTouch, userAgent, deviceScaleFactor, colorScheme })
     let state: ImportedLibraryState
     try {
-      await importSyntheticLibrary(await context.newPage())
+      const page = await context.newPage()
+      // Consumers that observed import errors or network access must retain that evidence across seed reuse
+      page.on('pageerror', error => pageErrors.push(error.message))
+      page.on('request', request => { if (new URL(request.url()).origin !== origin) externalRequests.push(request.url()) })
+      await importSyntheticLibrary(page)
       state = await context.storageState({ indexedDB: true })
     } finally { await context.close() }
     console.info(JSON.stringify({ fixture: 'synthetic-mod-library', project: workerInfo.project.name, durationMs: Date.now() - started }))
-    await use(state)
+    await use({ state, pageErrors, externalRequests })
   }, { scope: 'worker' }],
+  importedLibraryState: [async ({ importedLibrarySeed }, use) => { await use(importedLibrarySeed.state) }, { scope: 'worker' }],
   // Each independent journey owns a fresh context and native database copy
   // The real UI prepares the seed inside each run; no prepared fixture state is reused between runs
   storageState: async ({ importedLibraryState }, use) => { await use(importedLibraryState) },

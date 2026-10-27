@@ -1,11 +1,9 @@
 import { readLocalData as storedData } from './local-data-helpers'
-import { importSyntheticLibrary } from './mod-library-fixtures'
+import { modLibraryTest as test } from './mod-library-fixtures'
 import { openStatBreakdown } from './calculation-presentation-helpers'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
-
-test.beforeEach(async ({ page }) => { await importSyntheticLibrary(page) })
 
 async function choose(page: Page, label: string, name: string, source = 'PC 1.6.9.0') {
   await page.getByRole('combobox', { name: label, exact: true }).click()

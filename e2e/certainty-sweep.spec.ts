@@ -1,4 +1,4 @@
-import { importSyntheticLibrary, syntheticReferencePath } from './mod-library-fixtures'
+import { modLibraryTest, syntheticReferencePath } from './mod-library-fixtures'
 import { referencePath, referenceUrlPattern } from './reference-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { expectOfflineReady } from './offline-helpers'
@@ -10,12 +10,11 @@ function fact(page: Page, label: string) {
   return page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: new RegExp(`^${label}$`) }) })
 }
 
-test('Imported mod definitions open directly with relevant known facts', async ({ page, baseURL }) => {
-  const errors: string[] = []
-  const external: string[] = []
+modLibraryTest('Imported mod definitions open directly with relevant known facts', async ({ page, baseURL, importedLibrarySeed }) => {
+  const errors: string[] = [...importedLibrarySeed.pageErrors]
+  const external: string[] = [...importedLibrarySeed.externalRequests]
   page.on('pageerror', error => errors.push(error.message))
   page.on('request', request => { if (new URL(request.url()).origin !== new URL(baseURL!).origin) external.push(request.url()) })
-  await importSyntheticLibrary(page)
   await page.goto(PUN_STORM_PATH)
   await expect(page.getByRole('heading', { name: 'Synthetic Technique', exact: true })).toBeVisible()
   await expect(page).toHaveURL(new RegExp(`${PUN_STORM_PATH.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
@@ -43,8 +42,7 @@ test('Imported mod definitions open directly with relevant known facts', async (
   await expect(page).toHaveURL(new RegExp(`${PUN_STORM_PATH.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`))
 })
 
-test('Imported mod trees stay named offline and do not imply personal learning', async ({ page, context }) => {
-  await importSyntheticLibrary(page)
+modLibraryTest('Imported mod trees stay named offline and do not imply personal learning', async ({ page, context }) => {
   await page.goto(FREELANCER_PATH)
   await expect(page.getByRole('heading', { name: 'Synthetic Class', exact: true })).toBeVisible()
   const learning = page.getByRole('region', { name: 'Class growth and learning', exact: true })
