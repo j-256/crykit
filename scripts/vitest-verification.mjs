@@ -43,7 +43,7 @@ export async function verifyVitest({ cwd = process.cwd(), env = process.env, run
   const attempt = mkdtempSync(join(output, 'vitest-lanes-')), resultFile = join(output, 'vitest-results.json')
   // Preserve diagnostics from preceding attempts, but never leave an old successful report at the live path
   if (existsSync(resultFile)) renameSync(resultFile, join(attempt, 'previous-results.json'))
-  const execute = (args, label) => run(args, { cwd, env, label, report })
+  const execute = (args, label, runEnv = env) => run(args, { cwd, env: runEnv, label, report })
   if (env.CI) {
     // Hosted runners retain their established single-process scheduling and configured worker limits
     await execute(['run', `--config=${configFile}`, '--reporter=default', '--reporter=json', `--outputFile=${resultFile}`], 'hosted suite')
@@ -63,7 +63,7 @@ export async function verifyVitest({ cwd = process.cwd(), env = process.env, run
     // Serial shards stop after a failed case without aborting another shard's active body
     if (lane.bail) args.push(`--bail=${lane.bail}`)
     args.push('--reporter=default', '--reporter=blob', `--outputFile.blob=${join(blobs, `${lane.name}.json`)}`)
-    await execute(args, `${lane.name} lane`)
+    await execute(args, `${lane.name} lane`, { ...env, CRYKIT_NATIVE_TEST_PARTITION: lane.shard ? 'balanced' : '' })
   })()))
   // A failure never cancels its sibling's active case or releases ownership before database cleanup
   // Merge failing reports too when available, retaining every result without authorizing publication

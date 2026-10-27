@@ -271,7 +271,7 @@ export default function App() {
 
   const startupCommitted = useRef(false)
   useLayoutEffect(() => {
-    // Repository admission precedes planner loading and React's DOM commit; it is not UI readiness
+    // Repository admission alone does not establish loaded planner data or React's DOM commit
     // Only mark the initial view, without retaining data or instrumenting ordinary saves
     if (!loadedData || startupCommitted.current) return
     startupCommitted.current = true

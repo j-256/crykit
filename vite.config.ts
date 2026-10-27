@@ -1,5 +1,6 @@
 import { configDefaults, defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import NativeTestSequencer from './scripts/native-test-sequencer.ts'
 import { offlinePlugin } from './scripts/offline-plugin.ts'
 import { ocrAssets } from './scripts/ocr-assets.ts'
 import { softwareLicenses } from './scripts/software-licenses.ts'
@@ -73,6 +74,8 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    // Only the prepared local native lanes request balanced placement; standalone and hosted scheduling stay independent
+    sequence: !process.env.CI && process.env.CRYKIT_NATIVE_TEST_PARTITION === 'balanced' ? { sequencer: NativeTestSequencer } : undefined,
     restoreMocks: true,
     maxWorkers: process.env.CI ? CI_TEST_WORKERS : LOCAL_TEST_WORKERS,
     // Bundle-only imports have no Vitest module graph edge, so source changes must trigger reruns

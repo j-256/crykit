@@ -26,8 +26,8 @@ function blob(args) {
 test('prepared Node and native lanes overlap and merging waits for both', async t => {
   const f = fixture(t), node = Promise.withResolvers(), native = Promise.withResolvers()
   const calls = []
-  const pending = verifyVitest({ ...f, run: async args => {
-    const name = lane(args); calls.push({ name, args }); blob(args)
+  const pending = verifyVitest({ ...f, run: async (args, options) => {
+    const name = lane(args); calls.push({ name, args, env: options.env }); blob(args)
     if (name === 'node') await node.promise
     if (name === 'native') await native.promise
   } })
@@ -36,6 +36,8 @@ test('prepared Node and native lanes overlap and merging waits for both', async 
     assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native'])
     assert.deepEqual(calls.slice(1).map(call => call.args.find(arg => arg.startsWith('--shard='))), ['--shard=1/2', '--shard=2/2'])
     assert.ok(calls.slice(1).every(call => call.args.includes('--maxWorkers=1') && call.args.includes('--bail=1')))
+    assert.ok(calls.slice(1).every(call => call.env.CRYKIT_NATIVE_TEST_PARTITION === 'balanced'))
+    assert.equal(calls[0].env.CRYKIT_NATIVE_TEST_PARTITION, '')
     assert.equal(calls[0].args.some(arg => arg.startsWith('--bail=')), false)
     assert.deepEqual([...new Set(calls.flatMap(call => call.args.filter(arg => arg.startsWith('--project=')).map(arg => arg.slice('--project='.length))))].sort(), [...PROJECTS].sort())
     node.resolve(); await turn()
@@ -85,6 +87,7 @@ test('hosted runs retain one unfiltered Vitest invocation', async t => {
   await verifyVitest({ ...f, env: { ...f.env, CI: '1' }, run: async args => calls.push(args) })
   assert.equal(calls.length, 1)
   assert.equal(calls[0].some(arg => arg.startsWith('--project=')), false)
+  assert.equal(calls[0].some(arg => arg.startsWith('--sequence.sequencer=')), false)
 })
 
 function realFixture(t, bodies) {
@@ -92,7 +95,7 @@ function realFixture(t, bodies) {
   delete f.readProjects
   writeFileSync(join(f.cwd, 'package.json'), JSON.stringify({ type: 'module' }))
   // Tiny runner fixtures deliberately leave some shards empty; the repository gate keeps its no-tests guard
-  writeFileSync(join(f.cwd, 'vite.config.ts'), `export default { test: { maxWorkers: 1, passWithNoTests: true, projects: ${JSON.stringify(PROJECTS.map(name => ({ test: { name, include: name === 'unit' ? ['node.test.mjs'] : name === 'worker' ? ['native*.test.mjs'] : [] } })))} } }`)
+  writeFileSync(join(f.cwd, 'vite.config.ts'), `import NativeTestSequencer from ${JSON.stringify(scriptPath('native-test-sequencer.ts'))}; export default { test: { sequence: process.env.CRYKIT_NATIVE_TEST_PARTITION === 'balanced' ? { sequencer: NativeTestSequencer } : undefined, maxWorkers: 1, passWithNoTests: true, projects: ${JSON.stringify(PROJECTS.map(name => ({ test: { name, include: name === 'unit' ? ['node.test.mjs'] : name === 'worker' ? ['native*.test.mjs'] : [] } })))} } }`)
   const entry = pathToFileURL(scriptPath('../node_modules/vitest/dist/index.js')).href
   for (const [name, body] of Object.entries(bodies)) writeFileSync(join(f.cwd, `${name}.test.mjs`), `import { test, expect, afterEach } from ${JSON.stringify(entry)};\n${body}\n`)
   return f
