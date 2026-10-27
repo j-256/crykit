@@ -1,8 +1,31 @@
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
+import type { D1Database } from '@cloudflare/workers-types/experimental'
+import { requestDatabase } from './database-request'
 import { createServiceFixture, type ServiceFixture } from './service-fixture'
 
 const fixtures: ServiceFixture[] = []
 afterEach(async () => { await Promise.all(fixtures.splice(0).map(fixture => fixture.dispose())) })
+
+it('constructs queries without reflecting on the remote binding and delegates native sessions', async () => {
+  const reflect = vi.fn(() => undefined)
+  const session = {}
+  const withSession = vi.fn(function (this: unknown) { expect(this).toBe(binding); return session })
+  // The native bridge performs a synchronous request even for an absent own descriptor
+  const binding = new Proxy({ withSession }, { getOwnPropertyDescriptor: reflect }) as unknown as D1Database
+  const send = vi.fn(async () => Response.json({ ok: true, value: [] }))
+  const database = requestDatabase(binding, send)
+  const statement = database.prepare('SELECT ?').bind(7)
+  const batch = database.batch
+  const exec = database.exec
+  expect(reflect).not.toHaveBeenCalled()
+  expect(send).not.toHaveBeenCalled()
+  expect(exec).toBeTypeOf('function')
+  await batch([statement])
+  expect(send).toHaveBeenCalledExactlyOnceWith(JSON.stringify({ operation: 'batch', statements: [{ sql: 'SELECT ?', values: [7] }] }))
+  expect(database.withSession()).toBe(session)
+  expect(withSession).toHaveBeenCalledExactlyOnceWith()
+  expect(reflect).not.toHaveBeenCalled()
+})
 
 it.each(['binding', 'request'] as const)('retains native D1 results, transaction rollback and independent storage through %s transport', async databaseTransport => {
   const fixture = await createServiceFixture({ databaseTransport })

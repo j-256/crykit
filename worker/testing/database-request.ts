@@ -70,7 +70,9 @@ export function requestDatabase(binding: D1Database, send: (body: string) => Pro
     statements.set(result, statement)
     return result
   }
-  return new Proxy(binding, { get(target, key) {
+  // A remote proxy target triggers synchronous descriptor requests during JS invariant checks
+  // Use a local target so constructing a query stays local; only execution and native fallback cross
+  return new Proxy({} as D1Database, { get(_target, key) {
     if (key === 'prepare') return prepare
     if (key === 'batch') return (batch: D1PreparedStatement[]) => execute({ operation: 'batch', statements: batch.map(statement => {
       const value = statements.get(statement)
@@ -79,7 +81,7 @@ export function requestDatabase(binding: D1Database, send: (body: string) => Pro
     }) })
     if (key === 'exec') return (sql: string) => execute({ operation: 'exec', sql })
     // Session/bookmark and legacy dump API proofs retain the original native binding transport
-    const value = Reflect.get(target, key)
-    return typeof value === 'function' ? value.bind(target) : value
+    const value = Reflect.get(binding, key)
+    return typeof value === 'function' ? value.bind(binding) : value
   } })
 }
