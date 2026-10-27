@@ -4,6 +4,52 @@ import { installSaveWorkCounters } from './local-save-work-counters'
 const SAVE_CEILING_MS = 1000
 const AFTER_CEILING_MS = SAVE_CEILING_MS + 100
 
+test('save diagnostics preserve native transaction completion and rollback without recording private identifiers', async ({ page }) => {
+  await installSaveWorkCounters(page)
+  await page.route('**/save-counter-proof', route => route.fulfill({ contentType: 'text/html', body: '<button>Save</button>' }))
+  await page.goto('/save-counter-proof')
+  await page.evaluate(() => window.armSaveWork('click', 'button'))
+  await page.getByRole('button', { name: 'Save' }).click()
+  const proof = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('private-diagnostic-database')
+      request.onupgradeneeded = () => request.result.createObjectStore('records')
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    const observation = { current: true, pending: true, phase: 'staging', dirty: true, hydrating: false, acknowledged: false, editable: true, ready: false, visibility: document.visibilityState }
+    window.recordSaveIdleObservation(observation)
+    for (const abort of [false, true]) await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction('records', 'readwrite')
+      transaction.oncomplete = () => abort ? reject(new Error('Aborted write committed')) : resolve()
+      transaction.onabort = () => abort ? resolve() : reject(transaction.error)
+      transaction.objectStore('records').put(abort ? 'private-aborted-value' : 'private-committed-value', 'private-record-key')
+      if (abort) transaction.abort()
+    })
+    window.recordSaveIdleObservation(observation)
+    const value = await new Promise<unknown>((resolve, reject) => {
+      const transaction = db.transaction('records'), request = transaction.objectStore('records').get('private-record-key')
+      transaction.oncomplete = () => resolve(request.result)
+      transaction.onabort = () => reject(transaction.error)
+    })
+    window.recordSaveIdleObservation({ ...observation, phase: 'idle', pending: false, dirty: false, acknowledged: true, ready: true })
+    db.close()
+    return { value, work: window.finishSaveWork() }
+  })
+  expect(proof.value).toBe('private-committed-value')
+  expect(proof.work.transactions).toEqual({ readwrite: 2, readonly: 1 })
+  expect(proof.work.transactionTimings.map(timing => timing.outcome)).toEqual(['complete', 'abort', 'complete'])
+  for (const timing of proof.work.transactionTimings) {
+    expect(timing.stores).toEqual(['records'])
+    expect(timing.startedMs).toBeGreaterThanOrEqual(0)
+    expect(timing.endedMs).toBeGreaterThanOrEqual(timing.startedMs)
+    expect(timing.endedMs).toBeLessThanOrEqual(proof.work.elapsedMs)
+  }
+  expect(proof.work.idlePolling?.samples).toBe(3)
+  expect(proof.work.idlePolling?.observations.map(observation => observation.ready)).toEqual([false, true])
+  expect(JSON.stringify(proof.work)).not.toContain('private-')
+})
+
 for (const fieldTag of ['textarea', 'input'] as const) test.describe(fieldTag, () => {
   test.beforeEach(async ({ page }) => {
     await installSaveWorkCounters(page)

@@ -47,6 +47,9 @@ async function idle(page: Page, kind: 'save' | 'editor', savedLabel?: string, ca
     const editable = !captureReadiness || !!field && !field.disabled && !field.readOnly && !!fieldBounds?.width && !!fieldBounds?.height && getComputedStyle(field).visibility === 'visible'
     const ready = editable && acknowledged && state.current && !state.pending && state[`${kind}Phase`] === 'idle' && !state[`${kind}Dirty`] && !state[`${kind}Hydrating`]
     if (ready && captureReadiness && window.saveWork) window.saveWork.readyMs ??= performance.now() - window.saveWork.started
+    // Observe the existing predicate without another polling timer or a changed deadline
+    // A post-timeout idle snapshot cannot establish when the UI became ready
+    window.recordSaveIdleObservation({ current: state.current, pending: state.pending, phase: state[`${kind}Phase`], dirty: state[`${kind}Dirty`], hydrating: state[`${kind}Hydrating`], acknowledged, editable, ready, visibility: document.visibilityState })
     return ready
   }, { kind, savedLabel, captureReadiness }, { timeout: SAVE_CEILING_MS })
 }
