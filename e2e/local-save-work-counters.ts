@@ -1,5 +1,16 @@
 import type { Page } from '@playwright/test'
 
+interface SaveIdleObservation {
+  current: boolean
+  pending: boolean
+  phase: string
+  dirty: boolean
+  hydrating: boolean
+  acknowledged: boolean
+  editable: boolean
+  ready: boolean
+  visibility: DocumentVisibilityState
+}
 export interface SaveWork {
   started: number
   // Browser-observed acknowledgement; editor application time also includes trusted next-key handling and paint
@@ -9,6 +20,8 @@ export interface SaveWork {
   nextInputResponseMs?: number
   nextInputReady?: boolean
   transactions: Record<string, number>
+  transactionTimings: { startedMs: number; endedMs?: number; mode: string; stores: string[]; outcome?: 'complete' | 'abort' }[]
+  idlePolling?: { firstMs: number; lastMs: number; maximumGapMs: number; samples: number; observations: (SaveIdleObservation & { atMs: number })[] }
   requests: Record<string, number>
   rowsRead: Record<string, number>
   rowsWritten: Record<string, number>
@@ -21,6 +34,7 @@ export interface SaveWork {
   encrypted: number
   decrypted: number
   longTasks: number[]
+  longTaskTimings: { startedMs: number; durationMs: number }[]
   activeMappings: string[]
 }
 interface NextInputCapture { selector: string; value: string; budgetMs: number; enabledSelector?: string }
@@ -29,6 +43,7 @@ declare global {
   interface Window {
     mapperEvents: { at: number; direction: 'sent' | 'received'; kind?: string; id?: string; pending?: boolean; status?: string }[]
     saveWork?: SaveWork
+    recordSaveIdleObservation(observation: SaveIdleObservation): void
     armSaveWork(event: 'click' | 'input', selector: string, nextInput?: NextInputCapture): void
     armEditorNextInputWork(input: EditorNextInputCapture): void
     finishSaveWork(): SaveWork & { elapsedMs: number }
@@ -61,7 +76,18 @@ export async function installSaveWorkCounters(page: Page) {
     IDBDatabase.prototype.transaction = function (...args: Parameters<typeof transaction>) {
       const counters = window.saveWork, mode = args[1] ?? 'readonly'
       if (counters) counters.transactions[mode] = (counters.transactions[mode] ?? 0) + 1
-      return transaction.apply(this, args)
+      const result = transaction.apply(this, args)
+      if (counters) {
+        // Completion timestamps include callback scheduling; they are not a disk-only duration
+        // Retain only store names and outcomes, never database names, keys or record bodies
+        const timing: SaveWork['transactionTimings'][number] = { startedMs: performance.now() - counters.started, mode, stores: Array.from(result.objectStoreNames) }
+        counters.transactionTimings.push(timing)
+        for (const outcome of ['complete', 'abort'] as const) result.addEventListener(outcome, () => {
+          timing.endedMs = performance.now() - counters.started
+          timing.outcome = outcome
+        }, { once: true })
+      }
+      return result
     }
     for (const method of ['get', 'getAll', 'openCursor', 'getAllKeys', 'count'] as const) {
       const original = IDBObjectStore.prototype[method]
@@ -99,7 +125,24 @@ export async function installSaveWorkCounters(page: Page) {
     const encode = TextEncoder.prototype.encode, decode = TextDecoder.prototype.decode
     TextEncoder.prototype.encode = function (...args) { const result = encode.apply(this, args); if (window.saveWork) window.saveWork.encoded += result.byteLength; return result }
     TextDecoder.prototype.decode = function (...args) { const result = decode.apply(this, args); if (window.saveWork) window.saveWork.decoded += args[0]?.byteLength ?? 0; return result }
-    new PerformanceObserver(list => { if (window.saveWork) for (const entry of list.getEntries()) if (entry.startTime >= window.saveWork.started) window.saveWork.longTasks.push(entry.duration) }).observe({ type: 'longtask', buffered: true })
+    new PerformanceObserver(list => {
+      const work = window.saveWork
+      if (work) for (const entry of list.getEntries()) if (entry.startTime >= work.started) {
+        work.longTasks.push(entry.duration)
+        work.longTaskTimings.push({ startedMs: entry.startTime - work.started, durationMs: entry.duration })
+      }
+    }).observe({ type: 'longtask', buffered: true })
+    window.recordSaveIdleObservation = observation => {
+      const work = window.saveWork
+      if (!work) return
+      const atMs = performance.now() - work.started
+      const polling = work.idlePolling ??= { firstMs: atMs, lastMs: atMs, maximumGapMs: 0, samples: 0, observations: [] }
+      polling.maximumGapMs = Math.max(polling.maximumGapMs, atMs - polling.lastMs)
+      polling.lastMs = atMs
+      polling.samples++
+      const previous = polling.observations.at(-1)
+      if (!previous || Object.entries(observation).some(([key, value]) => previous[key as keyof SaveIdleObservation] !== value)) polling.observations.push({ atMs, ...observation })
+    }
     let nextInputWork: Promise<SaveWork & { elapsedMs: number }> | undefined
     let cancelCapture: (() => void) | undefined
     let finishMissingEditorInput: (() => void) | undefined
@@ -114,7 +157,7 @@ export async function installSaveWorkCounters(page: Page) {
         controller.abort()
         const replies = new Set(window.mapperEvents.filter(event => event.direction === 'received').map(event => event.id))
         const activeMappings = window.mapperEvents.filter(event => event.direction === 'sent' && event.kind === 'map' && event.id && !replies.has(event.id)).map(event => event.id!)
-        window.saveWork = { started: performance.now(), transactions: {}, requests: {}, rowsRead: {}, rowsWritten: {}, recordsRead: {}, recordsWritten: {}, payloadRead: 0, payloadWritten: 0, encoded: 0, decoded: 0, encrypted: 0, decrypted: 0, longTasks: [], activeMappings }
+        window.saveWork = { started: performance.now(), transactions: {}, transactionTimings: [], requests: {}, rowsRead: {}, rowsWritten: {}, recordsRead: {}, recordsWritten: {}, payloadRead: 0, payloadWritten: 0, encoded: 0, decoded: 0, encrypted: 0, decrypted: 0, longTasks: [], longTaskTimings: [], activeMappings }
         if (nextInput) {
           const work = window.saveWork, capture = new AbortController()
           nextInputWork = new Promise(resolve => {
