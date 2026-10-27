@@ -94,7 +94,7 @@ export async function openGuestManagedRepository(database: GuestCoordinatorDatab
     await monitor.compare(profile.signal)
     recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.guestCompared)
     unsubscribe = subscribeLocalData(() => monitor.notifyStorageChange())
-    const initial = await admitLocalRoot(store.adapter, manifest.root, lifetime)
+    const initial = await admitLocalRoot(store.adapter, manifest.root, lifetime, recordWorkspaceStartup)
     recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.root)
     // Admission still validates the complete archive; bounded reads authenticate both digests in one native window
     const evidence = await readLocalEvidence(store.adapter, initial.root.inheritedEvidence, async () => profile.assertCurrent(), (ref, limit, digest) => store.readBounded(ref, limit, manifest, profile.assertCurrent, digest))

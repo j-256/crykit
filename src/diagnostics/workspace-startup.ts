@@ -4,6 +4,8 @@ export const WORKSPACE_STARTUP_PHASE = Object.freeze({
   sodiumImported: 'sodium-imported', sodiumReady: 'sodium-ready',
   managed: 'managed-repository', root: 'admitted-root', evidence: 'admitted-evidence',
   guest: 'guest-preparation', guestPrepared: 'guest-prepared', guestMonitor: 'guest-retained-comparison', guestCompared: 'guest-retained-compared',
+  rootHeader: 'root-header', rootIndexes: 'root-indexes', rootDocuments: 'root-documents', rootHistory: 'root-history', rootClosure: 'root-closure',
+  plannerLoading: 'planner-loading', plannerLoaded: 'planner-loaded', plannerCommitted: 'planner-committed',
   repository: 'repository', failed: 'failed',
 } as const)
 type StartupPhase = typeof WORKSPACE_STARTUP_PHASE[keyof typeof WORKSPACE_STARTUP_PHASE]
