@@ -1,4 +1,5 @@
-import { expect, it, vi } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
+import { invalidateProfile } from '../account/profile'
 import { appendFileSync } from 'node:fs'
 import { conflictService } from './sync-conflict-fixture'
 import { inspectWorkspaceClosure } from '../workspace/closure'
@@ -8,7 +9,7 @@ import { openRemoteProjection } from '../account/sync/projection'
 import { blobIdentity, readBlob } from '../workspace/blobs'
 import { directoryShard } from '../workspace/directory'
 import { editorClosureFixture } from '../workspace/test-helpers'
-it.each(['inspection', 'resolution'] as const)('actualDifferentAllocationsBecomeAClosedMappingConflictInsteadOfBlockingTheWorkspace %s', async scenario => {
+async function* mappingConflictJourney() {
   if (process.env.CRYKIT_SYNC_PROOF_TIMINGS) {
     const mappingAdvance = await import('../account/sync/mapping-advance')
     const originalAdvance = mappingAdvance.assertResolvedMappingAdvance
@@ -96,7 +97,7 @@ it.each(['inspection', 'resolution'] as const)('actualDifferentAllocationsBecome
     expect(service.commits.some(command => !command.heads.length && command.revisions.some(revision => revision.revisionId === loser.revisionId))).toBe(true)
     expect(service.commits.some(command => command.heads.some(head => head.revisionId === loser.revisionId))).toBe(false)
     expect(projection.directories.get(shard)!.allocations.some(entry => entry.key === conflict.unit.privateKey)).toBe(false)
-    if (scenario === 'inspection') return
+    yield
     const { assertUnchangedMappingContinuation } = await import('../account/sync/mapping-continuation')
     const { stagePublicationDirectory } = await import('../account/sync/publication')
     const { accountLocalId } = await import('../workspace/account-cache')
@@ -151,4 +152,32 @@ it.each(['inspection', 'resolution'] as const)('actualDifferentAllocationsBecome
     expect((await (await a.open()).readWorkspace()).editorDocuments.find(file => file.id === fixture.file.id)!.filename).toBe('Later ordinary edit.json')
     expect((await (await a.open()).readWorkspace()).conflicts[0].disposition.kind).toBe('resolved')
   } finally { vi.restoreAllMocks(); await service.dispose() }
-}, 150_000)
+}
+
+const MAPPING_STEP_TIMEOUT_MS = 150_000
+describe('actualDifferentAllocationsBecomeAClosedMappingConflictInsteadOfBlockingTheWorkspace', { concurrent: false }, () => {
+  const journey = mappingConflictJourney()
+  let pending: ReturnType<typeof journey.next> | undefined
+  let inspected = false
+  // Resolution continues the independently admitted comparison instead of recreating the same encrypted history
+  // Drain a timed-out step before disposal so no pending database command can race cleanup
+  afterAll(async () => {
+    if (pending) invalidateProfile()
+    await pending?.catch(() => {})
+    await journey.return(undefined)
+  }, MAPPING_STEP_TIMEOUT_MS)
+  it('inspection', async () => {
+    pending = journey.next()
+    const result = await pending
+    pending = undefined
+    expect(result.done).toBe(false)
+    inspected = true
+  }, MAPPING_STEP_TIMEOUT_MS)
+  it('resolution', async () => {
+    expect(inspected).toBe(true)
+    pending = journey.next()
+    const result = await pending
+    pending = undefined
+    expect(result.done).toBe(true)
+  }, MAPPING_STEP_TIMEOUT_MS)
+})
