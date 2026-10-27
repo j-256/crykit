@@ -259,7 +259,24 @@ it('revivesExpiredAcceptedRegistrationWithExactOriginalCiphertextAndANewRegistra
   expect(original.receipt!.mutationId).toBe(input.mutationId)
 })
 
-it('publishesQueuedBulkIntentsAndPostTargetEditsThroughExactOwnLineageBridges', async () => {
+it('publishesQueuedBulkIntentsAndPostTargetEditsThroughExactOwnLineageBridges', async ({ task, signal, onTestFinished }) => {
+  const started = performance.now(), initialCpu = process.cpuUsage()
+  const requests = { started: 0, completed: 0, pending: 0, totalMs: 0, maximumMs: 0 }
+  const phases: { phase: string; elapsedMs: number; processCpuMs: number; requests: typeof requests }[] = []
+  // Snapshot before cleanup so a timeout retains its active stage without recording paths or payloads
+  // CPU covers this test process; overlapping request durations are not elapsed time or disk latency
+  const mark = (phase: string) => {
+    if (signal.aborted) return
+    const cpu = process.cpuUsage(initialCpu)
+    phases.push({ phase, elapsedMs: performance.now() - started, processCpuMs: (cpu.user + cpu.system) / 1000, requests: { ...requests } })
+  }
+  const retain = () => {
+    const cpu = process.cpuUsage(initialCpu)
+    Object.assign(task.meta, { queuedBulkTiming: { phases: [...phases], elapsedMs: performance.now() - started, processCpuMs: (cpu.user + cpu.system) / 1000, requests: { ...requests }, aborted: signal.aborted } })
+  }
+  signal.addEventListener('abort', retain, { once: true })
+  onTestFinished(() => { if (!signal.aborted) retain(); signal.removeEventListener('abort', retain) })
+  mark('fixture')
   const { createBlankLocalData } = await import('../domain/local-data')
   const { createPersonalDefinition } = await import('../domain')
   const { openAccountJson } = await import('../workspace/account-cache')
@@ -277,7 +294,13 @@ it('publishesQueuedBulkIntentsAndPostTargetEditsThroughExactOwnLineageBridges', 
   vi.stubGlobal('fetch', async (path: string, init: RequestInit) => {
     if (path.endsWith('/commits')) { const value = JSON.parse(init.body as string) as import('../account/protocol').CommitRequest; if (value.heads.length) finals.push(value) }
     const headers = new Headers(init.headers); headers.set('cookie', session.headers.cookie); headers.set('origin', 'http://127.0.0.1')
-    return service!.request(path, { ...init, headers })
+    const requestStarted = performance.now()
+    requests.started++; requests.pending++
+    try { return await service!.request(path, { ...init, headers }) }
+    finally {
+      const elapsed = performance.now() - requestStarted
+      requests.completed++; requests.pending--; requests.totalMs += elapsed; requests.maximumMs = Math.max(requests.maximumMs, elapsed)
+    }
   })
   const settle = async () => {
     await prepareManagedSync(database!, token)
@@ -287,22 +310,28 @@ it('publishesQueuedBulkIntentsAndPostTargetEditsThroughExactOwnLineageBridges', 
     }
     throw new Error('Queued operations did not settle')
   }
+  mark('initial-publication')
   await settle()
   // Initial publication completes before the two authored replacements are counted
   const firstBulkFinal = finals.length
+  mark('bulk-replacements')
   for (const label of ['First bulk', 'Second bulk']) {
     const before = await repository.load()
     const next = createPersonalDefinition(before.localData, { kind: 'item', name: label })
     const preview = await repository.previewImport(await repository.exportPlannerBackup(next), 'replacement.zip')
     await repository.commitImport(preview, { mode: 'replace', expectedRevision: before.revision })
   }
+  mark('post-target-edit')
   const beforeLast = await repository.load()
   await repository.save({ ...beforeLast.localData, modSetup: { version: 1, state: 'skipped' } }, beforeLast.revision)
+  mark('mapping')
   await prepareManagedSync(database, token)
   const originals = await Promise.all((await database.outbox.toArray()).map(async row => ({ row, value: await openAccountJson(database!, token, row.ref, MappedWorkspaceIntentSchema) })))
   expect(originals).toHaveLength(3)
   const currentBefore = await repository.load()
+  mark('queued-publication')
   await settle()
+  mark('exact-lineage-assertions')
   expect(await database.outbox.count()).toBe(0)
   expect((await repository.load()).localData).toEqual(currentBefore.localData)
   for (const original of originals) expect(await openAccountJson(database, token, original.row.ref, MappedWorkspaceIntentSchema)).toEqual(original.value)
@@ -310,6 +339,7 @@ it('publishesQueuedBulkIntentsAndPostTargetEditsThroughExactOwnLineageBridges', 
   expect(unique.filter(value => value.expectedPublicationEpoch !== undefined)).toHaveLength(2)
   expect(unique.at(-1)).not.toHaveProperty('expectedPublicationEpoch')
   expect(Object.keys((await repository.load()).localData.personalDefinitions)).toHaveLength(2)
+  mark('complete')
 })
 
 it('freshStoragePublishesAfterSameShardChangesWithoutHistoricalPayloadClosure', async () => {
