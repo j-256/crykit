@@ -11,6 +11,18 @@ interface SaveIdleObservation {
   ready: boolean
   visibility: DocumentVisibilityState
 }
+interface SaveTransactionTiming {
+  startedMs: number
+  endedMs?: number
+  mode: string
+  stores: string[]
+  outcome?: 'complete' | 'abort'
+  requestCount: number
+  requestSuccessCount: number
+  firstRequestMs?: number
+  firstRequestSuccessMs?: number
+  lastRequestSuccessMs?: number
+}
 export interface SaveWork {
   started: number
   // Browser-observed acknowledgement; editor application time also includes trusted next-key handling and paint
@@ -20,7 +32,7 @@ export interface SaveWork {
   nextInputResponseMs?: number
   nextInputReady?: boolean
   transactions: Record<string, number>
-  transactionTimings: { startedMs: number; endedMs?: number; mode: string; stores: string[]; outcome?: 'complete' | 'abort' }[]
+  transactionTimings: SaveTransactionTiming[]
   idlePolling?: { firstMs: number; lastMs: number; maximumGapMs: number; samples: number; observations: (SaveIdleObservation & { atMs: number })[] }
   requests: Record<string, number>
   rowsRead: Record<string, number>
@@ -72,16 +84,31 @@ export async function installSaveWorkCounters(page: Page) {
         else super.postMessage(message, transfer)
       }
     }
+    const transactionProgress = new WeakMap<IDBTransaction, { started: number; timing: SaveTransactionTiming }>()
+    const observeRequest = (request: IDBRequest) => {
+      const progress = request.transaction && transactionProgress.get(request.transaction)
+      if (!progress) return
+      progress.timing.requestCount++
+      progress.timing.firstRequestMs ??= performance.now() - progress.started
+      request.addEventListener('success', () => {
+        const atMs = performance.now() - progress.started
+        progress.timing.firstRequestSuccessMs ??= atMs
+        progress.timing.lastRequestSuccessMs = atMs
+        progress.timing.requestSuccessCount++
+      })
+    }
     const transaction = IDBDatabase.prototype.transaction
     IDBDatabase.prototype.transaction = function (...args: Parameters<typeof transaction>) {
       const counters = window.saveWork, mode = args[1] ?? 'readonly'
       if (counters) counters.transactions[mode] = (counters.transactions[mode] ?? 0) + 1
       const result = transaction.apply(this, args)
       if (counters) {
-        // Completion timestamps include callback scheduling; they are not a disk-only duration
+        // Request and completion timestamps include callback scheduling, not just native storage work
+        // Aggregate progress separates pre-request and post-request gaps without retaining keys or values
         // Retain only store names and outcomes, never database names, keys or record bodies
-        const timing: SaveWork['transactionTimings'][number] = { startedMs: performance.now() - counters.started, mode, stores: Array.from(result.objectStoreNames) }
+        const timing: SaveTransactionTiming = { startedMs: performance.now() - counters.started, mode, stores: Array.from(result.objectStoreNames), requestCount: 0, requestSuccessCount: 0 }
         counters.transactionTimings.push(timing)
+        transactionProgress.set(result, { started: counters.started, timing })
         for (const outcome of ['complete', 'abort'] as const) result.addEventListener(outcome, () => {
           timing.endedMs = performance.now() - counters.started
           timing.outcome = outcome
@@ -89,11 +116,12 @@ export async function installSaveWorkCounters(page: Page) {
       }
       return result
     }
-    for (const method of ['get', 'getAll', 'openCursor', 'getAllKeys', 'count'] as const) {
+    for (const method of ['get', 'getAll', 'getKey', 'openCursor', 'openKeyCursor', 'getAllKeys', 'count'] as const) {
       const original = IDBObjectStore.prototype[method]
       Object.defineProperty(IDBObjectStore.prototype, method, { configurable: true, writable: true, value: function (this: IDBObjectStore, ...args: unknown[]) {
         const counters = window.saveWork, name = this.name
         const request = Reflect.apply(original, this, args) as IDBRequest
+        observeRequest(request)
         if (counters) {
           counters.requests[name] = (counters.requests[name] ?? 0) + 1
           request.addEventListener('success', () => {
@@ -119,8 +147,21 @@ export async function installSaveWorkCounters(page: Page) {
           const identity = args[0]?.payloadId ?? args[0]?.revisionId
           if (typeof identity === 'string') (counters.recordsWritten[this.name] ??= []).push(identity)
         }
-        return original.apply(this, args)
+        const request = original.apply(this, args)
+        observeRequest(request)
+        return request
       }
+    }
+    for (const [prototype, methods] of [
+      [IDBIndex.prototype, ['get', 'getAll', 'getKey', 'getAllKeys', 'openCursor', 'openKeyCursor', 'count']],
+      [IDBObjectStore.prototype, ['delete', 'clear']],
+    ] as const) for (const method of methods) {
+      const original = Object.getOwnPropertyDescriptor(prototype, method)!.value
+      Object.defineProperty(prototype, method, { configurable: true, writable: true, value: function (...args: unknown[]) {
+        const request = Reflect.apply(original, this, args) as IDBRequest
+        observeRequest(request)
+        return request
+      } })
     }
     const encode = TextEncoder.prototype.encode, decode = TextDecoder.prototype.decode
     TextEncoder.prototype.encode = function (...args) { const result = encode.apply(this, args); if (window.saveWork) window.saveWork.encoded += result.byteLength; return result }
