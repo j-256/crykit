@@ -239,7 +239,7 @@ it('resendsWithBoundedAttemptsAndAtomicallyRevokesOldCapabilityLineages', async 
 })
 
 it('loadsProductionAuthenticationThroughStaticWasmWithoutEmailReadiness', async () => {
-  const f = await createServiceFixture(); fixtures.push(f)
+  const f = await createServiceFixture({ runtimeProbes: true }); fixtures.push(f)
   await signup(f); await verify(f)
   const start = await opaque.startLogin(password)
   const response = await f.request('/__accounts/production/auth/login/start', { method: 'POST', headers: { origin: 'http://127.0.0.1', 'content-type': 'application/json' }, body: JSON.stringify({ email: 'person@example.org', role: 'password', startLoginRequest: start.request }) })
