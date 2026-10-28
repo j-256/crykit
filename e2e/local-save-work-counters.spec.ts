@@ -13,7 +13,7 @@ test('save diagnostics preserve native transaction completion and rollback witho
   const proof = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('private-diagnostic-database')
-      request.onupgradeneeded = () => request.result.createObjectStore('records')
+      request.onupgradeneeded = () => request.result.createObjectStore('records').createIndex('private-index', 'marker')
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
@@ -23,13 +23,15 @@ test('save diagnostics preserve native transaction completion and rollback witho
       const transaction = db.transaction('records', 'readwrite')
       transaction.oncomplete = () => abort ? reject(new Error('Aborted write committed')) : resolve()
       transaction.onabort = () => abort ? resolve() : reject(transaction.error)
-      transaction.objectStore('records').put(abort ? 'private-aborted-value' : 'private-committed-value', 'private-record-key')
-      if (abort) transaction.abort()
+      const request = transaction.objectStore('records').put(abort ? 'private-aborted-value' : 'private-initial-value', 'private-record-key')
+      if (!abort) request.onsuccess = () => transaction.objectStore('records').put('private-committed-value', 'private-record-key')
+      if (abort) { transaction.objectStore('records').clear(); transaction.abort() }
     })
     window.recordSaveIdleObservation(observation)
     const value = await new Promise<unknown>((resolve, reject) => {
-      const transaction = db.transaction('records'), request = transaction.objectStore('records').get('private-record-key')
-      transaction.oncomplete = () => resolve(request.result)
+      const transaction = db.transaction('records'), store = transaction.objectStore('records')
+      const request = store.get('private-record-key'), indexed = store.index('private-index').count()
+      transaction.oncomplete = () => indexed.result === 0 ? resolve(request.result) : reject(new Error('Unexpected indexed record'))
       transaction.onabort = () => reject(transaction.error)
     })
     window.recordSaveIdleObservation({ ...observation, phase: 'idle', pending: false, dirty: false, acknowledged: true, ready: true })
@@ -39,11 +41,19 @@ test('save diagnostics preserve native transaction completion and rollback witho
   expect(proof.value).toBe('private-committed-value')
   expect(proof.work.transactions).toEqual({ readwrite: 2, readonly: 1 })
   expect(proof.work.transactionTimings.map(timing => timing.outcome)).toEqual(['complete', 'abort', 'complete'])
+  expect(proof.work.transactionTimings.map(timing => timing.requestCount)).toEqual([2, 2, 2])
+  expect(proof.work.transactionTimings.map(timing => timing.requestSuccessCount)).toEqual([2, 0, 2])
   for (const timing of proof.work.transactionTimings) {
     expect(timing.stores).toEqual(['records'])
     expect(timing.startedMs).toBeGreaterThanOrEqual(0)
     expect(timing.endedMs).toBeGreaterThanOrEqual(timing.startedMs)
     expect(timing.endedMs).toBeLessThanOrEqual(proof.work.elapsedMs)
+    expect(timing.firstRequestMs).toBeGreaterThanOrEqual(timing.startedMs)
+    if (timing.outcome === 'complete') {
+      expect(timing.firstRequestSuccessMs).toBeGreaterThanOrEqual(timing.firstRequestMs!)
+      expect(timing.lastRequestSuccessMs).toBeGreaterThanOrEqual(timing.firstRequestSuccessMs!)
+      expect(timing.lastRequestSuccessMs).toBeLessThanOrEqual(timing.endedMs!)
+    } else expect(timing.firstRequestSuccessMs).toBeUndefined()
   }
   expect(proof.work.idlePolling?.samples).toBe(3)
   expect(proof.work.idlePolling?.observations.map(observation => observation.ready)).toEqual([false, true])
