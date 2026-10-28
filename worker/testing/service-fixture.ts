@@ -132,12 +132,15 @@ export async function createServiceFixture(options: FixtureOptions = {}): Promis
       const init = { method: 'POST', headers: { 'content-type': 'application/json' }, body }
       return await (localWorker ? localWorker.fetch(url, init) : mf.dispatchFetch(url, init)) as unknown as Response
     })
-    // Each fixture owns a fresh database and applies the authored migrations in filename order
+    // This database is fresh and unexposed; one batch preserves authored order and cutoff without per-file round trips
+    // Initialization failure disposes the whole fixture, so no partial migration state becomes available to a test
     const migrations = resolve('worker/migrations')
+    const queries: string[] = []
     for (const name of (await readdir(migrations)).filter(name => /^\d+[-\w]*\.sql$/.test(name) && (!options.migrationThrough || name <= options.migrationThrough)).sort()) {
       // D1 exec executes individual lines, including standalone comments; Wrangler's splitter retains SQL boundaries
-      await db.batch(splitSqlQuery(await readFile(resolve(migrations, name), 'utf8')).map(sql => db.prepare(sql)))
+      queries.push(...splitSqlQuery(await readFile(resolve(migrations, name), 'utf8')))
     }
+    if (queries.length) await db.batch(queries.map(sql => db.prepare(sql)))
     let controlTail = Promise.resolve()
     const request = async (path: string, init?: RequestInit): Promise<Response> => {
       const url = new URL(path, options.serviceOrigin ?? 'http://127.0.0.1')
