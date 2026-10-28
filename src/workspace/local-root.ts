@@ -387,6 +387,9 @@ async function materializeLocalEndpoint(adapter: LocalStoreAdapter, endpoint: z.
   const state = assembleWorkspace(documents, endpoint.localRevision, journal, new Map(bookkeeping.entries.map(({ id, ...value }) => [id, value])))
   const local = state.planner.localData, selected = endpoint.selections
   const result: LocalData = { ...local, changes: changes.entries as unknown as LocalData['changes'], updatedAt: asTimestamp(endpoint.localUpdatedAt), ...(selected.selectedPlaythroughId ? { selectedPlaythroughId: asId<NonNullable<LocalData['selectedPlaythroughId']>>(selected.selectedPlaythroughId) } : {}), ...(selected.planningGameSetupRevisionId ? { planningGameSetupRevisionId: asId<NonNullable<LocalData['planningGameSetupRevisionId']>>(selected.planningGameSetupRevisionId) } : {}), playthroughs: Object.fromEntries(Object.entries(local.playthroughs).map(([id, value]) => [id, { ...value, ...(selected.scenarios[id] ? { activeScenarioId: asId<NonNullable<import('../domain/types').Playthrough['activeScenarioId']>>(selected.scenarios[id]) } : {}) }])) }
-  validateWorkspace({ ...state, planner: { ...state.planner, localData: result } })
-  return immutableHistoryEndpoint(result)
+  // Admit and freeze the reconstructed shape before catalog-sensitive validation
+  // The existing owner can then retain successful graph checks for this exact endpoint and catalog context
+  const immutable = immutableHistoryEndpoint(result)
+  validateWorkspace({ ...state, planner: { ...state.planner, localData: immutable } })
+  return immutable
 }
