@@ -1,5 +1,5 @@
 import { decodeEditorText } from '../src/workspace/editor-document'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { addVoxelPlatform, newMapProject } from '../src/mod-inspector/map-editor'
 import { isoProject, type IsoCamera } from '../src/mod-inspector/isometric'
@@ -252,6 +252,25 @@ async function pointerGesture(page: Page, mobile: boolean) {
 
 async function scenePoint(page: Page, coord: { X: number; Y: number; Z: number }) {
   return (await scenePoints(page, [coord]))[0]!
+}
+async function visibleMapBounds(locator: Locator) {
+  let bounds: { x: number; y: number; width: number; height: number } | undefined
+  // A quiet save can replace the view after scrolling or resolving an element handle
+  // Read visibility and geometry together so physical gestures use the current map
+  await expect.poll(async () => {
+    try { await locator.scrollIntoViewIfNeeded() }
+    catch (error) {
+      if (!(error instanceof Error) || !error.message.includes('Element is not attached to the DOM')) throw error
+      return false
+    }
+    bounds = await locator.evaluate(element => {
+      if (!element.isConnected || !element.getClientRects().length) return undefined
+      const { x, y, width, height } = element.getBoundingClientRect()
+      return width > 0 && height > 0 ? { x, y, width, height } : undefined
+    })
+    return bounds !== undefined
+  }).toBe(true)
+  return bounds!
 }
 async function scenePoints(page: Page, coords: readonly { X: number; Y: number; Z: number }[]) {
   const svg = page.locator('.iso-canvas')
@@ -620,8 +639,7 @@ test('creates, undoes and exports a voxel platform with blank original and persi
   await page.getByRole('textbox', { name: 'Placement height Y', exact: true }).fill('100')
   await page.getByRole('button', { name: 'Choose destination on map', exact: true }).click()
   const viewport = page.locator('.map-editor .world-map-viewport')
-  await viewport.scrollIntoViewIfNeeded()
-  const rect = (await viewport.boundingBox())!
+  const rect = await visibleMapBounds(viewport)
   await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2)
   await page.mouse.down()
   await page.mouse.move(rect.x + rect.width / 2 + 30, rect.y + rect.height / 2, { steps: 3 })
@@ -629,7 +647,7 @@ test('creates, undoes and exports a voxel platform with blank original and persi
   await expect(page.getByRole('textbox', { name: 'Placement X', exact: true })).toHaveValue('0')
   await expect(page.getByRole('button', { name: 'Cancel destination pick', exact: true })).toBeVisible()
   // Aim at the native cell's center with fractional CSS coordinates, including the viewport border
-  const terrain = (await page.locator('.map-editor .world-map-terrain').boundingBox())!
+  const terrain = await visibleMapBounds(page.locator('.map-editor .world-map-terrain'))
   await page.mouse.click(terrain.x + terrain.width / 2 + terrain.width / worldMap.bounds.width / 2, terrain.y + terrain.height / 2 + terrain.height / worldMap.bounds.height / 2)
   await expect(page.getByRole('textbox', { name: 'Placement X', exact: true })).toHaveValue(String(Math.floor(worldMap.bounds.x + worldMap.bounds.width / 2)))
   await expect(page.getByRole('textbox', { name: 'Placement Z', exact: true })).toHaveValue(String(Math.floor(worldMap.bounds.z + worldMap.bounds.height / 2)))
