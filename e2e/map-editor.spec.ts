@@ -479,8 +479,9 @@ test('places one rectangular platform with F and restores it with toolbar icons 
   await expect(undo.locator('svg')).toHaveCount(1)
   await expect(redo.locator('svg')).toHaveCount(1)
   const gesture = await pointerGesture(page, testInfo.project.name === 'mobile')
-  let start = await scenePoint(page, { X: .25, Y: 99, Z: .25 })
-  let end = await scenePoint(page, { X: 2.25, Y: 99, Z: 1.25 })
+  const stroke = [{ X: .25, Y: 99, Z: .25 }, { X: 2.25, Y: 99, Z: 1.25 }]
+  let [start, end] = await scenePoints(page, stroke)
+  if (!start || !end) throw new Error('The platform gesture needs both projected endpoints')
   await gesture.start(start.x, start.y); await gesture.move(end.x, end.y)
   await expect(page.getByText('6 blocks in this platform.', { exact: false })).toBeVisible()
   await expect(page.locator('.iso-preview-status')).toContainText('X 2 · Y 99 · Z 1')
@@ -488,7 +489,12 @@ test('places one rectangular platform with F and restores it with toolbar icons 
   await expect(list).toHaveCount(0)
   await expect(undo).toBeDisabled()
   await gesture.cancel()
+  await expect(page.getByText('6 blocks in this platform.', { exact: false })).toHaveCount(0)
   await expect(list).toHaveCount(0)
+  // Cancellation can release a quiet save that replaces the canvas with the loading screen
+  // Resolve the current view before sending another physical gesture to its projected endpoints
+  ;[start, end] = await scenePoints(page, stroke)
+  if (!start || !end) throw new Error('The next platform gesture needs both projected endpoints')
   await gesture.start(start.x, start.y); await gesture.move(end.x, end.y); await gesture.end()
   await expect(list).toHaveCount(6)
   await expect(list.nth(0)).toContainText('X 2, Y 99, Z 1')
