@@ -276,7 +276,7 @@ export default function MapPlacementEditor({ document, disabled, onChange, onDra
         try { if (commit(moveMapPlacement(document.text, id, coord), `Moved placement #${id}.`)) { setSelectedId(id); setTool('move'); setValues({ X: String(coord.X), Y: String(coord.Y), Z: String(coord.Z) }) } }
         catch (reason) { setError(errorMessage(reason)) }
       }}/></div>
-      <div hidden={view !== 'overview'}><WorldMapCanvas manifest={manifest} markers={markers} layerId={layerId} selected={selectedMarker} onVisibleChange={IGNORE_VISIBLE} onSelect={record => {
+      <div hidden={view !== 'overview'}><WorldMapCanvas manifest={manifest} markers={markers} layerId={layerId} selected={selectedMarker} onVisibleChange={IGNORE_VISIBLE} onGestureChange={setGesturePending} onSelect={record => {
         const placement = project.placements.find(item => item.id === record.entityId && record.sourceId === 'editor')
         // An armed destination pick must retain its source entity even when the target has a marker
         if (picking && !blocked) { setValues(previous => ({ ...previous, X: String(record.x), Z: String(record.z) })); setDirty(tool === 'move' && !!selected); setPicking(false) }
