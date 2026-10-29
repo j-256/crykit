@@ -45,6 +45,8 @@ export interface SaveWork {
   driverGapMs?: number
   nextInputResponseMs?: number
   nextInputReady?: boolean
+  nextInputReceivedMs?: number
+  nextInputPaintMs?: number
   transactions: Record<string, number>
   transactionTimings: SaveTransactionTiming[]
   idlePolling?: { firstMs: number; lastMs: number; maximumGapMs: number; samples: number; observations: (SaveIdleObservation & { atMs: number })[] }
@@ -254,7 +256,10 @@ export async function installSaveWorkCounters(page: Page) {
             document.addEventListener('input', received => {
               const field = received.target
               if (!received.isTrusted || !(field instanceof HTMLTextAreaElement || field instanceof HTMLInputElement) || !field.matches(nextInput.selector) || field.value !== nextInput.value) return
+              // Separate delivery of the expected trusted input from its paint without changing the save deadline
+              work.nextInputReceivedMs ??= performance.now() - work.started
               requestAnimationFrame(() => requestAnimationFrame(() => {
+                work.nextInputPaintMs ??= performance.now() - work.started
                 const bounds = field.getBoundingClientRect()
                 const nextActionReady = !nextInput.enabledSelector || document.querySelector(nextInput.enabledSelector)?.matches(':enabled')
                 const ready = document.activeElement === field && field.isConnected && !field.disabled && !field.readOnly && !!bounds.width && !!bounds.height && getComputedStyle(field).visibility === 'visible' && field.value === nextInput.value && !!nextActionReady
