@@ -23,6 +23,20 @@ interface SaveTransactionTiming {
   firstRequestSuccessMs?: number
   lastRequestSuccessMs?: number
 }
+interface SaveAnimationFrame {
+  startedMs: number
+  durationMs: number
+  blockingMs: number
+  renderStartedMs?: number
+  styleAndLayoutStartedMs?: number
+  scripts: { startedMs: number; durationMs: number; invokerType: string; sourceFile?: string; sourceCharPosition?: number; forcedStyleAndLayoutMs: number; pauseMs: number }[]
+}
+interface ObservedAnimationFrame extends PerformanceEntry {
+  blockingDuration: number
+  renderStart: number
+  styleAndLayoutStart: number
+  scripts: readonly (PerformanceEntry & { sourceURL: string; sourceCharPosition: number; invokerType: string; forcedStyleAndLayoutDuration: number; pauseDuration: number })[]
+}
 export interface SaveWork {
   started: number
   // Browser-observed acknowledgement; editor application time also includes trusted next-key handling and paint
@@ -47,6 +61,7 @@ export interface SaveWork {
   decrypted: number
   longTasks: number[]
   longTaskTimings: { startedMs: number; durationMs: number }[]
+  longAnimationFrames?: SaveAnimationFrame[]
   activeMappings: string[]
 }
 interface NextInputCapture { selector: string; value: string; budgetMs: number; enabledSelector?: string }
@@ -68,6 +83,7 @@ declare global {
 // Payload bytes describe stored buffers, not physical browser disk allocation
 export async function installSaveWorkCounters(page: Page) {
   await page.addInitScript(() => {
+    const supportsLongFrames = PerformanceObserver.supportedEntryTypes.includes('long-animation-frame')
     window.mapperEvents = []
     const NativeWorker = Worker
     window.Worker = class extends NativeWorker {
@@ -173,6 +189,26 @@ export async function installSaveWorkCounters(page: Page) {
         work.longTaskTimings.push({ startedMs: entry.startTime - work.started, durationMs: entry.duration })
       }
     }).observe({ type: 'longtask', buffered: true })
+    // Long-task intervals alone cannot distinguish script execution from rendering
+    // Keep only built asset basenames and offsets, never full URLs, invoker text or function names
+    if (supportsLongFrames) new PerformanceObserver(list => {
+      const work = window.saveWork
+      if (!work) return
+      for (const entry of list.getEntries()) {
+        if (entry.startTime + entry.duration <= work.started) continue
+        const frame = entry as ObservedAnimationFrame
+        const scripts = frame.scripts.map(script => {
+          let sourceFile: string | undefined
+          try {
+            const url = new URL(script.sourceURL)
+            if (url.origin === location.origin && /^\/(?:__accounts-proof\/)?assets\/[A-Za-z0-9_.-]+\.js$/.test(url.pathname)) sourceFile = url.pathname.split('/').at(-1)
+          } catch { /* Unattributed scripts have no source identity */ }
+          return { startedMs: script.startTime - work.started, durationMs: script.duration, invokerType: script.invokerType, sourceFile, sourceCharPosition: sourceFile ? script.sourceCharPosition : undefined, forcedStyleAndLayoutMs: script.forcedStyleAndLayoutDuration, pauseMs: script.pauseDuration }
+        })
+        // Frames can start before input; retain negative offsets without charging the whole frame to the save
+        work.longAnimationFrames!.push({ startedMs: frame.startTime - work.started, durationMs: frame.duration, blockingMs: frame.blockingDuration, renderStartedMs: frame.renderStart ? frame.renderStart - work.started : undefined, styleAndLayoutStartedMs: frame.styleAndLayoutStart ? frame.styleAndLayoutStart - work.started : undefined, scripts })
+      }
+    }).observe({ type: 'long-animation-frame' })
     window.recordSaveIdleObservation = observation => {
       const work = window.saveWork
       if (!work) return
@@ -198,7 +234,7 @@ export async function installSaveWorkCounters(page: Page) {
         controller.abort()
         const replies = new Set(window.mapperEvents.filter(event => event.direction === 'received').map(event => event.id))
         const activeMappings = window.mapperEvents.filter(event => event.direction === 'sent' && event.kind === 'map' && event.id && !replies.has(event.id)).map(event => event.id!)
-        window.saveWork = { started: performance.now(), transactions: {}, transactionTimings: [], requests: {}, rowsRead: {}, rowsWritten: {}, recordsRead: {}, recordsWritten: {}, payloadRead: 0, payloadWritten: 0, encoded: 0, decoded: 0, encrypted: 0, decrypted: 0, longTasks: [], longTaskTimings: [], activeMappings }
+        window.saveWork = { started: performance.now(), transactions: {}, transactionTimings: [], requests: {}, rowsRead: {}, rowsWritten: {}, recordsRead: {}, recordsWritten: {}, payloadRead: 0, payloadWritten: 0, encoded: 0, decoded: 0, encrypted: 0, decrypted: 0, longTasks: [], longTaskTimings: [], ...(supportsLongFrames ? { longAnimationFrames: [] } : {}), activeMappings }
         if (nextInput) {
           const work = window.saveWork, capture = new AbortController()
           nextInputWork = new Promise(resolve => {

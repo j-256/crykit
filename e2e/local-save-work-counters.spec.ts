@@ -60,6 +60,32 @@ test('save diagnostics preserve native transaction completion and rollback witho
   expect(JSON.stringify(proof.work)).not.toContain('private-')
 })
 
+test('save diagnostics attribute native long frames without retaining private script URLs', async ({ page }) => {
+  const scriptWorkMs = 60
+  await installSaveWorkCounters(page)
+  await page.route('**/save-frame-proof', route => route.fulfill({ contentType: 'text/html', body: '<button>Save</button><script src="/__accounts-proof/assets/frame-proof.js?private-token"></script><script src="/private-script.js?private-token"></script>' }))
+  const script = `document.querySelector('button').addEventListener('click', () => { const began = performance.now(); while (performance.now() - began < ${scriptWorkMs}) {} document.body.style.backgroundColor = 'white' })`
+  await page.route('**/frame-proof.js?private-token', route => route.fulfill({ contentType: 'text/javascript', body: script }))
+  await page.route('**/private-script.js?private-token', route => route.fulfill({ contentType: 'text/javascript', body: script }))
+  await page.goto('/save-frame-proof')
+  const supported = await page.evaluate(() => PerformanceObserver.supportedEntryTypes.includes('long-animation-frame'))
+  await page.evaluate(() => window.armSaveWork('click', 'button'))
+  await page.getByRole('button', { name: 'Save' }).click()
+  if (supported) await expect.poll(() => page.evaluate(() => window.saveWork?.longAnimationFrames?.flatMap(frame => frame.scripts).some(script => script.sourceFile === 'frame-proof.js'))).toBe(true)
+  const work = await page.evaluate(() => window.finishSaveWork())
+  if (supported) {
+    const scripts = work.longAnimationFrames!.flatMap(frame => frame.scripts)
+    expect(scripts.some(script => script.sourceFile === 'frame-proof.js' && script.durationMs >= scriptWorkMs && script.sourceCharPosition! >= 0)).toBe(true)
+    expect(scripts.some(script => script.sourceFile === undefined && script.durationMs >= scriptWorkMs)).toBe(true)
+    for (const frame of work.longAnimationFrames!) {
+      expect(frame.startedMs + frame.durationMs).toBeGreaterThan(0)
+      expect(frame.durationMs).toBeGreaterThan(0)
+      expect(frame.blockingMs).toBeGreaterThanOrEqual(0)
+    }
+  } else expect(work.longAnimationFrames).toBeUndefined()
+  expect(JSON.stringify(work)).not.toContain('private-')
+})
+
 for (const fieldTag of ['textarea', 'input'] as const) test.describe(fieldTag, () => {
   test.beforeEach(async ({ page }) => {
     await installSaveWorkCounters(page)
