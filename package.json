@@ -113,6 +113,6 @@
   },
   "overrides": {
     "sharp": "$sharp",
-    "undici@<7.29.1": "7.29.1"
+    "undici@<7.30.1": "7.30.1"
   }
 }
