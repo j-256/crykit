@@ -260,9 +260,9 @@ export async function prepareLocalWorkspace(adapter: LocalStoreAdapter, operatio
   return { head, snapshot: snapshot(head, root, state, { adapter, lifetime, documents, index, allocations, bookkeeping, history, destination, journal, originals, journalIndex }) }
 }
 
-// Progress reports completed admission stages only; callers choose whether this is an observed startup
+// Progress reports admission boundaries and document waits; callers choose whether this is an observed startup
 // Keep identities and content out of labels, and retain every admission check regardless of observation
-export async function admitLocalRoot(adapter: LocalStoreAdapter, head: LocalRecordRef, lifetime: CapturedLocalLifetime, progress?: (phase: 'root-header' | 'root-indexes' | 'root-documents' | 'root-history' | 'root-closure') => void): Promise<AdmittedLocalSnapshot> {
+export async function admitLocalRoot(adapter: LocalStoreAdapter, head: LocalRecordRef, lifetime: CapturedLocalLifetime, progress?: (phase: 'root-header' | 'root-indexes' | 'root-document-read' | 'root-document-decode' | 'root-documents' | 'root-history' | 'root-closure') => void): Promise<AdmittedLocalSnapshot> {
   lifetime.check(); await lifetime.assertCurrent()
   const root = LocalWorkspaceRootV3Schema.parse(await jsonRead(adapter, head))
   progress?.(WORKSPACE_STARTUP_PHASE.rootHeader)
@@ -280,7 +280,12 @@ export async function admitLocalRoot(adapter: LocalStoreAdapter, head: LocalReco
     const prior = documentReads.get(identity)
     if (prior) { if (prior.claim !== claim) throw new Error('Contradictory local frame claims'); return prior.value }
     const value = (async () => {
-      const stored = await decodeWorkspaceDocument(verifiedBlob(await adapter.read(entry.ref), entry.digest))
+      // Mark before each await so a stalled admission distinguishes obtaining a source from consuming its body
+      // The fixed phases reveal no record identities, and the startup timeline retains only the latest mark
+      progress?.(WORKSPACE_STARTUP_PHASE.rootDocumentRead)
+      const source = await adapter.read(entry.ref)
+      progress?.(WORKSPACE_STARTUP_PHASE.rootDocumentDecode)
+      const stored = await decodeWorkspaceDocument(verifiedBlob(source, entry.digest))
       if (stored.key !== entry.key || stored.kind !== entry.kind) throw new Error('Local frame key mismatch')
       // Exact bundled identity is required; missing packages cannot silently substitute another catalog
       const document = stored.kind === 'catalog' ? { ...stored, value: decodeCatalogPayload(stored.value) as WorkspaceDocument['value'] } : stored
