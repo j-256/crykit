@@ -44,8 +44,21 @@ function setup() {
 it('reopens exact native state and reuses untouched unit bodies after one planner change', async () => {
   const s = setup()
   const first = await prepareLocalWorkspace(s.adapter, 'first', s.state, s.lifetime)
-  const reopened = await admitLocalRoot(s.adapter, first.head, s.lifetime)
+  const phases: string[] = []
+  const documentRefs = new Set(first.snapshot.entries.map(entry => blobIdentity(entry.ref)))
+  const read = s.adapter.read
+  const observed = vi.spyOn(s.adapter, 'read').mockImplementation(async ref => {
+    if (documentRefs.has(blobIdentity(ref))) expect(phases.at(-1)).toBe('root-document-read')
+    const source = await read(ref)
+    return { ...source, open: () => {
+      if (documentRefs.has(blobIdentity(ref))) expect(phases.at(-1)).toBe('root-document-decode')
+      return source.open()
+    } }
+  })
+  const reopened = await admitLocalRoot(s.adapter, first.head, s.lifetime, phase => phases.push(phase))
+  observed.mockRestore()
   expect(reopened.state).toEqual(s.state)
+  expect(phases.indexOf('root-documents')).toBeGreaterThan(phases.lastIndexOf('root-document-decode'))
   const selected = Object.values(reopened.state.planner.localData.builds)[0]!
   const changed = { ...reopened.state, planner: { ...reopened.state.planner, localData: { ...reopened.state.planner.localData, builds: { ...reopened.state.planner.localData.builds, [selected.id]: { ...selected, title: 'Changed title' } } } } }
   const beforeWrites = s.writes()
