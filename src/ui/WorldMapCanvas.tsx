@@ -20,7 +20,7 @@ interface Gesture { readonly points: Map<number, ScreenPoint>; startPoints: Map<
 const distance = (a: ScreenPoint, b: ScreenPoint) => Math.hypot(a.x - b.x, a.y - b.y)
 const midpoint = (a: ScreenPoint, b: ScreenPoint): ScreenPoint => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 })
 
-export function WorldMapCanvas({ manifest, markers, layerId, selected, onSelect, onVisibleChange, coordinatePick }: { readonly manifest: WorldMapManifest; readonly markers: readonly WorldMarker[]; readonly layerId: number; readonly selected?: WorldMarker; readonly onSelect: (marker: WorldMarker) => void; readonly onVisibleChange: (markers: readonly WorldMarker[]) => void; readonly coordinatePick?: { readonly label: string; readonly onPick: (point: { readonly x: number; readonly z: number }) => void } }) {
+export function WorldMapCanvas({ manifest, markers, layerId, selected, onSelect, onVisibleChange, coordinatePick, onGestureChange }: { readonly manifest: WorldMapManifest; readonly markers: readonly WorldMarker[]; readonly layerId: number; readonly selected?: WorldMarker; readonly onSelect: (marker: WorldMarker) => void; readonly onVisibleChange: (markers: readonly WorldMarker[]) => void; readonly coordinatePick?: { readonly label: string; readonly onPick: (point: { readonly x: number; readonly z: number }) => void }; readonly onGestureChange?: (pending: boolean) => void }) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const imageRef = useRef<HTMLImageElement>(null)
   const bounds = manifest.bounds
@@ -30,6 +30,9 @@ export function WorldMapCanvas({ manifest, markers, layerId, selected, onSelect,
   const [retry, setRetry] = useState(0)
   const [expanded, setExpanded] = useState<WorldMapCluster>()
   const gesture = useRef<Gesture | null>(null)
+  const gestureChange = useRef(onGestureChange)
+  gestureChange.current = onGestureChange
+  useEffect(() => () => { if (gesture.current) gestureChange.current?.(false) }, [])
   const fitScale = Math.max(0.01, Math.min(size.width / bounds.width, size.height / bounds.height))
   const scale = fitScale * view.zoom
   const viewRef = useRef(view)
@@ -102,6 +105,8 @@ export function WorldMapCanvas({ manifest, markers, layerId, selected, onSelect,
     current.points.set(event.pointerId, screenPoint(event))
     resetGesture(current)
     gesture.current = current
+    // A quiet-save handoff must not replace the Editor between pointer press and release
+    if (current.points.size === 1) onGestureChange?.(true)
   }
   const pointerMove = (event: PointerEvent<HTMLDivElement>) => {
     const current = gesture.current
@@ -128,7 +133,7 @@ export function WorldMapCanvas({ manifest, markers, layerId, selected, onSelect,
   }
   const pointerUp = (event: PointerEvent<HTMLDivElement>) => {
     const current = gesture.current
-    if (!current) return
+    if (!current?.points.has(event.pointerId)) return
     if (event.type === 'pointerup' && current.points.size === 1 && !current.moved && coordinatePick && imageStatus === 'ready') {
       const point = screenPoint(event)
       // Artwork is positioned inside the border, while pointer coordinates start at its outer edge
@@ -138,7 +143,7 @@ export function WorldMapCanvas({ manifest, markers, layerId, selected, onSelect,
       if (x >= bounds.x && x < bounds.x + bounds.width && z >= bounds.z && z < bounds.z + bounds.height) coordinatePick.onPick({ x, z })
     }
     current.points.delete(event.pointerId)
-    if (!current.points.size) gesture.current = null
+    if (!current.points.size) { gesture.current = null; onGestureChange?.(false) }
     else resetGesture(current)
   }
   const changeZoom = (factor: number) => setView(previous => zoomAt(previous, previous.zoom * factor, { x: size.width / 2, y: size.height / 2 }))
@@ -167,7 +172,7 @@ export function WorldMapCanvas({ manifest, markers, layerId, selected, onSelect,
     return displayed
   }, [manifest.regions, layerId, size, scale, view, clusters])
   return <div className="world-map-stage">
-    <div aria-label="Interactive world map" aria-describedby="world-map-controls-help" className={`world-map-viewport${coordinatePick ? ' world-map-viewport--picking' : ''}`} onDoubleClick={event => { if (!coordinatePick && !(event.target as HTMLElement).closest('button')) { const rect = event.currentTarget.getBoundingClientRect(); setView(previous => zoomAt(previous, previous.zoom * ZOOM_STEP, { x: event.clientX - rect.left, y: event.clientY - rect.top })) } }} onKeyDown={keyboard} onPointerCancel={pointerUp} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} ref={viewportRef} role="region" tabIndex={0}>
+    <div aria-label="Interactive world map" aria-describedby="world-map-controls-help" className={`world-map-viewport${coordinatePick ? ' world-map-viewport--picking' : ''}`} onDoubleClick={event => { if (!coordinatePick && !(event.target as HTMLElement).closest('button')) { const rect = event.currentTarget.getBoundingClientRect(); setView(previous => zoomAt(previous, previous.zoom * ZOOM_STEP, { x: event.clientX - rect.left, y: event.clientY - rect.top })) } }} onKeyDown={keyboard} onLostPointerCapture={pointerUp} onPointerCancel={pointerUp} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} ref={viewportRef} role="region" tabIndex={0}>
       <div aria-hidden="true" className="world-map-terrain" style={{ width: bounds.width, height: bounds.height, transform: `translate(${size.width / 2 + (bounds.x - view.x) * scale}px, ${size.height / 2 + (bounds.z - view.z) * scale}px) scale(${scale})` }}>
         {image && <img alt="" draggable={false} height={bounds.height} key={imageKey} onError={event => finishImage(event.currentTarget, 'error')} onLoad={event => finishImage(event.currentTarget, 'ready')} ref={imageRef} src={image} width={bounds.width}/>}
       </div>

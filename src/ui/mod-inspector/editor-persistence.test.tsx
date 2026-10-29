@@ -604,9 +604,20 @@ it('retains the map scroll position through an owned quiet-save handoff', { time
     expect(container.querySelector<HTMLInputElement>('[data-editor-focus="map-coordinate-X"]')?.value).toBe('42')
   } finally { await act(async () => { release(manifest) }) }
 })
-it('keeps a gesture started during saved-receipt verification until its release', { timeout: LOCAL_EDITOR_COMMAND_MS }, async () => {
+it.each(['isometric', 'overview'] as const)('keeps an %s gesture started during saved-receipt verification until its release', { timeout: LOCAL_EDITOR_COMMAND_MS }, async kind => {
   await openSelectedMap()
+  if (kind === 'overview') await click('World map overview')
   const child = mapChildren.at(-1)!, view = workspace.editorSession.transferView
+  const viewport = container.querySelector<HTMLDivElement>('.world-map-viewport')!
+  viewport.setPointerCapture = () => {}
+  const gesture = (active: boolean) => {
+    if (kind === 'isometric') child.onGesture!(active)
+    else {
+      const event = new MouseEvent(active ? 'pointerdown' : 'pointerup', { bubbles: true, button: 0, clientX: 10, clientY: 10 })
+      Object.defineProperty(event, 'pointerId', { value: 1 })
+      viewport.dispatchEvent(event)
+    }
+  }
   let release!: () => void
   const gate = new Promise<void>(resolve => { release = resolve })
   let reached = false, returned = false
@@ -623,14 +634,14 @@ it('keeps a gesture started during saved-receipt verification until its release'
   try {
     await act(async () => { saving = actions!.save() })
     await wait(() => expect(reached).toBe(true))
-    await act(async () => { child.onGesture!(true); release() })
+    await act(async () => { gesture(true); release() })
     await wait(() => expect(returned).toBe(true))
     expect(workspace.editorSession.phase).toBe('reconciling')
     expect(workspace.editorSession.transferView).toBe(view)
     expect(workspace.editorSession.controller.canTransfer()).toBe(false)
   } finally {
     release()
-    await act(async () => { child.onGesture!(false); await saving })
+    await act(async () => { gesture(false); await saving })
   }
   await wait(() => expect(workspace.editorSession.phase).toBe('idle'))
   expect((await stored())!.file.unfinished.fieldState).toMatchObject({ map: { values: { X: '42' } } })
