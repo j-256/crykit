@@ -109,6 +109,7 @@ for (const fieldTag of ['textarea', 'input'] as const) test.describe(fieldTag, (
       field.dispatchEvent(new InputEvent('input', { bubbles: true }))
       await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
       if (!window.saveWork) throw new Error('Synthetic input ended the save measurement')
+      if (window.saveWork.nextInputReceivedMs !== undefined) throw new Error('Synthetic input was recorded as trusted input')
       field.value = 'saved'
       field.setSelectionRange(5, 5)
     }, fieldTag)
@@ -118,6 +119,9 @@ for (const fieldTag of ['textarea', 'input'] as const) test.describe(fieldTag, (
     const receipt = await page.evaluate(() => window.finishNextInputWork())
     expect(receipt.nextInputReady).toBe(true)
     expect(receipt.elapsedMs).toBeLessThanOrEqual(SAVE_CEILING_MS)
+    expect(receipt.nextInputReceivedMs).toBeGreaterThanOrEqual(0)
+    expect(receipt.nextInputPaintMs).toBeGreaterThanOrEqual(receipt.nextInputReceivedMs!)
+    expect(receipt.nextInputPaintMs).toBeLessThanOrEqual(receipt.elapsedMs)
   })
 
   test('next input after the save ceiling fails instead of reusing an earlier acknowledgement', async ({ page }) => {
@@ -126,6 +130,8 @@ for (const fieldTag of ['textarea', 'input'] as const) test.describe(fieldTag, (
     const receipt = await page.evaluate(() => window.finishNextInputWork())
     expect(receipt.nextInputReady).toBe(false)
     expect(receipt.elapsedMs).toBeGreaterThanOrEqual(SAVE_CEILING_MS)
+    expect(receipt.nextInputReceivedMs).toBeUndefined()
+    expect(receipt.nextInputPaintMs).toBeUndefined()
   })
   test('an unavailable next action cannot pass with otherwise ready input', async ({ page }) => {
     await page.getByRole('button', { name: 'Save' }).evaluate(button => { (button as HTMLButtonElement).disabled = true })
@@ -133,6 +139,9 @@ for (const fieldTag of ['textarea', 'input'] as const) test.describe(fieldTag, (
     const receipt = await page.evaluate(() => window.finishNextInputWork())
     expect(receipt.nextInputReady).toBe(false)
     expect(receipt.elapsedMs).toBeGreaterThanOrEqual(SAVE_CEILING_MS)
+    expect(receipt.nextInputReceivedMs).toBeGreaterThanOrEqual(0)
+    expect(receipt.nextInputPaintMs).toBeGreaterThanOrEqual(receipt.nextInputReceivedMs!)
+    expect(receipt.nextInputPaintMs).toBeLessThanOrEqual(receipt.elapsedMs)
   })
 })
 
