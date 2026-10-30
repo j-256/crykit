@@ -295,13 +295,12 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
     const observedReads = new Set(Object.values(work.recordsRead).flat())
     const observedWrites = new Set(Object.values(work.recordsWritten).flat())
     const persistedRecords = new Map(persisted.records.map((record: BodyRecord) => [record.key, record]))
-    for (const record of previousRecords) {
-      // Existing immutable bodies and catalogs retain their authenticated storage identities
-      // Only the edited file's actual current dependencies may be consumed by this foreground operation
-      expect(persistedRecords.get(record.key)).toEqual(record)
-      expect(observedWrites.has(record.storageId)).toBe(false)
-      if (!consumed.has(record.key)) expect(observedReads.has(record.storageId)).toBe(false)
-    }
+    // Keep the keyed comparison for every immutable body and catalog
+    // Group the checks to avoid tracing each unchanged record separately
+    expect(previousRecords.map(record => persistedRecords.get(record.key))).toEqual(previousRecords)
+    expect(previousRecords.filter(record => observedWrites.has(record.storageId))).toEqual([])
+    // Only the edited file's actual current dependencies may be read by the foreground operation
+    expect(previousRecords.filter(record => !consumed.has(record.key) && observedReads.has(record.storageId))).toEqual([])
     previousRecords = persisted.records
     previousFile = persisted.file
     if (operation === 'Build notes') {
