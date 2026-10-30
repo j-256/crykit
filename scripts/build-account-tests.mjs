@@ -67,11 +67,15 @@ if (args.includes('--dev')) {
   await writeFile(resolve(output, 'probe.wasm'), new Uint8Array([0,97,115,109,1,0,0,0,1,5,1,96,0,1,127,3,2,1,0,7,10,1,6,97,110,115,119,101,114,0,0,10,6,1,4,0,65,42,11]))
   await writeFile(resolve(output, 'wasm-entry.ts'), `import wasm from './probe.wasm'\nexport default { fetch() { const instance = new WebAssembly.Instance(wasm); return Response.json({ answer: instance.exports.answer() }) } }\n`)
   await writeFile(resolve(output, 'opaque-server-entry.ts'), `import { opaqueProbe } from '../worker/testing/opaque-probe'\nexport default { fetch: opaqueProbe }\n`)
-  for (const [name, entry, config = 'wrangler.local.jsonc'] of [['local', 'worker/testing/local-entry.ts'], ['production', 'worker/index.ts'], ['wasm', '.account-tests/wasm-entry.ts'], ['opaque-adapter', '.account-tests/opaque-server-entry.ts'], ['alerts', 'worker/alerts/index.ts', 'wrangler.alerts.example.jsonc']]) {
+  async function buildBundle(name, entry, config = 'wrangler.local.jsonc') {
     const directory = resolve(output, name)
     // Discard only regenerable bundles so removed imports cannot leave stale manifest modules
     await rm(directory, { recursive: true, force: true })
-    wranglerRun(['deploy', entry, '--config', config, '--dry-run', '--outdir', relative(root, directory), '--metafile', relative(root, resolve(directory, 'bundle-meta.json')), '--assets', assets])
+    await new Promise((resolveBuild, rejectBuild) => {
+      const child = spawn(process.execPath, [wrangler, 'deploy', entry, '--config', config, '--dry-run', '--outdir', relative(root, directory), '--metafile', relative(root, resolve(directory, 'bundle-meta.json')), '--assets', assets], { cwd: root, env: commandEnv, stdio: 'inherit' })
+      child.once('error', rejectBuild)
+      child.once('close', (code, signal) => code === 0 ? resolveBuild() : rejectBuild(new Error(`Account bundle ${name} failed (${signal ?? code})`)))
+    })
     const metadata = JSON.parse(await readFile(resolve(directory, 'bundle-meta.json'), 'utf8'))
     const entries = Object.entries(metadata.outputs).filter(([, details]) => details.entryPoint)
     if (entries.length !== 1) throw new Error(`Expected one Wrangler entry for ${name}`)
@@ -89,4 +93,13 @@ if (args.includes('--dev')) {
     await collect(directory)
     await writeFile(resolve(directory, 'manifest.json'), JSON.stringify({ entryPoint: entries[0][1].entryPoint, modules, inputs: Object.keys(metadata.inputs) }, null, 2) + '\n')
   }
+  async function buildLocalBundles() {
+    // This config's custom build rewrites shared OPAQUE files, so its bundles must remain serial
+    for (const [name, entry] of [['local', 'worker/testing/local-entry.ts'], ['production', 'worker/index.ts'], ['wasm', '.account-tests/wasm-entry.ts'], ['opaque-adapter', '.account-tests/opaque-server-entry.ts']]) await buildBundle(name, entry)
+  }
+  // Alerts has an independent config and output without the shared OPAQUE custom build
+  // Drain both groups on failure so no child can overwrite output after verification releases ownership
+  const results = await Promise.allSettled([buildLocalBundles(), buildBundle('alerts', 'worker/alerts/index.ts', 'wrangler.alerts.example.jsonc')])
+  const failures = results.filter(result => result.status === 'rejected')
+  if (failures.length) throw new AggregateError(failures.map(result => result.reason), 'Account test bundle preparation failed')
 }
