@@ -33,17 +33,40 @@ test('prepared Node and native lanes overlap and merging waits for both', async 
   } })
   try {
     await turn()
-    assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native'])
-    assert.deepEqual(calls.slice(1).map(call => call.args.find(arg => arg.startsWith('--shard='))), ['--shard=1/2', '--shard=2/2'])
+    assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native', 'native'])
+    assert.deepEqual(calls.slice(1).map(call => call.args.find(arg => arg.startsWith('--shard='))), ['--shard=1/3', '--shard=2/3', '--shard=3/3'])
     assert.ok(calls.slice(1).every(call => call.args.includes('--maxWorkers=1') && call.args.includes('--bail=1')))
     assert.ok(calls.slice(1).every(call => call.env.CRYKIT_NATIVE_TEST_PARTITION === 'balanced'))
     assert.equal(calls[0].env.CRYKIT_NATIVE_TEST_PARTITION, '')
     assert.equal(calls[0].args.some(arg => arg.startsWith('--bail=')), false)
     assert.deepEqual([...new Set(calls.flatMap(call => call.args.filter(arg => arg.startsWith('--project=')).map(arg => arg.slice('--project='.length))))].sort(), [...PROJECTS].sort())
     node.resolve(); await turn()
-    assert.equal(calls.length, 3)
+    assert.equal(calls.length, 4)
   } finally { node.resolve(); native.resolve(); await pending }
-  assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native', 'merge'])
+  assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native', 'native', 'merge'])
+})
+
+test('a native failure drains every remaining native peer before merging reports', async t => {
+  const f = fixture(t), second = Promise.withResolvers(), third = Promise.withResolvers()
+  const cleaned = [], calls = []
+  let settled = false
+  const pending = verifyVitest({ ...f, run: async args => {
+    calls.push(lane(args)); blob(args)
+    if (args.includes('--shard=1/3')) throw new Error('Synthetic first-shard failure')
+    if (args.includes('--shard=2/3')) { await second.promise; cleaned.push('second') }
+    if (args.includes('--shard=3/3')) { await third.promise; cleaned.push('third') }
+  } })
+  const outcome = pending.then(() => { settled = true; return undefined }, error => { settled = true; return error })
+  try {
+    await turn(); assert.equal(settled, false)
+    second.resolve(); await turn()
+    assert.deepEqual(cleaned, ['second'])
+    assert.equal(settled, false)
+    assert.equal(calls.includes('merge'), false)
+  } finally { second.resolve(); third.resolve() }
+  assert.match((await outcome)?.message ?? '', /Synthetic first-shard failure/)
+  assert.deepEqual(cleaned, ['second', 'third'])
+  assert.equal(calls.at(-1), 'merge')
 })
 
 test('a failed lane drains its active sibling and cannot report success', async t => {
@@ -68,7 +91,7 @@ test('an unassigned configured project fails before any tests can be omitted', a
   assert.equal(invoked, false)
 })
 
-test('report merging failure cannot turn two successful lanes into success', async t => {
+test('report merging failure cannot turn successful lanes into success', async t => {
   const f = fixture(t)
   await assert.rejects(verifyVitest({ ...f, run: async args => {
     blob(args)
