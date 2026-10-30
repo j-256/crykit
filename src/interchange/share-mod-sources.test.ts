@@ -11,13 +11,20 @@ import { createTestLocalData, TEST_NOW } from '../domain/test-helpers'
 import type { BuildId, EntityId } from '../domain/types'
 import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
 import { prepareModCatalogs } from '../persistence/local-data'
-import { validateNativeLocalDataGraph } from './native'
+import { immutableCatalogSnapshot, validateNativeLocalDataGraph } from './native'
 import { previewCrystalEdit } from './crystal-edit'
 import { createSharePayload, decodeSharePayload, encodeSharePayload, saveSharedCopy, sharePreviewData, shareWithMatchingSources } from './share'
 import { prepareSharedModRecovery } from './share-mod-recovery'
 
+async function admittedModCatalog(text: string, filename: string) {
+  const preview = await previewCrystalEdit(new TextEncoder().encode(text), filename, TEST_NOW)
+  // Repository loading admits source snapshots before shared-preview composition
+  // Preserve that shape validation and immutable ownership inside each independent fixture
+  return immutableCatalogSnapshot(preview.proposed.catalogs[0]!)
+}
+
 async function fixture(text = '{"ID":"synthetic-sharing","Title":"Synthetic Sharing Mod","Jobs":[{"ID":24,"Name":"Synthetic Class","Description":"Private original description"}],"Equipment":[{"ID":10000,"Name":"Unselected Synthetic Item"}]}') {
-  const source = (await previewCrystalEdit(new TextEncoder().encode(text), 'mod.json', TEST_NOW)).proposed.catalogs[0]!
+  const source = await admittedModCatalog(text, 'mod.json')
   const catalogs = [...BUNDLED_CATALOGS, source]
   const composition = prepareModComposition({ version: 3, baseline: { catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId }, layers: [{ catalogId: source.id, catalogRevisionId: source.revisionId, enabled: true }], links: [] }, catalogs)
   let data = addGameSetupRevision(createTestLocalData(), { label: 'Synthetic sharing', modComposition: composition, activate: true, now: TEST_NOW })
@@ -57,7 +64,7 @@ describe('portable modded Build snapshots', () => {
   it('applies equivalent content using local file pins and preserves the original shared checkpoint', async () => {
     const { payload, text, source } = await fixture()
     const reordered = JSON.stringify(JSON.parse(text), (_key, value) => value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).reverse()) : value, 2)
-    const local = (await previewCrystalEdit(new TextEncoder().encode(reordered), 'local.json', TEST_NOW)).proposed.catalogs[0]!
+    const local = await admittedModCatalog(reordered, 'local.json')
     const original = JSON.stringify(payload)
     expect(local.checksum).not.toBe(source.checksum)
     const matching = shareWithMatchingSources(payload, [...BUNDLED_CATALOGS, local])!
@@ -75,7 +82,7 @@ describe('portable modded Build snapshots', () => {
 
   it('rejects changed source content and keeps older parser revisions unresolved', async () => {
     const { payload, text, source } = await fixture()
-    const changed = (await previewCrystalEdit(new TextEncoder().encode(text.replace('Synthetic Class', 'Changed Class')), 'changed.json', TEST_NOW)).proposed.catalogs[0]!
+    const changed = await admittedModCatalog(text.replace('Synthetic Class', 'Changed Class'), 'changed.json')
     const receipt = Object.values(payload.records.gameSetups)[0]!.modSourceReceipts![0]!
     expect(modSourceMatch(receipt, changed)).toBeUndefined()
     expect(shareWithMatchingSources(payload, [...BUNDLED_CATALOGS, changed])).toBeUndefined()
