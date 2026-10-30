@@ -47,9 +47,11 @@ async function loadFixture(page: Page, localData = compatibilityFixture()): Prom
   await page.goto('/')
   await skipInitialModSetup(page)
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
+  // Resolve the complete packaged revision while keeping the fixture focused on Build and Playthrough rules
+  const bundledCatalogs = [DEFAULT_CATALOG].map(({ id, revisionId, checksum }) => ({ id, revisionId, checksum }))
   const archive = zipSync({
-    'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
-    'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }),
+    'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.1.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
+    'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [], bundledCatalogs, evidence: [], history: [] }),
   })
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })

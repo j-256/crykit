@@ -23,7 +23,10 @@ const BACKBREAKER: CatalogRef = { kind: 'catalog', catalogId: OBSERVATIONS.id, c
 
 function backup(localData: LocalData): Uint8Array {
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
-  return zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG, PREVIOUS_CATALOG, OBSERVATIONS], evidence: [], history: [] }) })
+  // These journeys need both exact base revisions, not repeated embedded copies of the packaged catalogs
+  // Native backup pins resolve the complete offline snapshots and still reject missing or changed revisions
+  const bundledCatalogs = [DEFAULT_CATALOG, PREVIOUS_CATALOG].map(({ id, revisionId, checksum }) => ({ id, revisionId, checksum }))
+  return zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.1.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [OBSERVATIONS], bundledCatalogs, evidence: [], history: [] }) })
 }
 
 async function dataPanel(page: Page) {
