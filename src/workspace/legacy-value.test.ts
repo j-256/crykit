@@ -30,6 +30,45 @@ it('compares exact typed legacy values including absent undefined null numbers a
   const cyclic: { self?: unknown } = {}; cyclic.self = cyclic
   expect(equalLegacyValue(cyclic, structuredClone(cyclic))).toBe(true)
 })
+it('preserves ordered keys, array properties, null prototypes and shared-reference identity', () => {
+  const shared = { value: 1 }
+  const aliased = { first: shared, second: shared }
+  expect(equalLegacyValue(aliased, structuredClone(aliased))).toBe(true)
+  expect(equalLegacyValue(aliased, { first: { value: 1 }, second: { value: 1 } })).toBe(false)
+  expect(equalLegacyValue({ first: { value: 1 }, second: { value: 1 } }, aliased)).toBe(false)
+  const cycle: { self?: unknown } = {}; cycle.self = cycle
+  const longerCycle: { self?: unknown } = {}; longerCycle.self = { self: longerCycle }
+  expect(equalLegacyValue(cycle, longerCycle)).toBe(false)
+  expect(equalLegacyValue({ first: 1, second: 2 }, { second: 2, first: 1 })).toBe(false)
+  expect(equalLegacyValue(Object.assign([1], { first: 1, second: 2 }), Object.assign([1], { second: 2, first: 1 }))).toBe(false)
+  expect(equalLegacyValue(Object.assign([1], { extra: undefined }), [1])).toBe(false)
+  const nullPrototype = Object.assign(Object.create(null), { value: 1 })
+  expect(equalLegacyValue(nullPrototype, Object.assign(Object.create(null), { value: 1 }))).toBe(true)
+  expect(equalLegacyValue(nullPrototype, { value: 1 })).toBe(false)
+  const inert = Object.defineProperty({ value: 1 }, 'hidden', { value: 2 })
+  Object.assign(inert, { [Symbol('unencoded')]: 3 })
+  // Version one captures enumerable string keys, not property descriptors or symbols
+  expect(equalLegacyValue(inert, { value: 1 })).toBe(true)
+})
+it('preserves codec fallback behavior without evaluating accessors during the plain comparison', () => {
+  let objectReads = 0
+  const object = Object.defineProperty({}, 'value', { enumerable: true, get() { objectReads++; return 1 } })
+  expect(() => equalLegacyValue(object, { value: 1 })).toThrow('Unsupported legacy accessor')
+  expect(objectReads).toBe(0)
+  let arrayReads = 0
+  const array = Object.defineProperty([], '0', { enumerable: true, get() { arrayReads++; return 1 } })
+  expect(equalLegacyValue(array, [1])).toBe(true)
+  expect(arrayReads).toBe(1)
+  const nested = { ordered: [{ value: 1 }], bytes: new Uint8Array([1, 2]), after: undefined }
+  expect(equalLegacyValue(nested, structuredClone(nested))).toBe(true)
+  expect(equalLegacyValue(nested, { ...nested, bytes: new Uint8Array([1, 3]) })).toBe(false)
+  expect(() => equalLegacyValue({ ordered: [1], unsupported: () => 0 }, { ordered: [1], unsupported: null })).toThrow('Unsupported legacy value')
+  const bytes = new ArrayBuffer(8), view = new DataView(bytes)
+  view.setBigUint64(0, 0x7ff8000000000001n, true)
+  const nan = view.getFloat64(0, true)
+  expect(Number.isNaN(nan)).toBe(true)
+  expect(equalLegacyValue(nan, NaN)).toBe(false)
+})
 it('emits bounded chunks for a large logical record without a record byte ceiling', () => {
   const value = { text: 'x'.repeat(10 * 1024 * 1024) }
   let bytes = 0, peak = 0
