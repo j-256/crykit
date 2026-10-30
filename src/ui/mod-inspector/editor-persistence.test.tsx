@@ -581,6 +581,21 @@ it('returns focus to the construction height after its saved map owner reopens',
   expect(document.activeElement).toBe(reopened)
   expect((await stored())!.file.unfinished.fieldState).toMatchObject({ map: { camera: { planeHeight: '141' } } })
 })
+it('keeps orientation keyboard navigation focused after an owned map save reopens', { timeout: LOCAL_EDITOR_COMMAND_MS }, async () => {
+  await openSelectedMap()
+  const navigator = container.querySelector<HTMLElement>('.map-orientation-control')!
+  const center = () => container.querySelector('.map-orientation-canvas')?.getAttribute('data-center')
+  const [x, z] = center()!.split(',').map(Number)
+  await act(async () => navigator.focus())
+  await flush()
+  await wait(() => expect(container.querySelector('.map-orientation-control')).not.toBe(navigator))
+  const reopened = container.querySelector<HTMLElement>('.map-orientation-control')!
+  expect(reopened).not.toBeNull()
+  expect(document.activeElement).toBe(reopened)
+  await act(async () => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
+  expect(center()).toBe(`${x! + 8},${z}`)
+  expect((await stored())!.content.lastAppliedText).toBe(selectedMapSource())
+})
 it('retains the map scroll position through an owned quiet-save handoff', { timeout: LOCAL_EDITOR_COMMAND_MS }, async () => {
   await openSelectedMap()
   const manifest = await worldMap.loadWorldMap()

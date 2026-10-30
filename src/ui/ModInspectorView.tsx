@@ -357,8 +357,9 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
       storage.session.scroll = { tab, x: window.scrollX, y: window.scrollY, mainLeft: main?.scrollLeft ?? 0, mainTop: main?.scrollTop ?? 0 }
       const element = document.activeElement
       const textField = element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement
-      // The canvas is a keyboard target too; losing it during an owned save drops the next map shortcut
-      if ((textField || element instanceof HTMLSelectElement || element instanceof SVGElement && element.dataset.editorFocus) && viewElement.current?.contains(element)) controller.rememberFocus(viewOwner, { key: element instanceof HTMLTextAreaElement ? 'json' : element.dataset.editorFocus ?? '', start: textField ? element.selectionStart : null, end: textField ? element.selectionEnd : null, direction: textField ? element.selectionDirection : null })
+      // Marked navigation regions and canvases are keyboard targets too; an owned save must restore them
+      const markedControl = (element instanceof HTMLElement || element instanceof SVGElement) && element.dataset.editorFocus
+      if ((textField || element instanceof HTMLSelectElement || markedControl) && viewElement.current?.contains(element)) controller.rememberFocus(viewOwner, { key: element instanceof HTMLTextAreaElement ? 'json' : element.dataset.editorFocus ?? '', start: textField ? element.selectionStart : null, end: textField ? element.selectionEnd : null, direction: textField ? element.selectionDirection : null })
       else controller.rememberFocus(viewOwner, undefined)
     }
     storage.session.captureFocus = capture
