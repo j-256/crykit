@@ -7,7 +7,7 @@ import { VerificationError } from './integration-verification.mjs'
 const VITEST_CLI = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url))
 // Miniflare closes each dispatched connection, so parallel fixtures share a finite ephemeral-port pool
 // Keep rejection-path transport behavior while bounding socket churn across isolated native processes
-const NATIVE_SHARDS = 2
+const NATIVE_SHARDS = 3
 const LANES = Object.freeze([
   { name: 'node', projects: ['unit', 'dom', 'persistence'] },
   // A failing serial shard can bail after cleanup without aborting another active database case
