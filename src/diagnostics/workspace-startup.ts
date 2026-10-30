@@ -5,6 +5,7 @@ export const WORKSPACE_STARTUP_PHASE = Object.freeze({
   managed: 'managed-repository', root: 'admitted-root', evidence: 'admitted-evidence',
   guest: 'guest-preparation', guestPrepared: 'guest-prepared', guestMonitor: 'guest-retained-comparison', guestCompared: 'guest-retained-compared',
   rootHeader: 'root-header', rootIndexes: 'root-indexes', rootDocumentRead: 'root-document-read', rootDocumentDecode: 'root-document-decode', rootDocuments: 'root-documents', rootHistory: 'root-history', rootClosure: 'root-closure',
+  rootDocumentVerified: 'root-document-verified', rootDocumentParsed: 'root-document-parsed',
   plannerLoading: 'planner-loading', plannerLoaded: 'planner-loaded', plannerCommitted: 'planner-committed',
   repository: 'repository', failed: 'failed',
 } as const)

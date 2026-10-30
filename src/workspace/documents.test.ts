@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createSampleLocalData } from '../domain/sample-data'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { assembleWorkspace, splitWorkspace, type WorkspaceState } from './documents'
@@ -94,9 +94,18 @@ it('decodes JSON during its complete frame scan without reopening the source', a
 
 it('does not expose JSON before complete frame and digest verification', async () => {
   const frame = await readBlob({ byteLength: 1_000_000, open: () => encodeWorkspaceDocument({ version: 1, kind: 'library-defaults', key: 'json-eof', value: { private: 'retained' } }) }, 1_000_000, false)
-  await expect(decodeWorkspaceDocument(memoryBlob(frame.slice(0, -1)))).rejects.toThrow()
-  await expect(decodeWorkspaceDocument(memoryBlob(new Uint8Array([...frame, 0])))).rejects.toThrow()
-  await expect(decodeWorkspaceDocument(verifiedBlob(memoryBlob(frame), '0'.repeat(64)))).rejects.toThrow(/digest mismatch/)
+  const verified = vi.fn()
+  await expect(decodeWorkspaceDocument(memoryBlob(frame.slice(0, -1)), verified)).rejects.toThrow()
+  await expect(decodeWorkspaceDocument(memoryBlob(new Uint8Array([...frame, 0])), verified)).rejects.toThrow()
+  await expect(decodeWorkspaceDocument(verifiedBlob(memoryBlob(frame), '0'.repeat(64)), verified)).rejects.toThrow(/digest mismatch/)
+  expect(verified).not.toHaveBeenCalled()
+  await decodeWorkspaceDocument(memoryBlob(frame), verified)
+  expect(verified).toHaveBeenCalledExactlyOnceWith()
+  // Complete frame bytes can still contain unsafe JSON; verification must not imply parsing or admission
+  const unsafe = await readBlob({ byteLength: 1_000_000, open: () => encodeWorkspaceDocument({ version: 1, kind: 'library-defaults', key: 'json-unsafe', value: { constructor: 'inert' } }) }, 1_000_000, false)
+  verified.mockClear()
+  await expect(decodeWorkspaceDocument(memoryBlob(unsafe), verified)).rejects.toThrow(/unsafe object key/)
+  expect(verified).toHaveBeenCalledExactlyOnceWith()
 })
 
 it('rejects operative selectors and identity mismatches in live remote records', () => {
