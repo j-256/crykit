@@ -93,6 +93,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
   let previousRecords: BodyRecord[]
   const errors: string[] = [], measures: unknown[] = []
   const draftPreparations: unknown[] = []
+  const postProbeDrains: unknown[] = []
 
   async function releaseJourney() {
     try { await retainedContext?.close() }
@@ -102,7 +103,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       retainedContext = undefined
       baseline = startingEditor = previousFile = undefined
       previousRecords = []
-      measures.length = 0; errors.length = 0; draftPreparations.length = 0
+      measures.length = 0; errors.length = 0; draftPreparations.length = 0; postProbeDrains.length = 0
     }
   }
   // Independent cases release their own observations without creating file-level shard groups
@@ -264,8 +265,14 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
     // The trusted probe and undo are ordinary autosaved input after the timed readiness boundary
     // Drain only their local command before the durable oracle; real background mapping stays live
     if (operation.includes('Editor')) {
-      await page.keyboard.press('Backspace')
-      await idle(page, 'editor')
+      // A failed drain needs its own work receipt; the completed Apply/input counters cannot explain it
+      await arm(page, 'input', '.inspector-editor textarea')
+      try {
+        await page.keyboard.press('Backspace')
+        await idle(page, 'editor')
+      } finally {
+        postProbeDrains.push({ index, work: await page.evaluate(() => window.saveWork ? window.finishSaveWork() : undefined).catch(() => undefined) })
+      }
       expect(await page.getByLabel('Exact JSON value').inputValue()).toBe(expected)
     }
     const persisted = await inspect(page, operation === 'Save inventory' ? 'save' : operation.includes('Editor') ? 'editor' : 'planner')
@@ -328,7 +335,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
   async function attach(info: TestInfo, samples: readonly unknown[] = measures) {
     // JSON reporters inline body attachments, so the combined exact evidence can exceed V8's string limit
     // Keep every sample and integrity observation in a linked per-test file instead
-    const receipt = JSON.stringify({ operation, mode, size, browser: browserVersion, hardware: { cpu: cpus()[0]?.model, memoryBytes: totalmem(), platform: platform(), release: release() }, setup: await page.evaluate(() => (window as any).localSaveProof?.setup).catch(() => undefined), measures: samples, draftPreparations: draftPreparations.splice(0), diagnostics: await diagnostics(page).catch(() => undefined), mapperEvents: await page.evaluate(() => window.mapperEvents).catch(() => undefined), errors, qualification: 'Prepared synthetic managed root; installed account key is local-only. Main-thread payload/work observations exclude untimed durable oracles, worker activity and physical disk allocation. Long tasks are observed callbacks, not a complete trace. Mapping mode uses the actual profile-owned worker with encrypted queued projection; it does not establish cloud publication or complete portable restore.' }, (_key, value) => typeof value === 'bigint' ? { bigint: value.toString() } : value, 2)
+    const receipt = JSON.stringify({ operation, mode, size, browser: browserVersion, hardware: { cpu: cpus()[0]?.model, memoryBytes: totalmem(), platform: platform(), release: release() }, setup: await page.evaluate(() => (window as any).localSaveProof?.setup).catch(() => undefined), measures: samples, draftPreparations: draftPreparations.splice(0), postProbeDrains: postProbeDrains.splice(0), diagnostics: await diagnostics(page).catch(() => undefined), mapperEvents: await page.evaluate(() => window.mapperEvents).catch(() => undefined), errors, qualification: 'Prepared synthetic managed root; installed account key is local-only. Main-thread payload/work observations exclude untimed durable oracles, worker activity and physical disk allocation. Long tasks are observed callbacks, not a complete trace. Mapping mode uses the actual profile-owned worker with encrypted queued projection; it does not establish cloud publication or complete portable restore.' }, (_key, value) => typeof value === 'bigint' ? { bigint: value.toString() } : value, 2)
     const path = info.outputPath(`save-work-receipt-${receiptIndex++}.json`)
     await writeFile(path, receipt)
     await info.attach('save-work-receipt', { contentType: 'application/json', path })
