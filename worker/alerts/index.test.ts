@@ -4,6 +4,7 @@ import { resolve, join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
 import { Miniflare, convertV4MiniflareOptions, Response as LocalResponse, type V4ModuleDefinition } from 'miniflare'
 import alertWorker, { alertObservations } from './index'
+import { nativeFixtureHost } from '../testing/native-loopback'
 
 const startedAt = Date.UTC(2026, 9, 20)
 const requestId = 'd679dff4-91ad-4e87-951a-d5198a772870'
@@ -42,7 +43,7 @@ async function fixture(persistence?: string, uncertain = false) {
   const alertEvents: Record<string, unknown>[] = []
   let accepted!: () => void
   const receipt = new Promise<void>(resolve => { accepted = resolve })
-  const options = convertV4MiniflareOptions({ resourcePersistencePath: persistence, host: '127.0.0.1', port: 0, workers: [
+  const options = convertV4MiniflareOptions({ resourcePersistencePath: persistence, host: nativeFixtureHost(), port: 0, workers: [
     { name: 'producer', compatibilityDate: '2026-09-28', modules: true, script: `export default { fetch(request) { const code = new URL(request.url).searchParams.get('pause') ? 'SERVICE_PAUSED' : 'RATE_LIMITED'; console.log(JSON.stringify({operation:'admission',stage:code === 'RATE_LIMITED' ? 'account' : 'cloud-budget',code,requestId:'${requestId}',route:'/api/public/v1/shares/:shareId',method:'GET',limiter:'public-share-network',scope:'network',limit:60,windowMs:60000,observedCount:60,counter:'admitted',retryAfterSeconds:42,url:request.url,password:'synthetic-private'})); return new Response(null,{status:code === 'RATE_LIMITED' ? 429 : 503}) } }` },
     { name: 'alerts', compatibilityDate: '2026-09-28', modules: manifest.modules, modulesRoot: resolve('.account-tests/alerts'), bindings: { ALERTS_ENABLED: 'true', DIAGNOSTICS_ENABLED: 'true', ALERT_EMAIL_TO: 'owner@example.org', EMAIL_FROM: 'noreply@example.org', SERVICE_ORIGIN: 'https://example.test', ALERT_SOURCE_WORKER: 'producer' }, durableObjects: { ALERTS: { className: 'OwnerAlertState', useSQLite: true } }, ratelimits: { ALERT_PROCESSING_LIMITER: { namespace_id: '1', simple: { limit: 1, period: 60 } } }, serviceBindings: { NATIVE_EMAIL: 'email' } },
     { name: 'email', compatibilityDate: '2026-09-28', modules: true, script: `import {WorkerEntrypoint} from 'cloudflare:workers'; export default class extends WorkerEntrypoint { async send(message) { const response = await this.env.CAPTURE.fetch('https://capture.invalid',{method:'POST',body:JSON.stringify(message)}); if(!response.ok) throw new Error('Uncertain provider outcome'); return await response.json() } }`, serviceBindings: { CAPTURE: async request => { emails.push(await request.json() as typeof emails[number]); accepted(); return LocalResponse.json({ messageId: 'synthetic-accepted' }, { status: uncertain ? 503 : 200 }) } } },
