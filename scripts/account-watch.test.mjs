@@ -11,6 +11,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const WATCH_READY_TIMEOUT_MS = 30_000
 const WATCH_RERUN_TIMEOUT_MS = 15_000
 const WATCH_CONTRACT_TIMEOUT_MS = 120_000
+const WATCH_FAILURE_OUTPUT_CHARACTERS = 20_000
 
 test('watch rebuilds bundle-only Worker changes before rerunning the fixture', { timeout: WATCH_CONTRACT_TIMEOUT_MS }, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'crykit-account-watch-'))
@@ -34,9 +35,12 @@ test('watch rebuilds bundle-only Worker changes before rerunning the fixture', {
     child.stderr.on('data', collect)
     function waitFor(pattern, start = 0, budgetMs = WATCH_READY_TIMEOUT_MS) {
       return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => finish(new Error(`Missing ${pattern}:\n${output.slice(-3000)}`)), budgetMs)
+        const started = performance.now()
+        // Retain the interrupted build cycle; a short tail can hide which bundle or hook stalled
+        const failure = message => new Error(`${message} after ${Math.round(performance.now() - started)}ms:\n${output.slice(start).slice(-WATCH_FAILURE_OUTPUT_CHARACTERS)}`)
+        const timer = setTimeout(() => finish(failure(`Missing ${pattern}`)), budgetMs)
         const inspect = () => { if (pattern.test(output.slice(start))) finish() }
-        const exited = () => finish(new Error(`Watch exited before ${pattern}:\n${output.slice(-3000)}`))
+        const exited = () => finish(failure(`Watch exited before ${pattern}`))
         const finish = error => {
           clearTimeout(timer)
           child.stdout.off('data', inspect)

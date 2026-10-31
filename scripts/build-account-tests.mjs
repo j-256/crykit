@@ -10,12 +10,16 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = resolve(root, '.account-tests')
 const wrangler = resolve(root, 'node_modules/wrangler/bin/wrangler.js')
 const args = process.argv.slice(2)
+const PREPARED_ROOT_VARIABLE = 'CRYKIT_ACCOUNT_TEST_PREPARED_ROOT'
 if (args.includes('--help') || args.includes('-h')) {
   console.log('Usage: node scripts/build-account-tests.mjs [--dev | --prepare-opaque]\nBuild local and production account test bundles with pinned Wrangler. --dev builds the browser and starts loopback Wrangler with generated local secrets. CRYKIT_ACCOUNTS_PORT selects the --dev loopback port (default 8787, range 1-65535). CRYKIT_ACCOUNTS_HTTPS=1 enables local HTTPS using a disposable OpenSSL certificate (requires openssl; no trust-store changes). Local secrets and an isolated migrated database are generated for each dev invocation. --prepare-opaque regenerates only the reviewed static-WASM adapter for Wrangler custom builds. Requires npm ci. Exit: 0 success, 1 build/runtime failure, 2 invalid arguments, 3 missing dependencies.')
   process.exit(0)
 }
 if (args.some(arg => arg !== '--dev' && arg !== '--prepare-opaque') || args.length > 1) { console.error('Unknown arguments; use --help'); process.exit(2) }
 if (!existsSync(wrangler) || !existsSync(resolve(root, 'node_modules/@serenity-kit/opaque/esm/index.js'))) { console.error('Pinned account build dependencies are missing; run npm ci'); process.exit(3) }
+// Only dry-run children of the owning build consume its already prepared files
+// A full invocation always regenerates them, including when this marker is inherited
+if (args.includes('--prepare-opaque') && process.env[PREPARED_ROOT_VARIABLE] === root) process.exit(0)
 await mkdir(output, { recursive: true })
 const opaque = prepareOpaqueWorkerModule(await readFile(resolve(root, 'node_modules/@serenity-kit/opaque/esm/index.js'), 'utf8'))
 await writeFile(resolve(output, 'opaque-runtime.js'), opaque.javascript)
@@ -24,6 +28,7 @@ await writeFile(resolve(output, 'opaque.wasm'), opaque.wasm)
 await writeFile(resolve(output, 'OPAQUE-LICENSE'), await readFile(resolve(root, 'node_modules/@serenity-kit/opaque/LICENSE')))
 if (args.includes('--prepare-opaque')) process.exit(0)
 const commandEnv = { ...process.env, WRANGLER_SEND_METRICS: 'false' }
+delete commandEnv[PREPARED_ROOT_VARIABLE]
 function wranglerRun(args) { execFileSync(process.execPath, [wrangler, ...args], { cwd: root, env: commandEnv, stdio: 'inherit' }) }
 if (args.includes('--dev')) {
   // Secrets are unique to this local process and never read from provider or production stores
@@ -58,6 +63,8 @@ if (args.includes('--dev')) {
   const child = spawn(process.execPath, [wrangler, 'dev', '--config', 'wrangler.local.jsonc', '--env-file', varsPath, '--local', '--persist-to', state, '--port', port, '--assets', localAssets, ...tlsArgs], { cwd: root, env: commandEnv, stdio: 'inherit' })
   child.on('exit', code => { process.exitCode = code ?? 1 })
 } else {
+  // Keep this marker out of development watchers, which must rebuild after source edits
+  commandEnv[PREPARED_ROOT_VARIABLE] = root
   wranglerRun(['types', '--config', 'wrangler.local.jsonc', relative(root, resolve(output, 'worker-configuration.d.ts'))])
   // Dry-run bundling needs an assets directory, but never mutates the ordinary browser build
   const assets = resolve(output, 'assets')
@@ -93,13 +100,12 @@ if (args.includes('--dev')) {
     await collect(directory)
     await writeFile(resolve(directory, 'manifest.json'), JSON.stringify({ entryPoint: entries[0][1].entryPoint, modules, inputs: Object.keys(metadata.inputs) }, null, 2) + '\n')
   }
-  async function buildLocalBundles() {
-    // This config's custom build rewrites shared OPAQUE files, so its bundles must remain serial
-    for (const [name, entry] of [['local', 'worker/testing/local-entry.ts'], ['production', 'worker/index.ts'], ['wasm', '.account-tests/wasm-entry.ts'], ['opaque-adapter', '.account-tests/opaque-server-entry.ts']]) await buildBundle(name, entry)
-  }
-  // Alerts has an independent config and output without the shared OPAQUE custom build
-  // Drain both groups on failure so no child can overwrite output after verification releases ownership
-  const results = await Promise.allSettled([buildLocalBundles(), buildBundle('alerts', 'worker/alerts/index.ts', 'wrangler.alerts.example.jsonc')])
+  // Shared OPAQUE output is immutable until every independent bundle has drained
+  // Drain failures too, so no child can overwrite output after verification releases ownership
+  const results = await Promise.allSettled([
+    ...[['local', 'worker/testing/local-entry.ts'], ['production', 'worker/index.ts'], ['wasm', '.account-tests/wasm-entry.ts'], ['opaque-adapter', '.account-tests/opaque-server-entry.ts']].map(([name, entry]) => buildBundle(name, entry)),
+    buildBundle('alerts', 'worker/alerts/index.ts', 'wrangler.alerts.example.jsonc'),
+  ])
   const failures = results.filter(result => result.status === 'rejected')
   if (failures.length) throw new AggregateError(failures.map(result => result.reason), 'Account test bundle preparation failed')
 }
