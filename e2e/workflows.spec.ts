@@ -91,11 +91,11 @@ async function exportPayload(page: Page) {
   return { bytes, payload }
 }
 
+// Observation journeys create their empty Playthrough explicitly; settings and replacing imports do not need one
 test.beforeEach(async ({ page }) => {
   await page.goto('/#/inventory')
   await waitForPlannerReady(page)
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
-  await createBlankPlaythrough(page)
 })
 
 test('settings keeps keyboard focus within its sheet and returns focus on escape', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
@@ -118,6 +118,7 @@ test('settings keeps keyboard focus within its sheet and returns focus on escape
 })
 
 test('manual observations preserve unknowns and survive reload without horizontal overflow', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  await createBlankPlaythrough(page)
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await addItem(page, 'Unknown keepsake')
@@ -140,6 +141,7 @@ test('manual observations preserve unknowns and survive reload without horizonta
 })
 
 test('empty and oversized imports reject before reading file bytes', async ({ page }) => {
+  await createBlankPlaythrough(page)
   await addItem(page, 'Retained notebook', 1)
   const panel = await openData(page)
   await page.evaluate(() => {
@@ -279,6 +281,7 @@ test('replacement confirmation belongs to one import preview', async ({ page }) 
 })
 
 test('Playthrough switching isolates records and undo restores the previous observation', async ({ page }) => {
+  await createBlankPlaythrough(page)
   await addItem(page, 'First Playthrough keepsake', 1)
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Playthrough', exact: true }).click()
@@ -379,6 +382,7 @@ test('inventory facets and search survive browser back navigation', async ({ pag
 })
 
 test('a production shell reloads and exports after going offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
+  await createBlankPlaythrough(page)
   await addItem(page, 'Offline keepsake', 1)
   const panel = await openData(page)
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
@@ -423,6 +427,7 @@ test('offline preparation repairs missing cached assets before reporting ready',
 })
 
 test('stale tabs cannot overwrite saved planner data and can export their recovery draft', async ({ page, context }) => {
+  await createBlankPlaythrough(page)
   await addItem(page, 'Shared baseline', 1)
   const stale = await context.newPage()
   await stale.goto('/#/inventory')
@@ -446,6 +451,7 @@ test('stale tabs cannot overwrite saved planner data and can export their recove
 })
 
 test('a quota failure keeps the draft exportable and leaves persisted observations intact', async ({ page }) => {
+  await createBlankPlaythrough(page)
   await addItem(page, 'Before storage failure', 1)
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
@@ -474,6 +480,7 @@ test('a quota failure keeps the draft exportable and leaves persisted observatio
 })
 
 test('retry persists one retained observation after a transient storage failure', async ({ page }) => {
+  await createBlankPlaythrough(page)
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     let failOnce = true
