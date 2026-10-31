@@ -100,12 +100,15 @@ function ReviewChange({ change, resolver, originalResolver }: { change: Document
   return <details className="inspector-change" open={open} onToggle={event => setOpen(event.currentTarget.open)}><summary><strong>{change.kind}</strong> <code>{formatJsonPath(change.path)}</code> {afterLabel ?? beforeLabel}{change.kind === 'moved' && change.beforePath && <span>{pathKey(change.beforePath) === pathKey(change.path) ? ' (relative order changed)' : ` from ${formatJsonPath(change.beforePath)}`}</span>}</summary>{open && <div className="inspector-change-values"><div><strong>Before {beforeLabel}</strong><pre>{change.before?.raw ?? '(absent)'}</pre></div><div><strong>After {afterLabel}</strong><pre>{change.after?.raw ?? '(absent)'}</pre></div></div>}</details>
 }
 
-const EnumDictionary = memo(function EnumDictionary() {
+const EnumDictionary = memo(function EnumDictionary({ active }: { readonly active: boolean }) {
   const [query, setQuery] = useState('')
+  const [hasOpened, setHasOpened] = useState(active)
+  // Keep native details and search state after the first visit without mounting hidden entries for every Editor
+  useEffect(() => { if (active) setHasOpened(true) }, [active])
   const catalog = useMemo(getEnumCatalog, [])
   const normalized = query.trim().toLowerCase()
   const hasMatches = catalog.some(group => group.entries.some(option => `${group.name} ${option.value} ${option.label}`.toLowerCase().includes(normalized)))
-  return <section className="inspector-panel inspector-dictionary"><h2>Exact enum names</h2><p>Search enum names or numbers without opening a mod.</p><Field label="Search enum names and values"><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, value, or enum family"/></Field><div className="inspector-enum-groups">{catalog.map(group => {
+  return <section className="inspector-panel inspector-dictionary"><h2>Exact enum names</h2><p>Search enum names or numbers without opening a mod.</p><Field label="Search enum names and values"><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Name, value, or enum family"/></Field><div className="inspector-enum-groups">{(active || hasOpened) && catalog.map(group => {
     const entries = group.entries.filter(option => `${group.name} ${option.value} ${option.label}`.toLowerCase().includes(normalized))
     if (!entries.length) return null
     return <details key={group.name} open={normalized ? true : undefined}><summary>{group.name} <small>({entries.length})</small></summary><dl>{entries.map(option => <div key={option.value}><dt><code>{option.value}</code></dt><dd>{option.label}</dd></div>)}</dl></details>
@@ -688,7 +691,7 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
         if (tab === 'map' && isMapCurrent()) { restoreFocus(); restoreScroll() }
       }} document={parsed} disabled={busy || removing || reviewBusy || editorDirty} initialInput={(controller.snapshot().input?.fieldState as Record<string, import('../domain/types').JsonValue> | null)?.map} onInput={(key, value) => { if (!isMapCurrent()) return; controller.editMapField(viewOwner, key, value); controller.editField(viewOwner, 'tab', 'map'); setInputEpoch(value => value + 1); setMapDirty(true); onDraftChange?.(true, registeredActions) }} onGesture={value => { if (!isMapCurrent()) return; controller.setInteraction(viewOwner, 'gesture', value); if (!value) setInputEpoch(epoch => epoch + 1) }} onChange={(next, expected) => isMapCurrent() && applyMapText(next, expected)} onDraftChange={onMapDraftChange} onInspect={index => { if (!isMapCurrent()) return; select(['Entities', index]); setTab('document') }}/></Suspense>}
     </section>
-    <section className="inspector-tab-panel" role="tabpanel" id={`${tabsId}-dictionary-panel`} aria-labelledby={`${tabsId}-dictionary-tab`} tabIndex={0} hidden={tab !== 'dictionary'}><EnumDictionary/></section>
+    <section className="inspector-tab-panel" role="tabpanel" id={`${tabsId}-dictionary-panel`} aria-labelledby={`${tabsId}-dictionary-tab`} tabIndex={0} hidden={tab !== 'dictionary'}><EnumDictionary active={tab === 'dictionary'}/></section>
   </div>
 }
 
