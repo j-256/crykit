@@ -1,12 +1,12 @@
 import { definitionModAvailability } from '../catalog/mods'
 import type { CatalogSnapshot, EntityRef, Knowledge, LocalData, Quantity, GameSetupRevision } from '../domain/types'
-import { AppDataError } from '../interchange/errors'
 import { resolveDefinition } from '../domain/definitions'
 import { CRYSTAL_EDIT_VERSION_FIELD } from '../domain/crystal-edit-compatibility'
 import { jsonRecord } from '../domain/crystal-edit'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
 import { modCatalogForPin, modCatalogTitle } from '../domain/mod-layers'
 import { normalizeModName } from '../domain/mods'
+export { formatAppError, downloadBytes } from './browser-actions'
 
 const MOD_SUMMARY_NAME_LIMIT = 2
 
@@ -18,20 +18,6 @@ export function catalogLocksMatch(left: Readonly<Record<string, string>>, right:
   const leftEntries = Object.entries(left).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
   const rightEntries = Object.entries(right).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
   return JSON.stringify(leftEntries) === JSON.stringify(rightEntries)
-}
-
-function hasQuotaExceededCause(reason: unknown, depth = 0): boolean {
-  if (depth > 4 || !reason || typeof reason !== 'object') return false
-  if (typeof DOMException !== 'undefined' && reason instanceof DOMException && reason.name === 'QuotaExceededError') return true
-  if (reason instanceof Error && reason.name === 'QuotaExceededError') return true
-  return 'cause' in reason && hasQuotaExceededCause(reason.cause, depth + 1)
-}
-
-export function formatAppError(reason: unknown, fallback: string) {
-  const quotaAction = hasQuotaExceededCause(reason) ? ' Browser storage is full. Export a recovery backup, free space for this site in browser settings, then retry.' : ''
-  if (reason instanceof AppDataError) return `${reason.userMessage}.${quotaAction} Error code ${reason.code}; diagnostic ${reason.diagnosticId}.`
-  if (quotaAction) return `${fallback}${quotaAction}`
-  return reason instanceof Error ? reason.message : fallback
 }
 
 export function resolveEntity(localData: LocalData, catalogs: readonly CatalogSnapshot[], ref: EntityRef | null | undefined) {
@@ -100,14 +86,4 @@ export function formatRelativeDate(value: string | undefined) {
 
 export function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?'
-}
-
-export function downloadBytes(bytes: Uint8Array, filename: string, mediaType = 'application/octet-stream') {
-  const blob = new Blob([bytes as BlobPart], { type: mediaType })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  anchor.click()
-  setTimeout(() => URL.revokeObjectURL(url), 30_000)
 }
