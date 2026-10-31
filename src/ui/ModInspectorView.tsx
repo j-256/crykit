@@ -283,8 +283,9 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
     return () => { mounted.current = false }
   }, [storage])
   useEffect(() => {
-    if (!active || !controller.snapshot().dirty || saving.current || saveFailed.current || !controller.canTransfer()) return
-    const timer = setTimeout(() => { void persist() }, EDITOR_QUIET_MS)
+    // Hydration advances inputEpoch when it releases the receipt; an expired quiet timer must not race that handoff
+    if (!active || !controller.snapshot().dirty || saving.current || saveFailed.current || storage.session.hydration || !controller.canTransfer()) return
+    const timer = setTimeout(() => { void persist() }, controller.remainingQuietTime(EDITOR_QUIET_MS))
     return () => clearTimeout(timer)
   }, [editor, path, text, mapDirty, active, saveState, inputEpoch])
   useEffect(() => {

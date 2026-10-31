@@ -41,6 +41,7 @@ export class EditorInputController {
   private epoch = 0
   private version = 0
   private durable = 0
+  private editedAt = 0
   private base?: ContentBase
   private current: EditorInputSnapshot = { dirty: false }
   private saved?: UnfinishedEditorInput
@@ -65,10 +66,14 @@ export class EditorInputController {
     this.assertView(view)
     if (!this.current.input) throw new Error('Open an editor document before editing')
     this.version++
+    this.editedAt = performance.now()
     // Returning to the exact durable input cancels redundant quiet saves without revalidating old command tickets
     // Version ancestry still advances, so Apply cannot reuse authority captured before later typing
     this.current = { ...this.current, input: frozen(input), dirty: this.version !== this.durable && !guestPlannerValuesEqual(input, this.saved) }
   }
+  // Quiet time belongs to the newest input, not the view that an earlier save remounts
+  // Keep the monotonic input time transient so receipt and hydration work consume quiet time
+  remainingQuietTime(milliseconds: number): number { return Math.max(0, milliseconds - (performance.now() - this.editedAt)) }
   editText(view: EditorViewIncarnation, text: string): void { this.edit(view, { ...this.current.input!, text, validation: 'unchecked' }) }
   editPath(view: EditorViewIncarnation, editedPath: JsonPath): void { this.edit(view, { ...this.current.input!, editedPath }) }
   editField(view: EditorViewIncarnation, key: string, value: JsonValue): void {
