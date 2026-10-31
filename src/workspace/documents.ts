@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { NativeLocalDataSchema, NativeLocalData240Schema, NativeLineageSchema } from '../interchange/native-schema'
 import { blobIdentity } from './blobs'
 import { immutableCatalogSnapshot } from '../interchange/native'
+import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { validateWorkspace } from './validation'
 
 export type * from './file-types'
@@ -153,7 +154,10 @@ export function assembleWorkspace(documents: readonly WorkspaceDocument[], local
   const result = state as unknown as WorkspaceState
   // This array belongs to assembly; exact admitted catalog identities can share native graph lookups
   for (const catalog of result.planner.catalogs) immutableCatalogSnapshot(catalog)
-  Object.freeze(result.planner.catalogs)
+  // Rebuilding the same packaged membership would discard its already validated graph lookup
+  // Metadata equality cannot authorize reuse: imported content and reordered membership retain their own validation
+  if (result.planner.catalogs.length === BUNDLED_CATALOGS.length && result.planner.catalogs.every((catalog, index) => catalog === BUNDLED_CATALOGS[index])) planner.catalogs = BUNDLED_CATALOGS
+  else Object.freeze(result.planner.catalogs)
   validateWorkspace(result)
   return result
 }

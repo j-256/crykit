@@ -107,6 +107,7 @@ it('uses exact packaged catalog pins locally while keeping portable and older ex
   expect(document.value).toEqual({ version: 1, kind: 'packaged-catalog-pin', id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum })
   const reopened = await admitLocalRoot(s.adapter, first.head, s.lifetime)
   expect(reopened.state.planner.catalogs).toEqual(s.state.planner.catalogs)
+  expect(reopened.state.planner.catalogs).toBe(BUNDLED_CATALOGS)
   expect(splitWorkspace(reopened.state).find(value => value.key === entry.key)!.value).toEqual(catalog)
 
   // Seed durable framing independently so the new producer cannot hide a backward-reading defect
