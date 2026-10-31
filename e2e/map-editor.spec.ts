@@ -428,7 +428,8 @@ test('paints floating blocks on a construction plane without adding spacers or c
   await gesture.cancel()
   await expect(page.getByText('8 blocks in this stroke.', { exact: false })).toHaveCount(0)
   await expect(list).toHaveCount(0)
-  // Cancellation can settle a quiet save, so derive both retry endpoints from the same current camera
+  // Cancellation releases the view-state save; its owner transfer can otherwise detach a retried stroke
+  await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
   ;[start, end] = await scenePoints(page, stroke)
   if (!start || !end) throw new Error('The retried brush stroke needs both projected endpoints')
   await gesture.start(start.x, start.y); await gesture.move(end.x, end.y); await gesture.end()
@@ -491,8 +492,8 @@ test('places one rectangular platform with F and restores it with toolbar icons 
   await gesture.cancel()
   await expect(page.getByText('6 blocks in this platform.', { exact: false })).toHaveCount(0)
   await expect(list).toHaveCount(0)
-  // Cancellation can release a quiet save that replaces the canvas with the loading screen
-  // Resolve the current view before sending another physical gesture to its projected endpoints
+  // Cancellation releases the view-state save; wait for its owner transfer before projecting another gesture
+  await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
   ;[start, end] = await scenePoints(page, stroke)
   if (!start || !end) throw new Error('The next platform gesture needs both projected endpoints')
   await gesture.start(start.x, start.y); await gesture.move(end.x, end.y); await gesture.end()
