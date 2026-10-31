@@ -530,8 +530,7 @@ test('places one rectangular platform with F and restores it with toolbar icons 
   await expect(page.getByText('This platform overlaps an existing voxel placement. Choose another cell or height.', { exact: true })).toBeVisible()
   await expect(list).toHaveCount(9)
   await height.fill('140.5')
-  await svg.scrollIntoViewIfNeeded()
-  const rect = (await svg.boundingBox())!
+  const rect = await visibleMapBounds(svg)
   await gesture.start(rect.x + rect.width / 2, rect.y + rect.height / 2); await gesture.end()
   await expect(list).toHaveCount(9)
   await height.fill('140')
