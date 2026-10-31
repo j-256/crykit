@@ -18,6 +18,7 @@ describe('independent private records', () => {
     expect(roundTrip.planner.localData.buildRevisions).toEqual(original.planner.localData.buildRevisions)
     expect(roundTrip.planner.sources).toEqual(original.planner.sources)
     expect(roundTrip.planner.history).toEqual(original.planner.history)
+    expect(roundTrip.planner.catalogs).toBe(BUNDLED_CATALOGS)
     expect(roundTrip.planner.localData.revision).toBe(27)
     expect(Object.keys(roundTrip.planner.localData.playthroughs)).toEqual(Object.keys(original.planner.localData.playthroughs))
     expect(documents.some(document => document.kind === 'character')).toBe(true)
@@ -34,6 +35,22 @@ describe('independent private records', () => {
     const documents = splitWorkspace(sampleWorkspace())
     expect(() => assembleWorkspace(documents.filter(document => document.kind !== 'workspace-identity'), 0)).toThrow()
     expect(() => assembleWorkspace([...documents, documents[0]], 0)).toThrow()
+  })
+  it.each(['reordered', 'copied'] as const)('preserves the exact %s catalog membership during assembly', mode => {
+    const original = sampleWorkspace()
+    const catalogs = mode === 'reordered' ? [...BUNDLED_CATALOGS].reverse() : structuredClone(BUNDLED_CATALOGS)
+    const documents = splitWorkspace({ ...original, planner: { ...original.planner, catalogs } })
+    const loaded = assembleWorkspace(documents, 0).planner.catalogs
+    expect(loaded).not.toBe(BUNDLED_CATALOGS)
+    expect(loaded).toEqual(catalogs)
+    expect(loaded.every((catalog, index) => catalog === catalogs[index])).toBe(true)
+  })
+  it('rejects invalid catalog references even when a copied catalog claims the bundled identity', () => {
+    const original = sampleWorkspace()
+    assembleWorkspace(splitWorkspace(original), 0)
+    const changed = { ...BUNDLED_CATALOGS[0], claims: [{ entityId: 'synthetic-missing' as never, field: 'name', value: { state: 'known' as const, value: 'Synthetic missing entity' }, sources: [] }] }
+    const documents = splitWorkspace(original).map(document => document.kind === 'catalog' && Object.is(document.value, BUNDLED_CATALOGS[0]) ? { ...document, value: changed as never } : document)
+    expect(() => assembleWorkspace(documents, 0)).toThrow('unknown entity')
   })
   it('preserves binary frames and rejects trailing or truncated bytes', async () => {
     const value = memoryBlob(new Uint8Array([0, 255, 128, 7]))
