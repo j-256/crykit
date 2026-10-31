@@ -7,6 +7,7 @@ import { expect, test } from './test-fixture'
 import type { UnlockResult } from '../../src/account/auth-client'
 import { expectLoadingMotion, holdWorkspaceSelection, loadingScreen } from '../startup-helpers'
 import { WORKSPACE_STARTUP_MARK } from '../../src/diagnostics/workspace-startup'
+import { startStartupResources } from './startup-resources'
 import { errors } from '@playwright/test'
 
 // Reset only between independent synthetic journeys; every case keeps the real limiter
@@ -435,8 +436,8 @@ async function databaseDump(page: import('@playwright/test').Page, name: string)
 
 test('normalAppSignInOpensIndependentEncryptedWorkspaceAndLocksOnReload', async ({ page }, testInfo) => {
   const prefix = 'workspace-startup '
-  const startup: { navigationId: string; phase: string; elapsedMilliseconds: number; observedMilliseconds: number; lastTimerDelayMilliseconds: number; visibility: string }[] = []
-  page.on('console', message => { if (message.text().startsWith(prefix)) startup.push(JSON.parse(message.text().slice(prefix.length))) })
+  const startup: { navigationId: string; phase: string; elapsedMilliseconds: number; observedMilliseconds: number; hostObservedMilliseconds: number; lastTimerDelayMilliseconds: number; visibility: string }[] = []
+  page.on('console', message => { if (message.text().startsWith(prefix)) startup.push({ ...JSON.parse(message.text().slice(prefix.length)), hostObservedMilliseconds: Date.now() }) })
   await page.addInitScript(({ mark, prefix }) => {
     const navigationId = crypto.randomUUID()
     const intervalMilliseconds = 100
@@ -455,6 +456,8 @@ test('normalAppSignInOpensIndependentEncryptedWorkspaceAndLocksOnReload', async 
       for (const entry of list.getEntries()) if (entry.name === mark) observe((entry as PerformanceMark).detail.phase, entry.startTime)
     }).observe({ entryTypes: ['mark'] })
   }, { mark: WORKSPACE_STARTUP_MARK, prefix })
+  const stopResources = startStartupResources({ enabled: process.platform === 'linux' && testInfo.project.name === 'firefox' })
+  let completed = false
   try {
     const account = await uiSignup(page)
     const writes: string[] = []
@@ -475,7 +478,10 @@ test('normalAppSignInOpensIndependentEncryptedWorkspaceAndLocksOnReload', async 
     await page.getByRole('button', { name: 'Continue using this device' }).click()
     await expect(page.getByRole('button', { name: 'New Build', exact: true })).toBeVisible()
     expect(await databaseDump(page, 'crykit')).toBe(guestBefore)
+    completed = true
   } finally {
+    const resources = await stopResources()
+    if (!completed && resources.supported) await testInfo.attach('workspace-startup-resources', { body: JSON.stringify(resources), contentType: 'application/json' })
     // Console observations survive a stalled admission without another evaluation on the failing page
     await testInfo.attach('workspace-startup', { body: JSON.stringify(startup), contentType: 'application/json' })
   }
