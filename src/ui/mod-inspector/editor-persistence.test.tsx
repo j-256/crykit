@@ -144,11 +144,11 @@ it('keeps a later explorer search focused through an owned field-selection save'
   expect((await stored())!.content.lastAppliedText).toBe(originalText)
 })
 
-it('keeps a JSON selection click alive while an earlier quiet save reopens its owner', async () => {
+it.each(['selection', 'branch expansion'] as const)('keeps a JSON %s click alive while an earlier quiet save reopens its owner', async kind => {
   await open()
   await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Select $.Count"]')!.click())
   const view = workspace.editorSession.transferView
-  const target = container.querySelector<HTMLButtonElement>('[aria-label="Select $.Values"]')!
+  const target = container.querySelector<HTMLButtonElement>(`[aria-label="${kind === 'selection' ? 'Select' : 'Expand'} $.Values"]`)!
   let release!: () => void
   const gate = new Promise<void>(resolve => { release = resolve })
   let reached = false, returned = false
@@ -179,10 +179,12 @@ it('keeps a JSON selection click alive while an earlier quiet save reopens its o
       await saving
     })
     await wait(() => expect(workspace.fileCommandPending()).toBe(false))
-    expect(container.querySelector('.inspector-path')?.textContent).toBe('$.Values')
+    const selected = kind === 'selection' ? 'Values' : 'Count'
+    expect(container.querySelector('.inspector-path')?.textContent).toBe(`$.${selected}`)
+    if (kind === 'branch expansion') expect(container.querySelector('[aria-label="Select $.Values[0]"]')).not.toBeNull()
     await flush()
     const document = (await stored())!
-    expect(document.file.unfinished.editedPath).toEqual(['Values'])
+    expect(document.file.unfinished.editedPath).toEqual([selected])
     expect(document.content.originalText).toBe(originalText)
     expect(document.content.lastAppliedText).toBe(originalText)
   } finally {
@@ -200,6 +202,33 @@ it('clears navigation draft presence when typing returns to the exact saved unfi
   expect(reportedDirty).toBe(false)
   expect(workspace.editorSession.controller.snapshot()).toMatchObject({ dirty: false, revision })
   expect((await stored())!.file.revision).toBe(revision)
+})
+
+it('retires old branch controls before returning a transferred receipt', async () => {
+  await open()
+  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Select $.Count"]')!.click())
+  const view = workspace.editorSession.transferView
+  const target = container.querySelector<HTMLButtonElement>('[aria-label="Expand $.Values"]')!
+  await act(async () => {
+    await actions!.save()
+    expect(workspace.editorSession.transferView).not.toBe(view)
+    // Observe the receipt continuation before act can flush a deferred replacement
+    // A still-mounted retired control can accept a click whose expansion is then lost
+    expect(target.isConnected).toBe(false)
+  })
+  await wait(() => expect(workspace.fileCommandPending()).toBe(false))
+  await act(async () => {
+    const next = container.querySelector<HTMLButtonElement>('[aria-label="Expand $.Values"]')!
+    expect(next).not.toBeNull()
+    expect(next).not.toBe(target)
+    next.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }))
+    next.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0 }))
+    next.click()
+  })
+  expect(container.querySelector('[aria-label="Select $.Values[0]"]')).not.toBeNull()
+  const document = (await stored())!
+  expect(document.content.originalText).toBe(originalText)
+  expect(document.content.lastAppliedText).toBe(originalText)
 })
 
 it('saves a quiet descendant without restarting its delay after an owned view transfer', async () => {

@@ -14,6 +14,7 @@ import { createEditorSession, type EditorWorkspaceActions } from './editor-sessi
 import { reconcileOwnedFileOutcome, resolveOwnedFileReceipt, verifyOwnedFileReceipt } from '../workspace/owned-file-command'
 import { readEditorContent } from '../workspace/editor-document'
 import { createContext, useContext, useEffect, useRef, useState, useCallback, type ReactNode } from 'react'
+import { flushSync as flushReactUpdates } from 'react-dom'
 import { assertActiveProfile, captureProfileEpoch, currentProfileToken, onProfileTransition, ProfileChangedError, type ProfileToken } from '../account/profile'
 import { attachSyncScheduler, requestSync, subscribeSync, type SyncState } from '../account/sync/scheduler'
 import { registerSyncProjectionGuard, runSyncIteration } from '../account/sync/outbox'
@@ -471,13 +472,17 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
         editorSession.phase = 'hydrating'
         editorSession.hydration = { view: transferred, completion, generation }
         currentRepository.current = completion.repository
-        setRepository(completion.repository)
-        if (selection.kind === 'guest') {
-          const next: WorkspaceSelection = { kind: 'guest', generation }
-          current.current = next; setSelection(next); setGuest(completion.repository)
-        }
-        setOwnedGeneration(generation)
-        setSuccessorPending(false)
+        // Ownership retirement and DOM replacement must finish in the same continuation
+        // A deferred commit leaves retired controls clickable and loses their later navigation state
+        flushReactUpdates(() => {
+          setRepository(completion.repository)
+          if (selection.kind === 'guest') {
+            const next: WorkspaceSelection = { kind: 'guest', generation }
+            current.current = next; setSelection(next); setGuest(completion.repository)
+          }
+          setOwnedGeneration(generation)
+          setSuccessorPending(false)
+        })
       } catch (reason) {
         if (isCurrent()) editorSession.phase = 'recovery'
         // Publication and UI continuation have separate outcomes; rejected completion cannot claim rollback
