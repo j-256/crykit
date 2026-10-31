@@ -11,6 +11,7 @@ import type {
   Timestamp,
 } from '../domain/types'
 import { createBlankLocalData as createDomainBlankLocalData, createPlaythrough } from '../domain/local-data'
+export { sha256 } from './sha256'
 
 export function nowTimestamp(): Timestamp {
   return new Date().toISOString() as Timestamp
@@ -18,12 +19,6 @@ export function nowTimestamp(): Timestamp {
 
 export function randomId(prefix: string): string {
   return `${prefix}:${crypto.randomUUID()}`
-}
-
-export async function sha256(bytes: Uint8Array): Promise<string> {
-  const copy = Uint8Array.from(bytes)
-  const digest = await crypto.subtle.digest('SHA-256', copy)
-  return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, '0')).join('')
 }
 
 export function createBlankLocalData(label = 'My playthrough', timestamp = nowTimestamp()): LocalData {

@@ -14,7 +14,7 @@ import { clearEmailCapability, confirmPendingEmail, emailConfirmationKind, resen
 import { SignInForm } from './SignInForm'
 import { RecoveryPanel } from './RecoveryPanel'
 import { DeviceApprovalPanel } from './DeviceApprovalPanel'
-import { formatAppError } from '../model'
+import { formatAppError } from '../browser-actions'
 import { CloudServiceNotice } from '../CloudServiceNotice'
 import { readServiceNotice, subscribeServiceNotice } from '../../account/service-notice'
 import './account.css'
