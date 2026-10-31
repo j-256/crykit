@@ -71,8 +71,9 @@ test('publication account phases partition the complete matrix and preserve sepa
   assert.deepEqual([...saves.cases, ...remaining.cases].sort(), complete.cases.sort())
   assert.equal(new Set([...saves.cases, ...remaining.cases]).size, complete.cases.length)
   for (const project of saves.config.projects) for (const other of remaining.config.projects) assert.notEqual(project.outputDir, other.outputDir)
+  assert.equal(remaining.config.workers, complete.config.workers)
+  assert.equal(saves.config.workers, process.env.CI ? 1 : 4)
   for (const phase of [saves, remaining]) {
-    assert.equal(phase.config.workers, complete.config.workers)
     for (const project of phase.config.projects) {
       const original = complete.config.projects.find(item => item.name === project.name)
       assert.deepEqual({ ...project, outputDir: original.outputDir }, original)
