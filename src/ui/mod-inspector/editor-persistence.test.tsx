@@ -202,6 +202,53 @@ it('clears navigation draft presence when typing returns to the exact saved unfi
   expect((await stored())!.file.revision).toBe(revision)
 })
 
+it('saves a quiet descendant without restarting its delay after an owned view transfer', async () => {
+  await open(); await click('Edit whole document JSON'); await flush()
+  const realTimeout = setTimeout
+  const nativeSettlementMilliseconds = 1000
+  const nativePollMilliseconds = 5
+  const waitForNative = async (ready: () => boolean) => {
+    const deadline = Date.now() + nativeSettlementMilliseconds
+    while (!ready() && Date.now() < deadline) await act(async () => { await new Promise(resolve => realTimeout(resolve, nativePollMilliseconds)) })
+    expect(ready()).toBe(true)
+  }
+  let release!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  let reached = false
+  const resolve = receipts.resolveOwnedFileReceipt
+  vi.spyOn(receipts, 'resolveOwnedFileReceipt').mockImplementation(async receipt => {
+    const completion = await resolve(receipt)
+    return { ...completion, assertCurrent: async () => {
+      await completion.assertCurrent()
+      if (!reached) { reached = true; await gate }
+    } }
+  })
+  let saving: Promise<boolean> | undefined
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] })
+  try {
+    await edit('{"first":')
+    await act(async () => { saving = actions!.save() })
+    await waitForNative(() => reached)
+    await edit('{"later":')
+    // Let the later input become quiet while the first receipt still owns the view
+    await act(async () => { await vi.advanceTimersByTimeAsync(350) })
+    await act(async () => { release(); await saving })
+    await waitForNative(() => !workspace.fileCommandPending())
+    expect(workspace.editorSession.controller.snapshot().dirty).toBe(true)
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    await waitForNative(() => !workspace.fileCommandPending() && !workspace.editorSession.controller.snapshot().dirty)
+    expect(container.querySelector('textarea')?.value).toBe('{"later":')
+    const document = (await stored())!
+    expect(document.content.unfinishedText).toBe('{"later":')
+    expect(document.content.originalText).toBe(originalText)
+    expect(document.content.lastAppliedText).toBe(originalText)
+  } finally {
+    release()
+    vi.useRealTimers()
+    await act(async () => { await saving })
+  }
+})
+
 it('a settled Editor remount honors the requested route while owned New map hydration restores Map', async () => {
   function RoutedOwner() {
     workspace = useWorkspace()
