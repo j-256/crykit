@@ -418,6 +418,8 @@ test('paints floating blocks on a construction plane without adding spacers or c
   await expect(page.getByRole('button', { name: 'Undo map edit', exact: true })).toBeDisabled()
   const gesture = await pointerGesture(page, testInfo.project.name === 'mobile')
   const list = page.locator('.map-editor-placement-list button')
+  // Plane and camera setup can replace the saved editor, so project the first stroke after that transfer
+  await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
   // The visible reference outline must not constrain the construction plane's brush area
   const stroke = [{ X: .25, Y: 140, Z: .25 }, { X: 7.25, Y: 140, Z: .25 }]
   let [start, end] = await scenePoints(page, stroke)
