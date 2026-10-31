@@ -2,6 +2,7 @@ import { afterEach, expect, it } from 'vitest'
 import { randomBytes, createHash } from 'node:crypto'
 import { Miniflare, convertV4MiniflareOptions } from 'miniflare'
 import { createServiceContext, type ServiceContext } from '../context'
+import { nativeFixtureHost } from '../testing/native-loopback'
 import { appendRevocation, initializeRevocationLedger, prepareRevocationLiabilities, readRevocation, readRevocationLiabilities, readRevocationHead, verifyRevocationLedgerPage, type RevocationEvent, type LedgerScan, type ClosedLiabilityPage } from './ledger'
 
 type R2Bucket = NonNullable<ServiceContext['env']['REVOCATION_LEDGER']>
@@ -11,7 +12,7 @@ afterEach(async () => { await Promise.all(fixtures.splice(0).map(f => f.dispose(
 const id = () => randomBytes(16).toString('base64url')
 const event = (): RevocationEvent => ({ version: 1, kind: 'share-stopped', accountId: id(), shareId: id(), intentId: id(), sessionEpoch: 1, timestamp: 1700000000000 })
 async function fixture() {
-  const mf = new Miniflare(convertV4MiniflareOptions({ modules: true, script: 'export default { fetch() { return new Response("fixture") } }', compatibilityDate: '2026-09-28', r2Buckets: ['REVOCATION_LEDGER'] }))
+  const mf = new Miniflare(convertV4MiniflareOptions({ host: nativeFixtureHost(), modules: true, script: 'export default { fetch() { return new Response("fixture") } }', compatibilityDate: '2026-09-28', r2Buckets: ['REVOCATION_LEDGER'] }))
   fixtures.push(mf)
   const bucket = await mf.getR2Bucket('REVOCATION_LEDGER') as unknown as R2Bucket
   const context = () => createServiceContext(new Request('http://localhost'), { REVOCATION_LEDGER: bucket }, { emit() {}, now: () => 1700000000000 })

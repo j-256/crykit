@@ -12,6 +12,7 @@ import type { ServiceEmail } from '../email/types'
 import { captureStepPath, type CaptureStepOutcome, type CaptureStepResult } from './capture-step-contract'
 import { databaseRequestPath, requestDatabase } from './database-request'
 import { fixtureClockHeader, fixtureEventsPath } from './fixture-control'
+import { nativeFixtureHost } from './native-loopback'
 
 export interface FixtureOptions {
   readonly databaseTransport?: 'binding' | 'request'
@@ -112,7 +113,7 @@ export async function createServiceFixture(options: FixtureOptions = {}): Promis
   // The pinned Miniflare 5 exposes its verified V4 conversion adapter; no config autoload is used
   const mf = new Miniflare(convertV4MiniflareOptions({
     handleStructuredLogs: options.onLog,
-    host: '127.0.0.1', port: 0, workers: [
+    host: nativeFixtureHost(), port: 0, workers: [
       // Ordinary fixtures use the real local Worker; dedicated runtime proofs also own the auxiliary entries
       { ...shared, name: 'local', modules: local.modules, modulesRoot: resolve(root, 'local'), bindings: { ...bindings, LOCAL_REQUEST_CONTEXT: 'true', LOCAL_IDENTITY: String(options.localIdentity ?? false), LOCAL_RETAIN_EVENTS: 'true' }, serviceBindings: { ...shared.serviceBindings, ...(runtimeProbes ? { PRODUCTION: 'production', WASM_PROBE: 'wasm-probe', OPAQUE_ADAPTER: 'opaque-adapter' } : {}) } },
       ...(runtimeProbes ? [

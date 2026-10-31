@@ -5,13 +5,14 @@ import { fileURLToPath } from 'node:url'
 import { VerificationError } from './integration-verification.mjs'
 
 const VITEST_CLI = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url))
-// Miniflare closes each dispatched connection, so parallel fixtures share a finite ephemeral-port pool
-// Keep rejection-path transport behavior while bounding socket churn across isolated native processes
-const NATIVE_SHARDS = 3
+// Miniflare closes dispatched connections; separate loopback families reduce source-address allocation contention
+// Keep rejection-path transport behavior and a bounded number of isolated native processes
+const NATIVE_SHARDS = 4
+const NATIVE_LOOPBACK_FAMILIES = Object.freeze(['ipv4', 'ipv6'])
 const LANES = Object.freeze([
   { name: 'node', projects: ['unit', 'dom', 'persistence'] },
   // A failing serial shard can bail after cleanup without aborting another active database case
-  ...Array.from({ length: NATIVE_SHARDS }, (_, index) => ({ name: `native-${index + 1}`, projects: ['worker', 'persistence-service'], workers: 1, bail: 1, shard: `${index + 1}/${NATIVE_SHARDS}` })),
+  ...Array.from({ length: NATIVE_SHARDS }, (_, index) => ({ name: `native-${index + 1}`, projects: ['worker', 'persistence-service'], workers: 1, bail: 1, shard: `${index + 1}/${NATIVE_SHARDS}`, loopback: NATIVE_LOOPBACK_FAMILIES[index % NATIVE_LOOPBACK_FAMILIES.length] })),
 ])
 
 async function configuredProjects({ cwd, configFile }) {
@@ -46,7 +47,7 @@ export async function verifyVitest({ cwd = process.cwd(), env = process.env, run
   const execute = (args, label, runEnv = env) => run(args, { cwd, env: runEnv, label, report })
   if (env.CI) {
     // Hosted runners retain their established single-process scheduling and configured worker limits
-    await execute(['run', `--config=${configFile}`, '--reporter=default', '--reporter=json', `--outputFile=${resultFile}`], 'hosted suite')
+    await execute(['run', `--config=${configFile}`, '--reporter=default', '--reporter=json', `--outputFile=${resultFile}`], 'hosted suite', { ...env, CRYKIT_NATIVE_TEST_LOOPBACK: '' })
     return
   }
   const projects = await readProjects({ cwd, configFile })
@@ -63,7 +64,7 @@ export async function verifyVitest({ cwd = process.cwd(), env = process.env, run
     // Serial shards stop after a failed case without aborting another shard's active body
     if (lane.bail) args.push(`--bail=${lane.bail}`)
     args.push('--reporter=default', '--reporter=blob', `--outputFile.blob=${join(blobs, `${lane.name}.json`)}`)
-    await execute(args, `${lane.name} lane`, { ...env, CRYKIT_NATIVE_TEST_PARTITION: lane.shard ? 'balanced' : '' })
+    await execute(args, `${lane.name} lane`, { ...env, CRYKIT_NATIVE_TEST_PARTITION: lane.shard ? 'balanced' : '', CRYKIT_NATIVE_TEST_LOOPBACK: lane.loopback ?? '' })
   })()))
   // A failure never cancels its sibling's active case or releases ownership before database cleanup
   // Merge failing reports too when available, retaining every result without authorizing publication
