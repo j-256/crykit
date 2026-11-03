@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { verifyVitest } from './vitest-verification.mjs'
+import { nativeFixtureHost } from '../worker/testing/native-loopback.ts'
 
 const PROJECTS = ['unit', 'dom', 'persistence', 'worker', 'persistence-service']
 const turn = () => new Promise(resolve => setImmediate(resolve))
@@ -25,6 +26,7 @@ function blob(args) {
 
 test('prepared Node and native lanes overlap and merging waits for both', async t => {
   const f = fixture(t), node = Promise.withResolvers(), native = Promise.withResolvers()
+  f.env.CRYKIT_NATIVE_TEST_LOOPBACK = 'invalid-inherited-value'
   const calls = []
   const pending = verifyVitest({ ...f, run: async (args, options) => {
     const name = lane(args); calls.push({ name, args, env: options.env }); blob(args)
@@ -33,17 +35,43 @@ test('prepared Node and native lanes overlap and merging waits for both', async 
   } })
   try {
     await turn()
-    assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native'])
-    assert.deepEqual(calls.slice(1).map(call => call.args.find(arg => arg.startsWith('--shard='))), ['--shard=1/2', '--shard=2/2'])
+    assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native', 'native', 'native'])
+    assert.deepEqual(calls.slice(1).map(call => call.args.find(arg => arg.startsWith('--shard='))), ['--shard=1/4', '--shard=2/4', '--shard=3/4', '--shard=4/4'])
     assert.ok(calls.slice(1).every(call => call.args.includes('--maxWorkers=1') && call.args.includes('--bail=1')))
     assert.ok(calls.slice(1).every(call => call.env.CRYKIT_NATIVE_TEST_PARTITION === 'balanced'))
+    assert.deepEqual(calls.slice(1).map(call => call.env.CRYKIT_NATIVE_TEST_LOOPBACK), ['ipv4', 'ipv6', 'ipv4', 'ipv6'])
+    assert.equal(calls[0].env.CRYKIT_NATIVE_TEST_LOOPBACK, '')
     assert.equal(calls[0].env.CRYKIT_NATIVE_TEST_PARTITION, '')
     assert.equal(calls[0].args.some(arg => arg.startsWith('--bail=')), false)
     assert.deepEqual([...new Set(calls.flatMap(call => call.args.filter(arg => arg.startsWith('--project=')).map(arg => arg.slice('--project='.length))))].sort(), [...PROJECTS].sort())
     node.resolve(); await turn()
-    assert.equal(calls.length, 3)
+    assert.equal(calls.length, 5)
   } finally { node.resolve(); native.resolve(); await pending }
-  assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native', 'merge'])
+  assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native', 'native', 'native', 'merge'])
+})
+
+test('a native failure drains every remaining native peer before merging reports', async t => {
+  const f = fixture(t), second = Promise.withResolvers(), third = Promise.withResolvers(), fourth = Promise.withResolvers()
+  const cleaned = [], calls = []
+  let settled = false
+  const pending = verifyVitest({ ...f, run: async args => {
+    calls.push(lane(args)); blob(args)
+    if (args.includes('--shard=1/4')) throw new Error('Synthetic first-shard failure')
+    if (args.includes('--shard=2/4')) { await second.promise; cleaned.push('second') }
+    if (args.includes('--shard=3/4')) { await third.promise; cleaned.push('third') }
+    if (args.includes('--shard=4/4')) { await fourth.promise; cleaned.push('fourth') }
+  } })
+  const outcome = pending.then(() => { settled = true; return undefined }, error => { settled = true; return error })
+  try {
+    await turn(); assert.equal(settled, false)
+    second.resolve(); await turn()
+    assert.deepEqual(cleaned, ['second'])
+    assert.equal(settled, false)
+    assert.equal(calls.includes('merge'), false)
+  } finally { second.resolve(); third.resolve(); fourth.resolve() }
+  assert.match((await outcome)?.message ?? '', /Synthetic first-shard failure/)
+  assert.deepEqual(cleaned, ['second', 'third', 'fourth'])
+  assert.equal(calls.at(-1), 'merge')
 })
 
 test('a failed lane drains its active sibling and cannot report success', async t => {
@@ -68,7 +96,7 @@ test('an unassigned configured project fails before any tests can be omitted', a
   assert.equal(invoked, false)
 })
 
-test('report merging failure cannot turn two successful lanes into success', async t => {
+test('report merging failure cannot turn successful lanes into success', async t => {
   const f = fixture(t)
   await assert.rejects(verifyVitest({ ...f, run: async args => {
     blob(args)
@@ -84,10 +112,17 @@ test('a successful exit without every lane report cannot publish stale results',
 
 test('hosted runs retain one unfiltered Vitest invocation', async t => {
   const f = fixture(t), calls = []
-  await verifyVitest({ ...f, env: { ...f.env, CI: '1' }, run: async args => calls.push(args) })
+  await verifyVitest({ ...f, env: { ...f.env, CI: '1', CRYKIT_NATIVE_TEST_LOOPBACK: 'ipv6' }, run: async (args, options) => { calls.push(args); assert.equal(nativeFixtureHost(options.env.CRYKIT_NATIVE_TEST_LOOPBACK), '127.0.0.1') } })
   assert.equal(calls.length, 1)
   assert.equal(calls[0].some(arg => arg.startsWith('--project=')), false)
   assert.equal(calls[0].some(arg => arg.startsWith('--sequence.sequencer=')), false)
+})
+
+test('native fixture listeners accept only the explicit loopback families', () => {
+  assert.equal(nativeFixtureHost(''), '127.0.0.1')
+  assert.equal(nativeFixtureHost('ipv4'), '127.0.0.1')
+  assert.equal(nativeFixtureHost('ipv6'), '::1')
+  for (const family of ['0.0.0.0', '::', '127.0.0.1', 'example.org', 'invalid']) assert.throws(() => nativeFixtureHost(family), /must be ipv4 or ipv6/)
 })
 
 function realFixture(t, bodies) {

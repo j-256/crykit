@@ -45,7 +45,7 @@ export default function MapOrientation({ manifest, layerId, camera, onNavigate }
   return <aside className="map-orientation stack" aria-label="Workspace orientation">
     <h3>Orientation Map</h3>
     <Segmented label="Orientation map scale" value={scale} options={[{ value: 'region', label: 'Region' }, { value: 'world', label: 'World' }]} onChange={setScale}/>
-    <div className="map-orientation-control" role="region" tabIndex={0} aria-label="Navigate editor camera" aria-describedby={helpId} onKeyDown={keyboard}>
+    <div className="map-orientation-control" data-editor-focus="map-orientation" role="region" tabIndex={0} aria-label="Navigate editor camera" aria-describedby={helpId} onKeyDown={keyboard}>
       <svg className="map-orientation-canvas" role="img" aria-label={`${layer.label} orientation map`} viewBox={`${x} ${z} ${width} ${height}`} onPointerDown={event => { pointerStart.current = { id: event.pointerId, x: event.clientX, y: event.clientY } }} onPointerUp={pick} onPointerCancel={() => { pointerStart.current = undefined }} data-center={`${camera.coord.X},${camera.coord.Z}`}>
         <image key={`${layerId}:${retry}`} href={worldMapImage(layer)} x={bounds.x} y={bounds.z} width={bounds.width} height={bounds.height} onLoad={() => setImageError(false)} onError={() => setImageError(true)}/>
         <g className="map-orientation-labels" style={{ fontSize: width / 24, strokeWidth }}>{labels.map(region => <text key={region.id} x={region.x} y={region.z} textAnchor="middle">{region.name}</text>)}</g>

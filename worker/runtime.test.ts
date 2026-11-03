@@ -13,13 +13,22 @@ import { createServiceContext, requireServiceBindings, type SafeEvent } from './
 const parseCommit = CommitRequestSchema.safeParse
 const fixtures: ServiceFixture[] = []
 async function fixture(options: Parameters<typeof createServiceFixture>[0] = {}) {
-  const f = await createServiceFixture(options)
+  const f = await createServiceFixture({ ...options, runtimeProbes: true })
   fixtures.push(f)
   return f
 }
 afterEach(async () => { await Promise.all(fixtures.splice(0).map(f => f.dispose())) })
 
 describe('isolated account runtime', () => {
+  it('requires explicit runtime probes before testing their response status', async () => {
+    const f = await createServiceFixture()
+    fixtures.push(f)
+    for (const path of ['/__accounts/production/identity', '/__accounts/probe/wasm', '/__accounts/probe/opaque-adapter', 'http://127.0.0.1/__accounts/production/email']) {
+      await expect(f.request(path)).rejects.toThrow('runtimeProbes')
+    }
+    expect((await f.request('/api/v1/service')).status).toBe(200)
+  })
+
   it('keepsGuestAssetsWhenAccountsAreInactive', async () => {
     const f = await fixture({ active: false })
     expect((await f.request('/api/v1/service')).status).toBe(200)

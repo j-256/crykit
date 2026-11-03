@@ -230,7 +230,12 @@ it('reconciles lost acceptance through both receipt APIs without changing quota 
   expect(await f.db.prepare('SELECT COUNT(*) AS n FROM transaction_guards').first('n')).toBe(0)
   expect(await f.db.prepare('SELECT COUNT(*) AS n FROM scan_leases').first('n')).toBe(0)
 })
-it('measures bounded indexed history reads and stable complete fixed-directory batches during later writes', async () => {
+it('measures bounded indexed history reads and stable complete fixed-directory batches during later writes', async ({ onTestFailed }) => {
+  const started = performance.now(), phases: { phase: string; elapsedMs: number }[] = []
+  const markPhase = (phase: string) => phases.push({ phase, elapsedMs: performance.now() - started })
+  // A timeout must distinguish fixture preparation from the measured read without exposing record identities
+  onTestFailed(() => { console.error('crykit_transition_fixture_failure', { elapsedMs: performance.now() - started, phases }) })
+  markPhase('create-fixture')
   const { readMutationTransition } = await import('./transitions')
   const f = await fixture(), signed = await customer(f), key = new Uint8Array(32).fill(7)
   // Mirror the fixed identity recipe in workspace/directory without importing its browser repository graph
@@ -241,8 +246,10 @@ it('measures bounded indexed history reads and stable complete fixed-directory b
   const control = fixedId('crykit/workspace-root-id/v1', 'workspace:root')
   const documents = [control, ...directories, id(), id()]
   const originals: RevisionDescriptor[] = []
+  markPhase('prepare-originals')
   for (const documentId of documents) originals.push((await prepared(f, signed, { documentId })).descriptor)
   const commands: CommitRequest[] = []
+  markPhase('publish-originals')
   for (let index = 0; index < originals.length; index += 32) {
     const input = command(originals.slice(index, index + 32)); await accept(f, signed, input); commands.push(input)
   }
@@ -250,6 +257,7 @@ it('measures bounded indexed history reads and stable complete fixed-directory b
   const future = (await prepared(f, signed)).descriptor
   await accept(f, signed, command([future]))
   const requested = [...documents].reverse(), batches: MutationTransition[] = []
+  markPhase('interleaved-writes')
   for (let index = 0; index < requested.length; index += 32) {
     batches.push(await transition(f, signed, target, requested.slice(index, index + 32)))
     const current = await f.db.prepare('SELECT head FROM sync_documents WHERE document_id = ?').bind(control).first<string>('head')
@@ -261,6 +269,7 @@ it('measures bounded indexed history reads and stable complete fixed-directory b
   expect(batches.flatMap(batch => batch.documents).find(row => row.documentId === control)).toEqual({ documentId: control, before: originals[0].revisionId, after: originals[0].revisionId })
   expect((await transition(f, signed, target, [future.documentId, never])).documents).toEqual([{ documentId: future.documentId, before: null, after: null }, { documentId: never, before: null, after: null }])
   const alternate: RevisionDescriptor[] = []
+  markPhase('prepare-alternates')
   for (const original of originals.slice(0, 32)) alternate.push((await prepared(f, signed, { documentId: original.documentId, parents: [original.revisionId] })).descriptor)
   await accept(f, signed, command(alternate, [], []))
   const { context, principal } = await direct(f, signed)
@@ -270,8 +279,13 @@ it('measures bounded indexed history reads and stable complete fixed-directory b
     const value = Reflect.get(target, field); return typeof value === 'function' ? value.bind(target) : value
   } })
   for (let depth = 1; depth <= 24; depth++) {
+    markPhase(`history-depth-${depth}`)
     const next = depth % 2 ? alternate : originals.slice(0, 32)
-    const expected = await Promise.all(next.map(async row => ({ documentId: row.documentId, revisionId: await f.db.prepare('SELECT head FROM sync_documents WHERE document_id = ?').bind(row.documentId).first<string>('head') })))
+    // Read the actual native heads before every commit without a transport request per document
+    // Preparation stays outside the measured history read and preserves the requested document order
+    const current = await f.db.prepare(`SELECT document_id, head FROM sync_documents WHERE account_id = ? AND document_id IN (${next.map(() => '?').join(',')})`).bind(signed.accountId, ...next.map(row => row.documentId)).all<{ document_id: string; head: string }>()
+    const currentHeads = new Map(current.results.map(row => [row.document_id, row.head]))
+    const expected = next.map(row => ({ documentId: row.documentId, revisionId: currentHeads.get(row.documentId) ?? null }))
     const input = command([], next.map(head), expected); await accept(f, signed, input)
     if (![1, 8, 24].includes(depth)) continue
     const viaRoute = await transition(f, signed, input, next.map(row => row.documentId))

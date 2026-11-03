@@ -260,9 +260,9 @@ export async function prepareLocalWorkspace(adapter: LocalStoreAdapter, operatio
   return { head, snapshot: snapshot(head, root, state, { adapter, lifetime, documents, index, allocations, bookkeeping, history, destination, journal, originals, journalIndex }) }
 }
 
-// Progress reports completed admission stages only; callers choose whether this is an observed startup
+// Progress reports admission boundaries and document waits; callers choose whether this is an observed startup
 // Keep identities and content out of labels, and retain every admission check regardless of observation
-export async function admitLocalRoot(adapter: LocalStoreAdapter, head: LocalRecordRef, lifetime: CapturedLocalLifetime, progress?: (phase: 'root-header' | 'root-indexes' | 'root-documents' | 'root-history' | 'root-closure') => void): Promise<AdmittedLocalSnapshot> {
+export async function admitLocalRoot(adapter: LocalStoreAdapter, head: LocalRecordRef, lifetime: CapturedLocalLifetime, progress?: (phase: 'root-header' | 'root-indexes' | 'root-document-read' | 'root-document-decode' | 'root-document-verified' | 'root-document-parsed' | 'root-documents' | 'root-history' | 'root-closure') => void): Promise<AdmittedLocalSnapshot> {
   lifetime.check(); await lifetime.assertCurrent()
   const root = LocalWorkspaceRootV3Schema.parse(await jsonRead(adapter, head))
   progress?.(WORKSPACE_STARTUP_PHASE.rootHeader)
@@ -280,7 +280,13 @@ export async function admitLocalRoot(adapter: LocalStoreAdapter, head: LocalReco
     const prior = documentReads.get(identity)
     if (prior) { if (prior.claim !== claim) throw new Error('Contradictory local frame claims'); return prior.value }
     const value = (async () => {
-      const stored = await decodeWorkspaceDocument(verifiedBlob(await adapter.read(entry.ref), entry.digest))
+      // Mark before each await so a stalled admission distinguishes obtaining a source from consuming its body
+      // The fixed phases reveal no record identities, and the startup timeline retains only the latest mark
+      progress?.(WORKSPACE_STARTUP_PHASE.rootDocumentRead)
+      const source = await adapter.read(entry.ref)
+      progress?.(WORKSPACE_STARTUP_PHASE.rootDocumentDecode)
+      const stored = await decodeWorkspaceDocument(verifiedBlob(source, entry.digest), progress && (() => progress(WORKSPACE_STARTUP_PHASE.rootDocumentVerified)))
+      progress?.(WORKSPACE_STARTUP_PHASE.rootDocumentParsed)
       if (stored.key !== entry.key || stored.kind !== entry.kind) throw new Error('Local frame key mismatch')
       // Exact bundled identity is required; missing packages cannot silently substitute another catalog
       const document = stored.kind === 'catalog' ? { ...stored, value: decodeCatalogPayload(stored.value) as WorkspaceDocument['value'] } : stored
@@ -348,7 +354,8 @@ export async function admitLocalRoot(adapter: LocalStoreAdapter, head: LocalReco
   const savedChanges = records.filter(record => record.kind === 'change').map(record => record.value as unknown as ChangeEntry)
   // Both older expanded frames and compact frames produce the same complete admitted catalog view
   // Expansion uses the exact stored baseline pin before closure validation and input-identity reuse
-  const restored: WorkspaceState = { ...state, planner: { ...state.planner, catalogs: Object.freeze([...immutableExpandedModCatalogs(state.planner.catalogs)]), history: nativeHistory, ...(root.hasSavedChanges ? { savedChanges } : {}), localData: { ...local, changes: changes.entries as unknown as LocalData['changes'], updatedAt: asTimestamp(root.localUpdatedAt), ...(selected.selectedPlaythroughId ? { selectedPlaythroughId: asId<NonNullable<LocalData['selectedPlaythroughId']>>(selected.selectedPlaythroughId) } : {}), ...(selected.planningGameSetupRevisionId ? { planningGameSetupRevisionId: asId<NonNullable<LocalData['planningGameSetupRevisionId']>>(selected.planningGameSetupRevisionId) } : {}), playthroughs: Object.fromEntries(Object.entries(local.playthroughs).map(([id, value]) => [id, { ...value, ...(selected.scenarios[id] ? { activeScenarioId: asId<NonNullable<import('../domain/types').Playthrough['activeScenarioId']>>(selected.scenarios[id]) } : {}) }])) } } }
+  // Expansion already owns a frozen collection; copying it would discard its native graph lookup
+  const restored: WorkspaceState = { ...state, planner: { ...state.planner, catalogs: immutableExpandedModCatalogs(state.planner.catalogs), history: nativeHistory, ...(root.hasSavedChanges ? { savedChanges } : {}), localData: { ...local, changes: changes.entries as unknown as LocalData['changes'], updatedAt: asTimestamp(root.localUpdatedAt), ...(selected.selectedPlaythroughId ? { selectedPlaythroughId: asId<NonNullable<LocalData['selectedPlaythroughId']>>(selected.selectedPlaythroughId) } : {}), ...(selected.planningGameSetupRevisionId ? { planningGameSetupRevisionId: asId<NonNullable<LocalData['planningGameSetupRevisionId']>>(selected.planningGameSetupRevisionId) } : {}), playthroughs: Object.fromEntries(Object.entries(local.playthroughs).map(([id, value]) => [id, { ...value, ...(selected.scenarios[id] ? { activeScenarioId: asId<NonNullable<import('../domain/types').Playthrough['activeScenarioId']>>(selected.scenarios[id]) } : {}) }])) } } }
   const destination = await readLocalIndex(root.destinationChanges, read, value => NativeLocalDataSchema.shape.changes.element.parse(value) as unknown as ChangeEntry)
   validateDestinationChanges(destination.entries, restored.planner.localData)
   await validateWorkspaceClosure(restored)
@@ -387,6 +394,9 @@ async function materializeLocalEndpoint(adapter: LocalStoreAdapter, endpoint: z.
   const state = assembleWorkspace(documents, endpoint.localRevision, journal, new Map(bookkeeping.entries.map(({ id, ...value }) => [id, value])))
   const local = state.planner.localData, selected = endpoint.selections
   const result: LocalData = { ...local, changes: changes.entries as unknown as LocalData['changes'], updatedAt: asTimestamp(endpoint.localUpdatedAt), ...(selected.selectedPlaythroughId ? { selectedPlaythroughId: asId<NonNullable<LocalData['selectedPlaythroughId']>>(selected.selectedPlaythroughId) } : {}), ...(selected.planningGameSetupRevisionId ? { planningGameSetupRevisionId: asId<NonNullable<LocalData['planningGameSetupRevisionId']>>(selected.planningGameSetupRevisionId) } : {}), playthroughs: Object.fromEntries(Object.entries(local.playthroughs).map(([id, value]) => [id, { ...value, ...(selected.scenarios[id] ? { activeScenarioId: asId<NonNullable<import('../domain/types').Playthrough['activeScenarioId']>>(selected.scenarios[id]) } : {}) }])) }
-  validateWorkspace({ ...state, planner: { ...state.planner, localData: result } })
-  return immutableHistoryEndpoint(result)
+  // Admit and freeze the reconstructed shape before catalog-sensitive validation
+  // The existing owner can then retain successful graph checks for this exact endpoint and catalog context
+  const immutable = immutableHistoryEndpoint(result)
+  validateWorkspace({ ...state, planner: { ...state.planner, localData: immutable } })
+  return immutable
 }

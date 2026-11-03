@@ -144,11 +144,11 @@ it('keeps a later explorer search focused through an owned field-selection save'
   expect((await stored())!.content.lastAppliedText).toBe(originalText)
 })
 
-it('keeps a JSON selection click alive while an earlier quiet save reopens its owner', async () => {
+it.each(['selection', 'branch expansion'] as const)('keeps a JSON %s click alive while an earlier quiet save reopens its owner', async kind => {
   await open()
   await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Select $.Count"]')!.click())
   const view = workspace.editorSession.transferView
-  const target = container.querySelector<HTMLButtonElement>('[aria-label="Select $.Values"]')!
+  const target = container.querySelector<HTMLButtonElement>(`[aria-label="${kind === 'selection' ? 'Select' : 'Expand'} $.Values"]`)!
   let release!: () => void
   const gate = new Promise<void>(resolve => { release = resolve })
   let reached = false, returned = false
@@ -179,10 +179,12 @@ it('keeps a JSON selection click alive while an earlier quiet save reopens its o
       await saving
     })
     await wait(() => expect(workspace.fileCommandPending()).toBe(false))
-    expect(container.querySelector('.inspector-path')?.textContent).toBe('$.Values')
+    const selected = kind === 'selection' ? 'Values' : 'Count'
+    expect(container.querySelector('.inspector-path')?.textContent).toBe(`$.${selected}`)
+    if (kind === 'branch expansion') expect(container.querySelector('[aria-label="Select $.Values[0]"]')).not.toBeNull()
     await flush()
     const document = (await stored())!
-    expect(document.file.unfinished.editedPath).toEqual(['Values'])
+    expect(document.file.unfinished.editedPath).toEqual([selected])
     expect(document.content.originalText).toBe(originalText)
     expect(document.content.lastAppliedText).toBe(originalText)
   } finally {
@@ -200,6 +202,80 @@ it('clears navigation draft presence when typing returns to the exact saved unfi
   expect(reportedDirty).toBe(false)
   expect(workspace.editorSession.controller.snapshot()).toMatchObject({ dirty: false, revision })
   expect((await stored())!.file.revision).toBe(revision)
+})
+
+it('retires old branch controls before returning a transferred receipt', async () => {
+  await open()
+  await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Select $.Count"]')!.click())
+  const view = workspace.editorSession.transferView
+  const target = container.querySelector<HTMLButtonElement>('[aria-label="Expand $.Values"]')!
+  await act(async () => {
+    await actions!.save()
+    expect(workspace.editorSession.transferView).not.toBe(view)
+    // Observe the receipt continuation before act can flush a deferred replacement
+    // A still-mounted retired control can accept a click whose expansion is then lost
+    expect(target.isConnected).toBe(false)
+  })
+  await wait(() => expect(workspace.fileCommandPending()).toBe(false))
+  await act(async () => {
+    const next = container.querySelector<HTMLButtonElement>('[aria-label="Expand $.Values"]')!
+    expect(next).not.toBeNull()
+    expect(next).not.toBe(target)
+    next.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }))
+    next.dispatchEvent(new MouseEvent('pointerup', { bubbles: true, button: 0 }))
+    next.click()
+  })
+  expect(container.querySelector('[aria-label="Select $.Values[0]"]')).not.toBeNull()
+  const document = (await stored())!
+  expect(document.content.originalText).toBe(originalText)
+  expect(document.content.lastAppliedText).toBe(originalText)
+})
+
+it('saves a quiet descendant without restarting its delay after an owned view transfer', async () => {
+  await open(); await click('Edit whole document JSON'); await flush()
+  const realTimeout = setTimeout
+  const nativeSettlementMilliseconds = 1000
+  const nativePollMilliseconds = 5
+  const waitForNative = async (ready: () => boolean) => {
+    const deadline = Date.now() + nativeSettlementMilliseconds
+    while (!ready() && Date.now() < deadline) await act(async () => { await new Promise(resolve => realTimeout(resolve, nativePollMilliseconds)) })
+    expect(ready()).toBe(true)
+  }
+  let release!: () => void
+  const gate = new Promise<void>(resolve => { release = resolve })
+  let reached = false
+  const resolve = receipts.resolveOwnedFileReceipt
+  vi.spyOn(receipts, 'resolveOwnedFileReceipt').mockImplementation(async receipt => {
+    const completion = await resolve(receipt)
+    return { ...completion, assertCurrent: async () => {
+      await completion.assertCurrent()
+      if (!reached) { reached = true; await gate }
+    } }
+  })
+  let saving: Promise<boolean> | undefined
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] })
+  try {
+    await edit('{"first":')
+    await act(async () => { saving = actions!.save() })
+    await waitForNative(() => reached)
+    await edit('{"later":')
+    // Let the later input become quiet while the first receipt still owns the view
+    await act(async () => { await vi.advanceTimersByTimeAsync(350) })
+    await act(async () => { release(); await saving })
+    await waitForNative(() => !workspace.fileCommandPending())
+    expect(workspace.editorSession.controller.snapshot().dirty).toBe(true)
+    await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+    await waitForNative(() => !workspace.fileCommandPending() && !workspace.editorSession.controller.snapshot().dirty)
+    expect(container.querySelector('textarea')?.value).toBe('{"later":')
+    const document = (await stored())!
+    expect(document.content.unfinishedText).toBe('{"later":')
+    expect(document.content.originalText).toBe(originalText)
+    expect(document.content.lastAppliedText).toBe(originalText)
+  } finally {
+    release()
+    vi.useRealTimers()
+    await act(async () => { await saving })
+  }
 })
 
 it('a settled Editor remount honors the requested route while owned New map hydration restores Map', async () => {
@@ -581,6 +657,21 @@ it('returns focus to the construction height after its saved map owner reopens',
   expect(document.activeElement).toBe(reopened)
   expect((await stored())!.file.unfinished.fieldState).toMatchObject({ map: { camera: { planeHeight: '141' } } })
 })
+it('keeps orientation keyboard navigation focused after an owned map save reopens', { timeout: LOCAL_EDITOR_COMMAND_MS }, async () => {
+  await openSelectedMap()
+  const navigator = container.querySelector<HTMLElement>('.map-orientation-control')!
+  const center = () => container.querySelector('.map-orientation-canvas')?.getAttribute('data-center')
+  const [x, z] = center()!.split(',').map(Number)
+  await act(async () => navigator.focus())
+  await flush()
+  await wait(() => expect(container.querySelector('.map-orientation-control')).not.toBe(navigator))
+  const reopened = container.querySelector<HTMLElement>('.map-orientation-control')!
+  expect(reopened).not.toBeNull()
+  expect(document.activeElement).toBe(reopened)
+  await act(async () => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
+  expect(center()).toBe(`${x! + 8},${z}`)
+  expect((await stored())!.content.lastAppliedText).toBe(selectedMapSource())
+})
 it('retains the map scroll position through an owned quiet-save handoff', { timeout: LOCAL_EDITOR_COMMAND_MS }, async () => {
   await openSelectedMap()
   const manifest = await worldMap.loadWorldMap()
@@ -604,9 +695,20 @@ it('retains the map scroll position through an owned quiet-save handoff', { time
     expect(container.querySelector<HTMLInputElement>('[data-editor-focus="map-coordinate-X"]')?.value).toBe('42')
   } finally { await act(async () => { release(manifest) }) }
 })
-it('keeps a gesture started during saved-receipt verification until its release', { timeout: LOCAL_EDITOR_COMMAND_MS }, async () => {
+it.each(['isometric', 'overview'] as const)('keeps an %s gesture started during saved-receipt verification until its release', { timeout: LOCAL_EDITOR_COMMAND_MS }, async kind => {
   await openSelectedMap()
+  if (kind === 'overview') await click('World map overview')
   const child = mapChildren.at(-1)!, view = workspace.editorSession.transferView
+  const viewport = container.querySelector<HTMLDivElement>('.world-map-viewport')!
+  viewport.setPointerCapture = () => {}
+  const gesture = (active: boolean) => {
+    if (kind === 'isometric') child.onGesture!(active)
+    else {
+      const event = new MouseEvent(active ? 'pointerdown' : 'pointerup', { bubbles: true, button: 0, clientX: 10, clientY: 10 })
+      Object.defineProperty(event, 'pointerId', { value: 1 })
+      viewport.dispatchEvent(event)
+    }
+  }
   let release!: () => void
   const gate = new Promise<void>(resolve => { release = resolve })
   let reached = false, returned = false
@@ -623,14 +725,14 @@ it('keeps a gesture started during saved-receipt verification until its release'
   try {
     await act(async () => { saving = actions!.save() })
     await wait(() => expect(reached).toBe(true))
-    await act(async () => { child.onGesture!(true); release() })
+    await act(async () => { gesture(true); release() })
     await wait(() => expect(returned).toBe(true))
     expect(workspace.editorSession.phase).toBe('reconciling')
     expect(workspace.editorSession.transferView).toBe(view)
     expect(workspace.editorSession.controller.canTransfer()).toBe(false)
   } finally {
     release()
-    await act(async () => { child.onGesture!(false); await saving })
+    await act(async () => { gesture(false); await saving })
   }
   await wait(() => expect(workspace.editorSession.phase).toBe('idle'))
   expect((await stored())!.file.unfinished.fieldState).toMatchObject({ map: { values: { X: '42' } } })

@@ -93,6 +93,8 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
   let previousRecords: BodyRecord[]
   const errors: string[] = [], measures: unknown[] = []
   const draftPreparations: unknown[] = []
+  const postProbeDrains: unknown[] = []
+  let unverifiedMeasure: { index: number; work: ReturnType<Window['finishSaveWork']> } | undefined
 
   async function releaseJourney() {
     try { await retainedContext?.close() }
@@ -102,7 +104,8 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       retainedContext = undefined
       baseline = startingEditor = previousFile = undefined
       previousRecords = []
-      measures.length = 0; errors.length = 0; draftPreparations.length = 0
+      unverifiedMeasure = undefined
+      measures.length = 0; errors.length = 0; draftPreparations.length = 0; postProbeDrains.length = 0
     }
   }
   // Independent cases release their own observations without creating file-level shard groups
@@ -261,15 +264,24 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       expected = value
     }
     const work = editorProbe?.work ?? nextInputWork ?? await page.evaluate(() => window.finishSaveWork())
+    // A later drain or durable read failure must retain the completed timing without claiming its integrity checks passed
+    unverifiedMeasure = { index, work }
     // The trusted probe and undo are ordinary autosaved input after the timed readiness boundary
     // Drain only their local command before the durable oracle; real background mapping stays live
     if (operation.includes('Editor')) {
-      await page.keyboard.press('Backspace')
-      await idle(page, 'editor')
+      // A failed drain needs its own work receipt; the completed Apply/input counters cannot explain it
+      await arm(page, 'input', '.inspector-editor textarea')
+      try {
+        await page.keyboard.press('Backspace')
+        await idle(page, 'editor')
+      } finally {
+        postProbeDrains.push({ index, work: await page.evaluate(() => window.saveWork ? window.finishSaveWork() : undefined).catch(() => undefined) })
+      }
       expect(await page.getByLabel('Exact JSON value').inputValue()).toBe(expected)
     }
     const persisted = await inspect(page, operation === 'Save inventory' ? 'save' : operation.includes('Editor') ? 'editor' : 'planner')
     measures.push({ index, work, expected, persisted, ...(beforeInventory ? { beforeInventory } : {}), ...(editorProbe ? { nextInput: { exactText: editorProbe.value === `${expected} `, applyEnabled: editorProbe.canApply } } : nextInputWork ? { nextInput: { exactText: nextInputWork.nextInputReady === true, focused: nextInputWork.nextInputReady === true } } : {}) })
+    unverifiedMeasure = undefined
     // Editor receipts retain the entire interval; only the measured driver gap is excluded from the application budget
     expect(editorProbe ? work.applicationElapsedMs : work.elapsedMs).toBeLessThanOrEqual(SAVE_CEILING_MS)
     if (nextInputWork) expect(nextInputWork.nextInputReady).toBe(true)
@@ -288,13 +300,12 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
     const observedReads = new Set(Object.values(work.recordsRead).flat())
     const observedWrites = new Set(Object.values(work.recordsWritten).flat())
     const persistedRecords = new Map(persisted.records.map((record: BodyRecord) => [record.key, record]))
-    for (const record of previousRecords) {
-      // Existing immutable bodies and catalogs retain their authenticated storage identities
-      // Only the edited file's actual current dependencies may be consumed by this foreground operation
-      expect(persistedRecords.get(record.key)).toEqual(record)
-      expect(observedWrites.has(record.storageId)).toBe(false)
-      if (!consumed.has(record.key)) expect(observedReads.has(record.storageId)).toBe(false)
-    }
+    // Keep the keyed comparison for every immutable body and catalog
+    // Group the checks to avoid tracing each unchanged record separately
+    expect(previousRecords.map(record => persistedRecords.get(record.key))).toEqual(previousRecords)
+    expect(previousRecords.filter(record => observedWrites.has(record.storageId))).toEqual([])
+    // Only the edited file's actual current dependencies may be read by the foreground operation
+    expect(previousRecords.filter(record => !consumed.has(record.key) && observedReads.has(record.storageId))).toEqual([])
     previousRecords = persisted.records
     previousFile = persisted.file
     if (operation === 'Build notes') {
@@ -328,7 +339,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
   async function attach(info: TestInfo, samples: readonly unknown[] = measures) {
     // JSON reporters inline body attachments, so the combined exact evidence can exceed V8's string limit
     // Keep every sample and integrity observation in a linked per-test file instead
-    const receipt = JSON.stringify({ operation, mode, size, browser: browserVersion, hardware: { cpu: cpus()[0]?.model, memoryBytes: totalmem(), platform: platform(), release: release() }, setup: await page.evaluate(() => (window as any).localSaveProof?.setup).catch(() => undefined), measures: samples, draftPreparations: draftPreparations.splice(0), diagnostics: await diagnostics(page).catch(() => undefined), mapperEvents: await page.evaluate(() => window.mapperEvents).catch(() => undefined), errors, qualification: 'Prepared synthetic managed root; installed account key is local-only. Main-thread payload/work observations exclude untimed durable oracles, worker activity and physical disk allocation. Long tasks are observed callbacks, not a complete trace. Mapping mode uses the actual profile-owned worker with encrypted queued projection; it does not establish cloud publication or complete portable restore.' }, (_key, value) => typeof value === 'bigint' ? { bigint: value.toString() } : value, 2)
+    const receipt = JSON.stringify({ operation, mode, size, browser: browserVersion, hardware: { cpu: cpus()[0]?.model, memoryBytes: totalmem(), platform: platform(), release: release() }, setup: await page.evaluate(() => (window as any).localSaveProof?.setup).catch(() => undefined), measures: samples, unverifiedMeasure, draftPreparations: draftPreparations.splice(0), postProbeDrains: postProbeDrains.splice(0), diagnostics: await diagnostics(page).catch(() => undefined), mapperEvents: await page.evaluate(() => window.mapperEvents).catch(() => undefined), errors, qualification: 'Prepared synthetic managed root; installed account key is local-only. Main-thread payload/work observations exclude untimed durable oracles, worker activity and physical disk allocation. Long tasks are observed callbacks, not a complete trace. Mapping mode uses the actual profile-owned worker with encrypted queued projection; it does not establish cloud publication or complete portable restore.' }, (_key, value) => typeof value === 'bigint' ? { bigint: value.toString() } : value, 2)
     const path = info.outputPath(`save-work-receipt-${receiptIndex++}.json`)
     await writeFile(path, receipt)
     await info.attach('save-work-receipt', { contentType: 'application/json', path })

@@ -1,6 +1,5 @@
 import { captureProfileEpoch, currentProfileToken, trackProfileUrl } from '../account/profile'
-import { exportWorkspaceBackup } from '../interchange/workspace-backup'
-import { assertWorkspaceSnapshotCurrent, captureWorkspaceSnapshot, disposeWorkspaceSnapshot, type WorkspaceSnapshot } from '../workspace/snapshot'
+import type { WorkspaceSnapshot } from '../workspace/snapshot'
 import type { WorkspaceRepository } from '../workspace/repository'
 import { markWorkspaceBackup, WORKSPACE_BACKUP_PHASE } from '../diagnostics/workspace-backup'
 
@@ -35,6 +34,9 @@ export async function downloadWorkspaceBackup(snapshot: WorkspaceSnapshot, desti
   const sink = await destination
   try {
     profile.assertCurrent()
+    const [{ exportWorkspaceBackup }, { assertWorkspaceSnapshotCurrent }] = await Promise.all([import('../interchange/workspace-backup'), import('../workspace/snapshot')])
+    // Loading optional export code is another asynchronous ownership boundary
+    profile.assertCurrent()
     markWorkspaceBackup(WORKSPACE_BACKUP_PHASE.encoding)
     if (sink) await writeDownloadStream(exportWorkspaceBackup(snapshot), sink, profile.assertCurrent)
     else {
@@ -57,14 +59,17 @@ export async function downloadCapturedWorkspace(repository: WorkspaceRepository,
   const profile = captureProfileEpoch()
   const destination = requestWorkspaceDownload()
   let snapshot: WorkspaceSnapshot | undefined, sink: DownloadSink | undefined
+  let snapshots: typeof import('../workspace/snapshot') | undefined
   try {
     sink = await destination; profile.assertCurrent()
     markWorkspaceBackup(WORKSPACE_BACKUP_PHASE.destinationReady)
     await flush(); profile.assertCurrent()
     markWorkspaceBackup(WORKSPACE_BACKUP_PHASE.flushed)
-    snapshot = await captureWorkspaceSnapshot(repository); profile.assertCurrent()
+    snapshots = await import('../workspace/snapshot'); profile.assertCurrent()
+    snapshot = await snapshots.captureWorkspaceSnapshot(repository); profile.assertCurrent()
     markWorkspaceBackup(WORKSPACE_BACKUP_PHASE.captured)
     await downloadWorkspaceBackup(snapshot, Promise.resolve(sink))
   } catch (error) { markWorkspaceBackup(WORKSPACE_BACKUP_PHASE.failed); await sink?.abort(error).catch(() => {}); throw error }
-  finally { if (snapshot) await disposeWorkspaceSnapshot(snapshot); markWorkspaceBackup(WORKSPACE_BACKUP_PHASE.released) }
+  // A snapshot can only exist after its owning module loaded successfully
+  finally { if (snapshot) await snapshots!.disposeWorkspaceSnapshot(snapshot); markWorkspaceBackup(WORKSPACE_BACKUP_PHASE.released) }
 }

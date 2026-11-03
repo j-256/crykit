@@ -14,7 +14,7 @@ const email = 'person@example.org'
 const id = () => randomBytes(16).toString('base64url')
 afterEach(async () => { clearPendingCredentialChanges(); vi.unstubAllGlobals(); await Promise.all(fixtures.splice(0).map(f => f.dispose())) })
 async function fixture(production = false) {
-  const f = await createServiceFixture({ now: production ? Date.now() : 1_800_000_000_000 }); fixtures.push(f)
+  const f = await createServiceFixture({ now: production ? Date.now() : 1_800_000_000_000, runtimeProbes: production }); fixtures.push(f)
   let cookie = ''
   let useProduction = false
   const bodies: string[] = []

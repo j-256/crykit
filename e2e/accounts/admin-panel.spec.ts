@@ -162,6 +162,8 @@ test('adminPanelUsesRealSignedServiceAndKeepsCustomerAndPublicGuards', async ({ 
     await page.getByRole('button', { name: 'Reset filters' }).click()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.getByRole('link', { name: 'Audit and access' }).click()
+    // Loading the operator table can move the invitation form between mouse press and release
+    await expect(page.getByRole('table').filter({ has: page.getByRole('columnheader', { name: 'Operator', exact: true }) })).toContainText(operatorId)
     await page.getByRole('textbox', { name: 'Verified email' }).fill('invitee@example.org')
     await page.getByRole('button', { name: 'Preview invitation' }).click()
     await expect(page.getByRole('dialog')).toContainText('Access policy')

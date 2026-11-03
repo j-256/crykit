@@ -12,6 +12,7 @@ import type { ServiceEmail } from '../email/types'
 import { captureStepPath, type CaptureStepOutcome, type CaptureStepResult } from './capture-step-contract'
 import { databaseRequestPath, requestDatabase } from './database-request'
 import { fixtureClockHeader, fixtureEventsPath } from './fixture-control'
+import { nativeFixtureHost } from './native-loopback'
 
 export interface FixtureOptions {
   readonly databaseTransport?: 'binding' | 'request'
@@ -22,6 +23,7 @@ export interface FixtureOptions {
   readonly migrationThrough?: string
   readonly assets?: { readonly directory: string; readonly run_worker_first: boolean | string[] }
   readonly production?: boolean
+  readonly runtimeProbes?: boolean
   readonly serviceOrigin?: string
   readonly adminConfig?: string
   readonly accessKeys?: (url: string) => Promise<Response>
@@ -48,6 +50,7 @@ export interface ServiceFixture {
   dispose(): Promise<void>
 }
 export async function createServiceFixture(options: FixtureOptions = {}): Promise<ServiceFixture> {
+  const runtimeProbes = options.runtimeProbes === true || options.production === true
   const root = resolve('.account-tests')
   const local = JSON.parse(await readFile(resolve(root, 'local/manifest.json'), 'utf8')) as { modules: V4ModuleDefinition[] }
   const production = JSON.parse(await readFile(resolve(root, 'production/manifest.json'), 'utf8')) as { modules: V4ModuleDefinition[] }
@@ -110,11 +113,14 @@ export async function createServiceFixture(options: FixtureOptions = {}): Promis
   // The pinned Miniflare 5 exposes its verified V4 conversion adapter; no config autoload is used
   const mf = new Miniflare(convertV4MiniflareOptions({
     handleStructuredLogs: options.onLog,
-    host: '127.0.0.1', port: 0, workers: [
-      { ...shared, name: 'local', modules: local.modules, modulesRoot: resolve(root, 'local'), bindings: { ...bindings, LOCAL_REQUEST_CONTEXT: 'true', LOCAL_IDENTITY: String(options.localIdentity ?? false), LOCAL_RETAIN_EVENTS: 'true' }, serviceBindings: { ...shared.serviceBindings, PRODUCTION: 'production', WASM_PROBE: 'wasm-probe', OPAQUE_ADAPTER: 'opaque-adapter' } },
-      { ...shared, name: 'production', modules: production.modules, modulesRoot: resolve(root, 'production'), ...(options.assets ? { assets: { ...options.assets, binding: 'ASSETS', routerConfig: { has_user_worker: true } }, serviceBindings: { EMAIL: shared.serviceBindings.EMAIL } } : {}) },
-      { ...shared, name: 'opaque-adapter', modules: adapter.modules, modulesRoot: resolve(root, 'opaque-adapter') },
-      { name: 'wasm-probe', compatibilityDate: '2026-09-28', modules: wasm.modules, modulesRoot: resolve(root, 'wasm') },
+    host: nativeFixtureHost(), port: 0, workers: [
+      // Ordinary fixtures use the real local Worker; dedicated runtime proofs also own the auxiliary entries
+      { ...shared, name: 'local', modules: local.modules, modulesRoot: resolve(root, 'local'), bindings: { ...bindings, LOCAL_REQUEST_CONTEXT: 'true', LOCAL_IDENTITY: String(options.localIdentity ?? false), LOCAL_RETAIN_EVENTS: 'true' }, serviceBindings: { ...shared.serviceBindings, ...(runtimeProbes ? { PRODUCTION: 'production', WASM_PROBE: 'wasm-probe', OPAQUE_ADAPTER: 'opaque-adapter' } : {}) } },
+      ...(runtimeProbes ? [
+        { ...shared, name: 'production', modules: production.modules, modulesRoot: resolve(root, 'production'), ...(options.assets ? { assets: { ...options.assets, binding: 'ASSETS', routerConfig: { has_user_worker: true } }, serviceBindings: { EMAIL: shared.serviceBindings.EMAIL } } : {}) },
+        { ...shared, name: 'opaque-adapter', modules: adapter.modules, modulesRoot: resolve(root, 'opaque-adapter') },
+        { name: 'wasm-probe', compatibilityDate: '2026-09-28', modules: wasm.modules, modulesRoot: resolve(root, 'wasm') },
+      ] : []),
     // Named-worker fetch redirects can return to the default entry, so production proofs own that entry too
     ].sort((left, right) => options.production ? Number(right.name === 'production') - Number(left.name === 'production') : 0),
   }))
@@ -127,14 +133,20 @@ export async function createServiceFixture(options: FixtureOptions = {}): Promis
       const init = { method: 'POST', headers: { 'content-type': 'application/json' }, body }
       return await (localWorker ? localWorker.fetch(url, init) : mf.dispatchFetch(url, init)) as unknown as Response
     })
-    // Each fixture owns a fresh database and applies the authored migrations in filename order
+    // This database is fresh and unexposed; one batch preserves authored order and cutoff without per-file round trips
+    // Initialization failure disposes the whole fixture, so no partial migration state becomes available to a test
     const migrations = resolve('worker/migrations')
+    const queries: string[] = []
     for (const name of (await readdir(migrations)).filter(name => /^\d+[-\w]*\.sql$/.test(name) && (!options.migrationThrough || name <= options.migrationThrough)).sort()) {
       // D1 exec executes individual lines, including standalone comments; Wrangler's splitter retains SQL boundaries
-      await db.batch(splitSqlQuery(await readFile(resolve(migrations, name), 'utf8')).map(sql => db.prepare(sql)))
+      queries.push(...splitSqlQuery(await readFile(resolve(migrations, name), 'utf8')))
     }
+    if (queries.length) await db.batch(queries.map(sql => db.prepare(sql)))
     let controlTail = Promise.resolve()
     const request = async (path: string, init?: RequestInit): Promise<Response> => {
+      const url = new URL(path, options.serviceOrigin ?? 'http://127.0.0.1')
+      // An absent probe must not turn a production-exclusion assertion into a false passing 404
+      if (!runtimeProbes && (url.pathname.startsWith('/__accounts/production/') || url.pathname === '/__accounts/probe/wasm' || url.pathname === '/__accounts/probe/opaque-adapter')) throw new Error('Runtime probe requests require runtimeProbes: true')
       // Queue local control writes before requests; the Worker consumes each fault synchronously
       if (faults.length) {
         const batch = faults.splice(0)
@@ -147,7 +159,7 @@ export async function createServiceFixture(options: FixtureOptions = {}): Promis
       // Miniflare uses Undici types; the fixture retains the standard Worker/browser fetch surface
       const headers = new Headers(init?.headers)
       headers.set(fixtureClockHeader, String(now))
-      return await mf.dispatchFetch(new URL(path, options.serviceOrigin ?? 'http://127.0.0.1').href, { ...init, headers: Object.fromEntries(headers) } as unknown as Parameters<Miniflare['dispatchFetch']>[1]) as unknown as Response
+      return await mf.dispatchFetch(url.href, { ...init, headers: Object.fromEntries(headers) } as unknown as Parameters<Miniflare['dispatchFetch']>[1]) as unknown as Response
     }
     return {
       request,

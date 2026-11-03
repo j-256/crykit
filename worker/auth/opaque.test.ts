@@ -97,7 +97,7 @@ it('serverSessionKeyCannotUnlockStoredRevision', async () => {
   expect(accepted.calls).toEqual({ commits: 1, aborts: 0 })
 })
 it('loads the independent emitted server-adapter WASM and leaves production probes unavailable', async () => {
-  const f = await fixture()
+  const f = await createServiceFixture({ runtimeProbes: true }); fixtures.push(f)
   const started = await client.startRegistration(password)
   const response = await f.request('/__accounts/probe/opaque-adapter', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ operation: 'registration', credentialId, request: started.request }) })
   expect(response.status).toBe(200)

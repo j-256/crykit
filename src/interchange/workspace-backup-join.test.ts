@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { expect, it } from 'vitest'
 import * as evidence from './workspace-backup-evidence'
 import { editorClosureFixture } from '../workspace/test-helpers'
-import { assertWorkspaceSnapshotCurrent, disposeWorkspaceSnapshot, openHistoricalSnapshot, ownWorkspaceSnapshot, snapshotMetadata, type WorkspaceSnapshotV1 } from '../workspace/snapshot'
+import { assertWorkspaceSnapshotCurrent, disposeWorkspaceSnapshot, openHistoricalSnapshot, ownWorkspaceSnapshot, projectWorkspaceSnapshotV1, snapshotMetadata, type WorkspaceSnapshotV1 } from '../workspace/snapshot'
 import { exportWorkspaceBackup, readWorkspaceBackup } from './workspace-backup'
 
 async function fixture() {
@@ -45,6 +45,26 @@ it('rejects forged owners, subset omissions and orphans while preserving input o
   expect(empty.version).toBe(2)
   expect(empty.historicalEvidence.snapshots).toEqual([])
   await disposeWorkspaceSnapshot(empty)
+})
+
+it('keeps joined current metadata and inherited references detached from later caller mutations', async () => {
+  const source = await fixture(), history = await inherited(source)
+  const historicalMetadata = structuredClone(snapshotMetadata(source))
+  const current = ownWorkspaceSnapshot({ ...source, snapshotId: 'current' }, { async check() {}, async dispose() {} })
+  const expectedCurrent = snapshotMetadata(current)
+  const joined = await evidence.joinWorkspaceSnapshotEvidence(current, history)
+  try {
+    source.revisionVector.guest = 'changed'
+    expect(Reflect.set(source.state.planner.catalogs, 0, { invalid: true })).toBe(true)
+    Object.assign(history.bodies[0].ref, { byteLength: history.bodies[0].ref.byteLength + 1 })
+    const restored = await readWorkspaceBackup(exportWorkspaceBackup(joined))
+    try {
+      expect(snapshotMetadata(projectWorkspaceSnapshotV1(restored))).toEqual(expectedCurrent)
+      const child = await openHistoricalSnapshot(restored, history.members[0].id)
+      try { expect(snapshotMetadata(child)).toEqual(historicalMetadata) }
+      finally { await disposeWorkspaceSnapshot(child) }
+    } finally { await disposeWorkspaceSnapshot(restored) }
+  } finally { await disposeWorkspaceSnapshot(joined) }
 })
 
 it('revokes joined children when the caller disposes the adopted current and awaits its disposal', async () => {

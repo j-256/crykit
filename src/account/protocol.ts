@@ -30,14 +30,19 @@ export const defaultAdminPageRows = 50
 export const maxAdminPageRows = 100
 export const maxCursorBytes = 2048
 
+const BASE64URL_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+const BASE64URL_PADDING_MASKS = [0, 0b1111, 0b11] as const
+
 // Reject alternate encodings before these values become identity or digest keys
 export function base64urlSchema(bytes: number) {
-  return z.string().length(Math.ceil(bytes * 4 / 3)).regex(/^[A-Za-z0-9_-]+$/).refine(value => {
-    try {
-      if (value.length !== Math.ceil(bytes * 4 / 3)) return false
-      const decoded = atob(value.replace(/-/g, '+').replace(/_/g, '/'))
-      return decoded.length === bytes && btoa(decoded).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') === value
-    } catch { return false }
+  const encodedLength = Math.ceil(bytes * 4 / 3)
+  const paddingMask = BASE64URL_PADDING_MASKS[bytes % 3] ?? 0
+  const validWidth = Number.isInteger(bytes) && bytes > 0
+  return z.string().length(encodedLength).regex(/^[A-Za-z0-9_-]+$/).refine(value => {
+    // RFC 4648 section 3.5 requires zero unused bits: four after one byte, two after two bytes
+    // Exact width and alphabet plus these bits prove canonicality without decoding every identity
+    const lastSymbol = BASE64URL_ALPHABET.indexOf(value.at(-1) ?? '=')
+    return validWidth && value.length === encodedLength && lastSymbol >= 0 && (lastSymbol & paddingMask) === 0
   }, 'Expected canonical base64url')
 }
 // Fixed ristretto255/SHA-512 serialization in @serenity-kit/opaque 1.1.0, not loose request budgets

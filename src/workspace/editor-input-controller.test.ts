@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { EditorInputController } from './editor-input-controller'
 
 it('acknowledges immutable V while preserving typed descendant input and fences the old view', () => {
@@ -36,6 +36,31 @@ it('acknowledges a captured input after later typing returns to that exact input
   controller.editText(view, '{"captured":')
   controller.acknowledge(saved, 2)
   expect(controller.snapshot()).toMatchObject({ dirty: false, revision: 2, input: { text: '{"captured":' } })
+})
+it('retains elapsed quiet time across receipt acknowledgement and starts a new interval only for new input', () => {
+  const now = vi.spyOn(performance, 'now').mockReturnValue(0)
+  const quietMilliseconds = 350
+  try {
+    const controller = new EditorInputController(), view = controller.attach()
+    controller.open(view, 'document', 1, { original: 'o', applied: 'a', reference: 'r' }, { text: '{}', editedPath: [], fieldState: null, validation: 'valid' })
+    controller.editText(view, '{"first":')
+    const ticket = controller.capture(view, 'saveUnfinished', () => {})
+    now.mockReturnValue(100)
+    controller.editText(view, '{"later":')
+    now.mockReturnValue(250)
+    controller.acknowledge(ticket, 2)
+    const next = controller.transfer(view)
+    controller.hydrated(next)
+    expect(controller.remainingQuietTime(quietMilliseconds)).toBe(200)
+    now.mockReturnValue(500)
+    expect(controller.remainingQuietTime(quietMilliseconds)).toBe(0)
+    controller.editField(next, 'editor', '{"latest":')
+    expect(controller.remainingQuietTime(quietMilliseconds)).toBe(quietMilliseconds)
+    controller.setInteraction(next, 'composition', true)
+    now.mockReturnValue(1000)
+    expect(controller.remainingQuietTime(quietMilliseconds)).toBe(0)
+    expect(controller.canTransfer()).toBe(false)
+  } finally { now.mockRestore() }
 })
 it('Apply requires an unchanged input version and discard invalidates unfinished ancestry', () => {
   const c = new EditorInputController(), view = c.attach()

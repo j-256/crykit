@@ -496,8 +496,10 @@ it.each([false, true])('installs with an exact packaged catalog staged: %s while
 const INVALID_JOURNAL = 'The journaled planner data is missing or invalid. Keep your draft and reopen the workspace'
 const journalError = (message = INVALID_JOURNAL) => ({ code: 'schema-mismatch', userMessage: message, recoverable: true })
 
-async function journalFixture(undoable = false) {
-  const fixture = await installerFixture(true)
+async function journalFixture(undoable = false, { packagedCatalog = true } = {}) {
+  // Guard-only cases retain the imported synthetic catalog and exact source/history evidence
+  // Keep the complete packaged snapshot for catalog admission, preservation and successful save journeys
+  const fixture = await installerFixture(packagedCatalog)
   await writePreparedGuestPlanner(fixture.database, fixture.preparation, { expectedStaged: fixture.before, assertOwned: () => {} })
   const preview = await previewImport(new TextEncoder().encode(JSON.stringify({ ID: 'direct-guard', Title: 'Direct guard', EditorVersion: 34, Items: [{ ID: 51, Name: 'Guard item' }] })), 'guard.json')
   let record = (await fixture.database.localDatas.get('local-data-record'))!
@@ -510,8 +512,10 @@ async function journalFixture(undoable = false) {
       await fixture.database.localDatas.put(record)
     })
   }
-  const catalog = BUNDLED_CATALOGS[0]!
-  await fixture.database.catalogs.put({ key: JSON.stringify([catalog.id, catalog.revisionId]), id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum, snapshot: catalog })
+  if (packagedCatalog) {
+    const catalog = BUNDLED_CATALOGS[0]!
+    await fixture.database.catalogs.put({ key: JSON.stringify([catalog.id, catalog.revisionId]), id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum, snapshot: catalog })
+  }
   fixture.database.close()
   const database = new CryKitDatabase(fixture.database.name, { plannerFormatRequirement: 'journaled' })
   // Admission assertions begin only after the synthetic native layout-6 database has opened
@@ -698,7 +702,7 @@ it('preserves admitted destination evidence older than the live change window', 
 })
 
 it.each(['missing transition', 'duplicate identity', 'changed shared entry', 'unsafe revision'] as const)('rejects a journaled draft with %s without touching saved rows', async kind => {
-  const { database, record } = await journalFixture()
+  const { database, record } = await journalFixture(false, { packagedCatalog: false })
   const first = changedLocalData(record.localData, record.localData, 'first edit', nowTimestamp())
   const second = changedLocalData(first, first, 'second edit', nowTimestamp())
   let draft = second
@@ -828,7 +832,7 @@ it('shows a reader one complete old or new tuple while a journaled save is betwe
 
 const persistedMalformed: readonly [string, (value: ReturnType<typeof tuple>) => void][] = malformed.filter(([name]) => !['changed same-id row', 'duplicate physical row'].includes(name))
 it.each(persistedMalformed)('denies persisted journal %s without cleanup or fallback', async (_name, mutate) => {
-  const { database } = await journalFixture()
+  const { database } = await journalFixture(false, { packagedCatalog: false })
   const value = tuple(); mutate(value)
   await database.localDatas.clear()
   await database.localDatas.put(value.record)
@@ -840,7 +844,7 @@ it.each(persistedMalformed)('denies persisted journal %s without cleanup or fall
 })
 
 it.each(['root', 'descriptor', 'declaration', 'both', 'undefined descriptor', 'disabled missing member'] as const)('rejects required %s absence before legacy fallback', async kind => {
-  const { database, record } = await journalFixture(kind === 'disabled missing member')
+  const { database, record } = await journalFixture(kind === 'disabled missing member', { packagedCatalog: false })
   if (kind === 'root') await database.localDatas.delete('local-data-record')
   if (kind === 'descriptor' || kind === 'both') {
     const { operativePlanner: _descriptor, ...legacy } = record
@@ -856,7 +860,7 @@ it.each(['root', 'descriptor', 'declaration', 'both', 'undefined descriptor', 'd
 })
 
 it.each(['missing canonical', 'marked fallback', 'undefined fallback'] as const)('default mode refuses %s journal markers', async kind => {
-  const { database, record } = await journalFixture()
+  const { database, record } = await journalFixture(false, { packagedCatalog: false })
   const name = database.name; database.close()
   const ordinary = new CryKitDatabase(name); await ordinary.open()
   await ordinary.localDatas.delete('local-data-record')
@@ -916,12 +920,12 @@ it('undoes through the singleton facade', async () => {
   finally { database.close(); setDatabaseForTests(undefined) }
 })
 it.each([false, true])('returns no undo for restored membership even with an exact inert endpoint: %s', async retain => {
-  const { database, record } = await journalFixture()
+  const { database, record } = await journalFixture(false, { packagedCatalog: false })
   await unchangedJournal(database, () => undoLocalDataWithStatus(record.revision, database, retain), { code: 'not-found', userMessage: 'There is no saved change to undo', recoverable: true })
 })
 
 it.each(['default', 'replace', 'add-reference', 'no-op', 'inclusion'] as const)('denies direct import %s including advertised no-op success', async mode => {
-  const { database, record, preview } = await journalFixture()
+  const { database, record, preview } = await journalFixture(false, { packagedCatalog: false })
   if (mode === 'no-op' || mode === 'inclusion') await database.localDatas.put({ ...record, localData: { ...record.localData, importReceipts: preview.proposed.localData.importReceipts, referenceLibrary: { version: 1, excludedMods: mode === 'inclusion' ? [preview.proposed.catalogs[0]!.id] : [] } } })
   const original = structuredClone(preview)
   const options = { ...(mode === 'default' ? {} : { mode: mode === 'replace' ? 'replace' as const : 'add-reference' as const }), expectedRevision: record.revision, ...(mode === 'inclusion' ? { includeModInReference: preview.proposed.catalogs[0]!.id } : {}) }
@@ -940,7 +944,7 @@ it.each([false, true])('denies direct mod setup including skip=%s', async skip =
 
 it.each(['save', 'undo', 'import', 'mod'] as const)('admits format before stale revision for %s', async operation => {
   for (const invalid of [false, true]) {
-    const { database, record, preview } = await journalFixture(true)
+    const { database, record, preview } = await journalFixture(true, { packagedCatalog: false })
     if (invalid) await database.meta.delete(GUEST_PLANNER_LAYOUT_KEY)
     const run = () => operation === 'save' ? saveLocalDataWithStatus(record.localData, record.revision - 1, database)
       : operation === 'undo' ? undoLocalDataWithStatus(record.revision - 1, database)
@@ -950,7 +954,7 @@ it.each(['save', 'undo', 'import', 'mod'] as const)('admits format before stale 
   }
 })
 it('retains the import target guard after valid admission', async () => {
-  const { database, preview } = await journalFixture()
+  const { database, preview } = await journalFixture(false, { packagedCatalog: false })
   await unchangedJournal(database, () => commitImport(preview, { targetLocalDataId: 'different-target' as never }, database), { code: 'revision-conflict', userMessage: 'The import target changed. Reload before importing', recoverable: true })
 })
 
@@ -1171,7 +1175,7 @@ it.each(['history', 'root'] as const)('rolls back journaled Undo after the %s wr
 })
 
 it.each(['missing member', 'before', 'after', 'declaration', 'stale'] as const)('rejects journaled Undo %s without changing any table or notifying', async corruption => {
-  const { database, record } = await journalFixture(true)
+  const { database, record } = await journalFixture(true, { packagedCatalog: false })
   const member = (await database.history.get(record.operativePlanner!.checkpointIds.at(-1)!))!
   if (corruption === 'missing member') await database.history.delete(member.id)
   if (corruption === 'before') await database.history.put({ ...member, before: { ...member.before, changes: member.before.changes.map(change => ({ ...change, command: 'corrupted immutable change' })) } })
@@ -1187,7 +1191,7 @@ it.each(['missing member', 'before', 'after', 'declaration', 'stale'] as const)(
 })
 
 it('refuses a journaled Undo successor beyond the safe revision range', async () => {
-  const { database, record } = await journalFixture()
+  const { database, record } = await journalFixture(false, { packagedCatalog: false })
   const before = { ...record.localData, revision: Number.MAX_SAFE_INTEGER - 1, changes: [] }
   const after = changedLocalData(before, before, 'last safe edit', nowTimestamp())
   const checkpoint = historyEntry(before, after, 'last safe edit', after.updatedAt)
@@ -1343,7 +1347,7 @@ it('exports a journal recovery draft without changing its identities or stored t
 })
 
 it.each(['wrong-domain', 'missing-member', 'reversed-descriptor', 'missing-declaration'] as const)('rejects journal export %s without writes or notifications', async kind => {
-  const { database, record } = await journalFixture(true)
+  const { database, record } = await journalFixture(true, { packagedCatalog: false })
   const saved = await saveLocalDataWithStatus(record.localData, record.revision, database)
   const root = (await database.localDatas.get('local-data-record'))!
   if (kind === 'missing-member') await database.history.delete(root.operativePlanner!.checkpointIds[0]!)

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { assertActiveProfile, type ProfileToken } from '../../account/profile'
-import { sha256 } from '../../interchange/util'
+import { sha256 } from '../../interchange/sha256'
 import { NATIVE_BACKUP_ARCHIVE_LIMITS } from '../../interchange/zip'
 import { blobIdentity, readBlob } from '../../workspace/blobs'
 import type { WorkspaceBlobRef, WorkspaceDocument, WorkspaceState } from '../../workspace/documents'
 import { EditorWorkspaceDocumentSchema, SaveWorkspaceDocumentSchema, WorkspaceAssetSchema } from '../../workspace/file-schemas'
-import { downloadBytes } from '../model'
+import { downloadBytes } from '../browser-actions'
 
 const PREVIEW_BYTES = 64 * 1024
 interface ContentRole { readonly label: string; readonly ref: WorkspaceBlobRef }

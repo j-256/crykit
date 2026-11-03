@@ -49,3 +49,24 @@ it('scopes readiness to the image source and retry while ignoring detached image
   await act(async () => previous.dispatchEvent(new Event('error')))
   expect(container.querySelector('.world-map-image-status')).toBeNull()
 })
+
+it('releases gesture ownership after the last pointer, capture loss or unmount', async () => {
+  const ownership: boolean[] = []
+  await act(async () => root.render(<WorldMapCanvas manifest={manifest} markers={[]} layerId={0} onSelect={ignore} onVisibleChange={ignore} onGestureChange={pending => ownership.push(pending)}/>))
+  const viewport = container.querySelector<HTMLDivElement>('.world-map-viewport')!
+  viewport.setPointerCapture = () => {}
+  const pointer = (type: string, pointerId: number) => {
+    const event = new MouseEvent(type, { bubbles: true, button: 0 })
+    Object.defineProperty(event, 'pointerId', { value: pointerId })
+    viewport.dispatchEvent(event)
+  }
+  await act(async () => { pointer('pointerdown', 1); pointer('pointerdown', 2); pointer('pointerup', 1) })
+  expect(ownership).toEqual([true])
+  await act(async () => pointer('pointercancel', 2))
+  expect(ownership).toEqual([true, false])
+  await act(async () => { pointer('pointerdown', 3); pointer('lostpointercapture', 3) })
+  expect(ownership).toEqual([true, false, true, false])
+  await act(async () => pointer('pointerdown', 4))
+  await act(async () => root.render(<></>))
+  expect(ownership).toEqual([true, false, true, false, true, false])
+})

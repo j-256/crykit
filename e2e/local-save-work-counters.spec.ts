@@ -13,7 +13,7 @@ test('save diagnostics preserve native transaction completion and rollback witho
   const proof = await page.evaluate(async () => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('private-diagnostic-database')
-      request.onupgradeneeded = () => request.result.createObjectStore('records')
+      request.onupgradeneeded = () => request.result.createObjectStore('records').createIndex('private-index', 'marker')
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })
@@ -23,13 +23,15 @@ test('save diagnostics preserve native transaction completion and rollback witho
       const transaction = db.transaction('records', 'readwrite')
       transaction.oncomplete = () => abort ? reject(new Error('Aborted write committed')) : resolve()
       transaction.onabort = () => abort ? resolve() : reject(transaction.error)
-      transaction.objectStore('records').put(abort ? 'private-aborted-value' : 'private-committed-value', 'private-record-key')
-      if (abort) transaction.abort()
+      const request = transaction.objectStore('records').put(abort ? 'private-aborted-value' : 'private-initial-value', 'private-record-key')
+      if (!abort) request.onsuccess = () => transaction.objectStore('records').put('private-committed-value', 'private-record-key')
+      if (abort) { transaction.objectStore('records').clear(); transaction.abort() }
     })
     window.recordSaveIdleObservation(observation)
     const value = await new Promise<unknown>((resolve, reject) => {
-      const transaction = db.transaction('records'), request = transaction.objectStore('records').get('private-record-key')
-      transaction.oncomplete = () => resolve(request.result)
+      const transaction = db.transaction('records'), store = transaction.objectStore('records')
+      const request = store.get('private-record-key'), indexed = store.index('private-index').count()
+      transaction.oncomplete = () => indexed.result === 0 ? resolve(request.result) : reject(new Error('Unexpected indexed record'))
       transaction.onabort = () => reject(transaction.error)
     })
     window.recordSaveIdleObservation({ ...observation, phase: 'idle', pending: false, dirty: false, acknowledged: true, ready: true })
@@ -39,15 +41,49 @@ test('save diagnostics preserve native transaction completion and rollback witho
   expect(proof.value).toBe('private-committed-value')
   expect(proof.work.transactions).toEqual({ readwrite: 2, readonly: 1 })
   expect(proof.work.transactionTimings.map(timing => timing.outcome)).toEqual(['complete', 'abort', 'complete'])
+  expect(proof.work.transactionTimings.map(timing => timing.requestCount)).toEqual([2, 2, 2])
+  expect(proof.work.transactionTimings.map(timing => timing.requestSuccessCount)).toEqual([2, 0, 2])
   for (const timing of proof.work.transactionTimings) {
     expect(timing.stores).toEqual(['records'])
     expect(timing.startedMs).toBeGreaterThanOrEqual(0)
     expect(timing.endedMs).toBeGreaterThanOrEqual(timing.startedMs)
     expect(timing.endedMs).toBeLessThanOrEqual(proof.work.elapsedMs)
+    expect(timing.firstRequestMs).toBeGreaterThanOrEqual(timing.startedMs)
+    if (timing.outcome === 'complete') {
+      expect(timing.firstRequestSuccessMs).toBeGreaterThanOrEqual(timing.firstRequestMs!)
+      expect(timing.lastRequestSuccessMs).toBeGreaterThanOrEqual(timing.firstRequestSuccessMs!)
+      expect(timing.lastRequestSuccessMs).toBeLessThanOrEqual(timing.endedMs!)
+    } else expect(timing.firstRequestSuccessMs).toBeUndefined()
   }
   expect(proof.work.idlePolling?.samples).toBe(3)
   expect(proof.work.idlePolling?.observations.map(observation => observation.ready)).toEqual([false, true])
   expect(JSON.stringify(proof.work)).not.toContain('private-')
+})
+
+test('save diagnostics attribute native long frames without retaining private script URLs', async ({ page }) => {
+  const scriptWorkMs = 60
+  await installSaveWorkCounters(page)
+  await page.route('**/save-frame-proof', route => route.fulfill({ contentType: 'text/html', body: '<button>Save</button><script src="/__accounts-proof/assets/frame-proof.js?private-token"></script><script src="/private-script.js?private-token"></script>' }))
+  const script = `document.querySelector('button').addEventListener('click', () => { const began = performance.now(); while (performance.now() - began < ${scriptWorkMs}) {} document.body.style.backgroundColor = 'white' })`
+  await page.route('**/frame-proof.js?private-token', route => route.fulfill({ contentType: 'text/javascript', body: script }))
+  await page.route('**/private-script.js?private-token', route => route.fulfill({ contentType: 'text/javascript', body: script }))
+  await page.goto('/save-frame-proof')
+  const supported = await page.evaluate(() => PerformanceObserver.supportedEntryTypes.includes('long-animation-frame'))
+  await page.evaluate(() => window.armSaveWork('click', 'button'))
+  await page.getByRole('button', { name: 'Save' }).click()
+  if (supported) await expect.poll(() => page.evaluate(() => window.saveWork?.longAnimationFrames?.flatMap(frame => frame.scripts).some(script => script.sourceFile === 'frame-proof.js'))).toBe(true)
+  const work = await page.evaluate(() => window.finishSaveWork())
+  if (supported) {
+    const scripts = work.longAnimationFrames!.flatMap(frame => frame.scripts)
+    expect(scripts.some(script => script.sourceFile === 'frame-proof.js' && script.durationMs >= scriptWorkMs && script.sourceCharPosition! >= 0)).toBe(true)
+    expect(scripts.some(script => script.sourceFile === undefined && script.durationMs >= scriptWorkMs)).toBe(true)
+    for (const frame of work.longAnimationFrames!) {
+      expect(frame.startedMs + frame.durationMs).toBeGreaterThan(0)
+      expect(frame.durationMs).toBeGreaterThan(0)
+      expect(frame.blockingMs).toBeGreaterThanOrEqual(0)
+    }
+  } else expect(work.longAnimationFrames).toBeUndefined()
+  expect(JSON.stringify(work)).not.toContain('private-')
 })
 
 for (const fieldTag of ['textarea', 'input'] as const) test.describe(fieldTag, () => {
@@ -73,6 +109,7 @@ for (const fieldTag of ['textarea', 'input'] as const) test.describe(fieldTag, (
       field.dispatchEvent(new InputEvent('input', { bubbles: true }))
       await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
       if (!window.saveWork) throw new Error('Synthetic input ended the save measurement')
+      if (window.saveWork.nextInputReceivedMs !== undefined) throw new Error('Synthetic input was recorded as trusted input')
       field.value = 'saved'
       field.setSelectionRange(5, 5)
     }, fieldTag)
@@ -82,6 +119,9 @@ for (const fieldTag of ['textarea', 'input'] as const) test.describe(fieldTag, (
     const receipt = await page.evaluate(() => window.finishNextInputWork())
     expect(receipt.nextInputReady).toBe(true)
     expect(receipt.elapsedMs).toBeLessThanOrEqual(SAVE_CEILING_MS)
+    expect(receipt.nextInputReceivedMs).toBeGreaterThanOrEqual(0)
+    expect(receipt.nextInputPaintMs).toBeGreaterThanOrEqual(receipt.nextInputReceivedMs!)
+    expect(receipt.nextInputPaintMs).toBeLessThanOrEqual(receipt.elapsedMs)
   })
 
   test('next input after the save ceiling fails instead of reusing an earlier acknowledgement', async ({ page }) => {
@@ -90,6 +130,8 @@ for (const fieldTag of ['textarea', 'input'] as const) test.describe(fieldTag, (
     const receipt = await page.evaluate(() => window.finishNextInputWork())
     expect(receipt.nextInputReady).toBe(false)
     expect(receipt.elapsedMs).toBeGreaterThanOrEqual(SAVE_CEILING_MS)
+    expect(receipt.nextInputReceivedMs).toBeUndefined()
+    expect(receipt.nextInputPaintMs).toBeUndefined()
   })
   test('an unavailable next action cannot pass with otherwise ready input', async ({ page }) => {
     await page.getByRole('button', { name: 'Save' }).evaluate(button => { (button as HTMLButtonElement).disabled = true })
@@ -97,6 +139,9 @@ for (const fieldTag of ['textarea', 'input'] as const) test.describe(fieldTag, (
     const receipt = await page.evaluate(() => window.finishNextInputWork())
     expect(receipt.nextInputReady).toBe(false)
     expect(receipt.elapsedMs).toBeGreaterThanOrEqual(SAVE_CEILING_MS)
+    expect(receipt.nextInputReceivedMs).toBeGreaterThanOrEqual(0)
+    expect(receipt.nextInputPaintMs).toBeGreaterThanOrEqual(receipt.nextInputReceivedMs!)
+    expect(receipt.nextInputPaintMs).toBeLessThanOrEqual(receipt.elapsedMs)
   })
 })
 

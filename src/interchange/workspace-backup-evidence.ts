@@ -264,7 +264,11 @@ export async function joinWorkspaceSnapshotEvidence(current: WorkspaceSnapshotV1
       if (!previous) registry.set(key, { ref: blob.ref, content: blob.content })
     }
     const members = [...historical].sort(([a], [b]) => compare(a, b)), blobs = [...registry.values()].sort((a, b) => compareBackupRefs(a.ref, b.ref))
-    const raw: SnapshotMetadataV2 = structuredClone({ ...snapshotMetadata(current), version: 2, historicalEvidence: { version: 1, snapshots: members.map(([id]) => ({ id })), blobs: blobs.map(blob => blob.ref) } })
+    // Registered owners deeply freeze current metadata; preserve its admitted catalog identities
+    // Copying those catalogs would discard structural admission and repeat it during closure validation
+    // Inherited refs may still belong to the caller, so detach them before asynchronous validation
+    const historicalEvidence: SnapshotMetadataV2['historicalEvidence'] = structuredClone({ version: 1, snapshots: members.map(([id]) => ({ id })), blobs: blobs.map(blob => blob.ref) })
+    const raw: SnapshotMetadataV2 = { ...snapshotMetadata(current), version: 2, historicalEvidence }
     const metadata = metadataSource(raw)
     const documents: BackupDocument[] = [...members.map(([id, content]) => ({ key: `historical:${id}`, encoding: 'deflate-json-tokens-v1' as const, content })), ...blobs.map(blob => ({ key: blobIdentity(blob.ref), encoding: 'bytes' as const, content: blob.content }))]
     await assertOwnedWorkspaceSnapshot(current)

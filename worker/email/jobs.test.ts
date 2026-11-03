@@ -461,7 +461,7 @@ describe('durable transactional email', () => {
   })
 
   it('keepsProductionEmailCaptureUnavailableWithoutDisablingExistingAccountService', async () => {
-    const fixture = await createServiceFixture({ now })
+    const fixture = await createServiceFixture({ now, runtimeProbes: true })
     fixtures.push(fixture)
     expect(await (await fixture.request('/api/v1/service')).json()).toMatchObject({ accountsAvailable: true, signupAvailable: true })
     expect(await (await fixture.request('/__accounts/production/service')).json()).toMatchObject({ accountsAvailable: true, signupAvailable: false })
@@ -483,7 +483,7 @@ describe('durable transactional email', () => {
   })
 
   it('capturesEveryFixedKindLocallyAndDoesNotConsumeLinksOnGet', async () => {
-    const fixture = await createServiceFixture({ now })
+    const fixture = await createServiceFixture({ now, runtimeProbes: true })
     fixtures.push(fixture)
     for (const kind of ['verify-account', 'verify-email', 'security-notice', 'admin-invite'] as const) {
       const response = await fixture.request('/__accounts/email/enqueue', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jobId: id(), message: message(kind) }) })

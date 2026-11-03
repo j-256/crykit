@@ -418,6 +418,8 @@ test('paints floating blocks on a construction plane without adding spacers or c
   await expect(page.getByRole('button', { name: 'Undo map edit', exact: true })).toBeDisabled()
   const gesture = await pointerGesture(page, testInfo.project.name === 'mobile')
   const list = page.locator('.map-editor-placement-list button')
+  // Plane and camera setup can replace the saved editor, so project the first stroke after that transfer
+  await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
   // The visible reference outline must not constrain the construction plane's brush area
   const stroke = [{ X: .25, Y: 140, Z: .25 }, { X: 7.25, Y: 140, Z: .25 }]
   let [start, end] = await scenePoints(page, stroke)
@@ -428,7 +430,8 @@ test('paints floating blocks on a construction plane without adding spacers or c
   await gesture.cancel()
   await expect(page.getByText('8 blocks in this stroke.', { exact: false })).toHaveCount(0)
   await expect(list).toHaveCount(0)
-  // Cancellation can settle a quiet save, so derive both retry endpoints from the same current camera
+  // Cancellation releases the view-state save; its owner transfer can otherwise detach a retried stroke
+  await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
   ;[start, end] = await scenePoints(page, stroke)
   if (!start || !end) throw new Error('The retried brush stroke needs both projected endpoints')
   await gesture.start(start.x, start.y); await gesture.move(end.x, end.y); await gesture.end()
@@ -479,8 +482,9 @@ test('places one rectangular platform with F and restores it with toolbar icons 
   await expect(undo.locator('svg')).toHaveCount(1)
   await expect(redo.locator('svg')).toHaveCount(1)
   const gesture = await pointerGesture(page, testInfo.project.name === 'mobile')
-  let start = await scenePoint(page, { X: .25, Y: 99, Z: .25 })
-  let end = await scenePoint(page, { X: 2.25, Y: 99, Z: 1.25 })
+  const stroke = [{ X: .25, Y: 99, Z: .25 }, { X: 2.25, Y: 99, Z: 1.25 }]
+  let [start, end] = await scenePoints(page, stroke)
+  if (!start || !end) throw new Error('The platform gesture needs both projected endpoints')
   await gesture.start(start.x, start.y); await gesture.move(end.x, end.y)
   await expect(page.getByText('6 blocks in this platform.', { exact: false })).toBeVisible()
   await expect(page.locator('.iso-preview-status')).toContainText('X 2 · Y 99 · Z 1')
@@ -488,7 +492,12 @@ test('places one rectangular platform with F and restores it with toolbar icons 
   await expect(list).toHaveCount(0)
   await expect(undo).toBeDisabled()
   await gesture.cancel()
+  await expect(page.getByText('6 blocks in this platform.', { exact: false })).toHaveCount(0)
   await expect(list).toHaveCount(0)
+  // Cancellation releases the view-state save; wait for its owner transfer before projecting another gesture
+  await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
+  ;[start, end] = await scenePoints(page, stroke)
+  if (!start || !end) throw new Error('The next platform gesture needs both projected endpoints')
   await gesture.start(start.x, start.y); await gesture.move(end.x, end.y); await gesture.end()
   await expect(list).toHaveCount(6)
   await expect(list.nth(0)).toContainText('X 2, Y 99, Z 1')
@@ -524,8 +533,7 @@ test('places one rectangular platform with F and restores it with toolbar icons 
   await expect(page.getByText('This platform overlaps an existing voxel placement. Choose another cell or height.', { exact: true })).toBeVisible()
   await expect(list).toHaveCount(9)
   await height.fill('140.5')
-  await svg.scrollIntoViewIfNeeded()
-  const rect = (await svg.boundingBox())!
+  const rect = await visibleMapBounds(svg)
   await gesture.start(rect.x + rect.width / 2, rect.y + rect.height / 2); await gesture.end()
   await expect(list).toHaveCount(9)
   await height.fill('140')

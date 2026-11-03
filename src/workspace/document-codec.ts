@@ -74,7 +74,7 @@ export function workspaceDocumentSource(document: WorkspaceDocument): BlobSource
 }
 export function encodeWorkspaceDocument(document: WorkspaceDocument): AsyncIterable<Uint8Array> { return workspaceDocumentSource(document).open() }
 
-export async function decodeWorkspaceDocument(source: BlobSource): Promise<WorkspaceDocument> {
+export async function decodeWorkspaceDocument(source: BlobSource, onFrameVerified?: () => void): Promise<WorkspaceDocument> {
   // Complete the authenticated frame observation before exposing a reusable body capability
   // JSON already needs a bounded complete body, so copy it during this scan instead of
   // reopening and decrypting the same frame; binary bodies stay lazy and check EOF on reuse
@@ -88,6 +88,8 @@ export async function decodeWorkspaceDocument(source: BlobSource): Promise<Works
       step = await scan.next()
     }
     complete = true
+    // EOF completes the source's integrity checks; parsing has not started at this diagnostic boundary
+    onFrameVerified?.()
     const metadata = step.value
     const body: BlobSource = { byteLength: metadata.byteLength, open: () => framedBody(source, metadata) }
     const value = json ? parseBoundedJson(json, 'workspace document', NATIVE_BACKUP_JSON_LIMITS) : body

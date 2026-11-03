@@ -84,7 +84,47 @@ export function* encodeLegacyValue(value: unknown): Iterable<Uint8Array> {
   yield* visit(value)
 }
 
+// Compare the codec's plain graph, including ordered keys and reference IDs, without allocating its byte stream
+// Special types, NaN payloads and accessors retain the version-one encoder as their authority
+function equalPlainLegacyValue(left: unknown, right: unknown): boolean | undefined {
+  const leftIds = new Map<object, number>(), rightIds = new Map<object, number>()
+  function visit(a: unknown, b: unknown): boolean | undefined {
+    const aType = typeof a, bType = typeof b
+    if (aType === 'symbol' || aType === 'function' || aType === 'bigint'
+      || bType === 'symbol' || bType === 'function' || bType === 'bigint'
+      || (aType === 'number' && Number.isNaN(a)) || (bType === 'number' && Number.isNaN(b))) return undefined
+    const aObject = aType === 'object' && a !== null, bObject = bType === 'object' && b !== null
+    if (!aObject && !bObject) return Object.is(a, b)
+    const aArray = Array.isArray(a), bArray = Array.isArray(b)
+    const aPrototype: unknown = aObject && !aArray ? Object.getPrototypeOf(a) : undefined
+    const bPrototype: unknown = bObject && !bArray ? Object.getPrototypeOf(b) : undefined
+    if ((aObject && !aArray && aPrototype !== Object.prototype && aPrototype !== null)
+      || (bObject && !bArray && bPrototype !== Object.prototype && bPrototype !== null)) return undefined
+    if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null) return false
+    const aId = leftIds.get(a), bId = rightIds.get(b)
+    if (aId !== undefined || bId !== undefined) return aId !== undefined && aId === bId
+    leftIds.set(a, leftIds.size); rightIds.set(b, rightIds.size)
+    if (aArray !== bArray || aPrototype !== bPrototype) return false
+    if (aArray && bArray && a.length !== b.length) return false
+    const aKeys = Object.keys(a), bKeys = Object.keys(b)
+    if (aKeys.length !== bKeys.length) return false
+    for (let index = 0; index < aKeys.length; index++) {
+      const aKey = aKeys[index], bKey = bKeys[index]
+      const aProperty = Object.getOwnPropertyDescriptor(a, aKey), bProperty = Object.getOwnPropertyDescriptor(b, bKey)
+      // The codec reads array accessors but rejects object accessors; tentative comparison must invoke neither
+      if (!aProperty || !bProperty || !('value' in aProperty) || !('value' in bProperty)) return undefined
+      if (aKey !== bKey) return false
+      const equal = visit(aProperty.value, bProperty.value)
+      if (equal !== true) return equal
+    }
+    return true
+  }
+  return visit(left, right)
+}
+
 export function equalLegacyValue(left: unknown, right: unknown): boolean {
+  const plain = equalPlainLegacyValue(left, right)
+  if (plain !== undefined) return plain
   const a = encodeLegacyValue(left)[Symbol.iterator](), b = encodeLegacyValue(right)[Symbol.iterator]()
   try {
     while (true) {
