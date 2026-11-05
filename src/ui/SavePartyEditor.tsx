@@ -1,3 +1,4 @@
+import { saveContextsEqual } from '../workspace/save-context-equality'
 import { jsonEqual } from '../persistence/local-data'
 import { saveDefinitionContext, saveSelectionContext } from '../workspace/save-context'
 import type { SaveWorkspace } from './save-workspace'
@@ -83,7 +84,7 @@ function SaveLoadoutEditor({ storage, save, summary, memberIndex, modSources, sc
   if (summary.editable) storage.controller.initializeLoadout(storage.view, child, initial, context)
   const [draft, setDraftState] = useState(() => storage.controller.snapshot().input?.loadout ?? initial)
   const changed = () => { storage.controller.assertChild(storage.view, child); setDraftState(storage.controller.snapshot().input!.loadout!); onDraftChange(true) }
-  const contextAvailable = jsonEqual(storage.controller.snapshot().input?.context, context)
+  const contextAvailable = saveContextsEqual(storage.controller.snapshot().input?.context, context)
   const [picker, setPicker] = useState<PickerState | undefined>(() => { const value = storage.controller.snapshot().input?.presentation.picker; return jsonRecord(value) && typeof value.fieldKey === 'string' && typeof value.query === 'string' && typeof value.resultLimit === 'number' ? { fieldKey: value.fieldKey, query: value.query, resultLimit: value.resultLimit } : undefined })
   const [selectedKey, setSelectedKey] = useState(storage.controller.snapshot().input?.presentation.selected ?? null)
   const [inspectClassPermissions, setInspectClassPermissions] = useState(storage.controller.snapshot().input?.presentation.inspectClassPermissions !== false)
@@ -118,7 +119,7 @@ function SaveLoadoutEditor({ storage, save, summary, memberIndex, modSources, sc
   storage.controller.bindChoices(storage.view, child, context, options.flatMap(option => { const binding = scope.bindings.get(option.key); return binding && ['job', 'equipment', 'passive'].includes(binding.family) ? [{ ref: option.ref, family: binding.family as 'job' | 'equipment' | 'passive' }] : [] }), compatibleBuilds.map(value => ({ title: value.title, revision: value.revision, context: value.context })))
   const recordedBuild = storage.controller.snapshot().input?.selectedBuild
   const exactBuild = recordedBuild && localData.buildRevisions[recordedBuild.revision.id]
-  const buildAvailable = !!recordedBuild && !!exactBuild && jsonEqual(exactBuild, recordedBuild.revision) && jsonEqual(saveSelectionContext(localData, exactBuild.content), recordedBuild.context)
+  const buildAvailable = !!recordedBuild && !!exactBuild && jsonEqual(exactBuild, recordedBuild.revision) && saveContextsEqual(saveSelectionContext(localData, exactBuild.content), recordedBuild.context)
   const restoredCommand = buildAvailable && contextAvailable ? loadoutCommand(localData, scope, memberIndex, recordedBuild.revision.content) : undefined
   const chosenBuild = recordedBuild && restoredCommand ? { id: recordedBuild.revision.id, title: recordedBuild.title, command: restoredCommand } : undefined
   const openPicker = (fieldKey: string) => { storage.controller.assertChild(storage.view, child); const value = { fieldKey, query: '', resultLimit: BUILD_DEFINITION_PAGE_SIZE }; changePicker(value) }
