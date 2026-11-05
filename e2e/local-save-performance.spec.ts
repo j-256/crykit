@@ -81,7 +81,9 @@ async function openOperation(page: Page, operation: Operation, observePreparatio
     await page.evaluate(() => { location.hash = '#/mods/editor' })
     await page.getByRole('combobox', { name: 'Files opened in this tool', exact: true }).selectOption(PERFORMANCE_EDITOR_ID)
     await observePreparation('editor-file-selected')
-    await page.getByRole('button', { name: 'Edit whole document JSON', exact: true }).click()
+    // This changes only editor presentation; explicit field and durable-idle checks below own readiness
+    // The pinned browser can strand the implicit navigation waiter after the click has already completed
+    await page.getByRole('button', { name: 'Edit whole document JSON', exact: true }).click({ noWaitAfter: true })
     await observePreparation('editor-document-click-completed')
     await page.getByLabel('Exact JSON value').waitFor()
     // Selecting the editable path persists inert editor presentation before the timed content edit
