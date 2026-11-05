@@ -72,8 +72,10 @@ async function openOperation(page: Page, operation: Operation, observePreparatio
       return state.current && state.savePhase === 'idle' && !state.saveHydrating && !state.pending
     })
     await page.getByRole('combobox', { name: 'Inventory category', exact: true }).selectOption('item')
+    // Each filter persists separately; check each preparation save against the same one-second ceiling
+    await idle(page, 'save')
     await page.getByRole('combobox', { name: 'Stock filter', exact: true }).selectOption('carried')
-    // The category is durable presentation; finish opening before capturing the timed operation's baseline
+    // Both filters are durable presentation; finish opening before capturing the timed operation's baseline
     await idle(page, 'save')
   } else {
     await page.evaluate(() => { location.hash = '#/mods/editor' })
