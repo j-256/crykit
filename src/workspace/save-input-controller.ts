@@ -1,3 +1,4 @@
+import { saveContextsEqual } from './save-context-equality'
 import { jsonEqual } from '../persistence/local-data'
 import { guestPlannerValuesEqual } from '../persistence/guest-planner-equality'
 import { entityDefinitionKey } from '../domain/core'
@@ -44,7 +45,7 @@ export class SaveInputController {
   readonly owner = Symbol('save-input-owner')
   private view?: SaveViewIncarnation
   private child?: SaveChildIncarnation
-  private choices?: { readonly child: SaveChildIncarnation; readonly identity: readonly unknown[]; readonly refs: ReadonlyMap<string, 'job' | 'equipment' | 'passive'>; readonly builds: readonly NonNullable<SavePending['selectedBuild']>[] }
+  private choices?: { readonly child: SaveChildIncarnation; readonly context: JsonValue; readonly identity: readonly unknown[]; readonly refs: ReadonlyMap<string, 'job' | 'equipment' | 'passive'>; readonly builds: readonly NonNullable<SavePending['selectedBuild']>[] }
   private epoch = 0
   private version = 0
   private durable = 0
@@ -97,7 +98,7 @@ export class SaveInputController {
     this.assertView(view)
     const input = this.current.input
     if (!input) return false
-    if (input.context !== undefined) return jsonEqual(input.context, context)
+    if (input.context !== undefined) return saveContextsEqual(input.context, context)
     // Missing association evidence on restored choices is unavailable, never inferred from matching IDs
     if (Object.keys(input.fields).length || input.loadout || input.selectedBuild || input.review) return false
     this.epoch++; this.current = { ...this.current, input: frozen({ ...input, context }) }
@@ -113,12 +114,13 @@ export class SaveInputController {
   }
   bindChoices(view: SaveViewIncarnation, child: SaveChildIncarnation, context: JsonValue, refs: readonly { readonly ref: EntityRef; readonly family: 'job' | 'equipment' | 'passive' }[], builds: readonly NonNullable<SavePending['selectedBuild']>[]): void {
     this.assertChild(view, child)
-    if (!jsonEqual(this.current.input?.context, context)) return
-    // Schema parsing may reorder object keys without changing exact persisted context or choice values
-    const identity = [context, refs, builds]
-    if (this.choices?.child === child && jsonEqual(this.choices.identity, identity)) return
+    if (!saveContextsEqual(this.current.input?.context, context)) return
+    // Compare the complete context separately so unchanged bindings avoid another canonical serialization
+    // Choice values retain canonical comparison because schema parsing may reorder their keys
+    const identity = [refs, builds]
+    if (this.choices?.child === child && saveContextsEqual(this.choices.context, context) && jsonEqual(this.choices.identity, identity)) return
     this.epoch++
-    this.choices = { child, identity: frozen(identity), refs: new Map(refs.map(value => [entityDefinitionKey(value.ref), value.family])), builds: frozen(builds) }
+    this.choices = { child, context: frozen(context), identity: frozen(identity), refs: new Map(refs.map(value => [entityDefinitionKey(value.ref), value.family])), builds: frozen(builds) }
   }
   private assertSelection(child: SaveChildIncarnation, ref: EntityRef | null, family: 'job' | 'equipment' | 'passive'): void {
     if (ref && (this.choices?.child !== child || this.choices.refs.get(entityDefinitionKey(ref)) !== family)) throw new Error('Selection is outside the exact Save context')
@@ -158,7 +160,7 @@ export class SaveInputController {
   // Live caret moves are volatile transfer state; a content edit snapshots focus into its versioned pending payload
   rememberFocus(view: SaveViewIncarnation, focus: SaveFocus | undefined): void { this.assertView(view); this.current = { ...this.current, focus: frozen(focus) } }
   discardFields(view: SaveViewIncarnation): void { this.assertView(view); this.epoch++; this.edit(view, { ...this.current.input!, fields: {} }) }
-  resetLoadout(view: SaveViewIncarnation, child: SaveChildIncarnation, loadout: BuildRevisionContent, context: JsonValue): void { this.assertChild(view, child); if (!jsonEqual(this.current.input?.context, context)) throw new Error('Recorded Save context is unavailable'); this.epoch++; this.edit(view, { ...this.current.input!, loadout, context, selectedBuild: undefined, review: undefined }) }
+  resetLoadout(view: SaveViewIncarnation, child: SaveChildIncarnation, loadout: BuildRevisionContent, context: JsonValue): void { this.assertChild(view, child); if (!saveContextsEqual(this.current.input?.context, context)) throw new Error('Recorded Save context is unavailable'); this.epoch++; this.edit(view, { ...this.current.input!, loadout, context, selectedBuild: undefined, review: undefined }) }
   selectMember(view: SaveViewIncarnation, member: number): void {
     this.assertView(view); this.epoch++; this.child = undefined
     this.edit(view, { ...this.current.input!, member, loadout: undefined, selectedBuild: undefined, review: undefined })
