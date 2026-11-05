@@ -79,10 +79,13 @@ export async function activateLocalAccountCommit(database: AccountDatabase, toke
           const stored = await database.stagedCipherChunks.get([record.payloadId, chunk.index])
           if (!stored || stored.bytes.byteLength !== chunk.cipherBytes) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'Encrypted staging is incomplete. The previous save is unchanged.')
         }
-        const existing = await database.encryptedRevisions.get(record.revisionId)
-        if (existing) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'An encrypted revision identity was reused.')
-        await database.encryptedRevisions.add(record)
       }
+      // Group independent native requests inside the same fenced transaction
+      // Every collision still aborts all ciphertext, and dependencies are checked only after every record is installed
+      const revisionIds = prepared.records.map(record => record.revisionId)
+      if (new Set(revisionIds).size !== revisionIds.length
+        || (await database.encryptedRevisions.bulkGet(revisionIds)).some(Boolean)) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'An encrypted revision identity was reused.')
+      await database.encryptedRevisions.bulkAdd(prepared.records)
       // Exact dependencies include history and sources; no reference may publish before its ciphertext
       for (const record of prepared.records) for (const ref of record.descriptor.dependencies) {
         if (managedSelection?.isUnchangedDependency(ref) || managedSelection?.preparedDependency(ref)) continue

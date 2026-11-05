@@ -40,11 +40,16 @@ export function accountLocalActivationCheck(database: AccountDatabase, token: Pr
       admission.check()
       // Candidate payload IDs become owned only in the same transaction that publishes the root
       // Collision failure rolls back every insertion and never acquires cleanup rights over old bytes
-      for (const { record, chunks } of admission.inline) {
-        if (await database.stagedCipherChunks.where('payloadId').equals(record.payloadId).count()
-          || await database.encryptedRevisions.where('payloadId').equals(record.payloadId).count()) throw new Error('Encrypted payload identity was reused')
-        await database.stagedCipherChunks.bulkAdd(chunks)
-      }
+      // These independent collision reads share the activation transaction's snapshot
+      // Issue them before inserting payloads so per-record callbacks do not serialize independent checks
+      const payloadIds = admission.inline.map(({ record }) => record.payloadId)
+      if (new Set(payloadIds).size !== payloadIds.length) throw new Error('Encrypted payload identity was reused')
+      const collisions = await Promise.all(payloadIds.map(payloadId => Promise.all([
+        database.stagedCipherChunks.where('payloadId').equals(payloadId).count(),
+        database.encryptedRevisions.where('payloadId').equals(payloadId).count(),
+      ])))
+      if (collisions.some(counts => counts.some(count => count > 0))) throw new Error('Encrypted payload identity was reused')
+      await database.stagedCipherChunks.bulkAdd(admission.inline.flatMap(({ chunks }) => chunks))
       admission.check()
     },
     isUnchangedDependency(ref: LocalRecordRef) { admission.check(); return admission.retained.has(blobIdentity(ref)) },
