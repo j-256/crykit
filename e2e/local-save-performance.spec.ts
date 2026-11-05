@@ -113,10 +113,22 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       measures.length = 0; errors.length = 0; draftPreparations.length = 0; postProbeDrains.length = 0
     }
   }
+  async function finishJourney(info: TestInfo) {
+    try {
+      if (info.status !== 'passed') {
+        // A timed-out body can remain suspended until teardown closes its page
+        // Capture the collected evidence before cleanup, without asking that page to respond
+        const receipt = JSON.stringify({ operation, mode, size, browser: browserVersion, status: info.status, elapsedMs: startedAt === undefined ? undefined : Date.now() - startedAt, setup: setupSnapshot, preparation, measures, unverifiedMeasure, draftPreparations, postProbeDrains, errors }, (_key, value) => typeof value === 'bigint' ? { bigint: value.toString() } : value, 2)
+        const path = info.outputPath('save-work-failure-state.json')
+        await writeFile(path, receipt)
+        await info.attach('save-work-failure-state', { contentType: 'application/json', path })
+      }
+    } finally { await releaseJourney() }
+  }
   // Independent cases release their own observations without creating file-level shard groups
   // Mapping journeys retain afterAll cleanup because beforeAll owns their browser context
-  if (mode === 'account-mapping') test.afterAll(releaseJourney)
-  else test.afterEach(releaseJourney)
+  if (mode === 'account-mapping') test.afterAll(async ({}, info) => finishJourney(info))
+  else test.afterEach(async ({}, info) => finishJourney(info))
 
   async function prepare(ownedPage: Page, ownedContext: BrowserContext, version: string) {
     page = ownedPage; context = ownedContext; browserVersion = version; startedAt = Date.now()
