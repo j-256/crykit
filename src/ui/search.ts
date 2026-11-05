@@ -7,7 +7,7 @@ import { nativeEquipmentFacts } from '../catalog/native-equipment-facts'
 import { preferredNativeReferenceId } from '../catalog/native-reference-links'
 import { partitionQuery } from '../domain/query'
 import { normalizeImportedFieldName } from '../interchange/field-names'
-import { isImmutableCatalogSnapshot } from '../interchange/native'
+import { isImmutableCatalogRecord, isImmutableCatalogSnapshot } from '../interchange/native'
 import { projectSourceSemantics } from '../catalog/source-semantics'
 import { referenceCategoryKeys, referenceCategoryLabel } from './reference-categories'
 import { combineFacetKnowledge, facetStringValues, isReferenceArtifact, referenceAudience, referenceCategoryKnowledge, referenceFieldFacets, REFERENCE_FACETS, type FacetRecord, type ReferenceAudience, type ReferenceFacetFilters, type ReferenceFacetKey } from './reference-facets'
@@ -245,10 +245,11 @@ function catalogSearchItems(catalog: CatalogSnapshot): readonly ReferenceSearchI
   const items = Object.values(catalog.entities).filter(entity => !isReferenceArtifact(entity)).map(entity => catalogReferenceSearchItem(catalog, entity, claimsByEntity.get(entity.id) ?? []))
   if (immutable) {
     // These projections depend only on this exact admitted catalog, not personal records or Game Setup
-    // Freeze shared results so a consumer cannot alter another screen's facts; the catalog is already deeply frozen
+    // Freeze new projection records, but reuse deep immutability established by catalog admission
+    // A caller's shallow Object.freeze is not enough to skip its descendants
     const seen = new WeakSet<object>([catalog])
     const freeze = (value: unknown): void => {
-      if (!value || typeof value !== 'object' || seen.has(value)) return
+      if (!value || typeof value !== 'object' || seen.has(value) || isImmutableCatalogRecord(value)) return
       seen.add(value)
       for (const child of Object.values(value)) freeze(child)
       Object.freeze(value)
