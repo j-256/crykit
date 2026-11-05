@@ -1,6 +1,6 @@
 import { assertPublicSourceContexts, publicSetupAllowsPin, publicCheckpointAllowsRef } from '../domain/public-source-context'
 import { assertRetainedSelections, retainedSelectionRefs } from '../domain/retained-selections'
-import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, LocalData, LocalDataId, Timestamp } from '../domain/types'
+import type { CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, LocalData, LocalDataId, Timestamp } from '../domain/types'
 import { entityDefinitionKey } from '../domain/core'
 import { sameValue } from '../domain/definition-values'
 import { battleCalculationReferences } from '../domain/battle-plan'
@@ -99,8 +99,8 @@ export function isImmutableCatalogSnapshot(catalog: CatalogSnapshot): boolean {
 
 // This proves immutability only, never native identity or source authority
 // A derived fact may reuse it only after corroborating the complete exact record
-export function isImmutableCatalogRecord(entity: CatalogEntity): boolean {
-  return frozenCatalogValues.has(entity)
+export function isImmutableCatalogRecord(value: object): boolean {
+  return frozenCatalogValues.has(value)
 }
 
 // Native projections compare the complete provenance metadata, not just an ID or digest

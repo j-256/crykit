@@ -25,6 +25,8 @@ it('reuses exact admitted catalog projections across fresh caller arrays without
   expect(project).toHaveBeenCalledTimes(1)
   expect(second[0]).toBe(first[0])
   expect(Object.isFrozen(first[0]!.projection)).toBe(true)
+  expect(Object.isFrozen(first[0]!.entity.fields.Location)).toBe(true)
+  expect(Object.isFrozen(first[0]!.sources)).toBe(true)
   expect(Reflect.set(first[0]!.projection.text!, 'value', 'Changed by another consumer')).toBe(false)
   expect(buildReferenceSearchItems([catalog])[0]!.projection.text).toEqual(first[0]!.projection.text)
   expect(findReferenceSearchItem([catalog], first[0]!.keyParts)).toEqual(first[0])
