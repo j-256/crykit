@@ -6,6 +6,7 @@ import { SUMMONS } from '../src/catalog/summons'
 import type { LocalData } from '../src/domain'
 import { createBlankPlaythrough, replacePlannerData, selectedPlaythrough, waitForPlannerReady } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
+import { observedOfflineTest } from './offline-observation'
 import { currentReferencePath } from './reference-helpers'
 
 const SUMMON_QUEUE_DRAIN_TIMEOUT_MS = 15_000
@@ -203,7 +204,7 @@ test('keeps marks separate between Playthroughs and restores them from a backup'
   expect(selectedPlaythrough(restored.localData).progress).toEqual(first.progress)
 })
 
-test('records summon unlocks and reads their artwork offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
+observedOfflineTest('records summon unlocks and reads their artwork offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   const panel = await openSettings(page)
   await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
   await panel.getByRole('checkbox', { name: 'Artwork', exact: true }).check()
