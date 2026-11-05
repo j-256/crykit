@@ -7,6 +7,10 @@ import { expect, test } from '@playwright/test'
 
 const SLIME_PATH = referencePath('base:monster:2')
 const NEW_TAB_REFERENCE_READY_TIMEOUT_MS = 20_000
+// The pinned Headless Shell can strand loaded native tabs during initialization
+// Use the same-version full Chromium for this journey until the upstream fix is qualified
+// https://github.com/microsoft/playwright/issues/42142
+const nativeTabTest = test.extend({ channel: 'chromium' })
 
 test('enemy rewards use coins, technical details use integers, and source prices remain readable', async ({ page }) => {
   await page.goto(referencePath('base:monster:179'))
@@ -46,7 +50,7 @@ test('same-name enemies remain distinct while mode variants are opt-in in global
   await expect(page.locator('.enemy-vitals')).toContainText('54')
 })
 
-test('enemy loot preserves modified clicks, opens a new tab, and navigates in app', async ({ page, context }) => {
+nativeTabTest('enemy loot preserves modified clicks, opens a new tab, and navigates in app', async ({ page, context }) => {
   await page.goto(referencePath('base:monster:179'))
   const cookiePath = referencePath('base:item:205')
   const cookie = page.getByRole('region', { name: 'Steals', exact: true }).getByRole('link', { name: 'Quintar Cookie', exact: true })
