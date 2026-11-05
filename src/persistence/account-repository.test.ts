@@ -317,6 +317,25 @@ it('activation refuses foreign database handles and missing prepared heads', asy
     await expect(activateLocalAccountCommit(foreign, token, { version: 1, id: missing.revisionId, expected: undefined, head: missing, records: [] })).rejects.toMatchObject({ code: 'LOCAL_INTEGRITY_FAILED' })
   } finally { await foreign.delete() }
 })
+it('duplicate encrypted identities preserve staged bytes and allow the original activation to retry', async () => {
+  const { prepareAccountWorkspace, openAccountWorkspace } = await import('../workspace/account-graph')
+  const { activateLocalAccountCommit } = await import('./account-database')
+  const { accountLocalId } = await import('../workspace/account-cache')
+  const { createBlankLocalData } = await import('../domain/local-data')
+  const { BUNDLED_CATALOGS } = await import('../catalog/bundled')
+  const data = createBlankLocalData()
+  const prepared = await prepareAccountWorkspace(database, token, { planner: { localData: data, catalogs: BUNDLED_CATALOGS, evidence: [], sources: [], history: [], lineage: { rootLocalDataId: data.id } }, saveDocuments: [], editorDocuments: [], assets: [], libraryDefaults: { version: 1, layers: [] }, conflicts: [], retainedContent: [], blobs: [] })
+  const activation = { version: 1 as const, id: accountLocalId(), expected: undefined, head: prepared.head, records: prepared.records }
+  // Rejected activation must retain the original producer's staging for a safe retry
+  const staged = await dump(database)
+  await expect(activateLocalAccountCommit(database, token, { ...activation, records: [...prepared.records, prepared.records[0]!] })).rejects.toMatchObject({ code: 'LOCAL_INTEGRITY_FAILED' })
+  expect(await dump(database)).toEqual(staged)
+  const fence = await activateLocalAccountCommit(database, token, activation)
+  expect((await openAccountWorkspace(database, token, fence.head)).state.planner.localData).toEqual(data)
+  const committed = await dump(database)
+  await expect(activateLocalAccountCommit(database, token, { ...activation, id: accountLocalId(), expected: fence })).rejects.toMatchObject({ code: 'LOCAL_INTEGRITY_FAILED' })
+  expect(await dump(database)).toEqual(committed)
+})
 it('encryption rejection never activates prepared data or a private intent', async () => {
   const cryptoModule = await import('../account/crypto/revisions')
   const repository = await openAccountRepository(token)
