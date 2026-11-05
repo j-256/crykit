@@ -21,9 +21,21 @@ import { expectOfflineReady } from './offline-helpers'
 import { skipInitialModSetup, selectedPlaythrough, selectedGuestPlannerName, readLocalData as storedData } from './local-data-helpers'
 import { readManagedGuestPlanner } from './guest-planner-reader'
 
-async function storedImportCounts(page: Page): Promise<Readonly<Record<string, number>>> {
+// Related assertions use one complete admission of the same selected head
+// Every later action starts a fresh inspection; no captured bytes survive between checkpoints
+async function storedShareState(page: Page): Promise<{ localData: LocalData; importCounts: Readonly<Record<string, number>> }> {
   const managed = await readManagedGuestPlanner(page)
-  if (managed) return { catalogs: managed.catalogs.length, sources: managed.sources.length, imports: Object.keys(managed.localData.importReceipts).length }
+  if (managed) return { localData: structuredClone(managed.localData), importCounts: { catalogs: managed.catalogs.length, sources: managed.sources.length, imports: Object.keys(managed.localData.importReceipts).length } }
+  return { localData: await storedData(page), importCounts: await legacyImportCounts(page) }
+}
+
+async function expectStoredShareUnchanged(page: Page, localData: LocalData, importCounts: Readonly<Record<string, number>>): Promise<void> {
+  const actual = await storedShareState(page)
+  expect(actual.localData).toEqual(localData)
+  expect(actual.importCounts).toEqual(importCounts)
+}
+
+async function legacyImportCounts(page: Page): Promise<Readonly<Record<string, number>>> {
   const name = await selectedGuestPlannerName(page)
   return page.evaluate(name => new Promise((resolve, reject) => {
     const request = indexedDB.open(name)
@@ -441,12 +453,10 @@ for (const historical of [false, true]) test(`modded shares keep selected names 
   const validity = page.getByRole('region', { name: 'Build validity', exact: true })
   for (const index of [1, 2, 3]) await expect(validity.getByText(`Equipped passive ${index}: definition is unavailable`, { exact: false })).toHaveCount(1)
   const input = page.getByLabel('Matching JSON for Synthetic Portable Mod', { exact: true })
-  const before = await storedData(page)
-  const importCounts = await storedImportCounts(page)
+  const { localData: before, importCounts } = await storedShareState(page)
   await input.setInputFiles({ name: 'changed.json', mimeType: 'application/json', buffer: Buffer.from(text.replace('Synthetic Portable Class', 'Changed Class')) })
   await expect(page.getByText('This JSON does not match the saved mod content and project identity.', { exact: false })).toBeVisible()
-  expect(await storedData(page)).toEqual(before)
-  expect(await storedImportCounts(page)).toEqual(importCounts)
+  await expectStoredShareUnchanged(page, before, importCounts)
   const reordered = JSON.stringify(JSON.parse(text), (_key, value) => value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).reverse()) : value, 2)
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
@@ -459,8 +469,7 @@ for (const historical of [false, true]) test(`modded shares keep selected names 
   await input.setInputFiles({ name: 'my-mod.json', mimeType: 'application/json', buffer: Buffer.from(reordered) })
   await expect(page.getByText('Mod not imported', { exact: true })).toBeVisible()
   expect(await page.evaluate(() => sessionStorage.getItem('synthetic-share-fault-fired'))).toBe('true')
-  expect(await storedData(page)).toEqual(before)
-  expect(await storedImportCounts(page)).toEqual(importCounts)
+  await expectStoredShareUnchanged(page, before, importCounts)
   await page.evaluate(() => (window as unknown as { restoreModImportWrite: () => void }).restoreModImportWrite())
   await input.setInputFiles({ name: 'my-mod.json', mimeType: 'application/json', buffer: Buffer.from(reordered) })
   await expect(page.getByRole('status').filter({ hasText: 'was imported and saved in this browser' })).toBeVisible()
@@ -581,11 +590,10 @@ test('validity warnings restore missing mod definitions inside the editor withou
   await editorPermission.getByRole('button', { name: 'Upload mod JSON', exact: true }).click()
   dialog = page.getByRole('dialog', { name: 'Restore mod definitions', exact: true })
   const input = dialog.getByLabel('Matching JSON for Synthetic Portable Mod', { exact: true })
-  const imports = await storedImportCounts(page)
+  const { importCounts: imports } = await storedShareState(page)
   await input.setInputFiles({ name: 'changed.json', mimeType: 'application/json', buffer: Buffer.from(text.replace('Synthetic Portable Class', 'Changed Class')) })
   await expect(dialog.getByText('This JSON does not match the saved mod content and project identity.', { exact: false })).toBeVisible()
-  expect(await storedData(page)).toEqual(before)
-  expect(await storedImportCounts(page)).toEqual(imports)
+  await expectStoredShareUnchanged(page, before, imports)
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     // Fail the actual managed head publication without changing source preparation or owned draft input
@@ -598,8 +606,7 @@ test('validity warnings restore missing mod definitions inside the editor withou
   await input.setInputFiles({ name: 'matching.json', mimeType: 'application/json', buffer: Buffer.from(text) })
   await expect(dialog.getByText('Mod not imported', { exact: true })).toBeVisible()
   expect(await page.evaluate(() => sessionStorage.getItem('synthetic-warning-fault-fired'))).toBe('true')
-  expect(await storedData(page)).toEqual(before)
-  expect(await storedImportCounts(page)).toEqual(imports)
+  await expectStoredShareUnchanged(page, before, imports)
   await page.evaluate(() => (window as unknown as { restoreWarningImport: () => void }).restoreWarningImport())
   await input.setInputFiles({ name: 'matching.json', mimeType: 'application/json', buffer: Buffer.from(text) })
   await expect(dialog.getByRole('status')).toContainText('Matching definitions applied to this draft')
