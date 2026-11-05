@@ -74,8 +74,12 @@ test('enemy loot preserves modified clicks, opens a new tab, and navigates in ap
   await cookie.click({ button: 'middle' })
   const tab = await opened
   await tab.waitForURL(new URL(cookiePath, page.url()).href, { waitUntil: 'load' })
-  await waitForPlannerReady(tab)
-  await expect(tab.getByRole('heading', { name: 'Quintar Cookie', exact: true })).toBeVisible({ timeout: NEW_TAB_REFERENCE_READY_TIMEOUT_MS })
+  // A new tab can finish loading while Playwright still tracks its initial navigation as pending
+  // Poll rendered readiness directly so that stale action precheck cannot hide the loaded destination
+  await expect.poll(async () => ({
+    navigation: await tab.getByRole('navigation', { name: 'Primary navigation', exact: true }).filter({ visible: true }).isVisible(),
+    reference: await tab.getByRole('heading', { name: 'Quintar Cookie', exact: true }).isVisible(),
+  }), { timeout: NEW_TAB_REFERENCE_READY_TIMEOUT_MS }).toEqual({ navigation: true, reference: true })
   await expect(page.getByRole('heading', { name: 'Woke Quintar', exact: true })).toBeVisible()
   await tab.close()
   await cookie.click()
