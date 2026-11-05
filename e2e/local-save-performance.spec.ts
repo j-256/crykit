@@ -54,7 +54,7 @@ async function idle(page: Page, kind: 'save' | 'editor', savedLabel?: string, ca
   }, { kind, savedLabel, captureReadiness }, { timeout: SAVE_CEILING_MS })
 }
 
-async function openOperation(page: Page, operation: Operation) {
+async function openOperation(page: Page, operation: Operation, observePreparation: (phase: string) => Promise<void>) {
   if (operation === 'Build notes') {
     await page.evaluate(() => { location.hash = '#/builds/library' })
     await page.getByRole('button', { name: 'Rowan: sample Warrior', exact: true }).click()
@@ -78,7 +78,9 @@ async function openOperation(page: Page, operation: Operation) {
   } else {
     await page.evaluate(() => { location.hash = '#/mods/editor' })
     await page.getByRole('combobox', { name: 'Files opened in this tool', exact: true }).selectOption(PERFORMANCE_EDITOR_ID)
+    await observePreparation('editor-file-selected')
     await page.getByRole('button', { name: 'Edit whole document JSON', exact: true }).click()
+    await observePreparation('editor-document-click-completed')
     await page.getByLabel('Exact JSON value').waitFor()
     // Selecting the editable path persists inert editor presentation before the timed content edit
     await idle(page, 'editor')
@@ -91,6 +93,8 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
   let receiptIndex = 0
   let baseline: any, startingEditor: any, previousFile: any
   let previousRecords: BodyRecord[]
+  let setupSnapshot: Readonly<Record<string, unknown>> | undefined
+  const preparation: { phase: string; elapsedMs: number; diagnostics?: unknown }[] = []
   const errors: string[] = [], measures: unknown[] = []
   const draftPreparations: unknown[] = []
   const postProbeDrains: unknown[] = []
@@ -105,6 +109,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       baseline = startingEditor = previousFile = undefined
       previousRecords = []
       unverifiedMeasure = undefined
+      setupSnapshot = undefined; preparation.length = 0
       measures.length = 0; errors.length = 0; draftPreparations.length = 0; postProbeDrains.length = 0
     }
   }
@@ -117,11 +122,14 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
     page = ownedPage; context = ownedContext; browserVersion = version; startedAt = Date.now()
     await installSaveWorkCounters(page)
     page.on('pageerror', error => errors.push(String(error)))
+    page.on('crash', () => errors.push('The browser page crashed'))
+    preparation.push({ phase: 'fixture-navigation', elapsedMs: Date.now() - startedAt })
     const path = process.env.CRYKIT_SAVE_FIXTURE ?? '/__accounts-proof/local-save-performance.html'
     await page.goto(`${path}?mode=${mode === 'guest' ? 'guest' : 'account'}&size=${size}`)
     await page.waitForFunction(() => (window as any).localSaveProof?.ready() || (window as any).localSaveFailure)
     expect(await page.evaluate(() => (window as any).localSaveFailure)).toBeUndefined()
-    if (process.env.CRYKIT_SAVE_ALLOW_DEV !== '1') expect(await page.evaluate(() => (window as any).localSaveProof.setup.build)).toBe('compiled')
+    setupSnapshot = await page.evaluate(() => (window as any).localSaveProof.setup)
+    if (process.env.CRYKIT_SAVE_ALLOW_DEV !== '1') expect(setupSnapshot?.build).toBe('compiled')
     await page.evaluate(() => {
       const sodium = (window as any).localSaveProof.sodium
       const push = sodium.crypto_secretstream_xchacha20poly1305_push, pull = sodium.crypto_secretstream_xchacha20poly1305_pull
@@ -135,7 +143,16 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       await page.getByRole('button', { name: 'Load updated data', exact: true }).click()
       await expect(page.getByRole('button', { name: 'Load updated data', exact: true })).toBeHidden()
     }
-    await openOperation(page, operation)
+    // Retain setup evidence in the test process so an unresponsive page cannot erase its last known state
+    // These reads occur before any timed save; they do not poll or add work inside the qualification window
+    const observePreparation = async (phase: string) => {
+      const observation: (typeof preparation)[number] = { phase, elapsedMs: Date.now() - startedAt }
+      preparation.push(observation)
+      observation.diagnostics = await diagnostics(page)
+    }
+    await observePreparation('workspace-ready')
+    await openOperation(page, operation, observePreparation)
+    await observePreparation('operation-opened')
     // Preparation includes loading route chunks; offline measurement begins only after that bulk work
     if (mode !== 'guest') await context.setOffline(true)
     baseline = await page.evaluate(() => (window as any).localSaveProof.full())
@@ -339,7 +356,9 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
   async function attach(info: TestInfo, samples: readonly unknown[] = measures) {
     // JSON reporters inline body attachments, so the combined exact evidence can exceed V8's string limit
     // Keep every sample and integrity observation in a linked per-test file instead
-    const receipt = JSON.stringify({ operation, mode, size, browser: browserVersion, hardware: { cpu: cpus()[0]?.model, memoryBytes: totalmem(), platform: platform(), release: release() }, setup: await page.evaluate(() => (window as any).localSaveProof?.setup).catch(() => undefined), measures: samples, unverifiedMeasure, draftPreparations: draftPreparations.splice(0), postProbeDrains: postProbeDrains.splice(0), diagnostics: await diagnostics(page).catch(() => undefined), mapperEvents: await page.evaluate(() => window.mapperEvents).catch(() => undefined), errors, qualification: 'Prepared synthetic managed root; installed account key is local-only. Main-thread payload/work observations exclude untimed durable oracles, worker activity and physical disk allocation. Long tasks are observed callbacks, not a complete trace. Mapping mode uses the actual profile-owned worker with encrypted queued projection; it does not establish cloud publication or complete portable restore.' }, (_key, value) => typeof value === 'bigint' ? { bigint: value.toString() } : value, 2)
+    // Timeout teardown can clear the suite arrays while a final page query is still pending
+    const preparationSnapshot = preparation.map(observation => ({ ...observation }))
+    const receipt = JSON.stringify({ operation, mode, size, browser: browserVersion, hardware: { cpu: cpus()[0]?.model, memoryBytes: totalmem(), platform: platform(), release: release() }, setup: setupSnapshot, preparation: preparationSnapshot, measures: samples, unverifiedMeasure, draftPreparations: draftPreparations.splice(0), postProbeDrains: postProbeDrains.splice(0), diagnostics: await diagnostics(page).catch(() => undefined), mapperEvents: await page.evaluate(() => window.mapperEvents).catch(() => undefined), errors, qualification: 'Prepared synthetic managed root; installed account key is local-only. Main-thread payload/work observations exclude untimed durable oracles, worker activity and physical disk allocation. Long tasks are observed callbacks, not a complete trace. Mapping mode uses the actual profile-owned worker with encrypted queued projection; it does not establish cloud publication or complete portable restore.' }, (_key, value) => typeof value === 'bigint' ? { bigint: value.toString() } : value, 2)
     const path = info.outputPath(`save-work-receipt-${receiptIndex++}.json`)
     await writeFile(path, receipt)
     await info.attach('save-work-receipt', { contentType: 'application/json', path })
