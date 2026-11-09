@@ -1,6 +1,6 @@
 # Account cryptography feasibility
 
-The account cryptography gate uses `@serenity-kit/opaque` 1.1.0 (MIT) and the browser-only encryption layer. Production remains assets-only. The isolated preview configuration selects the account Worker with customer, signup and email gates closed pending hosted qualification. Local cryptography proof does not activate those capabilities or establish production readiness.
+The account cryptography gate uses `@serenity-kit/opaque` 1.1.0 (MIT) and the browser-only encryption layer. Production remains assets-only. The checked-in preview configuration keeps customer, signup and email gates closed; the activated preview uses a separately reviewed private configuration recorded in [preview acceptance](accounts-preview.md#deployment-observations). Local cryptography proof does not activate those capabilities or establish production readiness.
 
 ## Passwords and identities
 
@@ -78,7 +78,7 @@ Validate and deduplicate bounded expected-head arrays before binding their JSON.
 
 [Cloudflare documents D1 batches as transactions whose failed statements roll back the sequence](https://developers.cloudflare.com/d1/worker-api/d1-database/#batch), checked on 2026-10-11. The real Miniflare/workerd fixture observes exactly one successful competing expected-head command, the winner's dependency/head/receipt/quota state and no loser graph. It also induces SQL errors after the guard, dependency insertion, head update, quota update and receipt insertion, and compares the complete prior database state after each rejection. Separate database instances repeat these observations. Raw database exceptions remain internal; future HTTP callers must classify conflicts and operational failures into the safe API error envelope without exposing SQL or bindings.
 
-This proves the local transaction primitive with the pinned runtime, not production D1 concurrency, topology, workload cost or the correctness of future composed authorization predicates. Before activation, repeat the same competing-writer and rollback probes against isolated deployed D1 bindings, including bounded JSON head predicates, credential activation, quota reservations, sync publication and audited admin commands. Measure CPU, latency, rows read/written and resource limits under representative contention. Preserve assets-only production and keep preview cloud capabilities closed until their independent hosted concurrency and resource gate passes.
+This proves the local transaction primitive with the pinned runtime, not production D1 concurrency, topology, workload cost or the correctness of future composed authorization predicates. Before activating a new environment, repeat the same competing-writer and rollback probes against its isolated deployed D1 bindings, including bounded JSON head predicates, credential activation, quota reservations, sync publication and audited admin commands. Measure CPU, latency, rows read/written and resource limits under representative contention. Keep unqualified capabilities closed; use the [preview acceptance record](accounts-preview.md) for deployment-specific evidence rather than treating this local proof as a statement of live activation state.
 
 ## Independent revocation evidence
 
