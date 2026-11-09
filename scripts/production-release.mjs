@@ -120,9 +120,11 @@ export function uploadedVersion(contents) {
   return uploads[0].version_id
 }
 
-export function verifyBundle(metadata, root) {
+export function verifyBundle(metadata, root, configDirectory) {
   const entries = Object.values(metadata?.outputs ?? {}).filter(output => output.entryPoint)
-  requireCondition(entries.length === 1 && resolve(root, entries[0].entryPoint) === join(root, 'worker/index.ts') && entries[0].exports?.includes('default'), 'Release bundle does not use the production entry', 1)
+  // Wrangler bases compiler paths on the config directory, which can differ in depth from the checkout
+  // Resolving from the checkout can reject its own entry or mistake another checkout for this one
+  requireCondition(entries.length === 1 && resolve(configDirectory, entries[0].entryPoint) === join(root, 'worker/index.ts') && entries[0].exports?.includes('default'), 'Release bundle does not use the production entry', 1)
   const inputs = Object.keys(metadata?.inputs ?? {})
   requireCondition(inputs.length > 0 && inputs.every(path => !/(^|\/)(?:worker\/testing|e2e|__accounts-proof)(\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path.replaceAll('\\', '/'))), 'Release bundle contains a test or fixture input', 1)
 }
@@ -265,7 +267,7 @@ async function cli(args) {
   // Wrangler exposes compiler metadata only through deploy, whose dry-run stops before provider writes
   // Live publication below still uploads and checks a version before assigning traffic
   await run('bundle-production', [wrangler, 'deploy', '--config', configPath, '--dry-run', '--outdir', join(directory, 'bundle'), '--metafile', bundleMetadata, '--upload-source-maps=false'])
-  await phase('verify-bundle-inputs', async () => verifyBundle(JSON.parse(await readFile(bundleMetadata, 'utf8')), ROOT))
+  await phase('verify-bundle-inputs', async () => verifyBundle(JSON.parse(await readFile(bundleMetadata, 'utf8')), ROOT, directory))
   if (mode === 'dry-run') { console.log(JSON.stringify({ worker: WORKER, mode, valid: true })); return }
   await phase('verify-resources', async () => {
     const db = config.d1_databases[0]

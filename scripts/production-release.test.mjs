@@ -253,12 +253,27 @@ test('release packaging refuses a testing entry or fixture import in the actual 
   const { verifyBundle } = await import('./production-release.mjs')
   assert.equal(typeof verifyBundle, 'function')
   const metadata = { inputs: { 'worker/index.ts': {}, '.account-tests/opaque-runtime.js': {} }, outputs: { 'bundle/index.js': { entryPoint: 'worker/index.ts', exports: ['default'] } } }
-  assert.doesNotThrow(() => verifyBundle(metadata, ROOT))
+  assert.doesNotThrow(() => verifyBundle(metadata, ROOT, ROOT))
   const fixtureImport = structuredClone(metadata)
   fixtureImport.inputs['worker/testing/local-entry.ts'] = {}
-  assert.throws(() => verifyBundle(fixtureImport, ROOT))
+  assert.throws(() => verifyBundle(fixtureImport, ROOT, ROOT))
   const fixtureEntry = structuredClone(metadata)
   fixtureEntry.outputs['bundle/index.js'].entryPoint = 'worker/testing/local-entry.ts'
-  assert.throws(() => verifyBundle(fixtureEntry, ROOT))
-  assert.throws(() => verifyBundle({ inputs: {}, outputs: {} }, ROOT))
+  assert.throws(() => verifyBundle(fixtureEntry, ROOT, ROOT))
+  assert.throws(() => verifyBundle({ inputs: {}, outputs: {} }, ROOT, ROOT))
+})
+
+test('bundle paths resolve from the private configuration directory while retaining exact checkout identity', async () => {
+  const { verifyBundle } = await import('./production-release.mjs')
+  const source = '/home/runner/work/crykit/crykit'
+  const configDirectory = '/tmp/crykit-production-release-fixture'
+  const entryPoint = '../../home/runner/work/crykit/crykit/worker/index.ts'
+  const metadata = { inputs: { [entryPoint]: {} }, outputs: { 'bundle/index.js': { entryPoint, exports: ['default'] } } }
+  assert.doesNotThrow(() => verifyBundle(metadata, source, configDirectory))
+  const otherCheckout = structuredClone(metadata)
+  otherCheckout.outputs['bundle/index.js'].entryPoint = '../../home/runner/work/other/crykit/worker/index.ts'
+  assert.throws(() => verifyBundle(otherCheckout, source, configDirectory))
+  const fixtureImport = structuredClone(metadata)
+  fixtureImport.inputs['../../home/runner/work/crykit/crykit/worker/testing/local-entry.ts'] = {}
+  assert.throws(() => verifyBundle(fixtureImport, source, configDirectory))
 })
