@@ -101,7 +101,7 @@ jobs:
       - name: Build application
         run: npm run build
       - name: Validate deployment
-        run: npm run deploy:dry-run
+        run: npm run deploy:dry-run -- --example
       - name: Save built application
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -272,30 +272,10 @@ jobs:
         with:
           name: application
           path: dist/
-      - name: Deploy verified assets
+      - name: Deploy verified production service
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CRYKIT_PRODUCTION_DEPLOYMENT_CONFIG: ${{ secrets.CRYKIT_PRODUCTION_DEPLOYMENT_CONFIG }}
           WRANGLER_SEND_METRICS: 'false'
-        run: |
-          npm run check:assets
-          WRANGLER_OUTPUT_FILE_PATH="$(mktemp "$RUNNER_TEMP/worker-upload.XXXXXX")"
-          export WRANGLER_OUTPUT_FILE_PATH
-          npx wrangler versions upload
-          node --input-type=module <<'JS'
-          import { readFileSync } from 'node:fs'
-          import { execFileSync } from 'node:child_process'
-
-          const records = readFileSync(process.env.WRANGLER_OUTPUT_FILE_PATH, 'utf8')
-            .split('\n').filter(Boolean).map(line => JSON.parse(line))
-          const uploads = records.filter(record => record.type === 'version-upload')
-          const upload = uploads[0]
-          const versionIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-          if (uploads.length !== 1 || upload.version !== 1 ||
-              upload.worker_name !== 'crykit' || !versionIdPattern.test(upload.version_id)) {
-            throw new Error('Expected one version upload for crykit with a valid version ID')
-          }
-          execFileSync('node_modules/.bin/wrangler', [
-            'versions', 'deploy', `${upload.version_id}@100%`, '--yes',
-          ], { stdio: 'inherit' })
-          JS
+        run: npm run deploy

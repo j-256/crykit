@@ -573,7 +573,8 @@
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [
-        "docs/deployment.md"
+        "docs/deployment.md",
+        "scripts/production-release.mjs"
       ],
       "catalogs": [],
       "outcomes": {
@@ -42686,6 +42687,20 @@
       },
       "reasons": []
     },
+    "https://developers.cloudflare.com/workers/configuration/secrets/": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/accounts-deployment.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
     "https://developers.cloudflare.com/workers/observability/logs/tail-workers/": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
@@ -67425,6 +67440,34 @@
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [
         "docs/share-links.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://synthetic.cloudflareaccess.com": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "scripts/production-release.mjs"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://synthetic.cloudflareaccess.com/cdn-cgi/access/certs": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "scripts/production-release.mjs"
       ],
       "catalogs": [],
       "outcomes": {
