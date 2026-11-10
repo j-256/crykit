@@ -331,6 +331,34 @@
       },
       "reasons": []
     },
+    "http://review.invalid": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "scripts/review-server.mjs"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "http://review.invalid/": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "scripts/review-server.mjs"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
     "http://schemas.openxmlformats.org/officeDocument/2006/relationships": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
@@ -560,6 +588,21 @@
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [
         "src/catalog/wiki-data.json"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://cloudflareinsights.com/cdn-cgi/rum": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/rum-deployment.md",
+        "index.html"
       ],
       "catalogs": [],
       "outcomes": {
@@ -42659,6 +42702,148 @@
       },
       "reasons": []
     },
+    "https://developers.cloudflare.com/speed/observatory/rum-beacon/": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/accounts-privacy.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://developers.cloudflare.com/web-analytics/configuration-options/rules/": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/rum-deployment.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://developers.cloudflare.com/web-analytics/data-metrics/data-origin-and-collection/": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/accounts-privacy.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://developers.cloudflare.com/web-analytics/data-metrics/dimensions/": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/accounts-privacy.md",
+        "docs/rum-deployment.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://developers.cloudflare.com/web-analytics/faq/": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/rum-deployment.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://developers.cloudflare.com/web-analytics/faq/#errors": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/rum-deployment.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://developers.cloudflare.com/web-analytics/faq/#how-can-i-enforce-subresource-integrity-sri-with-the-js-beacon": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/rum-deployment.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://developers.cloudflare.com/web-analytics/faq/#is-the-data-sampled": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/accounts-privacy.md",
+        "docs/rum-deployment.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://developers.cloudflare.com/web-analytics/get-started/web-analytics-spa/": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/rum-deployment.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://developers.cloudflare.com/web-analytics/limits/": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/rum-deployment.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
     "https://developers.cloudflare.com/workers/authorization/workers/": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
@@ -54498,6 +54683,20 @@
       },
       "reasons": []
     },
+    "https://github.com/j-256/crykit/blob/main/docs/": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "scripts/privacy-page.ts"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
     "https://github.com/j-256/crykit/blob/main/docs/calculation-reference.md": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
@@ -55030,6 +55229,22 @@
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
       "files": [
         "src/catalog/wiki-data.json"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://static.cloudflareinsights.com/beacon.min.js": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/rum-deployment.md",
+        "index.html",
+        "scripts/rum-plugin.ts"
       ],
       "catalogs": [],
       "outcomes": {
