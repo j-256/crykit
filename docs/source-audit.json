@@ -54687,6 +54687,20 @@
       },
       "reasons": []
     },
+    "https://nodejs.org/docs/latest-v24.x/api/sqlite.html": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/qualification-tooling.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
     "https://preview.crykit.lasers.app": {
       "disposition": "retain",
       "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
@@ -54707,6 +54721,21 @@
       "files": [
         "README.md",
         "docs/deployment.md"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://qualify.crykit.lasers.app": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/qualification-tooling.md",
+        "scripts/qualification-release.mjs"
       ],
       "catalogs": [],
       "outcomes": {
@@ -67657,6 +67686,20 @@
       "reason": "Only receipts for complete claims suppress disclosures; strategy, geography, uncertainty, and partial matches retain citations",
       "files": [
         "src/catalog/wiki-data.json"
+      ],
+      "catalogs": [],
+      "outcomes": {
+        "corroborated": 0,
+        "partial": 0,
+        "retained": 0
+      },
+      "reasons": []
+    },
+    "https://www.sqlite.org/lang_transaction.html": {
+      "disposition": "retain",
+      "reason": "No complete game-code proof for this citation; project, tooling, rights, and external-service references retain attribution",
+      "files": [
+        "docs/qualification-tooling.md"
       ],
       "catalogs": [],
       "outcomes": {

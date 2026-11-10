@@ -4,6 +4,8 @@ Guest editing remains available without signing in or a working account API. The
 
 Read the [preview acceptance record](accounts-preview.md), [capacity policy](accounts-capacity.md), [privacy and upload terms](accounts-privacy.md), [security contract](accounts-security.md), [admin Access contract](admin-access.md) and [recovery runbook](accounts-recovery.md) before activation. An isolated preview authorization does not authorize production, a purchase, a message to a real recipient, or general public uploads. General public uploads require owner approval of the published terms and an actual complaint contact.
 
+For a separately authorized isolated qualification environment, use the [closed qualification tooling](qualification-tooling.md). Its publisher validates independent resource identities and the real service entry while rejecting active account, signup, email, confirmation, backup and maintenance capabilities. Its controller budget records bounded reservations; it does not replace hosted Access acceptance, email send guards or capacity measurements.
+
 ## Environment configuration
 
 Preview and production are separate account identities. Production starts with new accounts and empty account storage; no preview accounts, credentials, sessions, cloud data, shares or operator memberships are migrated or copied. A person using both environments registers separately in each. Browser-local data remains at its original origin. Keep preview available independently, and do not redirect an authenticated preview session or a capability URL into production.
