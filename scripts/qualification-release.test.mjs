@@ -126,6 +126,26 @@ test('unsafe live ingress and logs prevent account-code upload', async () => {
   }
 })
 
+test('post-deployment policy drift fails release without repeating the deployment', async () => {
+  const c = normalize(await fixture())
+  const calls = []
+  let policyReads = 0
+  const ops = {
+    worker: async () => {
+      calls.push('worker')
+      const state = workerState()
+      if (++policyReads === 2) state.observability.logs.enabled = true
+      return state
+    },
+    upload: async () => { calls.push('upload'); return JSON.stringify({ type: 'version-upload', version: 1, worker_name: c.name, version_id: VERSION }) },
+    version: async () => { calls.push('version'); return version(c) },
+    deploy: async () => { calls.push('deploy') },
+    serving: async () => { calls.push('serving'); return [{ versions: [{ version_id: VERSION, percentage: 100 }] }] },
+  }
+  await assert.rejects(releaseVersion(c, ops), /producer logging policy is unsafe or unestablished/)
+  assert.deepEqual(calls, ['worker', 'upload', 'version', 'deploy', 'serving', 'worker'])
+})
+
 test('private input rejects shared modes and symlinks without exposing its values', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'crykit-qualification-config-'))
   try {
@@ -141,6 +161,16 @@ test('bundle metadata rejects any fixture entry or fixture import', () => {
   const m = { inputs: { 'worker/index.ts': {} }, outputs: { 'out/index.js': { entryPoint: 'worker/index.ts', exports: ['default'] } } }
   assert.doesNotThrow(() => verifyBundle(m, ROOT, ROOT))
   m.inputs['worker/testing/local-entry.ts'] = {}; assert.throws(() => verifyBundle(m, ROOT, ROOT))
+})
+
+test('private build paths resolve from the configuration directory rather than a different checkout', () => {
+  const checkout = '/synthetic/checkouts/crykit'
+  const configDirectory = '/synthetic/operations/private/release'
+  const metadata = entryPoint => ({ inputs: { [entryPoint]: {} }, outputs: { 'bundle/index.js': { entryPoint, exports: ['default'] } } })
+  assert.doesNotThrow(() => verifyBundle(metadata('../../../checkouts/crykit/worker/index.ts'), checkout, configDirectory))
+  assert.throws(() => verifyBundle(metadata('../../../checkouts/other/worker/index.ts'), checkout, configDirectory), /does not use the production entry/)
+  // This path would resolve to the expected entry only if incorrectly based on the checkout
+  assert.throws(() => verifyBundle(metadata('../crykit/worker/index.ts'), checkout, configDirectory), /does not use the production entry/)
 })
 
 test('CLI supports help and equivalent config options, rejects absent input and conflicting modes', async () => {
