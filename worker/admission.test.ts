@@ -94,6 +94,7 @@ it('isolatesIndependentSyntheticJourneysWithoutBypassingNativeAuthLimits', async
   expect((await login()).status).toBe(400)
   expect((await login()).status).toBe(429)
   expect((await login('127.0.0.1')).status).toBe(429)
+  expect((await login('::1')).status).toBe(429)
   const explicitNetwork = '192.0.2.10'
   expect((await login(explicitNetwork)).status).toBe(400)
   expect((await login(explicitNetwork)).status).toBe(400)
@@ -102,6 +103,7 @@ it('isolatesIndependentSyntheticJourneysWithoutBypassingNativeAuthLimits', async
   expect((await login()).status).toBe(400)
   expect((await login('127.0.0.1')).status).toBe(400)
   expect((await login()).status).toBe(429)
+  expect((await login('::1')).status).toBe(429)
   expect((await login(explicitNetwork)).status).toBe(429)
 })
 

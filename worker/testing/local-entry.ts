@@ -25,6 +25,7 @@ let responseGate: ResponseGate | undefined
 let localServiceOrigin: string | undefined
 let localNetworkIdentity: string | undefined
 const defaultFixtureNetwork = '127.0.0.1'
+const fixtureLoopbackNetworks = new Set([defaultFixtureNetwork, '::1'])
 const syntheticNetworkSuffixGroups = 6
 let originFailureDiagnostics = 0
 export class EmailCapture extends WorkerEntrypoint {
@@ -43,11 +44,12 @@ export default {
     if (new URL(request.url).pathname === fixtureMeasurementPath) return jsonResponse(fixtureMeasurement())
     // Test-only frontend connectivity toggles retain the same Worker state and exact Origin checks
     if (localServiceOrigin) env = { ...env, SERVICE_ORIGIN: localServiceOrigin }
-    // Miniflare supplies a loopback header by default; explicit non-loopback network proofs retain their identity
+    // Native shards can listen on either loopback family without creating a different logical client
+    // Normalize fixture transport before and after reset while preserving explicit non-loopback proofs
     const network = request.headers.get('cf-connecting-ip')
-    if (localNetworkIdentity && (!network || network === defaultFixtureNetwork)) {
+    if (!network || fixtureLoopbackNetworks.has(network)) {
       const headers = new Headers(request.headers)
-      headers.set('cf-connecting-ip', localNetworkIdentity)
+      headers.set('cf-connecting-ip', localNetworkIdentity ?? defaultFixtureNetwork)
       request = new Request(request, { headers })
     }
     const events: SafeEvent[] = []
