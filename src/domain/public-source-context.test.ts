@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest'
 import { createTestLocalData } from './test-helpers'
 import type { WorkspaceState } from '../workspace/documents'
-import type { PublicSnapshot } from '../interchange/public-share-schema'
+import { validatePublicSnapshot, type PublicSnapshot } from '../interchange/public-share-schema'
+import { PublicCheckpointContextSchema, PublicCheckpointContextV1Schema } from '../interchange/public-source-context-schema'
 import { preparePublicSnapshotCopy, publicReadOnlyPreview } from '../interchange/public-share-enrichment'
 import { validateNativeLocalDataGraph } from '../interchange/native'
 import { saveBuildRevision } from './builds'
@@ -10,15 +11,63 @@ import { checkpointBuildView } from './team-checkpoints'
 import { NativeLocalDataSchema } from '../interchange/native-schema'
 import { upgradeBundledReferences } from './bundled-reference-upgrade'
 
-function fixture() {
+function fixture(unknownCatalogMetadata = false) {
   const localData = createTestLocalData()
   const state: WorkspaceState = { planner: { localData, catalogs: [], lineage: { rootLocalDataId: localData.id }, sources: [], evidence: [], history: [] }, assets: [], blobs: [], editorDocuments: [], saveDocuments: [], conflicts: [], retainedContent: [], libraryDefaults: { version: 1, layers: [] } }
   const ref = { kind: 'catalog' as const, catalogId: 'missing-base', catalogRevisionId: 'historical-base', entityId: 'base:item:0' }
-  const snapshot: PublicSnapshot = { version: 5, kind: 'build', title: 'Missing selection', setup: { baseline: { catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId }, catalogLock: { [ref.catalogId]: ref.catalogRevisionId }, layers: [], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [{ slotId: 'removed-slot', ref }], equipmentGroups: [], passives: [] }], receipts: [{ ref, kind: 'item', name: 'Historical item', origin: { kind: 'catalog', projectId: ref.catalogId, sourceRevisionId: ref.catalogRevisionId, catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId } }] }
+  const knownSnapshot: PublicSnapshot = { version: 5, kind: 'build', title: 'Missing selection', setup: { baseline: { catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId }, catalogLock: { [ref.catalogId]: ref.catalogRevisionId }, layers: [], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [{ slotId: 'removed-slot', ref }], equipmentGroups: [], passives: [] }], receipts: [{ ref, kind: 'item', name: 'Historical item', origin: { kind: 'catalog', projectId: ref.catalogId, sourceRevisionId: ref.catalogRevisionId, catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId } }] }
+  const snapshot = unknownCatalogMetadata ? validatePublicSnapshot({ ...knownSnapshot, receipts: knownSnapshot.receipts.map(receipt => ({ ...receipt, kind: null, origin: null })) }) : knownSnapshot
   const prepared = preparePublicSnapshotCopy(state, snapshot), data = prepared.state.planner.localData
   const revision = data.buildRevisions[data.builds[prepared.result.buildId!]!.latestRevisionId!]!
   return { data, revision, setup: data.gameSetups[revision.gameSetupRevisionId]!, snapshot }
 }
+it('unknown catalog metadata stays explicit through copied context and note-only re-sharing', () => {
+  const { data, revision, setup, snapshot } = fixture(true)
+  expect(revision.publicSourceContext?.version).toBe(2)
+  expect(revision.publicSourceContext?.receipts).toEqual(snapshot.receipts)
+  expect(revision.content.equipment['removed-slot']?.ref).toEqual(snapshot.receipts[0]!.ref)
+  expect(revision.content.referenceNames).toEqual([{ ref: snapshot.receipts[0]!.ref, name: 'Historical item' }])
+  expect(data.unavailableDefinitions ?? []).toEqual([])
+  expect(NativeLocalDataSchema.parse(data)).toEqual(data)
+  expect(() => validateNativeLocalDataGraph(data, [])).not.toThrow()
+  const next = saveBuildRevision(data, { buildId: revision.buildId, gameSetupRevisionId: setup.id, parentRevisionId: revision.id, content: { ...revision.content, rotationNotes: 'Own note with unknown catalog mechanics' }, note: 'Own checkpoint' })
+  const saved = next.buildRevisions[next.builds[revision.buildId]!.latestRevisionId!]!
+  expect(saved.publicSourceContext).toEqual(revision.publicSourceContext)
+  expect(next.buildRevisions[revision.id]).toEqual(revision)
+  const shared = publicSnapshotFromCheckpoint(setup, saved, snapshot.title)
+  expect(shared.receipts).toEqual(snapshot.receipts)
+  expect(shared.slots).toEqual(snapshot.slots)
+  expect(shared.notes?.slots[0]).toMatchObject({ rotationNotes: 'Own note with unknown catalog mechanics', checkpoint: 'Own checkpoint' })
+})
+
+it('keeps persisted context v1 concrete while admitting nullable catalog metadata only in v2', () => {
+  const { data, revision } = fixture()
+  expect(revision.publicSourceContext?.version).toBe(1)
+  const concrete = revision.publicSourceContext!
+  expect(PublicCheckpointContextSchema.parse(concrete)).toEqual(concrete)
+  expect(PublicCheckpointContextV1Schema.parse(concrete)).toEqual(concrete)
+  expect(PublicCheckpointContextV1Schema.safeParse({ ...concrete, version: 2 }).success).toBe(false)
+  expect(PublicCheckpointContextSchema.parse({ ...concrete, version: 2 })).toEqual({ ...concrete, version: 2 })
+  for (const metadata of [{ kind: null }, { origin: null }, { kind: null, origin: null }]) {
+    const receipts = concrete.receipts.map(receipt => ({ ...receipt, ...metadata }))
+    expect(PublicCheckpointContextSchema.safeParse({ ...concrete, receipts }).success).toBe(false)
+    expect(PublicCheckpointContextV1Schema.safeParse({ ...concrete, version: 2, receipts }).success).toBe(false)
+    expect(NativeLocalDataSchema.safeParse({ ...data, buildRevisions: { ...data.buildRevisions, [revision.id]: { ...revision, publicSourceContext: { ...concrete, receipts } } } }).success).toBe(false)
+    expect(PublicCheckpointContextSchema.safeParse({ ...concrete, version: 2, receipts }).success).toBe(true)
+  }
+})
+
+it('requires concrete personal metadata even in a context that allows unknown catalog metadata', () => {
+  const { revision, snapshot } = fixture(), fingerprint = { kind: 'personal-definition-v1' as const, value: 'e'.repeat(64) }
+  const ref = { kind: 'personal' as const, fingerprint }
+  const receipt = { ref, fingerprint, kind: 'item', name: 'Missing personal item', origin: { kind: 'personal', projectId: 'personal-definition-v1', sourceRevisionId: fingerprint.value, catalogId: 'personal-definition-v1', catalogRevisionId: fingerprint.value } }
+  for (const metadata of [{ kind: null }, { origin: null }, { kind: null, origin: null }]) {
+    const receipts = [{ ...receipt, ...metadata }]
+    expect(() => validatePublicSnapshot({ ...snapshot, slots: [{ ...snapshot.slots[0]!, equipment: [{ slotId: 'removed-slot', ref }] }], receipts })).toThrow()
+    expect(PublicCheckpointContextSchema.safeParse({ ...revision.publicSourceContext!, version: 2, receipts }).success).toBe(false)
+  }
+})
+
 it('preserves note-only revisions and blocks implicit selection reinterpretation', () => {
   const { data, revision, setup } = fixture()
   const next = saveBuildRevision(data, { buildId: revision.buildId, gameSetupRevisionId: setup.id, parentRevisionId: revision.id, content: { ...revision.content, rotationNotes: 'Independent recipient note' }, note: 'Own checkpoint' })

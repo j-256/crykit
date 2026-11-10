@@ -257,12 +257,20 @@ it('preserves a saved exact Layer B origin when only the real composed catalog r
   expect(localData).toEqual(before)
 })
 
-it.each(['missing', 'ambiguous'] as const)('rejects %s composed source origin instead of substituting baseline', async mode => {
+it('keeps missing composed source origin unknown instead of substituting baseline', async () => {
+  const { localData, composed, target } = await composedOriginFixture()
+  const revision = localData.buildRevisions[target.revisionId]!
+  const changed = { ...localData, buildRevisions: { ...localData.buildRevisions, [revision.id]: { ...revision, content: { ...revision.content, referenceNames: [] } } } }
+  const value = createPublicSnapshot({ planner: { localData: changed, catalogs: [composed] } }, target, { includeNotes: false })
+  expect(value.receipts[0]!.kind).toBe('class')
+  expect(value.receipts[0]!.origin).toBeNull()
+})
+
+it('rejects ambiguous composed source origin instead of erasing conflicting evidence', async () => {
   const { localData, composed, sources, target } = await composedOriginFixture()
   const revision = localData.buildRevisions[target.revisionId]!, saved = revision.content.referenceNames![0]!
-  const referenceNames = mode === 'missing' ? [] : [saved, { ...saved, projectId: sources[1]!.id }]
-  const changed = { ...localData, buildRevisions: { ...localData.buildRevisions, [revision.id]: { ...revision, content: { ...revision.content, referenceNames } } } }
-  expect(() => createPublicSnapshot({ planner: { localData: changed, catalogs: [composed] } }, target, { includeNotes: false })).toThrow(/exact source origin|ambiguous source origin/)
+  const changed = { ...localData, buildRevisions: { ...localData.buildRevisions, [revision.id]: { ...revision, content: { ...revision.content, referenceNames: [saved, { ...saved, projectId: sources[1]!.id }] } } } }
+  expect(() => createPublicSnapshot({ planner: { localData: changed, catalogs: [composed] } }, target, { includeNotes: false })).toThrow(/ambiguous source origin/)
 })
 
 it('publishes a genuine unchanged native entry from a composed catalog only with exact baseline evidence', async () => {
@@ -273,7 +281,9 @@ it('publishes a genuine unchanged native entry from a composed catalog only with
   const changed = { ...localData, buildRevisions: { ...localData.buildRevisions, [revision.id]: { ...revision, content: { ...revision.content, referenceNames: [], primaryClass: { kind: 'catalog' as const, catalogId: composed.id, catalogRevisionId: composed.revisionId, entityId: native.id } } } } }
   const value = createPublicSnapshot({ planner: { localData: changed, catalogs: [composed, sources[0]!] } }, target, { includeNotes: false })
   expect(value.receipts[0]!.origin).toMatchObject({ projectId: sources[0]!.id, sourceRevisionId: sources[0]!.revisionId })
-  expect(() => createPublicSnapshot({ planner: { localData: changed, catalogs: [composed] } }, target, { includeNotes: false })).toThrow(/exact source origin/)
+  const withoutBaseline = createPublicSnapshot({ planner: { localData: changed, catalogs: [composed] } }, target, { includeNotes: false })
+  expect(withoutBaseline.receipts[0]!.kind).toBe('class')
+  expect(withoutBaseline.receipts[0]!.origin).toBeNull()
 })
 
 it('rejects conflicting saved origins for the same selected identity across Team slots', async () => {
@@ -293,4 +303,44 @@ it('publishes the exact effective lock even for an empty Team independently of s
   const localData = saveSharedTeam(state.planner.localData, { id: 'empty-team' as never, title: 'Empty historical Team', gameSetupRevisionId: original.id, catalogLock: { native: 'historical-native' as never }, slots: [null, null, null, null] })
   const value = createPublicSnapshot({ planner: { localData, catalogs: [] } }, { kind: 'team', teamId: 'empty-team' as never }, { includeNotes: false })
   expect(value.setup).toHaveProperty('catalogLock', { native: 'historical-native' })
+})
+
+it('rejects conflicting saved display names for one identity even when exact mechanics remain', async () => {
+  const { localData, composed, target } = await composedOriginFixture()
+  const revision = localData.buildRevisions[target.revisionId]!, saved = revision.content.referenceNames![0]!
+  const changed = { ...localData, buildRevisions: { ...localData.buildRevisions, [revision.id]: { ...revision, content: { ...revision.content, referenceNames: [saved, { ...saved, name: 'Conflicting saved name' }] } } } }
+  expect(() => createPublicSnapshot({ planner: { localData: changed, catalogs: [composed] } }, target, { includeNotes: false })).toThrow(/ambiguous saved display names/)
+})
+
+it('rejects conflicting saved display names across Team slots with unavailable definitions', async () => {
+  const { saveSharedTeam } = await import('../domain/team-checkpoints')
+  const { localData: initial, target } = await composedOriginFixture()
+  let localData = saveSharedTeam(initial, { id: 'name-conflict-team' as never, title: 'Conflicting Team', gameSetupRevisionId: 'origin-setup' as never, slots: [target.revisionId, target.revisionId, null, null] })
+  const team = localData.teams['name-conflict-team']!
+  if (team.kind !== 'shared') throw new Error('Expected shared Team')
+  const checkpoint = localData.teamRevisions[team.latestRevisionId]!, member = checkpoint.slots[1]!, saved = member.content.referenceNames![0]!
+  localData = { ...localData, teamRevisions: { ...localData.teamRevisions, [checkpoint.id]: { ...checkpoint, slots: [checkpoint.slots[0], { ...member, content: { ...member.content, referenceNames: [{ ...saved, name: 'Conflicting saved name' }] } }, null, null] } } }
+  expect(() => createPublicSnapshot({ planner: { localData, catalogs: [] } }, { kind: 'team', teamId: team.id }, { includeNotes: false })).toThrow(/ambiguous saved display names/)
+})
+
+it.each([0, 1])('preserves richer nonconflicting exact origin with unknown Team slot %s', async unknownSlot => {
+  const { saveSharedTeam } = await import('../domain/team-checkpoints')
+  const { localData: initial, sources, target } = await composedOriginFixture()
+  let localData = saveSharedTeam(initial, { id: 'unknown-origin-team' as never, title: 'Unknown origin Team', gameSetupRevisionId: 'origin-setup' as never, slots: [target.revisionId, target.revisionId, null, null] })
+  const team = localData.teams['unknown-origin-team']!
+  if (team.kind !== 'shared') throw new Error('Expected shared Team')
+  const checkpoint = localData.teamRevisions[team.latestRevisionId]!, member = checkpoint.slots[unknownSlot]!, saved = member.content.referenceNames![0]!
+  const slots = checkpoint.slots.map((slot, index) => index === unknownSlot ? { ...member, content: { ...member.content, referenceNames: [{ ref: saved.ref, name: saved.name }] } } : slot)
+  localData = { ...localData, teamRevisions: { ...localData.teamRevisions, [checkpoint.id]: { ...checkpoint, slots } } }
+  const value = createPublicSnapshot({ planner: { localData, catalogs: [] } }, { kind: 'team', teamId: team.id }, { includeNotes: false })
+  expect(value.receipts).toHaveLength(1)
+  expect(value.receipts[0]!.kind).toBeNull()
+  expect(value.receipts[0]!.origin).toMatchObject({ projectId: sources[2]!.id, sourceRevisionId: sources[2]!.revisionId, modelKey: 'crystal-edit:Jobs:0' })
+})
+
+it('rejects conflicting exact catalog and unavailable receipt kinds instead of choosing one', async () => {
+  const { localData, composed, target } = await composedOriginFixture()
+  const selected = localData.buildRevisions[target.revisionId]!.content.referenceNames![0]!
+  const changed = { ...localData, unavailableDefinitions: [{ ref: selected.ref, kind: 'item' as const, name: selected.name }] }
+  expect(() => createPublicSnapshot({ planner: { localData: changed, catalogs: [composed] } }, target, { includeNotes: false })).toThrow(/ambiguous kind/)
 })

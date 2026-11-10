@@ -23,6 +23,23 @@ async function fixture() {
 }
 const withCatalogs = (viewer: WorkspaceState, catalogs: readonly CatalogSnapshot[]): WorkspaceState => ({ ...viewer, planner: { ...viewer.planner, catalogs } })
 
+it('resolves an unknown kind only from the viewer-owned exact source without rewriting the receipt', async () => {
+  const { snapshot, viewer, entity } = await fixture()
+  const unknown = { ...snapshot, receipts: snapshot.receipts.map(receipt => ({ ...receipt, kind: null })) }
+  expect(enrichPublicSnapshot(unknown, viewer).entries[0]?.definition).toEqual(entity)
+  expect(enrichPublicSnapshot(unknown, { ...viewer, blobs: [] }).entries[0]?.definition).toBeUndefined()
+  expect(unknown.receipts[0]?.kind).toBeNull()
+})
+
+it('keeps unknown origins unresolved when only matching source files are present', async () => {
+  const { snapshot, viewer } = await fixture()
+  const unknown = { ...snapshot, receipts: snapshot.receipts.map(receipt => ({ ...receipt, kind: null, origin: null })) }
+  const result = enrichPublicSnapshot(unknown, viewer)
+  expect(result.entries[0]?.definition).toBeUndefined()
+  expect(result.resolved).toBe(false)
+  expect(result.unresolvedCalculations).toBe(true)
+})
+
 describe('viewer-owned public enrichment', () => {
   it('requiresViewerOwnedExactSourceForModOverride', async () => {
     const { snapshot, viewer, entity } = await fixture()
@@ -47,11 +64,11 @@ describe('viewer-owned public enrichment', () => {
     const { snapshot, viewer, source } = await fixture()
     const historical = structuredClone(snapshot)
     historical.setup.layers[0]!.catalogRevisionId = 'historical:library-v1'
-    historical.receipts[0]!.origin.sourceRevisionId = 'historical:library-v1'
+    historical.receipts[0]!.origin!.sourceRevisionId = 'historical:library-v1'
     const result = enrichPublicSnapshot(historical, viewer)
     expect(result.entries[0]?.definition).toEqual(modModelEntity(source, 'crystal-edit:Jobs:0'))
     expect(result.adaptedProjections).toHaveLength(1)
-    expect(historical.receipts[0]!.origin.sourceRevisionId).toBe('historical:library-v1')
+    expect(historical.receipts[0]!.origin!.sourceRevisionId).toBe('historical:library-v1')
   })
   it('personal display receipts remain unknown without exact viewer content', async () => {
     const { snapshot, viewer } = await fixture()
@@ -71,14 +88,14 @@ it('resolves native definitions only with exact baseline and receipt origin', as
   const native: PublicSnapshot = { ...snapshot, setup: { ...snapshot.setup, layers: [] }, slots: [{ ...snapshot.slots[0]!, primaryClass: ref }], receipts: [{ ref, kind: entity.kind, name: entity.name, origin: { kind: 'catalog', projectId: baseline.id, sourceRevisionId: baseline.revisionId, catalogId: baseline.id, catalogRevisionId: baseline.revisionId } }] }
   expect(enrichPublicSnapshot(native, viewer).entries[0]?.definition).toEqual(entity)
   expect(enrichPublicSnapshot({ ...native, setup: { ...native.setup, baseline: null } }, viewer).resolved).toBe(false)
-  expect(enrichPublicSnapshot({ ...native, receipts: [{ ...native.receipts[0]!, origin: { ...native.receipts[0]!.origin, sourceRevisionId: 'other' } }] }, viewer).resolved).toBe(false)
+  expect(enrichPublicSnapshot({ ...native, receipts: [{ ...native.receipts[0]!, origin: { ...native.receipts[0]!.origin!, sourceRevisionId: 'other' } }] }, viewer).resolved).toBe(false)
 })
 
 it('does not select between ambiguous matching parser projections by array order', async () => {
   const { snapshot, viewer, source } = await fixture()
   const historical = structuredClone(snapshot)
   historical.setup.layers[0]!.catalogRevisionId = 'historical:library-v1'
-  historical.receipts[0]!.origin.sourceRevisionId = 'historical:library-v1'
+  historical.receipts[0]!.origin!.sourceRevisionId = 'historical:library-v1'
   const ambiguous = withCatalogs(viewer, [source, { ...source, revisionId: 'different:library-v2' as never }])
   expect(enrichPublicSnapshot(historical, ambiguous).entries[0]?.definition).toBeUndefined()
   expect(enrichPublicSnapshot(historical, ambiguous).missingReceiptIds).toHaveLength(1)
@@ -192,6 +209,33 @@ async function previewCalculation(snapshot: PublicSnapshot, viewer: WorkspaceSta
   return { preview, setup, stats: calculatePCStats(revision.content, setup.slots, resolve, [], false, resolveGameRules(setup, preview.catalogs)), modifiers: collectEffectiveModifiers(revision.content, setup.slots, resolve, { includeAutomaticStatuses: true }) }
 }
 
+it('resolves unknown origins only within the exact captured composition and preserves its calculations', async () => {
+  const { snapshot, viewer } = await calculationFixture()
+  const unknown = { ...snapshot, receipts: snapshot.receipts.map(receipt => ({ ...receipt, kind: null, origin: null })) }
+  const result = enrichPublicSnapshot(unknown, viewer)
+  expect(result.resolved).toBe(true)
+  expect(result.unresolvedCalculations).toBe(false)
+  expect((await previewCalculation(unknown, viewer)).stats.neutral.HP).toBe(1344)
+  const historical = JSON.parse(JSON.stringify(unknown).replaceAll(snapshot.receipts[0]!.ref.kind === 'catalog' ? snapshot.receipts[0]!.ref.catalogRevisionId : 'unreachable', `composition-v1:sha256:${'b'.repeat(64)}`)) as PublicSnapshot
+  historical.setup = snapshot.setup
+  expect(enrichPublicSnapshot(historical, viewer).entries[0]?.definition).toBeUndefined()
+  expect(enrichPublicSnapshot(historical, viewer).unresolvedCalculations).toBe(true)
+  expect(enrichPublicSnapshot(unknown, { ...viewer, blobs: [] }).resolved).toBe(false)
+})
+
+it('resolves unchanged native equipment inside the exact owned composition without an origin receipt', async () => {
+  const { snapshot, viewer } = await calculationFixture()
+  const baseline = viewer.planner.catalogs[0]!
+  const equipment = Object.values(baseline.entities).find(entity => entity.kind === 'item')!
+  const selected = snapshot.slots[0]!.primaryClass!
+  if (selected.kind !== 'catalog') throw new Error('Expected composed catalog fixture')
+  const ref = { ...selected, entityId: equipment.id }
+  const unknown: PublicSnapshot = { ...snapshot, slots: [{ ...snapshot.slots[0]!, equipment: [{ slotId: 'plan-main-hand', ref }] }], receipts: [...snapshot.receipts, { ref, kind: null, origin: null, name: equipment.name }] }
+  expect(enrichPublicSnapshot(unknown, viewer).entries.at(-1)?.definition).toEqual(equipment)
+  const wrong = { ...unknown, receipts: unknown.receipts.map(receipt => receipt.ref === ref ? { ...receipt, kind: 'class' as const } : receipt) }
+  expect(enrichPublicSnapshot(wrong, viewer).entries.at(-1)?.definition).toBeUndefined()
+})
+
 it('calculates owned class innates and automatic statuses from the exact captured private composition', async () => {
   const { snapshot, viewer } = await calculationFixture()
   const before = JSON.stringify(snapshot), viewerBefore = JSON.stringify(viewer)
@@ -260,7 +304,7 @@ it('keeps retained raw-source selections inert before rebinding the active compo
   const receipt = snapshot.receipts.find(receipt => receipt.kind === 'class')!
   const raw = { kind: 'catalog' as const, catalogId: source.id, catalogRevisionId: source.revisionId, entityId: modModelEntity(source, 'crystal-edit:Jobs:0')!.id }
   const retained = JSON.parse(JSON.stringify(snapshot).replaceAll(JSON.stringify(receipt.ref), JSON.stringify(raw))) as PublicSnapshot
-  const inactive = { ...retained, receipts: retained.receipts.map(receipt => receipt.kind === 'class' ? { ...receipt, origin: { ...receipt.origin, catalogId: raw.catalogId, catalogRevisionId: raw.catalogRevisionId } } : receipt) }
+  const inactive = { ...retained, receipts: retained.receipts.map(receipt => receipt.kind === 'class' ? { ...receipt, origin: { ...receipt.origin!, catalogId: raw.catalogId, catalogRevisionId: raw.catalogRevisionId } } : receipt) }
   const result = await previewCalculation(inactive, viewer), content = result.preview.revisions[0]!.content
   expect(content.primaryClass).toEqual(raw)
   expect(content.retainedSelections?.refs).toContainEqual(raw)

@@ -113,5 +113,5 @@ export function publicContextForNoteEdit(previous: Checkpoint | undefined, setup
 export function publicContextForContent(context: PublicCheckpointContext, content: BuildRevisionContent): PublicCheckpointContext {
   const refs = buildModReferences(content)
   const selected = new Set(refs.map(ref => publicRefKey(toPublicRef(context, ref))))
-  return { ...context, receipts: context.receipts.filter(receipt => selected.has(publicRefKey(receipt.ref))), personalBindings: context.personalBindings.filter(binding => refs.some(ref => ref.kind === 'personal' && ref.definitionId === binding.ref.definitionId)) }
+  return PublicCheckpointContextSchema.parse({ ...context, receipts: context.receipts.filter(receipt => selected.has(publicRefKey(receipt.ref))), personalBindings: context.personalBindings.filter(binding => refs.some(ref => ref.kind === 'personal' && ref.definitionId === binding.ref.definitionId)) })
 }
