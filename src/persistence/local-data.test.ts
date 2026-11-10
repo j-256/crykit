@@ -7,11 +7,9 @@ import { createPersonalDefinition, requirePlaythrough, resolveDefinition, setAcq
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { createSampleLocalData } from '../domain/sample-data'
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
-import { decodeSharePayload } from '../interchange/share'
 import { TEAM_SIZE } from '../domain/scenarios'
 import type { CatalogRef } from '../domain/types'
-import starterBuildReferenceNames from './starter-build-reference-names.json' with { type: 'json' }
-import starterBuildShares from './starter-build-shares.json' with { type: 'json' }
+import starterBuildRecords from './starter-build-records.json' with { type: 'json' }
 import { CryKitDatabase, setDatabaseForTests } from './database'
 import {
   commitImport,
@@ -79,26 +77,25 @@ describe('local planner persistence', () => {
     expect(await database.localDatas.count()).toBe(1)
   })
 
-  it('adds the supplied shared Builds alongside the original sample team', async () => {
+  it('adds the supplied native starter Builds alongside the original sample team', async () => {
     const { localData, catalogs, canUndo } = await loadLocalData()
     const titles = ['Judite', 'Marco', 'Prudence', 'Marcy']
     expect(Object.values(localData.builds).map(build => build.title)).toEqual(expect.arrayContaining(titles))
-    expect(Object.values(localData.builds)).toHaveLength(TEAM_SIZE + starterBuildShares.length)
+    expect(Object.values(localData.builds)).toHaveLength(TEAM_SIZE + Object.keys(starterBuildRecords.builds).length)
     expect(Object.values(requirePlaythrough(localData).scenarios)).toHaveLength(1)
     expect(localData.revision).toBe(0)
     expect(canUndo).toBe(false)
 
-    for (const encoded of starterBuildShares) {
-      const source = decodeSharePayload(encoded)
-      const sourceRevision = Object.values(source.records.buildRevisions)[0]!
-      const title = source.title === 'Brawler build' ? 'Prudence' : source.title
+    for (const sourceBuild of Object.values(starterBuildRecords.builds)) {
+      const sourceRevision = starterBuildRecords.buildRevisions[sourceBuild.latestRevisionId as keyof typeof starterBuildRecords.buildRevisions]!
+      const title = sourceBuild.title
       const build = Object.values(localData.builds).find(build => build.title === title)!
       const revision = localData.buildRevisions[build.latestRevisionId!]!
       const setup = localData.gameSetups[revision.gameSetupRevisionId]!
-      const sourceSetup = source.records.gameSetups[sourceRevision.gameSetupRevisionId]!
+      const sourceSetup = starterBuildRecords.gameSetups[sourceRevision.gameSetupRevisionId as keyof typeof starterBuildRecords.gameSetups]!
       expect(build.tags).toContain('sample')
-      // Shared-copy IDs change the effective revision; selected display receipts supplement the exact checkpoint
-      const copiedContent = JSON.parse(JSON.stringify({ ...sourceRevision.content, referenceNames: (starterBuildReferenceNames as Record<string, { referenceNames: readonly unknown[] }>)[source.title]!.referenceNames }, (_key, entry) => entry && typeof entry === 'object' && entry.kind === 'catalog' ? { ...entry, catalogRevisionId: setup.catalogLock[entry.catalogId] } : entry))
+      // Fresh native identities change only the effective catalog pin, not supplied checkpoint facts
+      const copiedContent = JSON.parse(JSON.stringify(sourceRevision.content, (_key, entry) => entry && typeof entry === 'object' && entry.kind === 'catalog' ? { ...entry, catalogRevisionId: setup.catalogLock[entry.catalogId] } : entry))
       expect(revision.content).toEqual(copiedContent)
       expect(setup.modComposition).toEqual(sourceSetup.modComposition)
       if (setup.modComposition?.layers.length) {

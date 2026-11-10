@@ -1,11 +1,30 @@
-import { skipInitialModSetup, openGameSetupSection, readLocalData as storedData } from './local-data-helpers'
+import { skipInitialModSetup, openGameSetupSection, replacePlannerFixture, readLocalData as storedData } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { SUGGESTED_BUILD_SLOTS } from '../src/domain/build-planning'
-import type { CatalogRevisionId, EntityId } from '../src/domain/types'
-import { createSharePayload, createShareUrl } from '../src/interchange/share'
+import type { CatalogRevisionId, EntityId, LocalData, BuildRevisionId } from '../src/domain/types'
+import { cloneBuild, saveBuildRevision } from '../src/domain'
+import { buildBehavior, saveBuildBehavior } from '../src/domain/build-behavior'
+import { mapBuildModReferences, buildContentForModSetup } from '../src/domain/build-mods'
+import { prepareModCatalogs } from '../src/persistence/local-data'
+import { readManagedGuestPlanner } from './guest-planner-reader'
 import { expectOfflineReady } from './offline-helpers'
 import { CURRENT_CATALOG } from '../src/catalog/bundled'
 import { HISTORICAL_BUNDLED_CATALOG } from '../src/domain/withdrawn-catalogs'
+
+async function installFixtureCopy(page: Page, original: LocalData, records: LocalData, revisionId: BuildRevisionId): Promise<void> {
+  const revision = records.buildRevisions[revisionId]!
+  const cloned = cloneBuild(original, { sourceBuildId: revision.buildId })
+  const copy = Object.values(cloned.builds).find(build => !original.builds[build.id])!
+  const savedSetup = saveBuildBehavior(cloned, buildBehavior(records.gameSetups[revision.gameSetupRevisionId]!))
+  const viewer = await readManagedGuestPlanner(page)
+  if (!viewer) throw new Error('The managed synthetic planner is unavailable')
+  const catalogs = await prepareModCatalogs(savedSetup.localData, viewer.catalogs)
+  const previousSetup = original.gameSetups[revision.gameSetupRevisionId]!
+  const content = mapBuildModReferences(buildContentForModSetup(revision.content, savedSetup.setup, catalogs, previousSetup), ref => ref?.kind === 'catalog' && ref.catalogRevisionId === previousSetup.catalogLock[ref.catalogId] && savedSetup.setup.catalogLock[ref.catalogId] ? { ...ref, catalogRevisionId: savedSetup.setup.catalogLock[ref.catalogId]! } : ref)
+  const next = saveBuildRevision(savedSetup.localData, { buildId: copy.id, gameSetupRevisionId: savedSetup.setup.id, content })
+  await replacePlannerFixture(page, next)
+  await page.goto(`/#/builds/library/${copy.id}`)
+}
 
 async function openBuild(page: Page) {
   await page.goto('/')
@@ -62,11 +81,8 @@ test('owns discrete known and custom mod choices and version while keeping earli
   await expect(custom).toHaveValue('unknown')
   await expect(page.getByRole('combobox', { name: 'Game version' })).toHaveValue('synthetic-1.0')
   await context.setOffline(false)
-  const url = createShareUrl(createSharePayload(saved, { kind: 'build', revisionId: checkpoint.id }), `${baseURL}/`)
-  await page.goto(url)
-  await expect(page.getByRole('button', { name: 'Save a copy', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
-  await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toBeEnabled()
+  await replacePlannerFixture(page, saved)
+  await page.goto(`/#/builds/library/${build.id}`)
   await page.locator('.build-behavior > summary').click()
   await openGameSetupSection(page.locator('.build-behavior'), 'Mods')
   await expect(custom).toHaveValue('unknown')
@@ -109,22 +125,20 @@ test('retains behavior and loadout after a failed save, and an older checkpoint 
   expect(restored.playthroughs).toEqual(original.playthroughs)
 })
 
-test('opens an existing version 1 share link', async ({ page, baseURL }) => {
-  const { original, before } = await openBuild(page)
-  const payload = { ...createSharePayload(original, { kind: 'build', revisionId: before.id }), version: 1 as const }
-  const url = createShareUrl(payload, `${baseURL}/`).replace(/\/share\/v[0-9]+\//, '/share/v1/')
-  await page.goto(url)
-  await expect(page.getByRole('region', { name: 'Shared build loadout' })).toBeVisible()
+for (const version of [1, 2, 3, 4]) test(`rejects retired public share version ${version} without changing saved records`, async ({ page }) => {
+  const { original } = await openBuild(page)
+  await page.goto(`/#/share/v${version}/AAA`)
+  await expect(page.getByRole('heading', { name: 'This link could not be opened', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save a copy', exact: true })).toHaveCount(0)
   expect(await storedData(page)).toEqual(original)
 })
 
 test('a preset without a configured layout keeps suggested slots usable and preserves equipped selections', async ({ page, baseURL }) => {
   const { original, build, before } = await openBuild(page)
-  const payload = createSharePayload(original, { kind: 'build', revisionId: before.id })
+  const payload = { records: original }
   const setup = payload.records.gameSetups[before.gameSetupRevisionId]!
   const emptyPreset = { ...payload, records: { ...payload.records, gameSetups: { ...payload.records.gameSetups, [setup.id]: { ...setup, label: 'Synthetic empty-layout preset', slots: [] } }, buildRevisions: { ...payload.records.buildRevisions, [before.id]: { ...payload.records.buildRevisions[before.id]!, content: { ...before.content, equipment: {} } } } } }
-  await page.goto(createShareUrl(emptyPreset, `${baseURL}/`))
-  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
+  await installFixtureCopy(page, original, emptyPreset.records, before.id)
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toBeEnabled()
   await page.goto(`${baseURL}/#/builds/library/${build.id}`)
   await page.locator('.build-behavior > summary').click()
@@ -148,14 +162,14 @@ test('unavailable mod layers retain unchanged native loadout definitions @mobile
     return revision?.content.passives.some(selection => selection.ref.kind === 'catalog' && selection.ref.entityId === 'base:passive:20') && Object.values(revision.content.equipment).some(selection => selection?.ref.kind === 'catalog' && selection.ref.entityId === 'base:equipment:41')
   })!
   const before = original.buildRevisions[build.latestRevisionId!]!
-  const payload = createSharePayload(original, { kind: 'build', revisionId: before.id })
+  const payload = { records: original }
   const setup = payload.records.gameSetups[before.gameSetupRevisionId]!
   // Force a missing source revision even if a future library contains this project's definitions
   const checksum = `sha256:${'0'.repeat(64)}`
   const sourceRevision = `${checksum}:rules-v2:library-v2` as CatalogRevisionId
   const unavailableSetup = { ...setup, modComposition: { ...setup.modComposition!, layers: setup.modComposition!.layers.map(layer => ({ ...layer, catalogRevisionId: sourceRevision })) }, modSourceReceipts: setup.modSourceReceipts!.map(({ contentFingerprint: _fingerprint, ...receipt }) => ({ ...receipt, checksum, catalogRevisionId: sourceRevision })) }
   const unavailable = { ...payload, records: { ...payload.records, gameSetups: { ...payload.records.gameSetups, [setup.id]: unavailableSetup } } }
-  await page.goto(createShareUrl(unavailable, `${baseURL}/`))
+  await installFixtureCopy(page, original, unavailable.records, before.id)
   const validity = page.getByRole('region', { name: 'Build validity', exact: true })
   const expectNativeSelections = async () => {
     for (const label of ['Main hand', 'Head', 'Equipped passive 1', 'Equipped passive 3']) await expect(validity.getByText(`${label}: definition is unavailable`, { exact: false })).toHaveCount(0)
@@ -163,8 +177,8 @@ test('unavailable mod layers retain unchanged native loadout definitions @mobile
   }
   await expect(validity).toBeVisible()
   await expectNativeSelections()
-  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
-  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+  await page.reload()
+  await expect(validity).toBeVisible()
   await expectNativeSelections()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Eclipse')
   await expect(page.getByRole('combobox', { name: 'Equipped passive 1', exact: true })).toHaveValue('Pocket Sand')
@@ -179,17 +193,16 @@ test('native command facts stay usable independently of an unused modded innate 
     return ref?.kind === 'catalog' && ref.entityId === 'base:job:2'
   })!
   const before = original.buildRevisions[build.latestRevisionId!]!
-  const payload = createSharePayload(original, { kind: 'build', revisionId: before.id })
+  const payload = { records: original }
   const { calculation: _calculation, ...content } = before.content
   const primary = { ...before.content.secondaryClass!, entityId: 'base:job:0' as EntityId }
   const revision = { ...payload.records.buildRevisions[before.id]!, content: { ...content, primaryClass: primary, equipment: {}, passives: [], referenceNames: content.referenceNames?.filter(entry => entry.ref.entityId === 'base:job:2') } }
   const native = { ...payload, records: { ...payload.records, buildRevisions: { ...payload.records.buildRevisions, [before.id]: revision } } }
-  await page.goto(createShareUrl(native, `${baseURL}/`))
+  await installFixtureCopy(page, original, native.records, before.id)
   const validity = page.getByRole('region', { name: 'Build validity', exact: true })
   await expect(validity).toContainText('No known loadout conflicts')
   await expect(page.getByText('Mod definitions needed', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('region', { name: 'Class and command', exact: true })).toContainText('Trickery')
-  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Sub-command', exact: true })).toHaveValue('Trickery (Rogue)')
   await expect(validity).toContainText('No known loadout conflicts')
   expect((await storedData(page)).buildRevisions[before.id]).toEqual(before)
@@ -197,16 +210,13 @@ test('native command facts stay usable independently of an unused modded innate 
 
 test('validity review targets unavailable passives without changing the saved checkpoint @mobile', async ({ page, baseURL }) => {
   const { original, before } = await openBuild(page)
-  const payload = createSharePayload(original, { kind: 'build', revisionId: before.id })
+  const payload = { records: original }
   const revision = payload.records.buildRevisions[before.id]!
   const passives = Array.from({ length: 3 }, (_, index) => ({ ref: { ...revision.content.primaryClass!, entityId: `synthetic:unavailable-passive:${index}` as EntityId }, observedName: `Synthetic unavailable passive ${index + 1}` }))
   const synthetic = { ...payload, records: { ...payload.records, buildRevisions: { ...payload.records.buildRevisions, [before.id]: { ...revision, content: { ...revision.content, passives } } } } }
   // Missing entities in a complete available catalog are invalid; a withdrawn snapshot retains unresolved selections
   const unavailable = JSON.parse(JSON.stringify(synthetic).replaceAll(JSON.stringify(CURRENT_CATALOG.revisionId), JSON.stringify(HISTORICAL_BUNDLED_CATALOG.revisionId))) as typeof payload
-  await page.goto(createShareUrl(unavailable, `${baseURL}/`))
-  await expect(page.getByRole('button', { name: 'Save a copy', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
-  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+  await installFixtureCopy(page, original, unavailable.records, before.id)
   const saved = await storedData(page)
   const copy = Object.values(saved.builds).find(build => !original.builds[build.id])!
   await page.goto(`${baseURL}/#/builds/library/${copy.id}`)
@@ -226,15 +236,13 @@ test('validity review targets unavailable passives without changing the saved ch
 
 test('validity review focuses retained equipment after copying a different slot layout', async ({ page, baseURL }) => {
   const { original, build, before } = await openBuild(page)
-  const payload = createSharePayload(original, { kind: 'build', revisionId: before.id })
+  const payload = { records: original }
   const setup = payload.records.gameSetups[before.gameSetupRevisionId]!
   const removedSlot = setup.slots.find(slot => before.content.equipment[slot.id])!
   const equipment = { ...before.content.equipment }
   delete equipment[removedSlot.id]
   const narrowPreset = { ...payload, records: { ...payload.records, gameSetups: { ...payload.records.gameSetups, [setup.id]: { ...setup, label: 'Synthetic reduced-layout preset', slots: setup.slots.filter(slot => slot.id !== removedSlot.id) } }, buildRevisions: { ...payload.records.buildRevisions, [before.id]: { ...payload.records.buildRevisions[before.id]!, content: { ...before.content, equipment } } } } }
-  await page.goto(createShareUrl(narrowPreset, `${baseURL}/`))
-  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
-  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
+  await installFixtureCopy(page, original, narrowPreset.records, before.id)
   await page.goto(`${baseURL}/#/builds/library/${build.id}`)
   await page.locator('.build-behavior > summary').click()
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption({ label: 'Synthetic reduced-layout preset · r1' })

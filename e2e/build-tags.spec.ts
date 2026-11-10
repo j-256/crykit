@@ -7,7 +7,8 @@ import { strFromU8, unzipSync } from 'fflate'
 import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import type { LocalData } from '../src/domain/types'
 import { previewNativeBackup } from '../src/interchange/native'
-import { createSharePayload } from '../src/interchange/share'
+import { createPublicSnapshot } from '../src/interchange/public-share'
+import { readManagedGuestPlanner } from './guest-planner-reader'
 
 const ORIGINAL_TITLE = 'Rowan: sample Warrior'
 const TAG = 'guard rotation'
@@ -76,7 +77,11 @@ test('optional tags persist independently, round-trip in backups, and match both
   expect(after.builds[build.id]).toMatchObject({ tags: [TAG, 'early game'], latestRevisionId: build.latestRevisionId })
   expect(after.buildRevisions).toEqual(before.buildRevisions)
   expect(after.playthroughs).toEqual(before.playthroughs)
-  expect(createSharePayload(after, { kind: 'build', revisionId: build.latestRevisionId! }).records.builds[build.id]!.tags).toEqual([])
+  const viewer = await readManagedGuestPlanner(page)
+  if (!viewer) throw new Error('The managed synthetic planner is unavailable')
+  const snapshot = createPublicSnapshot({ planner: { localData: after, catalogs: viewer.catalogs } }, { kind: 'build', revisionId: build.latestRevisionId! }, { includeNotes: false })
+  expect(snapshot).not.toHaveProperty('records')
+  expect(JSON.stringify(snapshot)).not.toContain(TAG)
 
   await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })

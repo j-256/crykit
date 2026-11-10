@@ -223,7 +223,7 @@ export default function AdminSharing({
             </button>
           </div>
           <p>
-            Revocation stops new hosted retrieval. Saved copies and legacy links outside this hosted
+            Revocation stops new hosted retrieval. Saved copies and portable links outside this hosted
             identifier cannot be recalled.
           </p>
         </section>

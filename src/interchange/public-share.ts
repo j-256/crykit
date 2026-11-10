@@ -1,19 +1,18 @@
 import { publicSnapshotFromCheckpoint } from '../domain/public-source-context'
 import { checkpointContentDigest } from '../domain/checkpoint-identity'
 import type { WorkspaceState } from '../workspace/documents'
-import type { BuildCalculationPlan, BuildRevisionContent, EntityRef, GameSetupRevision, Knowledge, LocalData, TeamRevisionId } from '../domain/types'
+import type { BuildCalculationPlan, BuildRevisionContent, EntityRef, GameSetupRevision, Knowledge, LocalData, BuildRevisionId, ScenarioId, TeamId, TeamRevisionId } from '../domain/types'
 import { entityDefinitionKey, requirePlaythrough } from '../domain/core'
 import { catalogEntity } from '../domain/entity-identities'
 import { effectiveScenarioAssignments } from '../domain/scenarios'
 import { modSourceReceipts } from '../domain/build-reference-names'
 import { jsonRecord } from '../domain/crystal-edit'
 import { CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
-import type { ShareTarget } from './share'
 import { PUBLIC_SHARE_LIMITS, PUBLIC_SHARE_ROUTE_PREFIX, publicRefKey, validatePublicSnapshot, type PublicEntityReceipt, type PublicLoadout, type PublicRef, type PublicSetup, type PublicSnapshot } from './public-share-schema'
 export { validatePublicSnapshot } from './public-share-schema'
 export type { PublicSnapshot, PublicSetup, PublicLoadout, PublicEntityReceipt, PublicNotes } from './public-share-schema'
 
-export type PublicShareTarget = ShareTarget | { readonly kind: 'team'; readonly teamId: import('../domain/types').TeamId; readonly teamRevisionId: TeamRevisionId }
+export type PublicShareTarget = { readonly kind: 'build'; readonly revisionId: BuildRevisionId } | { readonly kind: 'team'; readonly scenarioId: ScenarioId } | { readonly kind: 'team'; readonly teamId: TeamId } | { readonly kind: 'team'; readonly teamId: TeamId; readonly teamRevisionId: TeamRevisionId }
 function fingerprint(value: unknown): string { return checkpointContentDigest(value) }
 function knowledge<T>(value: Knowledge<T>): { state: 'known'; value: T } | { state: 'unknown' | 'conflicting' | 'notApplicable' } { return value.state === 'known' ? { state: 'known', value: value.value } : { state: value.state } }
 
@@ -74,7 +73,7 @@ export function createPublicSnapshot(state: { readonly planner: Pick<WorkspaceSt
     setup = localData.gameSetups[revision.gameSetupRevisionId]; lock = revision.catalogLock; title = build.title; contents = [revision]
   } else if ('teamId' in target) {
     const team = localData.teams[target.teamId]
-    if (!team || team.kind !== 'shared') throw new Error('Choose a shared Game Setup before creating a new Team link; historical links remain readable')
+    if (!team || team.kind !== 'shared') throw new Error('Choose a shared Game Setup before creating a new Team link')
     const checkpoint = localData.teamRevisions['teamRevisionId' in target ? target.teamRevisionId : team.latestRevisionId]
     if (!checkpoint || checkpoint.teamId !== team.id) throw new Error('The selected Team checkpoint is unavailable')
     if (checkpoint.publicSourceContext) { const shared = publicSnapshotFromCheckpoint(localData.gameSetups[checkpoint.gameSetupRevisionId]!, checkpoint, team.title); if (!options.includeNotes) delete shared.notes; return shared }

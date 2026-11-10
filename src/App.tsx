@@ -20,7 +20,6 @@ import { retainOutOfContextSelections } from './domain/retained-selections'
 import { changesModDraftContext } from './ui/mod-workspace'
 import { CRYSTAL_EDIT_FORMAT } from './interchange/crystal-edit'
 import { modRevision, type BundledLibraryMod } from './domain/mod-library'
-import { modCatalogTitle } from './domain/mod-layers'
 import { applyLibraryDefaultsToNewSetup, assertLibraryProject } from './domain/mod-library-actions'
 import type { BuildBehavior } from './domain/build-behavior'
 import { importLibrarySource } from './workspace/mod-repository'
@@ -105,8 +104,6 @@ import { BuildsView, type BuildDraft, type RevisionDraft, type ScenarioDraft } f
 import { WorkspaceHeaderScope } from './ui/WorkspaceHeader'
 import { useNavigationNotice } from './ui/useNavigationNotice'
 import type { BuildDetailsPatch } from './ui/BuildDetailsControl'
-import { SharedView } from './ui/SharedView'
-import { saveSharedCopy, type SharePayload } from './interchange/share'
 import { CharactersView, type CharacterDraft, type ClassProgressDraft, type LearnedNodeDraft, type SnapshotDraft } from './ui/CharactersView'
 import { DataPanel } from './ui/DataPanel'
 import type { GameSetupDraft, GameSetupSaveOptions } from './ui/GameSetupEditor'
@@ -782,18 +779,6 @@ export default function App() {
     } finally { setImportBusy(false) }
   }, [installLoadedData, repository, waitForSafeTransition, workspace.reopenGuest])
 
-  const importSharedMod = useCallback(async (preview: ImportPreview, encoded: string) => {
-    await waitForSafeTransition()
-    const current = loadedDataRef.current
-    if (!current) throw new Error('The local planner data is not ready.')
-    const source = preview.proposed.catalogs[0]
-    if (!source) throw new Error('The matching JSON has no mod source.')
-    const loaded = await commitImport(preview, { mode: 'add-reference', targetLocalDataId: current.localData.id, expectedRevision: persistedRevisionRef.current })
-    // Publication retires the guest view; carry only completed feedback through its admitted successor
-    if (repository.kind === 'guest') await workspace.reopenGuest(false, { sharedSnapshot: encoded, source: { catalogId: source.id, catalogRevisionId: source.revisionId, title: modCatalogTitle(source) } })
-    else installLoadedData(loaded)
-  }, [installLoadedData, waitForSafeTransition, commitImport, repository.kind, workspace.reopenGuest])
-
   const importBuildMod = useCallback(async (preview: ImportPreview) => {
     await commitQueueRef.current
     if (dirtyRef.current || pendingCommitCountRef.current) throw new Error('Finish the pending planner save before importing mod JSON.')
@@ -854,17 +839,6 @@ export default function App() {
     installLoadedData(result.loaded)
     return result
   }, [repository, installLoadedData, waitForSafeTransition, workspace.isCurrent])
-
-  const saveShare = useCallback(async (payload: SharePayload) => {
-    await waitForSafeTransition()
-    let result: { readonly buildId?: BuildId; readonly teamId?: TeamId } = {}
-    await commitLocalData(localData => {
-      const copy = saveSharedCopy(localData, payload)
-      result = { buildId: copy.buildId, teamId: copy.teamId }
-      return copy.localData
-    }, { rollbackOnFailure: true })
-    return result
-  }, [commitLocalData, waitForSafeTransition])
 
   const validations = useMemo(() => {
     if (!loadedData || !selectedPlaythrough(loadedData.localData)) return {}
@@ -1004,7 +978,7 @@ export default function App() {
   const unresolvedPage = navigation.route.page.page === 'unresolved' ? navigation.route.page : undefined
   const sharedPage = navigation.route.page.page === 'share' ? navigation.route.page : undefined
   const hostedPage = navigation.route.page.page === 'hosted-share' ? navigation.route.page : undefined
-  const content = hostedPage ? <HostedSharedView shareId={hostedPage.shareId} onSave={savePublicShare} key={hostedPage.shareId}/> : sharedPage ? sharedPage.version === 5 ? <PublicSharedView encoded={sharedPage.encoded} onSave={savePublicShare}/> : <SharedView catalogs={loadedData.catalogs} encoded={sharedPage.encoded} key={sharedPage.encoded} localData={localData} onSave={saveShare} onImport={importSharedMod}/> : unresolvedPage
+  const content = hostedPage ? <HostedSharedView shareId={hostedPage.shareId} onSave={savePublicShare} key={hostedPage.shareId}/> : sharedPage ? <PublicSharedView encoded={sharedPage.encoded} onSave={savePublicShare}/> : unresolvedPage
     ? <section className="panel"><div className="panel__body stack"><p className="eyebrow">Page unavailable</p><h1>This link could not be opened</h1><InlineNotice title="No record was selected" tone="warning">This address is invalid or unrecognized.</InlineNotice><Button onClick={() => navigation.navigate(routeForDestination(unresolvedPage.recovery), { replace: true })}>Return to {unresolvedPage.recovery}</Button></div></section>
     : !selectedPlaythrough(localData) && ['inventory', 'characters', 'progress'].includes(destination) ? <InlineNotice title="Choose a Playthrough">Create or select a Playthrough to track characters, inventory, and progress.<Button onClick={() => navigation.navigate({ page: { page: 'settings', section: 'playthrough' }, overlays: [], query: { create: ['true'] } })}>Create or select Playthrough</Button></InlineNotice>
     : destination === 'save-editor' ? <Suspense fallback={<p role="status">Opening Save Editor...</p>}><SaveEditorView onDraftChange={setFormDraftDirty}/></Suspense> : destination === 'map' ? <Suspense fallback={<p role="status">Opening world map...</p>}><WorldMapView localData={localData} catalogs={loadedData.catalogs}/></Suspense> : destination === 'mods' ? <Suspense fallback={<p role="status">Opening Mods...</p>}><ModsView onDraftChange={setFormDraftDirty} onSaveToLibrary={saveModDraft} onConfirmFolder={saveFolderSource} onSetReference={setReferenceMembership} onChooseMods={() => setModSelectorOpen(true)}/></Suspense> : destination === 'teams' ? <BuildInputProvider scope={JSON.stringify(navigation.route.page)}><TeamsView onEditCopiedCheckpoint={saveCopiedCheckpoint} onSaveAsBuild={savePlanningTeamSlotAsBuild} onDraftChange={setFormDraftDirty} localData={localData} catalogs={loadedData.catalogs} onSave={savePlanningTeam} onSaveMember={savePlanningTeamMember} onAdopt={adoptPlanningTeam} onDelete={deletePlanningTeam}/></BuildInputProvider> : destination === 'inventory' ? <InventoryView catalogs={loadedData.catalogs} onAdd={addInventory} onOpenData={openData} onRecordEvent={addInventoryEvent} onUpdate={updateInventory} localData={localData}/> : destination === 'characters' ? <CharactersView hasPendingSave={dirty} onDraftChange={setFormDraftDirty} onRetrySave={retrySave} onImportScreenshots={importCharacterScreenshots} catalogs={loadedData.catalogs} onAdd={addCharacter} onCapture={captureSnapshot} onUpsertClass={upsertCharacterClass} onUpsertLearned={upsertCharacterLearning} localData={localData}/> : destination === 'builds' ? null : destination === 'progress' && navigation.route.page.page === 'progress' && navigation.route.page.view === 'quintar' ? <QuintarBreedingView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onToggle={toggleQuintarProgress}/> : destination === 'progress' ? <ProgressView catalogs={loadedData.catalogs} key={localData.selectedPlaythroughId} localData={localData} onAdd={addProgress} onAdvance={advanceProgress} onToggleSummon={toggleSummon} onSetAcquired={setAcquiredProgress} saveBlocked={dirty && saveState !== 'saved'} onSetStage={setProgressStage} onUpdate={updateProgressRecord}/> : navigation.route.query['library-mod']?.[0] ? <Suspense fallback={<p role="status">Opening mod catalog...</p>}><ModCatalogReference key={navigation.route.query['library-mod'][0]} scopeId={navigation.route.query['library-mod'][0]} catalogs={loadedData.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData} onAddReference={saveModDraft} onSetReference={setReferenceMembership} onRouteCatalogsChange={setRouteCatalogs}/></Suspense> : <ReferenceView catalogs={loadedData.catalogs} onOpenData={openData} onPromoteDefinitions={promoteDefinitions} localData={localData}/>

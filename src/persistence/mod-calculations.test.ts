@@ -11,7 +11,6 @@ import { resolveGameRules } from '../domain/game-rules'
 import { modCatalogForPin } from '../domain/mod-layers'
 import { calculatePCStats, selectedPCStats } from '../domain/pc-stats'
 import type { BuildId, BuildRevisionId, CatalogRef, EntityId, EntityRef } from '../domain/types'
-import { createSharePayload, decodeSharePayload, encodeSharePayload, sharePreviewData, validateSharePayload } from '../interchange/share'
 import { NativeLocalDataSchema } from '../interchange/native-schema'
 import { resolveCalculationEntity } from '../ui/model'
 import { CryKitDatabase, setDatabaseForTests } from './database'
@@ -22,7 +21,7 @@ beforeEach(() => { database = new CryKitDatabase(`mod-calculations-${crypto.rand
 afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); await database.delete() })
 const warrior: CatalogRef = { kind: 'catalog', catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId, entityId: 'base:job:0' as EntityId }
 
-it('round-trips a versioned mod gender and its exact setup through backup and read-only shares', async () => {
+it('round-trips a versioned mod gender and its exact setup through storage and backup', async () => {
   const mod = { ID: 'synthetic-persisted-gender', EditorVersion: 34, Genders: [{ ...NATIVE_DATA.records.gender[0], ID: 8, Name: 'Synthetic extra bonus', BoostStr: true }] }
   const bytes = new TextEncoder().encode(JSON.stringify(mod))
   await loadLocalData()
@@ -44,12 +43,11 @@ it('round-trips a versioned mod gender and its exact setup through backup and re
   const expected = calculatePCStats(content, SUGGESTED_BUILD_SLOTS, resolver, [], false, resolveGameRules(configured.setup, saved.catalogs))
   expect(expected.issues).toEqual([])
   expect(selectedPCStats(expected, undefined, content.calculation.genderSelection).STR).toBeGreaterThan(expected.neutral.STR!)
-  const payload = decodeSharePayload(encodeSharePayload(createSharePayload(saved.localData, { kind: 'build', revisionId })))
-  expect(payload.records.buildRevisions[revisionId]!.content.calculation).toEqual(content.calculation)
-  const previewData = sharePreviewData(payload)
-  const previewCatalogs = await prepareModCatalogs(previewData, saved.catalogs)
-  const previewResolve = (ref: EntityRef) => resolveCalculationEntity(previewData, previewCatalogs, ref, configured.setup)
-  expect(calculatePCStats(payload.records.buildRevisions[revisionId]!.content, SUGGESTED_BUILD_SLOTS, previewResolve, [], false, resolveGameRules(configured.setup, previewCatalogs))).toEqual(expected)
+  const reopened = NativeLocalDataSchema.parse(JSON.parse(JSON.stringify(saved.localData))) as unknown as typeof saved.localData
+  expect(reopened.buildRevisions[revisionId]!.content.calculation).toEqual(content.calculation)
+  const reopenedCatalogs = await prepareModCatalogs(reopened, saved.catalogs)
+  const reopenedResolve = (ref: EntityRef) => resolveCalculationEntity(reopened, reopenedCatalogs, ref, reopened.gameSetups[configured.setup.id]!)
+  expect(calculatePCStats(reopened.buildRevisions[revisionId]!.content, SUGGESTED_BUILD_SLOTS, reopenedResolve, [], false, resolveGameRules(reopened.gameSetups[configured.setup.id]!, reopenedCatalogs))).toEqual(expected)
   const backup = await previewImport(await exportBackup(), 'synthetic-mod-calculations.zip')
   const restored = await commitImport(backup)
   expect(restored.localData.gameSetups).toEqual(saved.localData.gameSetups)
@@ -57,9 +55,9 @@ it('round-trips a versioned mod gender and its exact setup through backup and re
   const reloaded = await loadLocalData()
   expect(modCatalogForPin(reloaded.catalogs, { catalogId: effective.id, catalogRevisionId: effective.revisionId })!).toEqual(effective)
   expect(backup.proposed.sources.some(source => source.bytes.length === bytes.length && source.bytes.every((value, index) => value === bytes[index]))).toBe(true)
-  const invalid = JSON.parse(JSON.stringify(payload))
-  invalid.records.buildRevisions[revisionId].content.calculation.genderSelection.version = 99
-  expect(() => validateSharePayload(invalid)).toThrow('unsupported or malformed')
+  const invalid = JSON.parse(JSON.stringify(saved.localData))
+  invalid.buildRevisions[revisionId].content.calculation.genderSelection.version = 99
+  expect(NativeLocalDataSchema.safeParse(invalid).success).toBe(false)
   const malformed = { ...saved.localData, buildRevisions: { ...saved.localData.buildRevisions, [revisionId]: { ...saved.localData.buildRevisions[revisionId]!, content: { ...content, calculation: { ...content.calculation, gender: 'male' } } } } }
   expect(NativeLocalDataSchema.safeParse(malformed).success).toBe(false)
 })

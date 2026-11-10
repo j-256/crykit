@@ -10,7 +10,7 @@ import { expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { NativeLocalDataSchema, NativeLocalData240Schema } from '../interchange/native-schema'
 import { validateNativeLocalDataGraph } from '../interchange/native'
-import { createSharePayload } from '../interchange/share'
+import { createPublicSnapshot } from '../interchange/public-share'
 import { defaultCalculation } from './calculation-plan'
 import { calculatePCStats } from './pc-stats'
 import { validateBuildContent } from './build-validity'
@@ -41,7 +41,9 @@ it('marks incompatible exact references unresolved and never reads old local mec
   const copied = Object.values(reopened.buildRevisions)[0]!
   expect(copied.content).toEqual(slot.content)
   expect(calculatePCStats(copied.content, SUGGESTED_BUILD_SLOTS, resolve).neutral.HP).toBeNull()
-  expect(() => createSharePayload(reopened, { kind: 'build', revisionId: copied.id }, false, [DEFAULT_CATALOG])).toThrow()
+  const snapshot = createPublicSnapshot({ planner: { localData: reopened, catalogs: [DEFAULT_CATALOG] } }, { kind: 'build', revisionId: copied.id }, { includeNotes: false })
+  expect(snapshot.slots[0]!.primaryClass).toEqual(ref)
+  expect(snapshot.setup.catalogLock?.[ref.catalogId]).not.toBe(ref.catalogRevisionId)
 })
 it('rejects duplicate, unselected, same-name-other-revision and compatible markers without altering inputs', () => {
   const data = adapted(), checkpoint = revision(data), slot = checkpoint.slots[0]!
