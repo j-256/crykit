@@ -6,7 +6,7 @@ import { memoryBlob } from '../workspace/blobs'
 import type { WorkspaceState } from '../workspace/documents'
 import type { CatalogSnapshot } from '../domain/types'
 import { publicPersonalDefinitionFingerprint } from './public-share'
-import { enrichPublicSnapshot } from './public-share-enrichment'
+import { enrichPublicSnapshot, publicReadOnlyPreview } from './public-share-enrichment'
 import type { PublicSnapshot } from './public-share-schema'
 
 async function fixture() {
@@ -136,4 +136,142 @@ it('enriches artwork through the exact source pin without leaking entity-referen
   expect(enrichPublicSnapshot(snapshot, state).entries[0]?.artwork).toEqual(asset)
   expect(enrichPublicSnapshot(snapshot, { ...state, assets: [asset, { ...asset, id: 'ambiguous-artwork' }] }).entries[0]?.artwork).toBeUndefined()
   expect(enrichPublicSnapshot(snapshot, { ...state, assets: [{ ...asset, sourceKey: asset.sourceKey.replace(catalog.revisionId, 'wrong-source-revision') }] }).entries[0]?.artwork).toBeUndefined()
+})
+
+async function calculationFixture(options: { separateClass?: boolean; otherLayer?: 'enabled' | 'disabled' } = {}) {
+  const { DEFAULT_CATALOG } = await import('../catalog/bundled')
+  const { previewCrystalEdit } = await import('./crystal-edit')
+  const { buildBehavior, saveBuildBehavior } = await import('../domain/build-behavior')
+  const { selectBuildModRevision, buildContentForModSetup } = await import('../domain/build-mods')
+  const { createBuild, saveBuildRevision } = await import('../domain/builds')
+  const { composeModCatalog, expandModCatalogs } = await import('../domain/mod-layers')
+  const { defaultCalculation } = await import('../domain/calculation-plan')
+  const { defaultBattleCalculation } = await import('../domain/battle-plan')
+  const { NATIVE_DATA, PC_RULES } = await import('../domain/calculation-rules')
+  const { SUGGESTED_BUILD_SLOTS } = await import('../domain/build-planning')
+  const { createPublicSnapshot } = await import('./public-share')
+  const modifier = (name: string, Value1: number, Value2 = 0, Value3 = 0) => ({ Tag: Number(Object.entries(PC_RULES.statMods).find(([, value]) => value.name === name)![0]), Value1, Value2, Value3 })
+  const sourceInput = { ID: 'private-battle-source', Title: 'Private battle source', EditorVersion: 34,
+    Jobs: [{ ...NATIVE_DATA.records.job.find(record => record.ID === 0)!, Name: 'Owned class', AbilityIDs: [9000], PassiveIDs: [...NATIVE_DATA.records.job.find(record => record.ID === 0)!.PassiveIDs, 9000] }],
+    Abilities: [{ ...NATIVE_DATA.records.ability[0], ID: 9000, Name: 'Owned beam', IsBasic: false, MPCost: 16 }],
+    Passives: [{ ID: 9000, Name: 'PRIVATE_INNATE', IsInnate: true, StatMods: [modifier('StatusAuto', 9000, 100, 255), modifier('Flat_AbilityMPCost', 9000, -5)] }],
+    Statuses: [{ ID: 9000, Name: 'PRIVATE_STATUS', Category: 1, PersistsThroughDeath: true, ReApplyResistance: false, StatMods: [modifier('Flat_HP', 100)] }],
+  }
+  const imported = await previewCrystalEdit(new TextEncoder().encode(JSON.stringify(sourceInput)), 'private-synthetic.json')
+  const other = options.otherLayer ? await previewCrystalEdit(new TextEncoder().encode(JSON.stringify({ ...sourceInput, ID: 'private-other-source', Title: 'Other owned source' })), 'other-private-synthetic.json') : undefined
+  const imports = other ? [imported, other] : [imported]
+  const source = (options.otherLayer === 'enabled' ? other! : imported).proposed.catalogs[0]!, catalogs = [DEFAULT_CATALOG, ...imports.flatMap(value => value.proposed.catalogs)]
+  const initial = createTestLocalData(), originalSetup = Object.values(initial.gameSetups)[0]!
+  let behavior = selectBuildModRevision({ ...buildBehavior(originalSetup), slots: SUGGESTED_BUILD_SLOTS }, imported.proposed.catalogs[0]!, catalogs)
+  if (other) behavior = selectBuildModRevision(behavior, other.proposed.catalogs[0]!, catalogs, options.otherLayer === 'enabled')
+  if (options.separateClass) behavior = { ...behavior, modComposition: { ...behavior.modComposition!, links: behavior.modComposition!.links.map(link => link.modelKey === 'crystal-edit:Jobs:0' ? { ...link, targetEntityId: null } : link) } }
+  const saved = saveBuildBehavior(initial, behavior), effective = expandModCatalogs([...catalogs, composeModCatalog(saved.setup, catalogs)!])
+  const ref = (modelKey: string) => ({ kind: 'catalog' as const, catalogId: source.id, catalogRevisionId: source.revisionId, entityId: modModelEntity(source, modelKey)!.id })
+  const primaryClass = ref('crystal-edit:Jobs:0'), ability = ref('crystal-edit:Abilities:9000')
+  const content = buildContentForModSetup({ primaryClass, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: { ...defaultCalculation(primaryClass), ability, battle: defaultBattleCalculation() } }, saved.setup, effective)
+  let localData = createBuild(saved.localData, { id: 'private-build' as never, gameSetupId: saved.setup.gameSetupId, title: 'Owned calculation' })
+  localData = saveBuildRevision(localData, { buildId: 'private-build' as never, id: 'private-checkpoint' as never, gameSetupRevisionId: saved.setup.id, content })
+  const { viewer: empty } = await fixture()
+  const archives = imports.map((value, index) => {
+    const { bytes, ...metadata } = value.proposed.sources[0]!
+    const original = { documentId: `private-source-${index}`, revisionId: 'private-source-version', byteLength: bytes.length, sha256: metadata.digest, encoding: 'bytes' as const }
+    return { source: { ...metadata, original }, blob: { ref: original, content: memoryBlob(bytes) } }
+  })
+  const viewer: WorkspaceState = { ...empty, planner: { ...empty.planner, localData, catalogs, sources: archives.map(value => value.source), evidence: imports.flatMap(value => value.proposed.evidence) }, blobs: archives.map(value => value.blob) }
+  const snapshot = createPublicSnapshot({ planner: { localData, catalogs: effective } }, { kind: 'build', revisionId: 'private-checkpoint' as never }, { includeNotes: false })
+  return { snapshot, viewer, source, setup: saved.setup }
+}
+
+async function previewCalculation(snapshot: PublicSnapshot, viewer: WorkspaceState) {
+  const { resolveCalculationEntity } = await import('../ui/model')
+  const { calculatePCStats } = await import('../domain/pc-stats')
+  const { collectEffectiveModifiers } = await import('../domain/effective-modifiers')
+  const { resolveGameRules } = await import('../domain/game-rules')
+  const preview = publicReadOnlyPreview(snapshot, viewer), revision = preview.revisions[0]!, setup = preview.localData.gameSetups[revision.gameSetupRevisionId]!
+  const resolve = (ref: import('../domain/types').EntityRef) => resolveCalculationEntity(preview.localData, preview.catalogs, ref, setup)
+  return { preview, setup, stats: calculatePCStats(revision.content, setup.slots, resolve, [], false, resolveGameRules(setup, preview.catalogs)), modifiers: collectEffectiveModifiers(revision.content, setup.slots, resolve, { includeAutomaticStatuses: true }) }
+}
+
+it('calculates owned class innates and automatic statuses from the exact captured private composition', async () => {
+  const { snapshot, viewer } = await calculationFixture()
+  const before = JSON.stringify(snapshot), viewerBefore = JSON.stringify(viewer)
+  const result = await previewCalculation(snapshot, viewer)
+  expect(result.stats.issues).toEqual([])
+  expect(result.stats.neutral.HP).toBe(1344)
+  expect(result.modifiers.stats.HP).toBe(100)
+  expect(result.modifiers.abilityMP[9000]).toBe(-5)
+  expect(result.modifiers.automaticStatuses[0]).toMatchObject({ id: 9000, applied: true })
+  expect(JSON.stringify(snapshot)).toBe(before)
+  expect(JSON.stringify(viewer)).toBe(viewerBefore)
+  for (const privateBody of ['PRIVATE_INNATE', 'PRIVATE_STATUS', 'StatMods', 'identityMappings', 'private-synthetic.json']) expect(before).not.toContain(privateBody)
+})
+
+it('keeps calculations unknown when matching files lack the exact captured private composition', async () => {
+  const { snapshot, viewer, setup } = await calculationFixture()
+  const { [setup.id]: _captured, ...withoutCaptured } = viewer.planner.localData.gameSetups
+  const recipient = { ...viewer, planner: { ...viewer.planner, localData: { ...viewer.planner.localData, gameSetups: withoutCaptured } } }
+  const enriched = enrichPublicSnapshot(snapshot, recipient)
+  expect(enriched.resolved).toBe(true)
+  expect(enriched.unresolvedCalculations).toBe(true)
+  const result = await previewCalculation(snapshot, recipient)
+  expect(result.stats.neutral.HP).toBeNull()
+  expect(result.stats.issues.length).toBeGreaterThan(0)
+})
+
+it.each(['missing-bytes', 'changed-source', 'other-project'] as const)('cannot borrow transitive mechanics from %s despite a captured composition', async availability => {
+  const { snapshot, viewer, source } = await calculationFixture()
+  const recipient = availability === 'missing-bytes' ? { ...viewer, blobs: [] } : withCatalogs(viewer, viewer.planner.catalogs.map(catalog => catalog !== source ? catalog : availability === 'changed-source' ? { ...catalog, revisionId: 'changed-source' as never, checksum: `sha256:${'b'.repeat(64)}` } : { ...catalog, id: 'other-project' as never }))
+  expect(enrichPublicSnapshot(snapshot, recipient).unresolvedCalculations).toBe(true)
+  expect((await previewCalculation(snapshot, recipient)).stats.neutral.HP).toBeNull()
+})
+
+it('preserves an authored separate-class link instead of inferring a native replacement', async () => {
+  const { snapshot, viewer, setup } = await calculationFixture({ separateClass: true })
+  const result = await previewCalculation(snapshot, viewer), selected = result.preview.revisions[0]!.content.primaryClass!
+  expect(result.setup.modComposition).toEqual(setup.modComposition)
+  expect(result.setup.modComposition!.links).toContainEqual({ modelKey: 'crystal-edit:Jobs:0', targetEntityId: null })
+  expect(selected.kind === 'catalog' && selected.entityId).not.toBe('base:job:0')
+  expect(result.stats.neutral.HP).toBe(1344)
+})
+
+it('keeps colliding added passive, ability, and status IDs in the captured project scope', async () => {
+  const { snapshot, viewer } = await calculationFixture({ otherLayer: 'enabled' })
+  const result = await previewCalculation(snapshot, viewer)
+  expect(result.stats.issues).toEqual([])
+  expect(result.stats.neutral.HP).toBe(1344)
+  expect(result.modifiers.abilityMP[9001]).toBe(-5)
+  expect(result.modifiers.abilityMP[9000]).toBeUndefined()
+  expect(result.modifiers.automaticStatuses[0]).toMatchObject({ id: 9001, applied: true })
+})
+
+it('requires the exact owned disabled layers that reserve captured composition identities', async () => {
+  const { snapshot, viewer, setup } = await calculationFixture({ otherLayer: 'disabled' })
+  expect(snapshot.setup.layers).toHaveLength(1)
+  expect((await previewCalculation(snapshot, viewer)).stats.neutral.HP).toBe(1344)
+  const disabled = setup.modComposition!.layers.find(layer => !layer.enabled)!
+  const recipient = withCatalogs(viewer, viewer.planner.catalogs.filter(catalog => catalog.id !== disabled.catalogId))
+  expect(enrichPublicSnapshot(snapshot, recipient).resolved).toBe(true)
+  expect(enrichPublicSnapshot(snapshot, recipient).unresolvedCalculations).toBe(true)
+  expect((await previewCalculation(snapshot, recipient)).stats.neutral.HP).toBeNull()
+})
+
+it('keeps retained raw-source selections inert before rebinding the active composition', async () => {
+  const { snapshot, viewer, source } = await calculationFixture()
+  const receipt = snapshot.receipts.find(receipt => receipt.kind === 'class')!
+  const raw = { kind: 'catalog' as const, catalogId: source.id, catalogRevisionId: source.revisionId, entityId: modModelEntity(source, 'crystal-edit:Jobs:0')!.id }
+  const retained = JSON.parse(JSON.stringify(snapshot).replaceAll(JSON.stringify(receipt.ref), JSON.stringify(raw))) as PublicSnapshot
+  const inactive = { ...retained, receipts: retained.receipts.map(receipt => receipt.kind === 'class' ? { ...receipt, origin: { ...receipt.origin, catalogId: raw.catalogId, catalogRevisionId: raw.catalogRevisionId } } : receipt) }
+  const result = await previewCalculation(inactive, viewer), content = result.preview.revisions[0]!.content
+  expect(content.primaryClass).toEqual(raw)
+  expect(content.retainedSelections?.refs).toContainEqual(raw)
+  expect(result.stats.neutral.HP).toBeNull()
+})
+
+it('rejects a viewer composition with the same sources but different authored links', async () => {
+  const { snapshot, viewer, setup } = await calculationFixture()
+  const changed = { ...setup, modComposition: { ...setup.modComposition!, links: setup.modComposition!.links.map(link => link.modelKey === 'crystal-edit:Jobs:0' ? { ...link, targetEntityId: null } : link) } }
+  const recipient = { ...viewer, planner: { ...viewer.planner, localData: { ...viewer.planner.localData, gameSetups: { ...viewer.planner.localData.gameSetups, [setup.id]: changed } } } }
+  expect(enrichPublicSnapshot(snapshot, recipient).resolved).toBe(true)
+  expect(enrichPublicSnapshot(snapshot, recipient).unresolvedCalculations).toBe(true)
+  expect((await previewCalculation(snapshot, recipient)).stats.neutral.HP).toBeNull()
 })
