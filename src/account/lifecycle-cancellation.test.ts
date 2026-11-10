@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { afterEach, expect, it, vi } from 'vitest'
 import { activateProfile, lockProfile, signOutProfile, startAccountDeviceApproval, unlockCachedProfile } from './lifecycle'
-import { invalidateProfile, withAccountKey } from './profile'
+import { captureGuestWorkspaceEpoch, captureProfileEpoch, currentProfileToken, invalidateProfile, withAccountKey } from './profile'
 import { readDeviceProfile } from './device-store'
 import * as localUnlock from './crypto/local-unlock'
 import { getSodium } from './crypto/sodium'
@@ -12,7 +12,7 @@ const otherId = 'KKKKKKKKKKKKKKKKKKKKKA'
 const unlocked = (owner = accountId) => ({ accountId: owner, username: 'person', key: new Uint8Array(32).fill(owner === accountId ? 6 : 8), sessionId: 'LLLLLLLLLLLLLLLLLLLLLA', deviceId: 'MMMMMMMMMMMMMMMMMMMMMA', csrf: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', authenticatedAt: 0 })
 afterEach(() => { invalidateProfile(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
-it('cancellingPendingActivationWipesItsOwnedKeyBeforeDerivationSettles', async () => {
+it.each(['transition', 'pagehide'] as const)('cancelling pending activation on %s wipes its owned key before derivation settles', async reason => {
   let owned!: Uint8Array, finish!: () => void
   vi.spyOn(localUnlock, 'createLocalPasswordEnvelope').mockImplementation(async key => {
     owned = key
@@ -23,14 +23,20 @@ it('cancellingPendingActivationWipesItsOwnedKeyBeforeDerivationSettles', async (
   const result = activateProfile(input, false, 'synthetic pending password').catch(error => error)
   await vi.waitFor(() => expect(finish).toBeDefined())
   expect(input.key.every(byte => byte === 0)).toBe(true)
-  invalidateProfile()
+  const guest = captureGuestWorkspaceEpoch(), auth = captureProfileEpoch()
+  expect(currentProfileToken()).toBeUndefined()
+  invalidateProfile(reason)
+  expect(auth.signal.aborted).toBe(true)
+  expect(() => auth.assertCurrent()).toThrow('PROFILE_CHANGED')
+  if (reason === 'pagehide') { expect(guest.signal.aborted).toBe(false); guest.assertCurrent() }
+  else { expect(guest.signal.aborted).toBe(true); expect(() => guest.assertCurrent()).toThrow('PROFILE_CHANGED') }
   try { expect(owned.every(byte => byte === 0)).toBe(true) }
   finally { finish() }
   expect(await result).toMatchObject({ code: 'PROFILE_CHANGED' })
   expect(await readDeviceProfile(accountId)).toBeUndefined()
 })
 
-it('cancellingApprovalStartWipesOwnedBuffersAndAbortsTransportBeforeItSettles', async () => {
+it.each(['transition', 'pagehide'] as const)('cancelling approval start on %s wipes buffers and aborts transport before it settles', async reason => {
   const sodium = await getSodium()
   // Instrument the binary overloads used by approval start, without replacing the underlying key generation
   const binary: { crypto_box_keypair(): { publicKey: Uint8Array; privateKey: Uint8Array; keyType: string }; randombytes_buf(size: number): Uint8Array } = sodium
@@ -42,7 +48,7 @@ it('cancellingApprovalStartWipesOwnedBuffersAndAbortsTransportBeforeItSettles', 
   vi.stubGlobal('fetch', (_path: string, init: RequestInit) => { transportSignal = init.signal as AbortSignal; return new Promise<Response>(resolve => { finish = resolve }) })
   const result = startAccountDeviceApproval('synthetic@example.org').catch(error => error)
   await vi.waitFor(() => expect(finish).toBeDefined())
-  invalidateProfile()
+  invalidateProfile(reason)
   try {
     expect(privateKey.every(byte => byte === 0)).toBe(true)
     expect(capabilityBytes.every(byte => byte === 0)).toBe(true)
@@ -68,7 +74,7 @@ it('signoutRejectsStaleGenerationAndKeepsItsOriginalDurableTarget', async () => 
   expect(await withAccountKey(successor, async key => key[0])).toBe(8)
   expect(await readDeviceProfile(accountId)).toEqual(before)
 })
-it('transition reasons preserve default callbacks and identical pagehide cleanup', async () => {
+it('transition reasons preserve callbacks and account cleanup on pagehide', async () => {
   const profile = await import('./profile')
   const reasons: string[] = []
   let legacyCalls = 0
@@ -78,15 +84,34 @@ it('transition reasons preserve default callbacks and identical pagehide cleanup
     const key = new Uint8Array(32).fill(9)
     const token = profile.installProfile(accountId, key)
     const signal = profile.profileSignal(token)
+    const guest = captureGuestWorkspaceEpoch()
     let cleaned = false
     profile.registerProfileCleanup(token, () => { cleaned = true })
     profile.invalidateProfile('pagehide')
     expect(key.every(byte => byte === 0)).toBe(true)
     expect(signal.aborted).toBe(true)
+    expect(guest.signal.aborted).toBe(false)
+    guest.assertCurrent()
     expect(cleaned).toBe(true)
     expect(profile.currentProfileToken()).toBeUndefined()
+    const nextAuth = captureProfileEpoch()
     profile.invalidateProfile()
+    expect(guest.signal.aborted).toBe(true)
+    expect(nextAuth.signal.aborted).toBe(true)
+    expect(() => guest.assertCurrent()).toThrow('PROFILE_CHANGED')
+    expect(() => nextAuth.assertCurrent()).toThrow('PROFILE_CHANGED')
     expect(reasons).toEqual(['pagehide', 'transition'])
     expect(legacyCalls).toBe(2)
   } finally { stop(); stopLegacy() }
+})
+
+it('generic transition retires guest authority before synchronous account abort listeners run', () => {
+  const guest = captureGuestWorkspaceEpoch(), auth = captureProfileEpoch()
+  let guestWasCurrentDuringAbort: boolean | undefined
+  auth.signal.addEventListener('abort', () => {
+    try { guest.assertCurrent(); guestWasCurrentDuringAbort = true }
+    catch { guestWasCurrentDuringAbort = false }
+  }, { once: true })
+  invalidateProfile()
+  expect(guestWasCurrentDuringAbort).toBe(false)
 })

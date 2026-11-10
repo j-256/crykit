@@ -1,10 +1,14 @@
-import { act } from 'react'
+import 'fake-indexeddb/auto'
+import { act, StrictMode, useState } from 'react'
 import * as profile from '../../account/profile'
 import * as lifecycle from '../../account/lifecycle'
 import * as management from '../../account/management'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AccountView } from './AccountView'
+import { WorkspaceProvider, useWorkspace } from '../WorkspaceProvider'
+import * as guest from '../../workspace/guest-repository'
+import * as deviceSelection from '../../workspace/device-selection'
 import { captureEmailCapability, clearEmailCapability } from '../../account/email-capability'
 import { parseAppRoute, formatAppRoute } from '../navigation/routes'
 
@@ -311,4 +315,65 @@ it('surfacesLocalBackupFailureWithoutRequiringOnlineAccess', async () => {
   expect(backup).toHaveBeenCalledOnce()
   expect(container.querySelector('[role="alert"]')?.textContent).toContain('Finish the open form before exporting.')
   expect(container.querySelector('[role="alert"]')?.textContent).not.toContain('when connected')
+})
+
+it.each([false, true])('leaving idle Account settings preserves the real guest workspace with StrictMode=%s', async strict => {
+  profile.invalidateProfile()
+  window.history.replaceState(null, '', '#/builds')
+  vi.spyOn(deviceSelection, 'readDeviceSelection').mockResolvedValue({ key: 'selected', version: 1, kind: 'guest' })
+  // Background retained-branch scanning does not participate in Account's auth ownership
+  vi.spyOn(guest, 'observeGuestRecovery').mockResolvedValue(() => {})
+  vi.spyOn(guest, 'guestRecoveryNotices').mockResolvedValue([])
+  let workspace!: ReturnType<typeof useWorkspace>
+  function GuestNavigation() {
+    workspace = useWorkspace()
+    const [account, setAccount] = useState(false)
+    return <><button onClick={() => setAccount(value => !value)}>{account ? 'Leave account settings' : 'Open account settings'}</button>{account && <AccountView onOpenWorkspace={workspace.openAccount} onContinueLocal={workspace.continueLocal}/>}</>
+  }
+  const content = <WorkspaceProvider><GuestNavigation/></WorkspaceProvider>
+  await act(async () => root.render(strict ? <StrictMode>{content}</StrictMode> : content))
+  const original = workspace, epoch = profile.captureGuestWorkspaceEpoch()
+  await click('Open account settings')
+  await click('Leave account settings')
+  expect(profile.currentProfileToken()).toBeUndefined()
+  expect(workspace.repository).toBe(original.repository)
+  expect(workspace.isCurrent()).toBe(true)
+  expect(epoch.signal.aborted).toBe(false)
+  epoch.assertCurrent()
+})
+
+it('settled failed sign-in no longer owns cancellation when Account settings unmounts', async () => {
+  profile.invalidateProfile()
+  vi.spyOn(lifecycle, 'signInProfile').mockRejectedValue(new Error('AUTH_FAILED'))
+  await render()
+  container.querySelector<HTMLInputElement>('input[name="email"]')!.value = 'synthetic@example.org'
+  container.querySelector<HTMLInputElement>('input[name="password"]')!.value = 'synthetic long password'
+  await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+  expect(container.textContent).toContain('Sign-in failed.')
+  const epoch = profile.captureProfileEpoch(), guestEpoch = profile.captureGuestWorkspaceEpoch()
+  await act(async () => root.render(<p>Other screen</p>))
+  expect(epoch.signal.aborted).toBe(false)
+  expect(guestEpoch.signal.aborted).toBe(false)
+  epoch.assertCurrent(); guestEpoch.assertCurrent()
+})
+
+it('abandoned hanging sign-in still aborts its owned epoch without an installed profile', async () => {
+  profile.invalidateProfile()
+  let finish!: () => void
+  let epoch!: ReturnType<typeof profile.captureProfileEpoch>
+  vi.spyOn(lifecycle, 'signInProfile').mockImplementation(async () => {
+    epoch = profile.captureProfileEpoch()
+    await new Promise<void>(resolve => { finish = resolve })
+    epoch.assertCurrent()
+    return profile.installProfile('AAAAAAAAAAAAAAAAAAAAAA', new Uint8Array(32))
+  })
+  await render()
+  container.querySelector<HTMLInputElement>('input[name="email"]')!.value = 'synthetic@example.org'
+  container.querySelector<HTMLInputElement>('input[name="password"]')!.value = 'synthetic long password'
+  await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+  expect(profile.currentProfileToken()).toBeUndefined()
+  await act(async () => root.render(<p>Other screen</p>))
+  expect(epoch.signal.aborted).toBe(true)
+  await act(async () => finish())
+  expect(profile.currentProfileToken()).toBeUndefined()
 })

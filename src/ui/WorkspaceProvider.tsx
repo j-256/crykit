@@ -76,6 +76,8 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
   const [repository, setRepository] = useState<WorkspaceRepository>(guest)
   const current = useRef(selection)
   const version = useRef(0)
+  const retiredGuest = useRef<{ selection: WorkspaceSelection; repository: WorkspaceRepository }>(undefined)
+  const scheduleGuestReopening = useRef<() => void>(undefined)
   const draftReaders = useRef(new Set<(exceptOwner?: symbol) => boolean>())
   const draftPresence = useRef((owner?: symbol) => [...draftReaders.current].some(read => read(owner)))
   const editorSession = useRef(createEditorSession()).current
@@ -225,17 +227,67 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
     if (!changed && current.current === selection) await captured.run(preserveReferenceRetry, completedModImport)
     if (current.current.kind !== 'guest') throw new Error('The selected workspace changed during reopening')
   }, [repository, selection])
-  useEffect(() => onProfileTransition(reason => {
-    version.current++
-    resetEditorSession()
-    if (current.current.kind !== 'account') return
-    const locked: WorkspaceSelection = { kind: 'locked', generation: version.current }
-    current.current = locked
-    selectAccountPreferences(true)
-    // Pagehide clears the same keys and projections without recording a deliberate Lock
-    if (reason !== 'pagehide') markWorkspaceAccess('account-locked')
-    setSelection(locked)
-  }), [])
+  useEffect(() => {
+    let live = true
+    let queued = false
+    const schedule = () => {
+      if (queued) return
+      queued = true
+      queueMicrotask(() => {
+        queued = false
+        if (!live) return
+        const retired = retiredGuest.current
+        if (!retired) return
+        // Explicit local or account selection wins over an earlier abandoned authentication attempt
+        if (current.current !== retired.selection || currentRepository.current !== retired.repository) {
+          retiredGuest.current = undefined
+          return
+        }
+        // Account's mounted continuation owns pending authentication until navigation leaves it
+        // Reopening earlier would unmount that continuation and reject an otherwise successful sign-in
+        if (isAccountEntryRoute()) return
+        retiredGuest.current = undefined
+        // A route may mount a temporary form before this queued successor commits
+        // Retire it too so its deferred unmount cannot release the successor's reused view
+        resetEditorSession()
+        const local = createGuestRepository()
+        const next: WorkspaceSelection = { kind: 'guest', generation: ++version.current }
+        current.current = next
+        currentRepository.current = local
+        setSuccessorPending(false)
+        setGuest(local); setRepository(local); setSelection(next)
+      })
+    }
+    scheduleGuestReopening.current = schedule
+    const stop = onProfileTransition(reason => {
+      // Account cleanup still cancels pending authentication on every pagehide
+      // A selected guest has no account key to scrub, and BFCache must retain its live input owner
+      if (reason === 'pagehide' && current.current.kind === 'guest') return
+      version.current++
+      resetEditorSession()
+      if (current.current.kind === 'guest') {
+        retiredGuest.current = { selection: current.current, repository: currentRepository.current }
+        // Navigation can notify before Account's unmount cleanup retires its pending auth epoch
+        // Queue here too, and use the latest marker so repeated transitions share one fresh owner
+        schedule()
+        return
+      }
+      if (current.current.kind !== 'account') return
+      const locked: WorkspaceSelection = { kind: 'locked', generation: version.current }
+      current.current = locked
+      selectAccountPreferences(true)
+      // Pagehide clears the same keys and projections without recording a deliberate Lock
+      if (reason !== 'pagehide') markWorkspaceAccess('account-locked')
+      setSelection(locked)
+    })
+    window.addEventListener('hashchange', schedule); window.addEventListener('popstate', schedule); window.addEventListener(NAVIGATION_EVENT, schedule)
+    return () => {
+      live = false
+      stop()
+      if (scheduleGuestReopening.current === schedule) scheduleGuestReopening.current = undefined
+      window.removeEventListener('hashchange', schedule); window.removeEventListener('popstate', schedule); window.removeEventListener(NAVIGATION_EVENT, schedule)
+    }
+  }, [])
   const openAccount = async (token: ProfileToken) => {
     assertActiveProfile(token)
     if (current.current.kind === 'account' && current.current.token === token) {
@@ -244,21 +296,37 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
     }
     resetEditorSession()
     const captured = ++version.current
-    const opened = await openAccountRepository(token)
-    assertActiveProfile(token)
-    if (version.current !== captured) throw new ProfileChangedError()
-    await writeDeviceSelection({ key: 'selected', version: 1, kind: 'account', accountId: token.accountId }, () => assertActiveProfile(token))
-    if (version.current !== captured) throw new ProfileChangedError()
-    const next: WorkspaceSelection = { kind: 'account', token }
-    current.current = next
-    selectAccountPreferences(true)
-    markWorkspaceAccess('account-open')
-    setAccountEntry(false)
-    // A keyed subtree discards every optimistic queue, recovery draft and old source URL together
-    window.history.replaceState(null, '', '#/builds')
-    setRepository(opened)
-    setSelection(next)
+    // A failed opening has already retired the selected guest's input owner even without an auth transition
+    const previousGuest = current.current.kind === 'guest' ? { selection: current.current, repository: currentRepository.current } : undefined
+    const assertOpening = () => {
+      assertActiveProfile(token)
+      if (version.current !== captured) throw new ProfileChangedError()
+    }
+    try {
+      const opened = await openAccountRepository(token)
+      assertOpening()
+      // Guest reopening can retire this attempt without changing its still-unlocked account token
+      await writeDeviceSelection({ key: 'selected', version: 1, kind: 'account', accountId: token.accountId }, assertOpening)
+      assertOpening()
+      const next: WorkspaceSelection = { kind: 'account', token }
+      retiredGuest.current = undefined
+      current.current = next
+      selectAccountPreferences(true)
+      markWorkspaceAccess('account-open')
+      setAccountEntry(false)
+      // A keyed subtree discards every optimistic queue, recovery draft and old source URL together
+      window.history.replaceState(null, '', '#/builds')
+      setRepository(opened)
+      setSelection(next)
+    } catch (error) {
+      if (previousGuest && current.current === previousGuest.selection && currentRepository.current === previousGuest.repository) {
+        retiredGuest.current = previousGuest
+        scheduleGuestReopening.current?.()
+      }
+      throw error
+    }
   }
+
   const reopenAccount = useCallback(async () => {
     if (selection.kind !== 'account') throw new Error('The captured account workspace is no longer selected')
     const token = selection.token, generation = version.current
@@ -291,6 +359,7 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
     epoch.assertCurrent()
     if (version.current !== captured) throw new ProfileChangedError()
     const next: WorkspaceSelection = { kind: 'guest', generation: captured }
+    retiredGuest.current = undefined
     current.current = next
     selectAccountPreferences(false)
     markWorkspaceAccess('guest')

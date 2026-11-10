@@ -2,7 +2,7 @@ import Dexie from 'dexie'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { catalogSnapshotKey } from '../interchange/identity'
 import { validateNativeLocalDataGraph } from '../interchange/native'
-import { captureProfileEpoch } from '../account/profile'
+import { captureGuestWorkspaceEpoch } from '../account/profile'
 import { DOCUMENT_LIMITS } from '../mod-inspector/document'
 import { INSPECTOR_TEXT_CHUNK_CODE_UNITS, InspectorStorage } from '../mod-inspector/storage'
 import { readInspectorFileInfo } from '../mod-inspector/file-info'
@@ -187,7 +187,7 @@ async function projectCapturedGuestState(
 }
 
 export async function captureGuestSnapshot(binding: GuestBindings): Promise<WorkspaceSnapshot> {
-  const epoch = captureProfileEpoch()
+  const epoch = captureGuestWorkspaceEpoch()
   const frozen = new LegacyCaptureDatabase(`crykit-backup-guest-capture-${crypto.randomUUID()}`)
   const requiredInspector = binding.manifest.version === 2 ? new InspectorStorage(binding.manifest.inspector, { requiredGuestTarget: true }) : undefined
   const inspector = new Dexie(binding.manifest.inspector)

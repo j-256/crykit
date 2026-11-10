@@ -55,7 +55,7 @@ export function BuildInputProvider({ children, scope }: { readonly children: Rea
   const mounted = useRef(false)
   useEffect(() => {
     mounted.current = true
-    void workspace.confirmBuildHydration(view).then(() => { if (mounted.current) setReady(true) }).catch(reason => { if (mounted.current) setError(String(reason)) })
+    void workspace.confirmBuildHydration(view).then(() => { if (mounted.current) setReady(true) }).catch(reason => { if (mounted.current) { setReady(false); setError(reason instanceof Error ? reason.message : String(reason)) } })
     return () => {
       mounted.current = false
       queueMicrotask(() => { if (!mounted.current && session.view === view && session.phase === 'idle') { session.controller.release(view); session.view = undefined } })
@@ -68,21 +68,30 @@ export function BuildInputProvider({ children, scope }: { readonly children: Rea
   const retry = async () => {
     if (retrying) return
     setRetrying(true)
-    try { await workspace.retryBuildImport(); if (mounted.current) { setError(undefined); setReady(true) } }
+    try {
+      // Initial form reopening can fail without any import receipt to reconcile
+      if (session.recovery || session.hydration) await workspace.retryBuildImport()
+      else await workspace.confirmBuildHydration(view)
+      if (mounted.current) { setError(undefined); setReady(true) }
+    }
     catch (reason) { if (mounted.current) setError(reason instanceof Error ? reason.message : String(reason)) }
     finally { if (mounted.current) setRetrying(false) }
   }
   // Recovery belongs to the form owner, outside its disabled fieldsets and any dismissible picker
-  return <BuildInputContext.Provider value={value}>{(error || recovery) && <section aria-label="Build import recovery"><InlineNotice title="Build input needs recovery" tone="warning"><p>{saved ? 'The mod is saved in your library. Your Build is still unsaved.' : 'The import outcome needs checking. Your Build input is kept here.'}</p>{error && <p>{error}</p>}<BuildInputRecoveryDownload/><Button disabled={retrying} type="button" onClick={() => void retry()}>Retry reopening</Button></InlineNotice></section>}{children}</BuildInputContext.Provider>
+  return <BuildInputContext.Provider value={value}>{(error || recovery) && <section aria-label="Build import recovery"><InlineNotice title="Build input needs recovery" tone="warning"><p>{saved ? 'The mod is saved in your library. Your Build is still unsaved.' : recovery ? 'The import outcome needs checking. Your Build input is kept here.' : 'This Build could not be reopened. If you have unsaved edits, try downloading them before reloading the page.'}</p>{error && <p>{error}</p>}<BuildInputRecoveryDownload/><Button disabled={retrying} type="button" onClick={() => void retry()}>Retry reopening</Button></InlineNotice></section>}{children}</BuildInputContext.Provider>
 }
 
 export function BuildInputRecoveryDownload() {
   const input = useBuildInput(), workspace = useWorkspace()
+  const [error, setError] = useState<string>()
   if (!input) return null
-  return <Button type="button" tone="secondary" onClick={() => {
-    if (!workspace.isCurrent()) throw new Error('The Build recovery owner was retired')
-    const values = input.controller.recoveryInput(input.view)
-    // Inert recovery values omit live owner identity, receipts, callbacks and repository permissions
-    downloadBytes(new TextEncoder().encode(JSON.stringify({ format: 'crykit-build-input-recovery', version: 1, values }, null, 2)), 'build-input-recovery.json', 'application/json')
-  }}>Download Build input</Button>
+  return <><Button type="button" tone="secondary" onClick={() => {
+    try {
+      if (!workspace.isCurrent()) throw new Error('This Build is no longer connected to its workspace')
+      const values = input.controller.recoveryInput(input.view)
+      // Inert recovery values omit live owner identity, receipts, callbacks, and repository permissions
+      downloadBytes(new TextEncoder().encode(JSON.stringify({ format: 'crykit-build-input-recovery', version: 1, values }, null, 2)), 'build-input-recovery.json', 'application/json')
+      setError(undefined)
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)) }
+  }}>Download Build input</Button>{error && <p role="alert">Build input could not be downloaded: {error}</p>}</>
 }

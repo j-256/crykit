@@ -1,4 +1,4 @@
-import { captureProfileEpoch } from '../account/profile'
+import { captureGuestWorkspaceEpoch } from '../account/profile'
 import { LEGACY_CHECK_BUDGET_MS, LEGACY_MONITOR_INTERVAL_MS } from './legacy-capture'
 import { GuestManagedManifestSchema, type GuestManagedManifest } from './guest-managed-contract'
 import type { GuestRecoveryNotice } from './guest-recovery'
@@ -22,7 +22,7 @@ export interface GuestManagedMonitor {
 // One repository incarnation owns the schedule, including across its exact owned successor wrappers
 // Hidden/cancelled attempts cannot grant readiness, and old worker replies cannot revive a revoked owner
 export function createGuestManagedMonitor(databaseName: string, manifest: GuestManagedManifest, onDispose: () => void = () => {}): GuestManagedMonitor {
-  const profile = captureProfileEpoch()
+  const profile = captureGuestWorkspaceEpoch()
   const capturedManifest = GuestManagedManifestSchema.parse(manifest)
   let ready = false, disposed = false, generation = 0, failures = 0
   let pending: Promise<readonly GuestRecoveryNotice[]> | undefined

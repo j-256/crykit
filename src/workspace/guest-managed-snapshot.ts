@@ -1,4 +1,4 @@
-import { captureProfileEpoch } from '../account/profile'
+import { captureGuestWorkspaceEpoch } from '../account/profile'
 import { joinWorkspaceSnapshotEvidence } from '../interchange/workspace-backup-evidence'
 import type { GuestCoordinatorDatabase } from './guest-coordinator'
 import { createGuestLocalStore, type GuestManagedManifest } from './guest-local-store'
@@ -10,7 +10,7 @@ import { ownWorkspaceSnapshot, validateWorkspaceSnapshot, type WorkspaceSnapshot
 // Export reopens actual durable records instead of certifying a prepared view as storage health
 // The captured pointer and profile remain fixed even if the ordinary planner wrapper advances
 export async function captureManagedGuestSnapshot(database: GuestCoordinatorDatabase, manifest: GuestManagedManifest, assertRetainedReady: () => void): Promise<WorkspaceSnapshot> {
-  const profile = captureProfileEpoch()
+  const profile = captureGuestWorkspaceEpoch()
   let disposed = false
   const alive = () => { profile.assertCurrent(); assertRetainedReady(); if (disposed) throw new Error('Managed backup capture was released') }
   const store = createGuestLocalStore(database, alive)

@@ -1,4 +1,4 @@
-import { captureProfileEpoch } from '../account/profile'
+import { captureGuestWorkspaceEpoch } from '../account/profile'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { createStarterLocalData } from '../persistence/local-data'
 import { guestPlannerValuesEqual } from '../persistence/guest-planner-equality'
@@ -16,7 +16,7 @@ import { admitLocalRoot, prepareLocalWorkspace } from './local-root'
 // Fresh preparation is a startup operation, never the first ordinary save
 // Its one head CAS cannot overwrite a concurrent initializer or a restored selection
 export async function prepareFreshGuestWorkspace(database: GuestCoordinatorDatabase) {
-  const profile = captureProfileEpoch()
+  const profile = captureGuestWorkspaceEpoch()
   if (await database.active.get('active')) throw new Error('A guest workspace is already selected')
   profile.assertCurrent()
   const localData = createStarterLocalData()
@@ -42,7 +42,7 @@ const pendingStartups = new Map<string, { readonly signal: AbortSignal; readonly
 // Only unfinished preparation is coalesced within one captured profile epoch
 // Each caller opens its own repository after the durable selection; no writable view or admission is cached
 export async function prepareGuestStartup(original: CryKitDatabase, purpose: 'edit' | 'capture' = 'edit'): Promise<GuestStartup> {
-  const profile = captureProfileEpoch(), key = JSON.stringify([original.name, purpose])
+  const profile = captureGuestWorkspaceEpoch(), key = JSON.stringify([original.name, purpose])
   const existing = pendingStartups.get(key) ?? (purpose === 'capture' ? pendingStartups.get(JSON.stringify([original.name, 'edit'])) : undefined)
   if (existing?.signal === profile.signal) { const result = await existing.result; profile.assertCurrent(); return result }
   const result = prepare().finally(() => { if (pendingStartups.get(key)?.result === result) pendingStartups.delete(key) })

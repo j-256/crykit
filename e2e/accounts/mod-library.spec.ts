@@ -176,40 +176,59 @@ test('saved picker import keeps keyboard recovery available after the picker clo
   await page.getByLabel('Import Build mod JSON', { exact: true }).setInputFiles({ name: 'recovery.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ ...SYNTHETIC_LIBRARY_ROOTS[1], ID: 'recovery-source', Title: 'Recovery source' })) })
   await expect(page.getByRole('region', { name: 'Import Build mod choices' })).toBeVisible()
   await page.evaluate(() => {
-    window.addEventListener('crykit-guest-activated', () => {
-      // Simulate an input event in the publication-to-acknowledgement gap without adopting its successor
-      const input = document.querySelector<HTMLInputElement>('input[aria-label="Build title"]')!
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'Later recovery title  ')
-      input.dispatchEvent(new Event('input', { bubbles: true }))
-    }, { once: true })
+    const put = IDBObjectStore.prototype.put
+    const restore = () => { IDBObjectStore.prototype.put = put }
+    Object.assign(window, { restoreBuildRecoveryPublication: restore })
+    // Observe durable publication, not optional hints, before the captured form acknowledges its successor
+    IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
+      const value = args[0] as { manifest?: { version?: number } }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1' && value?.manifest?.version === 3) {
+        restore()
+        this.transaction.addEventListener('complete', () => {
+          const input = document.querySelector<HTMLInputElement>('input[aria-label="Build title"]')!
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, 'Later recovery title  ')
+          input.dispatchEvent(new Event('input', { bubbles: true }))
+        }, { once: true })
+      }
+      return put.apply(this, args)
+    }
   })
-  await page.getByRole('button', { name: 'Add mod JSON', exact: true }).click()
-  const notice = page.getByRole('region', { name: 'Build import recovery', exact: true })
-  await expect(notice).toContainText('The mod is saved in your library.')
-  await page.keyboard.press('Escape')
-  await expect(page.getByRole('listbox', { name: 'Choose Class', exact: true })).toHaveCount(0)
-  await expect(notice).toBeVisible()
-  await expect(title).toHaveValue('Later recovery title  ')
-  await expect(page.getByRole('button', { name: 'Save build', exact: true })).toBeDisabled()
-  const downloadButton = notice.getByRole('button', { name: 'Download Build input', exact: true })
-  await expect(downloadButton).toBeEnabled()
-  await downloadButton.focus()
-  await page.keyboard.press('Tab')
-  const retry = notice.getByRole('button', { name: 'Retry reopening', exact: true })
-  await expect(retry).toBeFocused()
-  await expect(retry).toBeEnabled()
-  await page.keyboard.press('Enter')
-  await expect(notice).toContainText('The Build changed during import')
-  await expect(title).toHaveValue('Later recovery title  ')
-  await page.keyboard.press('Shift+Tab')
-  await expect(downloadButton).toBeFocused()
-  const downloading = page.waitForEvent('download')
-  await page.keyboard.press('Enter')
-  const downloaded = await downloading, stream = await downloaded.createReadStream()
-  const chunks: Buffer[] = []
-  for await (const chunk of stream!) chunks.push(Buffer.from(chunk))
-  const recovery = JSON.parse(Buffer.concat(chunks).toString('utf8'))
-  expect(recovery).toMatchObject({ format: 'crykit-build-input-recovery', version: 1, values: { title: 'Later recovery title  ' } })
-  expect(Object.keys(recovery).sort()).toEqual(['format', 'values', 'version'])
-  await expect(notice).toBeVisible()
+  try {
+    await page.getByRole('button', { name: 'Add mod JSON', exact: true }).click()
+    await expect(title).toHaveValue('Later recovery title  ')
+    const notice = page.getByRole('region', { name: 'Build import recovery', exact: true })
+    await expect(notice).toContainText('The mod is saved in your library.')
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('listbox', { name: 'Choose Class', exact: true })).toHaveCount(0)
+    await expect(notice).toBeVisible()
+    await expect(title).toHaveValue('Later recovery title  ')
+    await expect(page.getByRole('button', { name: 'Save build', exact: true })).toBeDisabled()
+    const downloadButton = notice.getByRole('button', { name: 'Download Build input', exact: true })
+    await expect(downloadButton).toBeEnabled()
+    await downloadButton.focus()
+    await page.keyboard.press('Tab')
+    const retry = notice.getByRole('button', { name: 'Retry reopening', exact: true })
+    await expect(retry).toBeFocused()
+    await expect(retry).toBeEnabled()
+    await page.keyboard.press('Enter')
+    await expect(notice).toContainText('The Build changed during import')
+    await expect(title).toHaveValue('Later recovery title  ')
+    await page.keyboard.press('Shift+Tab')
+    await expect(downloadButton).toBeFocused()
+    const downloading = page.waitForEvent('download')
+    await page.keyboard.press('Enter')
+    const downloaded = await downloading, stream = await downloaded.createReadStream()
+    const chunks: Buffer[] = []
+    for await (const chunk of stream!) chunks.push(Buffer.from(chunk))
+    const recovery = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+    expect(recovery).toMatchObject({ format: 'crykit-build-input-recovery', version: 1, values: { title: 'Later recovery title  ' } })
+    expect(Object.keys(recovery).sort()).toEqual(['format', 'values', 'version'])
+    await expect(notice).toBeVisible()
+  } finally {
+    await page.evaluate(() => {
+      const state = window as unknown as { restoreBuildRecoveryPublication?: () => void }
+      state.restoreBuildRecoveryPublication?.()
+      delete state.restoreBuildRecoveryPublication
+    })
+  }
 })
