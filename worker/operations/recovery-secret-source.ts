@@ -7,7 +7,8 @@ import { base64urlSchema, digestBytes, OpaqueFieldSchemas } from '../../src/acco
 const secretSchema = base64urlSchema(digestBytes)
 export const ProtectedRecoverySecretsSchema = z.strictObject({
   version: z.literal(1),
-  environment: z.enum(['local', 'preview', 'production']),
+  // Qualification retains its own original keys and must never impersonate preview or production
+  environment: z.enum(['local', 'preview', 'production', 'qualification']),
   secrets: z.strictObject({
     OPAQUE_SERVER_SETUP: OpaqueFieldSchemas.setup,
     DUMMY_IDENTITY_SECRET: secretSchema,
@@ -19,7 +20,7 @@ export const ProtectedRecoverySecretsSchema = z.strictObject({
   }),
 })
 const maximumProtectedSourceBytes = 4096
-export async function readProtectedRecoverySecrets(path: string, environment: 'local' | 'preview' | 'production') {
+export async function readProtectedRecoverySecrets(path: string, environment: 'local' | 'preview' | 'production' | 'qualification') {
   // The explicitly supplied protected structured file is the source of original secret bytes
   // Refuse symlinks, shared permissions and foreign ownership before reading any contents
   const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW)
