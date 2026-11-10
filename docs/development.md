@@ -33,6 +33,29 @@ Offline selection metadata is versioned separately from personal data and is pub
 
 The synthetic account browser uses the production core-installation plugin with its isolated scope and HTML entry mapping. Guest journeys explicitly select artwork, maps or screenshot recognition when verifying those offline features; a separate real-browser journey checks every selected built asset together. Core preparation, explicit extras and full selection retain the existing bounded readiness assertions. Status-request expiry does not cancel a real download or report it ready: progress and the worker's final receipt continue to update the page. These fixture changes do not remove account encryption, history, original-byte, recovery or save-performance assertions.
 
+## Keep a local review open across builds
+
+Use the snapshot review server for a long-lived production-style browser review:
+
+```bash
+npm run build
+npm run review -- --port 4186
+```
+
+Keep that server running, then publish a completed update from another terminal:
+
+```bash
+npm run review:publish
+```
+
+The publisher builds first, copies and checks a new immutable snapshot, and changes the active snapshot only after validation succeeds. The running session retains older hashed assets, including administrative asset bundles, so an already open tab can load its original lazy modules after an update. Missing resources return 404 instead of the application HTML. HTML, service-worker code, and other unhashed files select the newest published snapshot and require cache revalidation. The review server does not reload tabs, change service-worker state, or clear browser storage. Use the existing guarded **Refresh app** action when ready to load a newer version. Keep the same scheme, host, and port to retain the browser's origin and saved work.
+
+Do not rebuild the directory behind an ordinary `npm run preview` server used for an ongoing review. Vite normally removes previous hashed output during a build, and an old tab can still need those modules or styles. The ordinary preview command and browser-test servers remain available for isolated verification. Review builds should leave the optional RUM site token unset; the explicit intercepted RUM proof uses its own synthetic opt-in build.
+
+Review state belongs to `${XDG_CACHE_HOME:-$HOME/.cache}/crykit-review/`, separated by checkout identity and server session. Stop the server with Ctrl-C. Snapshots remain after stopping so no active files are deleted automatically; after confirming all relevant servers and publishers have stopped, remove only that checkout's stopped session state to reclaim space. A stale active record or publication lock requires that same inspection before removal. Starting a new server begins a new retention history: it cannot recover assets already absent when the session started, and does not search snapshots from an earlier server session.
+
+Publication is serialized and checks source digests before copying, against the copied snapshot, and after copying. Keep builds and publication sequential: these checks reject observed source changes but do not prove that another build process is not paused at a structurally valid intermediate state. Old unhashed resources are not version-pinned for existing tabs. Dependency or worker-protocol changes can therefore require a deliberate guarded refresh even while old hashed modules remain available.
+
 ## Capture UI reviews
 
 After each major interface change, capture representative desktop and mobile states for visual review:
