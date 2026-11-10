@@ -1,7 +1,7 @@
 import { buildModReferences } from '../domain/build-references'
 import { buildContentForModSetup } from '../domain/build-mods'
 import { checkpointContentDigest } from '../domain/checkpoint-identity'
-import { publicKnowledge, type PublicCheckpointContext } from '../domain/public-source-context'
+import { publicKnowledge, PublicCheckpointContextSchema, type PublicCheckpointContext } from '../domain/public-source-context'
 import { retainOutOfContextSelections } from '../domain/retained-selections'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { createId, nowTimestamp, updateLocalData, entityDefinitionKey } from '../domain/core'
@@ -38,7 +38,8 @@ function ownsSource(viewer: WorkspaceState, catalog: CatalogSnapshot): boolean {
   return viewer.planner.sources.some(source => source.digest === digest && source.original.sha256 === digest && viewer.blobs.some(blob => blobIdentity(blob.ref) === blobIdentity(source.original)))
 }
 function sourceReceipt(snapshot: PublicSnapshot, receipt: PublicEntityReceipt): ModSourceReceipt | undefined {
-  const layer = snapshot.setup.layers.find(layer => layer.catalogId === receipt.origin.projectId && layer.catalogRevisionId === receipt.origin.sourceRevisionId)
+  const origin = receipt.origin
+  const layer = origin && snapshot.setup.layers.find(layer => layer.catalogId === origin.projectId && layer.catalogRevisionId === origin.sourceRevisionId)
   return layer ? { ...layer, catalogId: layer.catalogId as ModSourceReceipt['catalogId'], catalogRevisionId: layer.catalogRevisionId as ModSourceReceipt['catalogRevisionId'], checksum: layer.checksum ?? '' } : undefined
 }
 
@@ -70,6 +71,28 @@ function requiresCapturedComposition(snapshot: PublicSnapshot): boolean {
 export function enrichPublicSnapshot(input: PublicSnapshot, viewer: WorkspaceState): PublicEnrichment {
   const snapshot = validatePublicSnapshot(input)
   const adaptedProjections: { receiptId: string; savedRevision: string; viewerRevision: string }[] = []
+  let capturedCatalog: CatalogSnapshot | undefined
+  let checkedComposition = false
+  const exactCatalog = (ref: Extract<PublicRef, { kind: 'catalog' }>): CatalogSnapshot | undefined => {
+    const baseline = snapshot.setup.baseline
+    if (!baseline || ref.catalogId !== baseline.catalogId) return undefined
+    if (ref.catalogRevisionId === baseline.catalogRevisionId) {
+      const candidates = viewer.planner.catalogs.filter(catalog => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId && BUNDLED_CATALOGS.some(native => native.id === catalog.id && native.revisionId === catalog.revisionId))
+      return candidates.length === 1 ? candidates[0] : undefined
+    }
+    // A matching setup cannot lend definitions to a retained selection from another revision
+    if (!ref.catalogRevisionId.startsWith(PUBLIC_COMPOSITION_REVISION_PREFIX) || snapshot.setup.catalogLock?.[ref.catalogId] !== ref.catalogRevisionId) return undefined
+    if (!checkedComposition) {
+      checkedComposition = true
+      const composition = viewerCapturedComposition(snapshot, viewer)
+      const owner = composition && Object.values(viewer.planner.localData.gameSetups).find(setup => setup.modComposition === composition)
+      const composed = owner && composeModCatalog(owner, viewer.planner.catalogs)
+      const native = viewer.planner.catalogs.find(catalog => catalog.id === baseline.catalogId && catalog.revisionId === baseline.catalogRevisionId)
+      // Composition storage contains only replacements; unchanged selections still belong to its exact baseline
+      capturedCatalog = composed && native ? expandModCatalogs([native, composed])[1] : undefined
+    }
+    return capturedCatalog
+  }
   const entries = snapshot.receipts.map((receipt): PublicEnrichedEntry => {
     if (receipt.ref.kind === 'personal') {
       const fingerprint = receipt.ref.fingerprint.value
@@ -81,6 +104,13 @@ export function enrichPublicSnapshot(input: PublicSnapshot, viewer: WorkspaceSta
       return definition ? { receipt, definition, viewerRef: { kind: 'personal', definitionId: definition.id }, adapted: false } : { receipt, adapted: false }
     }
     const origin = receipt.origin
+    if (!origin) {
+      // An absent source receipt is not permission to guess from a name, model family, or numeric ID
+      const catalog = exactCatalog(receipt.ref)
+      const definition = catalog && catalogEntity(catalog, receipt.ref.entityId)
+      if (!catalog || !definition || receipt.kind !== null && definition.kind !== receipt.kind) return { receipt, adapted: false }
+      return { receipt, definition, viewerRef: { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: definition.id }, adapted: false }
+    }
     const requirement = sourceReceipt(snapshot, receipt)
     const candidates = viewer.planner.catalogs.filter(catalog => {
       if (catalog.id !== origin.projectId) return false
@@ -98,7 +128,7 @@ export function enrichPublicSnapshot(input: PublicSnapshot, viewer: WorkspaceSta
     if (eligible.length !== 1) return { receipt, adapted: false }
     const source = eligible[0]!
     const definition = origin.modelKey ? modModelEntity(source, origin.modelKey) : catalogEntity(source, receipt.ref.entityId)
-    if (!definition || definition.kind !== receipt.kind) return { receipt, adapted: false }
+    if (!definition || receipt.kind !== null && definition.kind !== receipt.kind) return { receipt, adapted: false }
     const adapted = source.revisionId !== origin.sourceRevisionId && (!requirement || !modSourceInterpretationMatches(requirement, source))
     if (adapted) adaptedProjections.push({ receiptId: publicRefKey(receipt.ref), savedRevision: origin.sourceRevisionId, viewerRevision: source.revisionId })
     const viewerRef = { kind: 'catalog' as const, catalogId: source.id, catalogRevisionId: source.revisionId, entityId: definition.id }
@@ -159,13 +189,15 @@ export function preparePublicSnapshotCopy(before: WorkspaceState, input: PublicS
     refs.set(publicRefKey(receipt.ref), ref)
     if (receipt.ref.kind === 'personal' && ref.kind === 'personal') bindings.push({ fingerprint: receipt.ref.fingerprint.value, ref })
   }
-  const unavailable = snapshot.receipts.map(receipt => ({ ref: refs.get(publicRefKey(receipt.ref))!, kind: receipt.kind, name: receipt.name, ...(receipt.fingerprint ? { fingerprint: receipt.fingerprint } : {}) }))
-  const context: PublicCheckpointContext = { version: 1, setupDigest: checkpointContentDigest(setup.publicSourceContext), receipts: snapshot.receipts, personalBindings: bindings }
+  // Unknown types stay in the versioned context and display names, never in typed definition receipts
+  const unavailable = snapshot.receipts.flatMap(receipt => receipt.kind === null ? [] : [{ ref: refs.get(publicRefKey(receipt.ref))!, kind: receipt.kind, name: receipt.name, ...(receipt.fingerprint ? { fingerprint: receipt.fingerprint } : {}) }])
+  const version = snapshot.receipts.some(receipt => receipt.kind === null || receipt.origin === null) ? 2 : 1
+  const context = PublicCheckpointContextSchema.parse({ version, setupDigest: checkpointContentDigest(setup.publicSourceContext), receipts: snapshot.receipts, personalBindings: bindings })
   const contents = snapshot.slots.map((slot, index) => {
     if (!slot) return null
     const notes = snapshot.notes?.slots[index]
     const raw = publicLoadoutContent(slot, ref => refs.get(publicRefKey(ref))!)
-    const content = retainOutOfContextSelections(data, { ...raw, referenceNames: snapshot.receipts.flatMap(receipt => receipt.ref.kind === 'catalog' && buildModReferences(raw).some(ref => entityDefinitionKey(ref) === entityDefinitionKey(receipt.ref as EntityRef)) ? [{ ref: receipt.ref as CatalogRef, name: receipt.name, projectId: receipt.origin.projectId as CatalogRef['catalogId'], ...(receipt.origin.modelKey ? { modelKey: receipt.origin.modelKey } : {}) }] : []), contextAssumptions: notes?.contextAssumptions ?? [], ...(notes?.rotationNotes !== undefined ? { rotationNotes: notes.rotationNotes } : {}) }, setup, setup.catalogLock)
+    const content = retainOutOfContextSelections(data, { ...raw, referenceNames: snapshot.receipts.flatMap(receipt => receipt.ref.kind === 'catalog' && buildModReferences(raw).some(ref => entityDefinitionKey(ref) === entityDefinitionKey(receipt.ref as EntityRef)) ? [{ ref: receipt.ref as CatalogRef, name: receipt.name, ...(receipt.origin ? { projectId: receipt.origin.projectId as CatalogRef['catalogId'], ...(receipt.origin.modelKey ? { modelKey: receipt.origin.modelKey } : {}) } : {}) }] : []), contextAssumptions: notes?.contextAssumptions ?? [], ...(notes?.rotationNotes !== undefined ? { rotationNotes: notes.rotationNotes } : {}) }, setup, setup.catalogLock)
     return { id: createId<TeamSlotCheckpointId>('teamSlot'), ...(snapshot.kind === 'team' && slot.name !== undefined ? { name: slot.name } : {}), content, createdAt: at, ...(notes?.checkpoint !== undefined ? { note: notes.checkpoint } : {}) }
   })
   let next = { ...data, gameSetups: { ...data.gameSetups, [setup.id]: setup }, unavailableDefinitions: [...data.unavailableDefinitions ?? [], ...unavailable.filter(receipt => !data.unavailableDefinitions?.some(old => entityDefinitionKey(old.ref) === entityDefinitionKey(receipt.ref)))] }
@@ -209,7 +241,10 @@ export function publicReadOnlyPreview(snapshot: PublicSnapshot, viewer: Workspac
   const composed = capturedComposition ? composeModCatalog(setup, ownedCatalogs) : undefined
   const catalogs = composed ? expandModCatalogs([...ownedCatalogs, composed]) : ownedCatalogs
   const domainRef = (ref: PublicRef): EntityRef => {
-    const resolved = enrichment.entries.find(entry => publicRefKey(entry.receipt.ref) === publicRefKey(ref))?.viewerRef
+    const entry = enrichment.entries.find(entry => publicRefKey(entry.receipt.ref) === publicRefKey(ref))
+    // Origin-free selections resolved by the captured composition belong to this transient composition too
+    if (entry?.definition && entry.receipt.origin === null && composed && ref.kind === 'catalog' && ref.catalogId === composed.id && ref.catalogRevisionId === snapshot.setup.catalogLock?.[ref.catalogId]) return { kind: 'catalog', catalogId: composed.id, catalogRevisionId: composed.revisionId, entityId: entry.definition.id as CatalogRef['entityId'] }
+    const resolved = entry?.viewerRef
     if (resolved) return resolved
     if (ref.kind === 'catalog') return ref as EntityRef
     const binding = copiedCheckpoint.publicSourceContext!.personalBindings.find(binding => binding.fingerprint === ref.fingerprint.value)!

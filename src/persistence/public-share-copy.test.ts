@@ -10,13 +10,103 @@ import { openManagedNativeWorkspace } from './managed-sync.test-helpers'
 import { inspectWorkspaceClosure } from '../workspace/closure'
 import { privateRecordKey, type WorkspaceState } from '../workspace/documents'
 import { createBlankLocalData } from '../domain/local-data'
-import type { PublicSnapshot } from '../interchange/public-share-schema'
+import { validatePublicSnapshot, type PublicSnapshot } from '../interchange/public-share-schema'
+import { editCopiedCheckpoint } from '../interchange/public-checkpoint-edit'
+import { CURRENT_CATALOG } from '../catalog/bundled'
+import { createPublicSnapshot } from '../interchange/public-share'
 
 let database: AccountDatabase | undefined
 afterEach(async () => { vi.restoreAllMocks(); invalidateProfile(); await database?.delete(); database = undefined })
 export function missingTeam(): PublicSnapshot {
   return { version: 5, kind: 'team', title: 'Receipt-only Team', setup: { baseline: { catalogId: 'missing-base', catalogRevisionId: 'historical-base' }, catalogLock: { 'missing-base': 'historical-base', 'crystal-edit:missing': 'historical-mod' }, layers: [{ catalogId: 'crystal-edit:missing', catalogRevisionId: 'historical-mod', title: 'Missing exact mod', checksum: `sha256:${'b'.repeat(64)}` }], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [null, null, null, null], receipts: [] }
 }
+function unknownCatalogSnapshot(kind: 'build' | 'team' = 'build', available = false): PublicSnapshot {
+  const ref = { kind: 'catalog', catalogId: available ? CURRENT_CATALOG.id : 'missing-base', catalogRevisionId: available ? CURRENT_CATALOG.revisionId : 'historical-base', entityId: available ? 'base:equipment:41' : 'unknown-selected-item' }
+  const loadout = { primaryClass: null, secondaryClass: null, equipment: [{ slotId: 'hand', ref }], equipmentGroups: [], passives: [] }
+  return validatePublicSnapshot({ ...missingTeam(), kind, title: 'Unknown catalog selection', setup: { ...missingTeam().setup, baseline: { catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId }, catalogLock: { [ref.catalogId]: ref.catalogRevisionId }, layers: [], slots: [{ id: 'hand', label: 'Hand' }] }, slots: kind === 'team' ? [null, loadout, null, null] : [loadout], receipts: [{ ref, kind: null, origin: null, name: 'Saved unknown selection' }] })
+}
+
+it.each([{ kind: 'build', available: false }, { kind: 'team', available: false }, { kind: 'build', available: true }] as const)('unknown catalog $kind copy with exact definition available $available survives reopen, notes, re-share, backup and isolated closure', async ({ kind, available }) => {
+  const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
+  database = new AccountDatabase(token.accountId)
+  const repository = await openAccountRepository(token), before = await repository.readWorkspace(), snapshot = unknownCatalogSnapshot(kind, available)
+  const result = await copyPublicSnapshot(repository, snapshot)
+  const current = await openAccountRepository(token), after = await current.readWorkspace(), data = after.planner.localData
+  const revision = result.buildId ? data.buildRevisions[data.builds[result.buildId]!.latestRevisionId!]! : Object.values(data.teamRevisions).find(checkpoint => checkpoint.teamId === result.teamId)!
+  const content = 'slots' in revision ? revision.slots[1]!.content : revision.content
+  expect(revision.publicSourceContext?.version).toBe(2)
+  expect(revision.publicSourceContext?.receipts).toEqual(snapshot.receipts)
+  expect(content.equipment.hand?.ref).toEqual(snapshot.receipts[0]!.ref)
+  expect(content.referenceNames).toEqual([{ ref: snapshot.receipts[0]!.ref, name: 'Saved unknown selection' }])
+  expect(data.unavailableDefinitions ?? []).toEqual(before.planner.localData.unavailableDefinitions ?? [])
+  expect(after.planner.catalogs).toEqual(before.planner.catalogs)
+  expect(after.planner.sources).toEqual(before.planner.sources)
+  expect(data.playthroughs).toEqual(before.planner.localData.playthroughs)
+  if (available) expect(after.planner.catalogs.some(catalog => catalog.id === CURRENT_CATALOG.id && catalog.revisionId === CURRENT_CATALOG.revisionId && catalog.entities['base:equipment:41'])).toBe(true)
+  const notes = { ...(kind === 'team' ? { checkpoint: 'Recipient Team checkpoint' } : {}), slots: snapshot.slots.map(slot => slot ? { rotationNotes: 'Recipient note without mechanics', checkpoint: 'Recipient checkpoint', contextAssumptions: [] } : null) }
+  const edited = editCopiedCheckpoint(after, { checkpoint: 'slots' in revision ? { kind: 'team', revisionId: revision.id } : { kind: 'build', revisionId: revision.id }, notes })
+  await current.commitWorkspace({ ...after, planner: { ...after.planner, localData: edited.localData } }, data.revision)
+  const reopened = await openAccountRepository(token), saved = await reopened.readWorkspace()
+  const checkpoint = edited.checkpoint.kind === 'build' ? saved.planner.localData.buildRevisions[edited.checkpoint.revisionId]! : saved.planner.localData.teamRevisions[edited.checkpoint.revisionId]!
+  expect(checkpoint.publicSourceContext).toEqual(revision.publicSourceContext)
+  expect('slots' in revision ? saved.planner.localData.teamRevisions[revision.id] : saved.planner.localData.buildRevisions[revision.id]).toEqual(revision)
+  const target = 'slots' in checkpoint ? { kind: 'team' as const, teamId: checkpoint.teamId, teamRevisionId: checkpoint.id } : { kind: 'build' as const, revisionId: checkpoint.id }
+  const shared = createPublicSnapshot(saved, target, { includeNotes: true })
+  expect(shared.receipts).toEqual(snapshot.receipts)
+  expect(shared.slots).toEqual(snapshot.slots)
+  expect(shared.notes).toEqual(notes)
+  const backup = await reopened.exportPlannerBackup(), preview = await reopened.previewImport(backup, 'unknown-copy.crykit')
+  expect(preview.errors).toEqual([])
+  expect('slots' in checkpoint ? preview.proposed.localData?.teamRevisions[checkpoint.id] : preview.proposed.localData?.buildRevisions[checkpoint.id]).toEqual(checkpoint)
+  const opened = await openManagedNativeWorkspace(database, token)
+  const checkpointKey = privateRecordKey('slots' in checkpoint ? 'team-checkpoint' : 'build-checkpoint', checkpoint.id)
+  for (const key of [checkpointKey, privateRecordKey('setup', checkpoint.gameSetupRevisionId)]) {
+    const blobs = new Map<string, WorkspaceState['blobs'][number]>()
+    const closure = await archiveWorkspaceUnit(opened, key, blobs)
+    // Unknown receipt authority must come from this archive, independently of the live planner
+    const isolated = { ...saved, planner: { ...saved.planner, localData: createBlankLocalData(), catalogs: [], sources: [], history: [] }, blobs: [...blobs.values()] }
+    expect((await inspectWorkspaceClosure(isolated, closure)).value).toEqual(key === checkpointKey ? checkpoint : saved.planner.localData.gameSetups[checkpoint.gameSetupRevisionId])
+  }
+  if (!('slots' in checkpoint) && !available) {
+    const recipientToken = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
+    const recipientDatabase = new AccountDatabase(recipientToken.accountId)
+    try {
+      expect(recipientToken.accountId).not.toBe(token.accountId)
+      const recipient = await openAccountRepository(recipientToken), empty = await recipient.readWorkspace()
+      expect(empty.planner.localData.buildRevisions[checkpoint.id]).toBeUndefined()
+      const restore = await recipient.previewImport(backup, 'unknown-copy.crykit')
+      expect(restore.errors).toEqual([])
+      await recipient.commitImport(restore, { mode: 'replace', expectedRevision: empty.planner.localData.revision, targetLocalDataId: empty.planner.localData.id })
+      const restored = await (await openAccountRepository(recipientToken)).readWorkspace()
+      const restoredCheckpoint = restored.planner.localData.buildRevisions[checkpoint.id]!
+      expect(restoredCheckpoint).toEqual(checkpoint)
+      expect(restoredCheckpoint.publicSourceContext?.version).toBe(2)
+      expect(restoredCheckpoint.publicSourceContext?.receipts).toEqual(snapshot.receipts)
+      expect(restoredCheckpoint.content.referenceNames).toEqual(content.referenceNames)
+      expect(restoredCheckpoint.content.equipment.hand?.ref).toEqual(snapshot.receipts[0]!.ref)
+      expect(restored.planner.localData.unavailableDefinitions ?? []).toEqual(data.unavailableDefinitions ?? [])
+    } finally {
+      invalidateProfile()
+      await recipientDatabase.delete()
+    }
+  }
+})
+
+it('unknown catalog receipt cannot hide a missing entity in an exact complete recipient catalog', async () => {
+  const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
+  database = new AccountDatabase(token.accountId)
+  const repository = await openAccountRepository(token), before = await repository.readWorkspace()
+  const ref = { kind: 'catalog' as const, catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId, entityId: 'synthetic-absent-complete-entity' }
+  expect(before.planner.catalogs.some(catalog => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)).toBe(true)
+  expect(CURRENT_CATALOG.entities[ref.entityId]).toBeUndefined()
+  const original = unknownCatalogSnapshot()
+  const snapshot = validatePublicSnapshot({ ...original, setup: { ...original.setup, baseline: { catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId }, catalogLock: { [ref.catalogId]: ref.catalogRevisionId }, layers: [] }, slots: [{ ...original.slots[0]!, equipment: [{ slotId: 'hand', ref }] }], receipts: [{ ref, kind: null, origin: null, name: 'Absent exact entity' }] })
+  const fence = await database.profileMeta.get('active')
+  await expect(copyPublicSnapshot(repository, snapshot)).rejects.toThrow(/missing catalog entity/)
+  expect(await database.profileMeta.get('active')).toEqual(fence)
+  expect(await repository.readWorkspace()).toEqual(before)
+})
+
 it('copyPreservesContextWithoutChangingActivePlaythrough', async () => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   database = new AccountDatabase(token.accountId)
@@ -64,16 +154,19 @@ it('personal receipt copies and exact setup survive native backup without sender
   }
 })
 
-it('rolls back a copy when the encrypted workspace publication fails', async () => {
+it.each([['concrete metadata', missingTeam], ['unknown catalog metadata', () => unknownCatalogSnapshot()]] as const)('rolls back a copy with %s when the encrypted workspace publication fails', async (_label, snapshot) => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   database = new AccountDatabase(token.accountId)
   const repository = await openAccountRepository(token), before = await repository.readWorkspace()
   const fence = await database.profileMeta.get('active'), put = IDBObjectStore.prototype.put
+  let publicationFaultFired = false
   vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['put']>) {
-    if (this.name === 'profileMeta') throw new DOMException('Synthetic copy quota failure', 'QuotaExceededError')
+    if (this.name === 'profileMeta') { publicationFaultFired = true; throw new DOMException('Synthetic copy quota failure', 'QuotaExceededError') }
     return put.apply(this, args)
   })
-  await expect(copyPublicSnapshot(repository, missingTeam())).rejects.toThrow()
+  const input = snapshot()
+  await expect(copyPublicSnapshot(repository, input)).rejects.toThrow()
+  expect(publicationFaultFired).toBe(true)
   vi.restoreAllMocks()
   expect(await database.profileMeta.get('active')).toEqual(fence)
   expect((await repository.readWorkspace()).planner.localData).toEqual(before.planner.localData)

@@ -3,6 +3,16 @@ import { expect, it } from 'vitest'
 import { addTestBuild, addTestDefinition, createTestLocalData, personalRef } from '../domain/test-helpers'
 import { createPublicSnapshot, encodePublicSnapshot } from '../interchange/public-share'
 import { PublicSharedView } from './PublicSharedView'
+import type { PublicSnapshot } from '../interchange/public-share-schema'
+
+it('renders a selected name when its kind and source origin are unavailable', () => {
+  const ref = { kind: 'catalog' as const, catalogId: 'historical-catalog', catalogRevisionId: 'historical-revision', entityId: 'selected-shield' }
+  const snapshot: PublicSnapshot = { version: 5, kind: 'build', title: 'Unresolved Build', setup: { baseline: null, layers: [], catalogLock: { [ref.catalogId]: ref.catalogRevisionId }, mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [{ id: 'hand', label: 'Hand' }] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [{ slotId: 'hand', ref }], equipmentGroups: [], passives: [] }], receipts: [{ ref, name: 'Saved shield', kind: null, origin: null }] }
+  const markup = renderToStaticMarkup(<PublicSharedView encoded={encodePublicSnapshot(snapshot)}/>)
+  expect(markup).toContain('Saved shield')
+  expect(markup).toContain('Source identity unavailable')
+  expect(markup).not.toContain('Shared snapshot unavailable')
+})
 
 it('renders selected names and requirements as inert text without private source mechanics', () => {
   let localData = addTestDefinition(createTestLocalData(), 'secret-id')

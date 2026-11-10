@@ -1462,6 +1462,7 @@ a.reference-card { display: block; color: inherit; text-decoration: none; }
 @media (hover: hover) and (pointer: fine) {
   .build-card__actions .button { min-height: 26px; padding-block: 3px }
 }
+.share-preview { min-width: 0; overflow-wrap: anywhere }
 .share-capacity { display: grid; gap: .5rem; min-width: 0 }
 .share-capacity progress { width: 100%; accent-color: var(--cyan-300) }
 .share-team-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem }

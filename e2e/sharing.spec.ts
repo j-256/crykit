@@ -24,6 +24,40 @@ import { readManagedGuestPlanner } from './guest-planner-reader'
 
 
 const MAX_SHARE_URL_LENGTH = PUBLIC_SHARE_LIMITS.url
+
+for (const title of ['Judite', 'Marco', 'Prudence', 'Marcy']) test(`shares and copies ${title} with missing definitions`, { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', error => errors.push(error.message))
+  await page.goto('/')
+  await skipInitialModSetup(page)
+  const before = await storedData(page)
+  const card = page.locator('.build-card').filter({ has: page.getByRole('button', { name: title, exact: true }) })
+  await card.getByRole('button', { name: 'Share build', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Share build', exact: true })
+  expect(await dialog.locator('.share-preview').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+  const url = await dialog.getByLabel('Share URL', { exact: true }).inputValue()
+  const snapshot = decodePublicSnapshot(new URL(url).hash.split('/')[3]!)
+  expect(snapshot.receipts.some(receipt => receipt.kind === null)).toBe(true)
+  await expect(dialog.getByRole('button', { name: 'Copy link', exact: true })).toBeEnabled()
+  await page.goto(url)
+  await expect(page.getByRole('heading', { name: title, exact: true }).first()).toBeVisible()
+  await expect(page.getByText('Calculations unavailable', { exact: true })).toBeVisible()
+  await page.getByRole('region', { name: 'Your matching definitions', exact: true }).locator('details').first().locator('summary').click()
+  await expect(page.getByText('Definition unavailable. The saved name supplies no mechanics.').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
+  await expect(page.getByText('Independent saved copy', { exact: true })).toBeVisible()
+  const copied = await storedData(page)
+  const build = Object.values(copied.builds).find(candidate => !before.builds[candidate.id])!
+  const checkpoint = copied.buildRevisions[build.latestRevisionId!]!
+  expect(checkpoint.publicSourceContext?.version).toBe(2)
+  expect(checkpoint.publicSourceContext?.receipts).toEqual(snapshot.receipts)
+  expect(copied.playthroughs).toEqual(before.playthroughs)
+  await page.reload()
+  await expect(page.getByText('Independent saved copy', { exact: true })).toBeVisible()
+  expect((await storedData(page)).buildRevisions[checkpoint.id]).toEqual(checkpoint)
+  expect(errors).toEqual([])
+})
+
 async function snapshotFor(page: Page, localData: LocalData, target: Parameters<typeof createPublicSnapshot>[1], includeNotes = false, available = BUNDLED_CATALOGS) {
   const viewer = await readManagedGuestPlanner(page)
   const catalogs = await prepareModCatalogs(localData, [...available, ...(viewer?.catalogs ?? [])])

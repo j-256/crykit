@@ -28,7 +28,16 @@ export const PublicCalculationSchema = z.object({
 const knowledge = <T extends z.ZodType>(value: T) => z.union([z.object({ state: z.literal('known'), value }).strict(), z.object({ state: z.enum(['unknown', 'conflicting', 'notApplicable']) }).strict()])
 const source = pin.extend({ title: display, checksum: digest.optional(), contentFingerprint: z.string().regex(/^json-content-v1:sha256:[a-f0-9]{64}$/).optional() }).strict()
 export const PublicSetupSchema = z.object({ catalogLock: z.record(id, id).refine(value => Object.keys(value).length <= PUBLIC_SHARE_LIMITS.entries).optional(), baseline: pin.nullable(), layers: z.array(source).max(PUBLIC_SHARE_LIMITS.entries), mode: knowledge(display), difficulty: knowledge(nativeInteger).optional(), ppLimit: knowledge(nativeInteger).optional(), ppCostsNonNegative: knowledge(z.boolean()), slots: z.array(z.object({ id, label: display, equipmentRole: z.enum(['mainHand', 'offHand', 'head', 'body', 'accessory']).nullable().optional() }).strict()).max(PUBLIC_SHARE_LIMITS.entries) }).strict()
-export const PublicEntityReceiptSchema = z.object({ ref, kind: z.enum(['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'monster', 'command', 'status', 'recipe', 'location', 'other']), name: display, fingerprint: fingerprint.optional(), origin: z.object({ kind: z.enum(['catalog', 'personal']), projectId: id, sourceRevisionId: id, catalogId: id, catalogRevisionId: id, modelKey: id.optional() }).strict() }).strict()
+// Persisted context v1 retains its original complete shape admission independently of the public v5 projection
+export const PublicEntityReceiptV1Schema = z.object({ ref, kind: z.enum(['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'monster', 'command', 'status', 'recipe', 'location', 'other']), name: display, fingerprint: fingerprint.optional(), origin: z.object({ kind: z.enum(['catalog', 'personal']), projectId: id, sourceRevisionId: id, catalogId: id, catalogRevisionId: id, modelKey: id.optional() }).strict() }).strict()
+// Catalog names and exact identities remain shareable when their kind or provenance cannot be certified
+// Personal references always require complete metadata bound to their semantic fingerprint
+export const PublicEntityReceiptSchema = PublicEntityReceiptV1Schema.extend({ kind: PublicEntityReceiptV1Schema.shape.kind.nullable(), origin: PublicEntityReceiptV1Schema.shape.origin.nullable() }).superRefine((receipt, context) => {
+  const origin = receipt.origin
+  if (receipt.ref.kind === 'personal') {
+    if (receipt.kind === null || !origin || origin.kind !== 'personal' || receipt.fingerprint?.kind !== 'personal-definition-v1' || receipt.fingerprint.value !== receipt.ref.fingerprint.value || origin.catalogId !== 'personal-definition-v1' || origin.projectId !== 'personal-definition-v1' || origin.catalogRevisionId !== receipt.ref.fingerprint.value || origin.sourceRevisionId !== receipt.ref.fingerprint.value) context.addIssue({ code: 'custom', message: 'Personal receipts must match their selected content fingerprint' })
+  } else if (origin && (origin.kind !== 'catalog' || origin.catalogId !== receipt.ref.catalogId || origin.catalogRevisionId !== receipt.ref.catalogRevisionId)) context.addIssue({ code: 'custom', message: 'Catalog receipts must match the selected exact catalog identity' })
+})
 // Member names are explicit public Team metadata; no source Build metadata follows this field
 export const PublicLoadoutSchema = z.object({ name: z.string().min(1).max(PUBLIC_SHARE_LIMITS.id).optional(), primaryClass: ref.nullable(), secondaryClass: ref.nullable(), equipment: z.array(z.object({ slotId: id, ref: ref.nullable() }).strict()).max(PUBLIC_SHARE_LIMITS.entries), equipmentGroups: z.array(z.array(id).min(2).max(PUBLIC_SHARE_LIMITS.entries)).max(PUBLIC_SHARE_LIMITS.entries), passives: z.array(ref).max(PUBLIC_SHARE_LIMITS.entries), calculation: PublicCalculationSchema.optional() }).strict()
 const note = z.string().max(PUBLIC_SHARE_LIMITS.notes)
@@ -80,11 +89,6 @@ export function validatePublicSnapshot(value: unknown): PublicSnapshot {
   visitRefs(snapshot.slots)
   const receipts = new Set(snapshot.receipts.map(receipt => publicRefKey(receipt.ref)))
   if (receipts.size !== snapshot.receipts.length || receipts.size !== selected.size || [...selected].some(key => !receipts.has(key))) throw new Error('Each selected entry needs exactly one display and source receipt')
-  for (const receipt of snapshot.receipts) {
-    if (receipt.ref.kind === 'personal') {
-      if (receipt.origin.kind !== 'personal' || receipt.fingerprint?.kind !== 'personal-definition-v1' || receipt.fingerprint.value !== receipt.ref.fingerprint.value || receipt.origin.catalogId !== 'personal-definition-v1' || receipt.origin.projectId !== 'personal-definition-v1' || receipt.origin.catalogRevisionId !== receipt.ref.fingerprint.value || receipt.origin.sourceRevisionId !== receipt.ref.fingerprint.value) throw new Error('Personal receipts must match their selected content fingerprint')
-    } else if (receipt.origin.kind !== 'catalog' || receipt.origin.catalogId !== receipt.ref.catalogId || receipt.origin.catalogRevisionId !== receipt.ref.catalogRevisionId) throw new Error('Catalog receipts must match the selected exact catalog identity')
-  }
   if (new Set(snapshot.setup.slots.map(slot => slot.id)).size !== snapshot.setup.slots.length) throw new Error('Display slot IDs must be unique')
   for (const slot of snapshot.slots) {
     if (!slot) continue

@@ -122,7 +122,7 @@ export function createPublicSnapshot(state: { readonly planner: Pick<WorkspaceSt
     mode: knowledge(setup.mode), ...(setup.difficulty ? { difficulty: knowledge(setup.difficulty.selection) } : {}), ...(setup.ppLimit ? { ppLimit: knowledge(setup.ppLimit) } : {}), ppCostsNonNegative: knowledge(setup.ppCostsNonNegative),
     slots: setup.slots.map(slot => ({ id: slot.id, label: slot.label, ...(slot.equipmentRole !== undefined ? { equipmentRole: slot.equipmentRole } : {}) })),
   }
-  type SourceOrigin = Pick<PublicEntityReceipt['origin'], 'projectId' | 'sourceRevisionId' | 'modelKey'>
+  type SourceOrigin = Pick<NonNullable<PublicEntityReceipt['origin']>, 'projectId' | 'sourceRevisionId' | 'modelKey'>
   const sourceOrigins = new Map<string, SourceOrigin[]>()
   const provenanceKey = (value: { readonly sourceId: string; readonly locator?: string }) => JSON.stringify([value.sourceId, value.locator])
   for (const source of catalogs) {
@@ -156,13 +156,16 @@ export function createPublicSnapshot(state: { readonly planner: Pick<WorkspaceSt
     const savedNames = content.referenceNames?.filter(entry => entityDefinitionKey(entry.ref) === entityDefinitionKey(ref)) ?? []
     const savedName = savedNames[0]
     const name = entity?.name ?? unavailable?.name ?? savedName?.name
-    if (!name || (!entity && !unavailable)) throw new Error('A selected entry needs its exact display and kind receipt; restore the matching source before sharing')
+    if (!name) throw new Error('A selected entry needs its exact saved display receipt before sharing')
+    if (new Set([entity?.name, unavailable?.name, ...savedNames.map(receipt => receipt.name)].filter(value => value !== undefined)).size > 1) throw new Error('A selected entry has ambiguous saved display names; restore the exact source before sharing')
+    if (entity && unavailable && entity.kind !== unavailable.kind) throw new Error('A selected entry has an ambiguous kind; restore the exact source before sharing')
     const result: PublicRef = { kind: 'catalog', ...publicPin(ref.catalogId, ref.catalogRevisionId), entityId: ref.entityId }
     const owner = ref.catalogRevisionId.startsWith('mod-setup:') ? Object.values(localData.gameSetups).find(candidate => `mod-setup:${candidate.id}` === ref.catalogRevisionId) : undefined
-    let origin: SourceOrigin = { projectId: ref.catalogId, sourceRevisionId: ref.catalogRevisionId, ...(savedName?.modelKey ? { modelKey: savedName.modelKey } : {}) }
+    let origin: SourceOrigin | null = entity ? { projectId: ref.catalogId, sourceRevisionId: ref.catalogRevisionId } : null
     if (!owner) {
       const exact = entity?.sources.flatMap(provenance => sourceOrigins.get(provenanceKey(provenance)) ?? []).filter(candidate => candidate.projectId === ref.catalogId && candidate.sourceRevisionId === ref.catalogRevisionId) ?? []
-      const candidates = new Map(exact.map(candidate => [JSON.stringify(candidate), candidate]))
+      const saved = savedNames.flatMap(receipt => receipt.projectId === ref.catalogId && receipt.modelKey ? [{ projectId: receipt.projectId, sourceRevisionId: ref.catalogRevisionId, modelKey: receipt.modelKey }] : [])
+      const candidates = new Map([...exact, ...saved].map(candidate => [JSON.stringify(candidate), candidate]))
       if (candidates.size > 1) throw new Error('A selected entry has an ambiguous source origin; restore the exact source before sharing')
       origin = candidates.values().next().value ?? origin
     }
@@ -185,14 +188,19 @@ export function createPublicSnapshot(state: { readonly planner: Pick<WorkspaceSt
         const baseline = owner.modComposition.baseline
         const baselineCatalog = catalogs.find(candidate => candidate.id === baseline.catalogId && candidate.revisionId === baseline.catalogRevisionId)
         const baselineEntity = baselineCatalog && catalogEntity(baselineCatalog, ref.entityId)
-        if (!entity || !baselineEntity || fingerprint(entity) !== fingerprint(baselineEntity)) throw new Error('A selected entry needs its exact source origin; restore the matching source before sharing')
-        origin = { projectId: baseline.catalogId, sourceRevisionId: baseline.catalogRevisionId }
+        origin = entity && baselineEntity && fingerprint(entity) === fingerprint(baselineEntity) ? { projectId: baseline.catalogId, sourceRevisionId: baseline.catalogRevisionId } : null
       }
     }
-    const receipt: PublicEntityReceipt = { ref: result, kind: entity?.kind ?? unavailable!.kind, name, ...(unavailable?.fingerprint ? { fingerprint: unavailable.fingerprint } : {}), origin: { kind: 'catalog', ...origin, ...publicPin(ref.catalogId, ref.catalogRevisionId) } }
+    // Missing mechanics do not erase saved selections or certify metadata from a slot, model family or native partial facts
+    const receipt: PublicEntityReceipt = { ref: result, kind: entity?.kind ?? unavailable?.kind ?? null, name, ...(unavailable?.fingerprint ? { fingerprint: unavailable.fingerprint } : {}), origin: origin ? { kind: 'catalog', ...origin, ...publicPin(ref.catalogId, ref.catalogRevisionId) } : null }
     const previous = receipts.get(publicRefKey(result))
-    if (previous && fingerprint(previous.origin) !== fingerprint(receipt.origin)) throw new Error('A selected entry has an ambiguous source origin across Team slots; restore the exact source before sharing')
-    receipts.set(publicRefKey(result), receipt)
+    if (previous) {
+      if (previous.name !== receipt.name) throw new Error('A selected entry has ambiguous saved display names across Team slots; restore the exact source before sharing')
+      if (previous.kind !== null && receipt.kind !== null && previous.kind !== receipt.kind) throw new Error('A selected entry has an ambiguous kind across Team slots; restore the exact source before sharing')
+      if (previous.origin && receipt.origin && fingerprint(previous.origin) !== fingerprint(receipt.origin)) throw new Error('A selected entry has an ambiguous source origin across Team slots; restore the exact source before sharing')
+    }
+    // Unknown metadata supplies no conflicting claim; preserve richer exact evidence from another selected slot
+    receipts.set(publicRefKey(result), { ...receipt, kind: receipt.kind ?? previous?.kind ?? null, origin: receipt.origin ?? previous?.origin ?? null })
     return result
   }
   const slots = contents.map(saved => {
