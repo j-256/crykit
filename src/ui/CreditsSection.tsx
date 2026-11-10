@@ -23,8 +23,9 @@ export function CreditsSection() {
       <p>Built with React, Dexie, Zod, fflate, Tesseract.js, and Lucide. Their licenses remain with their authors; see the bundled <a href={`${import.meta.env.BASE_URL}third-party-licenses.txt`} rel="noreferrer" target="_blank">third-party software licenses</a> and <a href={`${SOURCE_URL}/blob/main/NOTICE.md`} rel="noreferrer" target="_blank">project notices</a>.</p>
     </section>
     <section className="settings-section">
-      <h3>Your data stays in this browser</h3>
-      <p>No accounts, telemetry, or cloud sync. Imports and screenshot recognition run in your browser. The host receives requests for app files; your records and imports are never uploaded. Source links open external sites when clicked.</p>
+      <h3>Your data and privacy</h3>
+      <p>Guest workspaces stay in this browser. Optional accounts can synchronize encrypted workspaces, and hosted sharing publishes only the snapshot you choose. Imports and screenshot recognition run in your browser. Source links open external sites when clicked.</p>
+      <p>We collect limited technical information to help keep the site secure, reliable and responsive. Account and security records support sign-in and abuse protection. Cloudflare performance monitoring, when enabled, helps us identify slow pages and interactions. See the <a href={`${SOURCE_URL}/blob/main/docs/accounts-privacy.md`} rel="noreferrer" target="_blank">privacy, upload and recovery terms</a> for the information collected and its limits.</p>
       <p>Before clearing browser storage or changing devices or site addresses, export a planner backup and download Mod Inspector files separately. Browser data can be cleared or evicted; offline caching is not a backup. New browsers start with labeled sample records.</p>
     </section>
   </div>

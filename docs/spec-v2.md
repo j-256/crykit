@@ -66,7 +66,7 @@ Compare two checkpointed alternatives by selections, known costs, raw/typed list
 
 Teams save four ordered Build-checkpoint slots independently of characters and Playthroughs, including empty slots while planning. Adopting a complete Team explicitly assigns its slots to distinct tracked characters and checks compatible Game Setups. Party plans bind characters to checkpoints for simultaneous stock contention, protected selections, learning gaps, and configuration checks. Recording requires confirmation that the builds were applied in game and commits character updates together. Neither Teams nor alternative party plans globally reserve equipment or infer learning.
 
-Share links contain immutable build or team snapshots, calculation inputs, exact Game Setup pins, and required personal definitions. Notes are opt-in; character observations, inventory, and progress stay local. Preview and copying validate the bounded payload and required catalog revisions. See [the versioned sharing contract](share-links.md#versioned-wire-contract).
+Share links contain immutable build or team snapshots, calculation inputs, exact Game Setup pins and source requirements. Notes are opt-in; private definition bodies, character observations, inventory and progress are excluded from the shared snapshot. Preview and copying validate the bounded payload and required catalog revisions. See [the public sharing contract](share-links.md#public-v5-wire-contract).
 
 ### Progress and reference
 
@@ -110,7 +110,7 @@ Cache the production shell and essential built assets. Optional artwork, maps an
 
 Stage service-worker updates and apply them only through an explicit action. Never force a reload over a draft. Keep old cached assets usable for existing tabs. Personal records remain in IndexedDB across shell updates.
 
-Use a restrictive production CSP, no telemetry or remote fonts, no runtime scraping, no dynamic code evaluation, and no imported HTML rendering. Treat attachment bytes, URLs, JSON keys, archive names, and saved queries as untrusted. Do not log personal records or source file contents. Bound expensive operations and preserve a responsive cancel/recovery path.
+Use a restrictive production CSP, no remote fonts, no runtime scraping, no dynamic code evaluation, and no imported HTML rendering. Disclosed Cloudflare performance monitoring is permitted only after the [RUM rollout checks](rum-deployment.md); do not add unrelated telemetry. Treat attachment bytes, URLs, JSON keys, archive names, and saved queries as untrusted. Do not log personal records or source file contents. Bound expensive operations and preserve a responsive cancel/recovery path.
 
 ## Presentation and accessibility
 
