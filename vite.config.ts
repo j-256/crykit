@@ -6,6 +6,7 @@ import { ocrAssets } from './scripts/ocr-assets.ts'
 import { softwareLicenses } from './scripts/software-licenses.ts'
 import { previewPlugin } from './scripts/preview-plugin.ts'
 import { rumPlugin } from './scripts/rum-plugin.ts'
+import { privacyPagePlugin } from './scripts/privacy-page.ts'
 
 const PERSISTENCE_TEST_TIMEOUT_MS = 30_000
 const CI_TEST_WORKERS = 2
@@ -63,6 +64,7 @@ export default defineConfig({
     softwareLicenses(),
     previewPlugin(),
     rumPlugin(),
+    privacyPagePlugin(),
     offlinePlugin(),
     {
       name: 'development-csp',

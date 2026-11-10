@@ -1,4 +1,5 @@
 import applicationLicenseUrl from '../../LICENSE?url'
+import { PrivacyTermsLink } from './PrivacyTermsLink'
 
 const SOURCE_URL = 'https://github.com/j-256/crykit'
 
@@ -24,7 +25,7 @@ export function CreditsSection() {
     <section className="settings-section">
       <h3>Your data and privacy</h3>
       <p>Guest workspaces stay in this browser. Optional accounts can synchronize encrypted workspaces, and hosted sharing publishes only the snapshot you choose. Imports and screenshot recognition run in your browser. Source links open external sites when clicked.</p>
-      <p>We collect limited technical information to help keep the site secure, reliable and responsive. Account and security records support sign-in and abuse protection. Cloudflare performance monitoring, when enabled, helps us identify slow pages and interactions. See the <a href={`${SOURCE_URL}/blob/main/docs/accounts-privacy.md`} rel="noreferrer" target="_blank">privacy, upload and recovery terms</a> for the information collected and its limits.</p>
+      <p>We collect limited technical information to help keep the site secure, reliable, and responsive. Account and security records support sign-in and abuse protection. Cloudflare performance monitoring, when enabled, helps us identify slow pages and interactions. See the <PrivacyTermsLink/> for the information collected and its limits.</p>
       <p>Before clearing browser storage or changing devices or site addresses, export a planner backup and download Mod Inspector files separately. Browser data can be cleared or evicted; offline caching is not a backup. New browsers start with labeled sample records.</p>
     </section>
   </div>

@@ -25,6 +25,17 @@ it('labelsPublicNameAndRecoveryLimitsPlainly', async () => {
   expect(container.querySelector<HTMLInputElement>('input[name="remember"]')!.checked).toBe(false)
   expect(container.textContent).toContain('Your email cannot unlock your saved data.')
 })
+it('makes public terms available before account access and beside signup without leaving the form', async () => {
+  const fetch = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('offline'))
+  await render()
+  const terms = container.querySelector<HTMLAnchorElement>('a[href$="privacy/"]')
+  expect(terms).not.toBeNull()
+  expect(terms!.target).toBe('_blank')
+  expect(terms!.rel).toContain('noreferrer')
+  await click('Create account')
+  expect(container.querySelector('form a[href$="privacy/"]')).not.toBeNull()
+  expect(fetch).not.toHaveBeenCalled()
+})
 it('verificationLinkRequiresConfirmation', async () => {
   const capability = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
   window.history.replaceState(null, '', '#/account/verify/' + capability)
