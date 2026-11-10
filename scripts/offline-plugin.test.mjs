@@ -230,6 +230,23 @@ test('an independently cached HTML entry keeps its own page instead of falling b
   assert.equal(await nested.text(), new URL('index.html', SCOPE).href)
 })
 
+test('public directory pages remain readable offline under root and nested installations', async () => {
+  for (const scope of ['https://example.test/', SCOPE]) {
+    const fixture = workerFixture(scope, { bundle: { 'privacy/index.html': { type: 'asset', source: 'Public terms' } } })
+    await fixture.install()
+    const expected = new URL('privacy/index.html', scope).href
+    for (const path of ['privacy/', 'privacy/index.html', 'privacy/?from=account#encryption-boundaries']) {
+      const response = await fixture.response({ method: 'GET', mode: 'navigate', url: new URL(path, scope).href })
+      assert.equal(await response.text(), expected, path)
+    }
+    const redirect = await fixture.response({ method: 'GET', mode: 'navigate', url: new URL('privacy?from=account', scope).href })
+    assert.equal(redirect.status, 308)
+    assert.equal(redirect.headers.get('location'), new URL('privacy/?from=account', scope).href)
+    assert.equal(fixture.fetch({ method: 'GET', mode: 'navigate', url: 'https://example.test/api/privacy' }), false)
+    assert.equal(fixture.fetch({ method: 'GET', mode: 'navigate', url: 'https://example.test/admin/privacy' }), false)
+  }
+})
+
 test('an asset shared with an essential source stays essential even if artwork also references it', async () => {
   const fixture = workerFixture(SCOPE, { bundle: { 'assets/shared.png': { type: 'asset', source: 'Shared essential illustration', originalFileNames: ['src/assets/game-assets/shared.png', 'src/assets/essential-controls/shared.png'] } } })
   await fixture.install()

@@ -291,8 +291,23 @@ self.addEventListener('fetch', event => {
   event.respondWith((async () => {
     const cache = await applicationCache();
     // Only immutable build assets and the static shell use this URL-only cache
-    // Multi-entry installations keep their own HTML pages; only unknown application routes use the shell
-    const cached = await cache.match(isNavigation && !assetUrlSet.has(url.href) ? indexUrl : url.href, { ignoreVary: true });
+    let cacheUrl = url.href;
+    if (isNavigation) {
+      // Public directory pages must keep their own HTML while offline, including links with query strings
+      // Only emitted assets qualify; account and admin routes remain excluded above
+      const pageUrl = new URL(url);
+      pageUrl.search = '';
+      const directoryIndex = new URL(pageUrl);
+      directoryIndex.pathname = pageUrl.pathname.replace(/\\/?$/, '/') + 'index.html';
+      if (!assetUrlSet.has(pageUrl.href) && assetUrlSet.has(directoryIndex.href) && !pageUrl.pathname.endsWith('/')) {
+        // Preserve directory URL resolution for the page's relative stylesheet and home link
+        const canonical = new URL(url);
+        canonical.pathname += '/';
+        return Response.redirect(canonical.href, 308);
+      }
+      cacheUrl = assetUrlSet.has(pageUrl.href) ? pageUrl.href : assetUrlSet.has(directoryIndex.href) ? directoryIndex.href : indexUrl;
+    }
+    const cached = await cache.match(cacheUrl, { ignoreVary: true });
     // Navigation requests reject responses whose fetch followed a redirect
     if (isNavigation && cached?.redirected) return new Response(cached.body, { status: cached.status, statusText: cached.statusText, headers: cached.headers });
     if (cached) return cached;

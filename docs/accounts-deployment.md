@@ -6,6 +6,16 @@ Read the [preview acceptance record](accounts-preview.md), [capacity policy](acc
 
 For a separately authorized isolated qualification environment, use the [closed qualification tooling](qualification-tooling.md). Its publisher validates independent resource identities and the real service entry while rejecting active account, signup, email, confirmation, backup and maintenance capabilities. Its controller budget records bounded reservations; it does not replace hosted Access acceptance, email send guards or capacity measurements.
 
+## Public terms and complaint readiness
+
+The public `/privacy/` page is generated from [the terms Markdown](accounts-privacy.md) during the application build. Edit that source rather than maintaining a separate HTML copy. The static page is readable without JavaScript, signing in, or a working account service. Credits and account screens link to it in a new tab so readers keep their workspace and form state. Its HTML and stylesheet belong to the offline core; a terms change produces a new offline build version.
+
+Before opening account uploads to the public, obtain owner approval of the exact published [privacy, upload, and recovery terms](accounts-privacy.md) and the complaint/privacy contact configured in `operatorContactUrl`. Confirm that the address is monitored and that the operator has a ready process for reviewing complaints and pausing account uploads or stopping affected hosted shares. The owner must review applicable legal and jurisdiction-specific requirements and approve the complaint handling process before public activation. A checked-in terms page or configured address alone does not satisfy these gates.
+
+Before representing application retention periods as active, configure and read back the seven-day application-log, 30-day non-identifying summary, and 90-day audit targets with the hosting provider. Inspect representative provider records and metadata for information retained outside application-authored logs; disabling logging does not remove records already retained. If a target cannot be verified, keep it described as a target and do not claim verified provider retention.
+
+Cloudflare RUM is a separate performance measurement feature that can run on guest and account pages. Keep its status, payload boundaries, and provider-managed retention accurate in the public terms. Follow the [RUM deployment procedure](rum-deployment.md); source configuration or a published disclosure does not establish live injection, collector acceptance, regional coverage, or account activation.
+
 ## Environment configuration
 
 Preview and production are separate account identities. Production starts with new accounts and empty account storage; no preview accounts, credentials, sessions, cloud data, shares or operator memberships are migrated or copied. A person using both environments registers separately in each. Browser-local data remains at its original origin. Keep preview available independently, and do not redirect an authenticated preview session or a capability URL into production.

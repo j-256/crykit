@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { validatePassword } from '../../account/password-policy'
 import { EmailSchema, UsernameSchema } from '../../account/protocol'
+import { PrivacyTermsLink } from '../PrivacyTermsLink'
 
 export interface AccessInput { email: string; password: string; username: string; remember: boolean }
 export function SignInForm({ busy, onSubmit }: { busy: boolean; onSubmit: (input: AccessInput, signup: boolean) => Promise<void> }) {
@@ -24,6 +25,7 @@ export function SignInForm({ busy, onSubmit }: { busy: boolean; onSubmit: (input
     {signup && <label>Public screen name<input aria-label="Public screen name" autoComplete="username" name="username" pattern="[a-z0-9_]{3,24}" required/><small>3 to 24 lowercase letters, numbers or underscores. This name is public.</small></label>}
     <label>Password<input aria-label="Password" autoComplete={signup ? 'new-password' : 'current-password'} name="password" type="password" required/><small>At least 15 characters. Spaces and Unicode are welcome.</small></label>
     <label className="account-check"><input name="remember" type="checkbox"/>Remember this device</label><p>Only remember a device you trust.</p>
+    {signup && <p>Before creating an account, read the <PrivacyTermsLink/>.</p>}
     <button disabled={busy} type="submit">{signup ? 'Create account and send email' : 'Sign in'}</button>
     <button disabled={busy} type="button" onClick={() => { setSignup(!signup); setError('') }}>{signup ? 'Back to sign in' : 'Create account'}</button>
   </form></section>

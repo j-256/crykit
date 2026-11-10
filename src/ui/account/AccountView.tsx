@@ -12,6 +12,7 @@ import { listCachedProfiles } from '../../account/device-store'
 import { assertActiveProfile, captureProfileEpoch, currentProfileToken, invalidateProfile, onProfileTransition, profileAccess, type ProfileToken } from '../../account/profile'
 import { clearEmailCapability, confirmPendingEmail, emailConfirmationKind, resendVerification } from '../../account/email-capability'
 import { SignInForm } from './SignInForm'
+import { PrivacyTermsLink } from '../PrivacyTermsLink'
 import { RecoveryPanel } from './RecoveryPanel'
 import { DeviceApprovalPanel } from './DeviceApprovalPanel'
 import { formatAppError } from '../browser-actions'
@@ -129,6 +130,7 @@ export function AccountView({ onOpenWorkspace, onContinueLocal, onBackup, localC
   async function refresh() { if (token) setMetadata(await management.readAccountView(token)) }
   const connected = token ? profileAccess(token) === 'connected' : false
   return <article className="account-view"><h1>Account</h1><p>Use CryKit on this device without an account, or sign in for account access. Signing in does not copy your local records.</p>
+    <p>Read the <PrivacyTermsLink/>.</p>
     <CloudServiceNotice/>
     <button onClick={() => run(async () => { invalidateProfile(); clearEmailCapability(); await onContinueLocal() }, true, false)}>Continue using this device</button>
     {error && (!serviceNotice || error !== messages[serviceNotice.code]) && <div className="account-error" role="alert" ref={alert} tabIndex={-1}><strong>Action needs attention</strong><p>{error}</p></div>}{status && <p role="status">{status}</p>}
