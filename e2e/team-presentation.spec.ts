@@ -1,7 +1,9 @@
 import { skipInitialModSetup, waitForPlannerReady, readLocalData as storedData } from './local-data-helpers'
 import { chooseTeamCheckpoint } from './team-helpers'
 import { expect, test, type Locator } from '@playwright/test'
-import { createSharePayload, createShareUrl } from '../src/interchange/share'
+import { createPublicSnapshot, createPublicShareUrl } from '../src/interchange/public-share'
+import { readManagedGuestPlanner } from './guest-planner-reader'
+import { CURRENT_CATALOG, BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import { MOBILE_TEST_TAG } from './test-tags'
 
 async function checkLoadoutOrder(sheet: Locator) {
@@ -30,8 +32,10 @@ test('build, character, and shared loadouts put controls before collapsible stat
   const wizard = Object.values(before.builds).find(build => build.title === 'Sol: sample Wizard')!
   const wizardClass = before.buildRevisions[wizard.latestRevisionId!]!.content.primaryClass
   const revision = before.buildRevisions[build.latestRevisionId!]!
-  const sharedData = { ...before, buildRevisions: { ...before.buildRevisions, [revision.id]: { ...revision, content: { ...revision.content, secondaryClass: wizardClass } } } }
-  const share = createShareUrl(createSharePayload(sharedData, { kind: 'build', revisionId: build.latestRevisionId! }), `${baseURL}/`)
+  const nativeRef = (ref: typeof wizardClass) => ref?.kind === 'catalog' ? { ...ref, catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId } : ref
+  const setup = before.gameSetups[revision.gameSetupRevisionId]!
+  const sharedData = { ...before, gameSetups: { ...before.gameSetups, [setup.id]: { ...setup, modComposition: undefined, modSourceReceipts: undefined, catalogLock: { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId } } }, buildRevisions: { ...before.buildRevisions, [revision.id]: { ...revision, catalogLock: { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId }, content: { ...revision.content, primaryClass: nativeRef(revision.content.primaryClass), secondaryClass: nativeRef(wizardClass), equipment: {}, passives: [] } } } }
+  const share = createPublicShareUrl(createPublicSnapshot({ planner: { localData: sharedData, catalogs: BUNDLED_CATALOGS } }, { kind: 'build', revisionId: build.latestRevisionId! }, { includeNotes: false }), `${baseURL}/`)
   await page.goto(share)
   await expect(page.getByRole('region', { name: 'Shared build loadout', exact: true })).toBeVisible()
   await checkLoadoutOrder(page.locator('.loadout-sheet'))
@@ -64,7 +68,9 @@ test('new and shared plans report their own persistence until explicitly saved',
   await expect(page.locator('.context-status')).toHaveText('Not yet saved')
   const before = await storedData(page)
   const build = Object.values(before.builds)[0]!
-  const share = createShareUrl(createSharePayload(before, { kind: 'build', revisionId: build.latestRevisionId! }), `${baseURL}/`)
+  const viewer = await readManagedGuestPlanner(page)
+  if (!viewer) throw new Error('The managed synthetic planner is unavailable')
+  const share = createPublicShareUrl(createPublicSnapshot({ planner: { localData: before, catalogs: viewer.catalogs } }, { kind: 'build', revisionId: build.latestRevisionId! }, { includeNotes: false }), `${baseURL}/`)
   await page.goto(share)
   await expect(page.locator('.context-status')).toHaveText('Read-only snapshot')
   await expect(page.getByRole('button', { name: 'Save a copy', exact: true })).toBeVisible()

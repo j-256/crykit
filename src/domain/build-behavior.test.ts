@@ -11,7 +11,7 @@ import { prepareModCatalogs } from '../persistence'
 import { modState, recordedModNames, updateModSelections } from './mods'
 import { addTestBuild, addTestScenario, createTestLocalData, known, TEST_GAME_SETUP_REVISION_ID, TEST_NOW } from './test-helpers'
 import { validateNativeLocalDataGraph } from '../interchange/native'
-import { createSharePayload, decodeSharePayload, encodeSharePayload, saveSharedCopy } from '../interchange/share'
+import { NativeLocalDataSchema } from '../interchange/native-schema'
 
 const IMPORTED_CATALOG_BEHAVIOR_TIMEOUT_MS = 15_000
 
@@ -39,12 +39,10 @@ describe('checkpoint-owned behavior', () => {
     expect(saved.planningGameSetupRevisionId).toBe(original.planningGameSetupRevisionId)
     expect(saved.builds[prior.buildId]!.gameSetupId).toBe(configured.setup.gameSetupId)
     validateNativeLocalDataGraph(saved, [])
-    const oldPayload = createSharePayload(saved, { kind: 'build', revisionId: prior.id })
-    expect(oldPayload.records.builds[prior.buildId]!.gameSetupId).toBe(original.builds[prior.buildId]!.gameSetupId)
-    expect(oldPayload.records.gameSetups[prior.gameSetupRevisionId]).toEqual(original.gameSetups[prior.gameSetupRevisionId])
-    const payload = decodeSharePayload(encodeSharePayload(createSharePayload(saved, { kind: 'build', revisionId: saved.builds[prior.buildId]!.latestRevisionId! })))
-    const copy = saveSharedCopy(original, payload)
-    expect(Object.values(copy.localData.gameSetups).some(setup => setup.customMods?.includes('Synthetic mod'))).toBe(true)
+    const reopened = NativeLocalDataSchema.parse(JSON.parse(JSON.stringify(saved))) as unknown as typeof saved
+    expect(reopened.gameSetups[prior.gameSetupRevisionId]).toEqual(original.gameSetups[prior.gameSetupRevisionId])
+    expect(Object.values(reopened.gameSetups).some(setup => setup.customMods?.includes('Synthetic mod'))).toBe(true)
+    expect(reopened.buildRevisions[prior.id]).toEqual(prior)
     const restored = saveBuildRevision(saved, { buildId: prior.buildId, parentRevisionId: prior.id, gameSetupRevisionId: prior.gameSetupRevisionId, content: prior.content, now: TEST_NOW })
     expect(restored.builds[prior.buildId]!.gameSetupId).toBe(original.builds[prior.buildId]!.gameSetupId)
     expect(restored.buildRevisions[prior.id]).toEqual(prior)

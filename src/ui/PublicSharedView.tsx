@@ -20,7 +20,7 @@ import { importLibrarySource } from '../workspace/mod-repository'
 import { PrivateArtwork } from './mods/PrivateArtwork'
 import { KnowledgeValue } from './KnowledgeValue'
 import { decisionFacts } from './build-evidence'
-import { SharedBuild } from './SharedView'
+import { SharedBuild } from './SharedBuild'
 import { publicSnapshotFromCheckpoint } from '../domain/public-source-context'
 import type { BuildRevision, TeamRevision, GameSetupRevision } from '../domain/types'
 import { formatAppRoute, writeNavigationRoute } from './navigation'
@@ -29,7 +29,7 @@ type SavePublicSnapshot = (snapshot: PublicSnapshot) => Promise<{ buildId?: impo
 
 const MAX_MATCHING_FILE_BYTES = 32 * 1024 * 1024
 
-// Receipt-only rendering must not fall through to legacy mechanics or the viewer's Reference defaults
+// Public receipts resolve only against exact source identities in the viewer's workspace
 export function PublicSharedView({ encoded, onSave }: { readonly encoded: string; readonly onSave?: SavePublicSnapshot }) {
   const result = useMemo(() => { try { return { snapshot: decodePublicSnapshot(encoded) } } catch (error) { return { error: error instanceof Error ? error.message : 'Invalid public snapshot' } } }, [encoded])
   if (!result.snapshot) return <InlineNotice title="Shared snapshot unavailable" tone="danger">{result.error}</InlineNotice>

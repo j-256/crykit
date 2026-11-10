@@ -6,7 +6,7 @@ import { referenceLibraryWithMod } from '../domain/reference-library'
 import { WITHDRAWN_CATALOGS, withdrawnCatalogKey } from '../domain/withdrawn-catalogs'
 import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
 import { NATIVE_BACKUP_FORMAT_VERSION } from '../interchange/native-schema'
-import { decodeSharePayload, saveSharedCopy } from '../interchange/share'
+import { appendStarterBuilds } from './starter-builds'
 import { createSampleLocalData } from '../domain/sample-data'
 import { SWITCH_MOD_PACKS } from '../catalog/mods'
 import { normalizeModName } from '../domain/mods'
@@ -54,12 +54,8 @@ import {
   type MetaRecord,
 } from './database'
 import { NATIVE_BACKUP_ARCHIVE_LIMITS, inspectZip } from '../interchange/zip'
-import starterBuildShares from './starter-build-shares.json' with { type: 'json' }
-import starterBuildReferenceNames from './starter-build-reference-names.json' with { type: 'json' }
-import type { BuildReferenceName, ModSourceReceipt } from '../domain/types'
 
 const LOCAL_DATA_RECORD_KEY = 'local-data-record'
-const STARTER_BUILD_TITLE_OVERRIDES: Readonly<Record<string, string>> = Object.freeze({ 'Brawler build': 'Prudence' })
 const CHANNEL_NAME = 'crykit-local-data'
 const MAX_LOCAL_DATA_CHANGES = 500
 const MAX_HISTORY_ENTRIES = 500
@@ -235,22 +231,7 @@ async function removePersistedBundledCatalogs(database: CryKitDatabase): Promise
 // Fresh managed profiles and the legacy initializer share the exact supplied sample baseline
 // Constructing it performs no database writes and grants no authority over existing user records
 export function createStarterLocalData(): LocalData {
-  let localData = createSampleLocalData(CURRENT_CATALOG)
-  for (const encoded of starterBuildShares) {
-    const original = decodeSharePayload(encoded)
-    const display = (starterBuildReferenceNames as unknown as Readonly<Record<string, { referenceNames: readonly BuildReferenceName[]; modSourceReceipts: readonly ModSourceReceipt[] }>>)[original.title]
-    if (!display) throw new Error('A starter Build display receipt is missing')
-    // These selected names supplement the unchanged supplied checkpoint, without supplying definitions
-    const payload = { ...original, version: 4 as const, records: { ...original.records, gameSetups: Object.fromEntries(Object.entries(original.records.gameSetups).map(([id, setup]) => [id, { ...setup, modSourceReceipts: display.modSourceReceipts }])), buildRevisions: Object.fromEntries(Object.entries(original.records.buildRevisions).map(([id, revision]) => [id, { ...revision, content: { ...revision.content, referenceNames: display.referenceNames } }])) } }
-    if (payload.kind !== 'build') throw new Error('A starter Build snapshot is not a Build')
-    const copied = saveSharedCopy(localData, payload)
-    const build = copied.localData.builds[copied.buildId!]!
-    // The shared Brawler snapshot predates its corrected starter title; keep its checkpoint and source intact
-    localData = {
-      ...copied.localData,
-      builds: { ...copied.localData.builds, [build.id]: { ...build, title: STARTER_BUILD_TITLE_OVERRIDES[payload.title] ?? build.title, tags: [...new Set([...build.tags, 'sample'])] } },
-    }
-  }
+  let localData = appendStarterBuilds(createSampleLocalData(CURRENT_CATALOG))
   // The first-run records form one baseline; unavailable definitions retain their exact pins
   // Reinterpreting a source with another parser would silently change the supplied checkpoints
   localData = { ...localData, revision: 0, changes: [], updatedAt: localData.createdAt }

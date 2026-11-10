@@ -3,17 +3,16 @@ import { expect, it } from 'vitest'
 import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
 import { addGameSetupRevision, createBuild, saveBuildRevision } from '../domain'
 import { buildContentForModSetup } from '../domain/build-mods'
+import { modSourceReceipts } from '../domain/build-reference-names'
 import { asId } from '../domain/core'
 import { prepareModComposition } from '../domain/mod-layers'
 import { createTestLocalData } from '../domain/test-helpers'
 import type { BuildId } from '../domain/types'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
-import { createSharePayload, sharePreviewData } from '../interchange/share'
-import { prepareSharedModRecovery } from '../interchange/share-mod-recovery'
-import { prepareModCatalogs } from '../persistence/local-data'
+import { prepareLocalBuildModRecovery } from '../interchange/share-mod-recovery'
 import { SharedModSources } from './SharedModSources'
 
-it.each([false, true])('offers only exact selected local artwork after recovering a composed share (historical=%s)', async historical => {
+it.each([false, true])('offers only exact selected local artwork after recovering a saved composed Build (historical=%s)', async historical => {
   const text = '{"ID":"artwork-recovery","Title":"Artwork source","Jobs":[{"ID":24,"Name":"Selected class"},{"ID":25,"Name":"Unselected class"}]}'
   const source = (await previewCrystalEdit(new TextEncoder().encode(text), 'source.json')).proposed.catalogs[0]!
   const catalogs = [...BUNDLED_CATALOGS, source]
@@ -24,11 +23,14 @@ it.each([false, true])('offers only exact selected local artwork after recoverin
   const entity = Object.values(source.entities).find(value => value.name === 'Selected class')!
   const content = buildContentForModSetup({ primaryClass: { kind: 'catalog', catalogId: source.id, catalogRevisionId: source.revisionId, entityId: entity.id }, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [] }, setup, catalogs)
   data = saveBuildRevision(data, { buildId, gameSetupRevisionId: setup.id, content })
-  let payload = createSharePayload(data, { kind: 'build', revisionId: data.builds[buildId]!.latestRevisionId! }, false, await prepareModCatalogs(data, catalogs))
-  if (historical) payload = JSON.parse(JSON.stringify(payload).replaceAll('library-v4', 'library-v2'))
-  const original = JSON.stringify(payload), recovered = prepareSharedModRecovery(payload, catalogs)
+  data = { ...data, gameSetups: { ...data.gameSetups, [setup.id]: { ...setup, modSourceReceipts: modSourceReceipts(setup, catalogs) } } }
+  const saved = historical ? JSON.parse(JSON.stringify(data).replaceAll('library-v4', 'library-v2')) as typeof data : data
+  const savedRevision = saved.buildRevisions[saved.builds[buildId]!.latestRevisionId!]!
+  const original = JSON.stringify(saved)
+  const recovered = prepareLocalBuildModRecovery(savedRevision.content, saved.gameSetups[savedRevision.gameSetupRevisionId]!, catalogs)
   expect(recovered.error).toBeUndefined()
-  const preview = sharePreviewData(recovered.payload ?? payload)
+  const draft = recovered.draft!
+  const preview = { ...saved, gameSetups: { [draft.setup.id]: draft.setup }, buildRevisions: { [savedRevision.id]: { ...savedRevision, gameSetupRevisionId: draft.setup.id, catalogLock: draft.setup.catalogLock, content: draft.content } } }
   const revision = Object.values(preview.buildRevisions)[0]!, selected = revision.content.referenceNames![0]!
   expect(selected.ref.catalogRevisionId).not.toBe(source.revisionId)
   const render = (localData = preview, available = catalogs) => renderToStaticMarkup(<SharedModSources localData={localData} catalogs={available} onImport={async () => {}} onArtwork={() => {}}/>)
@@ -40,5 +42,5 @@ it.each([false, true])('offers only exact selected local artwork after recoverin
   expect(render(replaceEntry({ ...selected, ref: { ...selected.ref, catalogRevisionId: source.revisionId } }))).not.toContain('Local artwork for')
   const selectedSetup = preview.gameSetups[revision.gameSetupRevisionId]!
   expect(render({ ...preview, gameSetups: { ...preview.gameSetups, [selectedSetup.id]: { ...selectedSetup, modComposition: { ...selectedSetup.modComposition!, layers: [] } } } })).not.toContain('Local artwork for')
-  expect(JSON.stringify(payload)).toBe(original)
+  expect(JSON.stringify(saved)).toBe(original)
 })

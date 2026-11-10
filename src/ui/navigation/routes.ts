@@ -1,5 +1,5 @@
 import { OpaqueIdSchema } from '../../account/protocol'
-import { MAX_SHARE_URL_LENGTH } from '../../interchange/share'
+import { PUBLIC_SHARE_LIMITS, PUBLIC_SHARE_ROUTE_PREFIX } from '../../interchange/public-share-schema'
 import { type EntityRouteNameResolver, bundledEntityRouteName } from '../entity-route-names'
 import { type AppRoute, type PageRoute, BUILDS_ROUTE } from './types.ts'
 import { unresolved, parsePage, recoveryFor, formatPage } from './pages.ts'
@@ -14,11 +14,11 @@ export function parseAppRoute(hash: string): AppRoute {
     return { page: id.success ? { page: 'hosted-share', shareId: id.data } : unresolved('/s', 'builds'), overlays: [], query: {} }
   }
   if (hash.startsWith('#/share/')) {
-    if (!/^#\/share\/v[12345]\//.test(hash) || hash.length > MAX_SHARE_URL_LENGTH) return { page: unresolved('/share', 'builds'), overlays: [], query: {} }
+    if (!hash.startsWith(PUBLIC_SHARE_ROUTE_PREFIX) || hash.length > PUBLIC_SHARE_LIMITS.url) return { page: unresolved('/share', 'builds'), overlays: [], query: {} }
     const [rawPath, rawQuery = ''] = hash.slice(1).split('?', 2)
     const segments = rawPath.split('/').filter(Boolean)
     const encoded = segments[2] ?? ''
-    const page: PageRoute = { page: 'share', encoded, ...(segments[1] === 'v5' ? { version: 5 as const } : {}) }
+    const page: PageRoute = { page: 'share', encoded, version: 5 }
     const params = new URLSearchParams(rawQuery)
     const overlays = parseOverlays(segments, 3, params)
     return /^[A-Za-z0-9_-]+$/.test(encoded) && overlays && overlaysSupported(page, overlays)

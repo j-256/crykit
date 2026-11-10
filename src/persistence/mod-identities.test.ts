@@ -10,7 +10,7 @@ import { createId } from '../domain/core'
 import { resolveGameRules } from '../domain/game-rules'
 import { updateGameSetupRevision } from '../domain/local-data'
 import type { BuildRevisionId, CatalogRef } from '../domain/types'
-import { createSharePayload, decodeSharePayload, encodeSharePayload, validateSharePayload } from '../interchange/share'
+import { NativeLocalDataSchema } from '../interchange/native-schema'
 import { CryKitDatabase, setDatabaseForTests } from './database'
 import { commitImport, exportBackup, loadLocalData, previewImport, saveLocalData } from './local-data'
 
@@ -18,7 +18,7 @@ let database: CryKitDatabase
 beforeEach(() => { database = new CryKitDatabase(`mod-identities-${crypto.randomUUID()}`); setDatabaseForTests(database) })
 afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); await database.delete() })
 
-it('preserves colliding added selections and reserved identity maps in shares, backups, and rollback', async () => {
+it('preserves colliding added selections and reserved identity maps in storage, backups, and rollback', async () => {
   await loadLocalData()
   for (const id of ['synthetic-first-gender', 'synthetic-second-gender']) {
     const root = { ID: id, Title: id, EditorVersion: 34, Genders: [{ ...NATIVE_DATA.records.gender[0], ID: 8, Name: `${id} selection` }] }
@@ -47,12 +47,12 @@ it('preserves colliding added selections and reserved identity maps in shares, b
   const latestSetup = latest.localData.gameSetups[latest.localData.planningGameSetupRevisionId!]!
   expect(latestSetup.modComposition!.identityMappings).toEqual(behavior.modComposition!.identityMappings)
   expect(resolveGameRules(latestSetup, latest.catalogs).genders.find(gender => gender.id === genderId)?.name).toBe('synthetic-second-gender selection')
-  const payload = decodeSharePayload(encodeSharePayload(createSharePayload(latest.localData, { kind: 'build', revisionId })))
-  expect(payload.records.gameSetups[configured.setup.id]!.modComposition).toEqual(behavior.modComposition)
-  expect(payload.records.buildRevisions[revisionId]!.content.calculation!.genderSelection).toEqual({ version: 1, id: genderId })
-  const invalid = JSON.parse(JSON.stringify(payload))
-  invalid.records.gameSetups[configured.setup.id].modComposition.identityMappings.push(invalid.records.gameSetups[configured.setup.id].modComposition.identityMappings[0])
-  expect(() => validateSharePayload(invalid)).toThrow('unsupported or malformed')
+  const reopened = NativeLocalDataSchema.parse(JSON.parse(JSON.stringify(latest.localData))) as unknown as typeof latest.localData
+  expect(reopened.gameSetups[configured.setup.id]!.modComposition).toEqual(behavior.modComposition)
+  expect(reopened.buildRevisions[revisionId]!.content.calculation!.genderSelection).toEqual({ version: 1, id: genderId })
+  const invalid = JSON.parse(JSON.stringify(reopened))
+  invalid.gameSetups[configured.setup.id].modComposition.identityMappings.push(invalid.gameSetups[configured.setup.id].modComposition.identityMappings[0])
+  expect(NativeLocalDataSchema.safeParse(invalid).success).toBe(false)
   const backup = await previewImport(await exportBackup(), 'synthetic-identity-backup.zip')
   await commitImport(backup)
   const restored = await loadLocalData()

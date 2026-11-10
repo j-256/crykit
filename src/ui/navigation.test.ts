@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CatalogRef, EntityRef } from '../domain/types'
 import type { AppRoute, PageRoute } from './navigation'
 import { formatAppRoute, isReferenceResearchRoute, parentRoute, parseAppRoute, routeDestination, routeForDestination, routeTitle } from './navigation'
-import { MAX_SHARE_URL_LENGTH, SHARE_ROUTE_PREFIX } from '../interchange/share'
+import { PUBLIC_SHARE_LIMITS, PUBLIC_SHARE_ROUTE_PREFIX } from '../interchange/public-share-schema'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { createEntityRouteNameResolver, entityRouteSlug, isEntityRouteSlug, MAX_ENTITY_SLUG_LENGTH } from './entity-route-names'
 import { MAX_ID_LENGTH } from '../domain/limits'
@@ -189,17 +189,26 @@ describe('semantic navigation routes', () => {
   })
 
   it('allows long shared snapshots and their search overlay while retaining ordinary route bounds', () => {
-    const shared = route({ page: 'share', encoded: 'a'.repeat(40_000) })
+    const shared = route({ page: 'share', encoded: 'a'.repeat(40_000), version: 5 })
     expectRoundTrip(shared)
     expect(parseAppRoute('#/share/v5/abc').page).toEqual({ page: 'share', encoded: 'abc', version: 5 })
     expect(formatAppRoute(parseAppRoute('#/share/v5/abc'))).toBe('#/share/v5/abc')
-    expect(parseAppRoute('#/share/v1/abc').page).toEqual({ page: 'share', encoded: 'abc' })
-    for (const version of [2, 3, 4]) expect(parseAppRoute(`#/share/v${version}/abc`).page).toEqual({ page: 'share', encoded: 'abc' })
     expectRoundTrip({ ...shared, overlays: [{ kind: 'search', query: 'sword' }] })
     expect(parentRoute(shared)?.page).toEqual({ page: 'builds', view: 'library' })
-    expect(parseAppRoute(`${SHARE_ROUTE_PREFIX}${'a'.repeat(MAX_SHARE_URL_LENGTH)}`).page.page).toBe('unresolved')
+    expect(parseAppRoute(`${PUBLIC_SHARE_ROUTE_PREFIX}${'a'.repeat(PUBLIC_SHARE_LIMITS.url)}`).page.page).toBe('unresolved')
     expect(parseAppRoute(`#/reference?q=${'a'.repeat(20_000)}`).page.page).toBe('unresolved')
-    for (const hash of ['#/share/v6/abc', '#/share/v1/', '#/share/v1/a%2Fb', '#/share/v1/abc/extra']) expect(parseAppRoute(hash).page.page).toBe('unresolved')
+    for (const hash of ['#/share/v6/abc', '#/share/v5/', '#/share/v5/a%2Fb', '#/share/v5/abc/extra']) expect(parseAppRoute(hash).page.page).toBe('unresolved')
+  })
+  it('rejects retired public share versions without retaining their payloads or overlays', () => {
+    for (const version of [1, 2, 3, 4]) {
+      for (const suffix of ['', '/search?q=private', '/inventory/equipment']) {
+        const retired = parseAppRoute(`#/share/v${version}/private_snapshot${suffix}`)
+        expect(retired.page).toMatchObject({ page: 'unresolved', requestedPath: '/share', recovery: 'builds' })
+        expect(retired.overlays).toEqual([])
+        expect(retired.query).toEqual({})
+        expect(JSON.stringify(retired)).not.toContain('private_snapshot')
+      }
+    }
   })
   it('round-trips every page and action identity', () => {
     const pages = [

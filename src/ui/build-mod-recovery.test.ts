@@ -3,12 +3,11 @@ import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
 import { addGameSetupRevision, createBuild, saveBuildRevision } from '../domain'
 import { asId, createId } from '../domain/core'
 import { buildContentForModSetup } from '../domain/build-mods'
+import { modSourceReceipts } from '../domain/build-reference-names'
 import { modCatalogRevision, prepareModComposition } from '../domain/mod-layers'
 import { createTestLocalData } from '../domain/test-helpers'
 import type { BuildId, CatalogRef, GameSetupRevisionId, SlotId } from '../domain/types'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
-import { createSharePayload, sharePreviewData } from '../interchange/share'
-import { prepareModCatalogs } from '../persistence/local-data'
 import { prepareBuildModRecovery } from './build-mod-recovery'
 
 async function fixture() {
@@ -21,9 +20,10 @@ async function fixture() {
   data = createBuild(data, { id: buildId, title: 'Synthetic recovery', gameSetupId: setup.gameSetupId })
   const content = buildContentForModSetup({ primaryClass: { kind: 'catalog' as const, catalogId: source.id, catalogRevisionId: source.revisionId, entityId: Object.values(source.entities).find(entity => entity.kind === 'class')!.id }, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: ['Keep draft assumption'], rotationNotes: 'Keep draft rotation' }, setup, catalogs)
   data = saveBuildRevision(data, { buildId, gameSetupRevisionId: setup.id, content })
-  const payload = createSharePayload(data, { kind: 'build', revisionId: data.builds[buildId]!.latestRevisionId! }, true, await prepareModCatalogs(data, catalogs))
-  const original = sharePreviewData(JSON.parse(JSON.stringify(payload).replaceAll('library-v4', 'library-v2').replaceAll('catalog-v3', 'catalog-v1')))
-  const revision = Object.values(original.buildRevisions)[0]!
+  data = { ...data, gameSetups: { ...data.gameSetups, [setup.id]: { ...setup, modSourceReceipts: modSourceReceipts(setup, catalogs) } } }
+  // Historical persisted drafts retain the parser and withdrawn baseline pins until recovery
+  const original = JSON.parse(JSON.stringify(data).replaceAll('library-v4', 'library-v2').replaceAll('catalog-v3', 'catalog-v1')) as typeof data
+  const revision = original.buildRevisions[original.builds[buildId]!.latestRevisionId!]!
   // An editor draft has a new setup identity while its references retain the saved origin pin
   const draftSetup = { ...original.gameSetups[revision.gameSetupRevisionId]!, id: createId<GameSetupRevisionId>('draftBehavior') }
   return { original, content: revision.content, draftSetup, catalogs, current: { data, setup, content } }

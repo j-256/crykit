@@ -78,7 +78,14 @@ describe('public receipt snapshots', () => {
     expect(() => validatePublicSnapshot({ ...value, slots: [{ ...value.slots[0], equipmentGroups }] })).toThrow()
   })
 
-  it('rejects compressed expansion beyond the declared output length', () => {
+  it.each([1, 2, 3, 4])('rejects retired version %s even when passed directly to the public decoder', version => {
+    const retired = { ...snapshot(), version }
+    const encoded = btoa(JSON.stringify(retired)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
+    expect(() => validatePublicSnapshot(retired)).toThrow()
+    expect(() => decodePublicSnapshot(encoded)).toThrow()
+  })
+
+  it('rejects a compressed envelope instead of attempting legacy decompression', () => {
     const packed = deflateSync(new TextEncoder().encode(' '.repeat(2 * 1024 * 1024)))
     const envelope = new Uint8Array(4 + packed.length)
     new DataView(envelope.buffer).setUint32(0, 2)

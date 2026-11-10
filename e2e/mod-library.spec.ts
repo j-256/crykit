@@ -1,7 +1,6 @@
 import { openStatBreakdown } from './calculation-presentation-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, type BrowserContext, type Locator, type Page, type TestInfo } from '@playwright/test'
-import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import { NATIVE_DATA } from '../src/domain/calculation-rules'
 import type { LocalData } from '../src/domain/types'
 import { SYNTHETIC_LIBRARY_SOURCES, importSyntheticLibrary, modLibraryTest as test } from './mod-library-fixtures'
@@ -484,7 +483,10 @@ test.describe('saves editor revisions into Mods, derives rules, and preserves pi
 
   test('shares the original rules and reopens both explicitly selected Build checkpoints', async () => {
     const build = Object.values(pinned.builds).find(build => build.title === 'Synthetic pinned rules')!
-    await page.goto(createShareUrl(createSharePayload(pinned, { kind: 'build', revisionId: build.latestRevisionId! }), `${baseURL}/`))
+    await page.goto(`/#/builds/library/${build.id}`)
+    await page.getByRole('button', { name: 'Share build', exact: true }).click()
+    const shareUrl = await page.getByRole('dialog', { name: 'Share build', exact: true }).getByLabel('Share URL', { exact: true }).inputValue()
+    await page.goto(shareUrl)
     await expect(page.getByRole('heading', { name: 'Synthetic pinned rules', exact: true }).first()).toBeVisible()
     await openStatBreakdown(page)
     await expect(strength.getByRole('cell').nth(1)).toHaveText('+60')

@@ -1,6 +1,6 @@
 import { type InventoryPositionId, type CharacterId, type CharacterSnapshotId, type BuildId, type BuildRevisionId, type ScenarioId, type ProgressRecordId, type TeamId } from '../../domain/types'
 import { type EntityRouteNameResolver } from '../entity-route-names'
-import { SHARE_ROUTE_PREFIX, MAX_SHARE_URL_LENGTH } from '../../interchange/share'
+import { PUBLIC_SHARE_ROUTE_PREFIX, PUBLIC_SHARE_LIMITS } from '../../interchange/public-share-schema'
 import { type Destination, type UnresolvedPageRoute, type PageRoute, PROGRESS_PAGES } from './types.ts'
 import { MAX_ROUTE_LENGTH, overlayStartsAt, decodeSegment, encodeIdentitySegment, encodeSegment, COLLECTION_ID_RESERVED_SEGMENTS } from './segments.ts'
 import { parseEntityRefPath, formatEntityRefPath } from './entities.ts'
@@ -155,8 +155,8 @@ export function formatPage(page: PageRoute, resolveName: EntityRouteNameResolver
   if (page.page === 'teams') return page.view === 'list' ? '/teams' : page.view === 'new' ? '/teams/new' : `/teams/${encodeIdentitySegment(page.teamId, COLLECTION_ID_RESERVED_SEGMENTS)}${page.view === 'adopt' ? '/adopt' : page.view === 'edit' ? '/edit' : ''}`
   if (page.page === 'hosted-share') return `/s/${page.shareId}`
   if (page.page === 'share') {
-    if (!/^[A-Za-z0-9_-]+$/.test(page.encoded) || SHARE_ROUTE_PREFIX.length + page.encoded.length > MAX_SHARE_URL_LENGTH) throw new Error('Share route is invalid')
-    return `${page.version === 5 ? '/share/v5/' : SHARE_ROUTE_PREFIX.slice(1)}${page.encoded}`
+    if (!/^[A-Za-z0-9_-]+$/.test(page.encoded) || PUBLIC_SHARE_ROUTE_PREFIX.length + page.encoded.length > PUBLIC_SHARE_LIMITS.url) throw new Error('Share route is invalid')
+    return `${PUBLIC_SHARE_ROUTE_PREFIX.slice(1)}${page.encoded}`
   }
   if (page.page === 'inventory') {
     if (page.view === 'new') return '/inventory/new'

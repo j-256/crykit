@@ -10,7 +10,6 @@ import { captureCharacter, requirePlaythrough, saveBuildRevision } from '../doma
 import type { BattleCalculationPlan, BuildId, BuildRevisionId, CatalogEntityKind, CatalogRef } from '../domain/types'
 import { validateNativeLocalDataGraph } from '../interchange/native'
 import { NativeLocalDataSchema } from '../interchange/native-schema'
-import { createSharePayload, decodeSharePayload, encodeSharePayload, saveSharedCopy, validateSharePayload } from '../interchange/share'
 import { CryKitDatabase, setDatabaseForTests } from './database'
 import { commitImport, exportBackup, loadLocalData, previewImport, saveLocalData } from './local-data'
 
@@ -20,7 +19,7 @@ afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); aw
 const ref = (kind: CatalogEntityKind): CatalogRef => ({ kind: 'catalog', catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId, entityId: Object.values(CURRENT_CATALOG.entities).find(entity => entity.kind === kind && entity.id.startsWith('base:'))!.id })
 const battle = (): BattleCalculationPlan => ({ ...defaultBattleCalculation(), targetTurnCount: 3, target: ref('monster'), statuses: [{ ref: ref('status'), count: null }], targetStatuses: [{ ref: ref('status'), count: 3 }], previouslyAppliedStatuses: [ref('status')], userPreviouslyAppliedStatuses: [ref('status')], user: { hp: 100, mp: null, ap: 0 } })
 
-it('preserves battle assumptions, unknowns, and exact references through backup, share, and saved copies', async () => {
+it('preserves battle assumptions, unknowns, and exact references through storage and backup', async () => {
   const loaded = await loadLocalData()
   const revisionId = createId<BuildRevisionId>('buildRevision')
   const id = createId<BuildId>('build')
@@ -30,10 +29,6 @@ it('preserves battle assumptions, unknowns, and exact references through backup,
   await saveLocalData(planned, loaded.revision)
   const saved = await loadLocalData()
   expect(saved.localData.buildRevisions[revisionId]!.content.calculation).toEqual(calculation)
-  const payload = decodeSharePayload(encodeSharePayload(createSharePayload(saved.localData, { kind: 'build', revisionId })))
-  expect(payload.records.buildRevisions[revisionId]!.content.calculation).toEqual(calculation)
-  const copied = saveSharedCopy(saved.localData, payload)
-  expect(copied.localData.buildRevisions[copied.localData.builds[copied.buildId!]!.latestRevisionId!]!.content.calculation).toEqual(calculation)
   const restored = await commitImport(await previewImport(await exportBackup(), 'synthetic-battle.zip'))
   expect(restored.localData.buildRevisions[revisionId]!.content.calculation).toEqual(calculation)
   const changed = saveBuildRevision(saved.localData, { buildId: id, gameSetupRevisionId: saved.localData.buildRevisions[revisionId]!.gameSetupRevisionId, content: { ...content, calculation: { ...calculation, battle: { ...calculation.battle, targetTurnCount: 4 } } } })
@@ -46,9 +41,10 @@ it('rejects unsupported scenarios and dangling battle references without changin
   const loaded = await loadLocalData()
   const revisionId = createId<BuildRevisionId>('buildRevision')
   const planned = createBuildPlan(loaded.localData, { revisionId, title: 'Synthetic validation', catalogLock: { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId }, content: { primaryClass: ref('class'), secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [], calculation: { ...defaultCalculation(ref('class')), battle: battle() } } })
-  const payload = JSON.parse(JSON.stringify(createSharePayload(planned, { kind: 'build', revisionId })))
-  payload.records.buildRevisions[revisionId].content.calculation.battle.version = 99
-  expect(() => validateSharePayload(payload)).toThrow('malformed')
+  const unsupported = structuredClone(planned)
+  const unsupportedBattle = unsupported.buildRevisions[revisionId]!.content.calculation!.battle! as unknown as Record<string, unknown>
+  unsupportedBattle.version = 99
+  expect(NativeLocalDataSchema.safeParse(unsupported).success).toBe(false)
   const invalid = structuredClone(planned)
   const invalidBattle = invalid.buildRevisions[revisionId]!.content.calculation!.battle! as unknown as Record<string, unknown>
   invalidBattle.user = { hp: -1, mp: null, ap: null }

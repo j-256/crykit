@@ -8,14 +8,6 @@ import { composeModLayers, modCatalogForPin, modCatalogRevision, modCatalogTitle
 import { modSourceMatch } from '../domain/mod-source-match'
 import { withdrawnCatalog } from '../domain/withdrawn-catalogs'
 import type { BuildReferenceName, BuildRevisionContent, CatalogRef, CatalogSnapshot, GameSetupRevision, GameSetupRevisionId } from '../domain/types'
-import { shareWithMatchingSources, validateSharePayload, type SharePayload } from './share'
-
-export interface SharedModRecovery {
-  readonly payload?: SharePayload
-  readonly changedInterpretation?: boolean
-  readonly missingSources: readonly string[]
-  readonly error?: string
-}
 
 function mapReferences<T>(value: T, map: (ref: CatalogRef) => CatalogRef): T {
   if (!value || typeof value !== 'object') return value
@@ -25,14 +17,14 @@ function mapReferences<T>(value: T, map: (ref: CatalogRef) => CatalogRef): T {
   return Object.fromEntries(Object.entries(record).map(([key, entry]) => [key, mapReferences(entry, map)])) as T
 }
 
-// Local draft recovery and frozen public previews share the same exact source identity mapper
-// The mapper supplies interpretation only; neither caller gains persistence or publication authority
+// Recovery supplies interpretation through exact source identities
+// Saving a new checkpoint remains a separate user action
 function prepareSourceRecovery(setups: readonly GameSetupRevision[], referenceNames: readonly BuildReferenceName[], catalogs: readonly CatalogSnapshot[], missingSources: Set<string>) {
   const names = new Map<string, BuildReferenceName>()
   for (const entry of referenceNames) {
     const key = entityDefinitionKey(entry.ref)
     const previous = names.get(key)
-    if (previous && (previous.projectId !== entry.projectId || previous.modelKey !== entry.modelKey)) throw new Error('The shared checkpoints disagree about a selected mod identity.')
+    if (previous && (previous.projectId !== entry.projectId || previous.modelKey !== entry.modelKey)) throw new Error('The saved checkpoints disagree about a selected mod identity.')
     names.set(key, entry)
   }
   const origins = new Map<string, { setup: GameSetupRevision; baseline: CatalogSnapshot; result: ReturnType<typeof composeModLayers> }>()
@@ -50,7 +42,7 @@ function prepareSourceRecovery(setups: readonly GameSetupRevision[], referenceNa
     if (sources.some(source => !source)) continue
     const selected = sources as readonly CatalogSnapshot[]
     const exactBaseline = modCatalogForPin(catalogs, composition.baseline)
-    // Only a recognized withdrawn application baseline qualifies for a recovered preview
+    // Only a recognized withdrawn application baseline qualifies for local recovery
     // An unrelated missing import must still be supplied rather than substituted
     const baseline = exactBaseline ?? (withdrawnCatalog(composition.baseline) && composition.baseline.catalogId === CURRENT_CATALOG.id ? modCatalogForPin(catalogs, { catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId }) : undefined)
     if (!baseline) throw new Error('The saved base catalog is unavailable and has no supported replacement. Import that catalog before applying the mod definitions.')
@@ -91,7 +83,7 @@ function prepareSourceRecovery(setups: readonly GameSetupRevision[], referenceNa
   return { origins, mapRef, mapLock, gameSetups }
 }
 
-// Whole local drafts may contain retained selections and removed slots that legacy shares cannot encode
+// Whole local drafts may contain retained selections and removed slots
 // Preserve those inert receipts verbatim and map only active typed selections through exact source evidence
 export function prepareLocalBuildModRecovery(content: BuildRevisionContent, setup: GameSetupRevision, catalogs: readonly CatalogSnapshot[]): { draft?: { content: BuildRevisionContent; setup: GameSetupRevision }; changedInterpretation?: boolean; missingSources: readonly string[]; error?: string } {
   const missingSources = new Set<string>()
@@ -102,26 +94,6 @@ export function prepareLocalBuildModRecovery(content: BuildRevisionContent, setu
     const mapped = mapBuildModReferences(content, ref => ref?.kind === 'catalog' && !retained.has(entityDefinitionKey(ref)) ? recovery.mapRef(ref) : ref)
     const recoveredSetup = recovery.origins.get(modCatalogRevision(setup.id))?.setup ?? setup
     return { draft: { content: withBuildReferenceNames(mapped, catalogs), setup: recovery.gameSetups[recoveredSetup.id]! }, changedInterpretation: recovery.origins.size > 0, missingSources: [] }
-  } catch (reason) {
-    return { missingSources: [...missingSources], error: reason instanceof Error ? reason.message : 'Matching imports could not be applied. The original checkpoint is preserved.' }
-  }
-}
-
-// Recovery enriches a read-only preview without changing the original checkpoint's pins
-// Exact project/model identities rebind selections; names never resolve missing definitions
-export function prepareSharedModRecovery(payload: SharePayload, catalogs: readonly CatalogSnapshot[]): SharedModRecovery {
-  const missingSources = new Set<string>()
-  try {
-    const compatible = shareWithMatchingSources(payload, catalogs)
-    if (compatible) return { payload: compatible, missingSources: [] }
-    const recovery = prepareSourceRecovery(Object.values(payload.records.gameSetups), Object.values(payload.records.buildRevisions).flatMap(revision => revision.content.referenceNames ?? []), catalogs, missingSources)
-    if (!recovery || !recovery.origins.size) return { missingSources: [...missingSources] }
-    const { origins, mapRef, mapLock, gameSetups } = recovery
-    // Opaque personal fields retain their bytes; only typed lineage and requirements are references
-    const personalDefinitions = Object.fromEntries(Object.entries(payload.records.personalDefinitions).map(([id, definition]) => [id, { ...definition, ...mapReferences({ baseRef: definition.baseRef, previousRevision: definition.previousRevision, requirements: definition.requirements }, mapRef) }]))
-    const buildRevisions = Object.fromEntries(Object.entries(payload.records.buildRevisions).map(([id, revision]) => [id, { ...revision, gameSetupRevisionId: origins.get(modCatalogRevision(revision.gameSetupRevisionId))?.setup.id ?? revision.gameSetupRevisionId, catalogLock: mapLock(revision.catalogLock), content: withBuildReferenceNames(mapReferences(revision.content, mapRef), catalogs) }]))
-    const teamGameSetupRevisionId = payload.teamGameSetupRevisionId && (origins.get(modCatalogRevision(payload.teamGameSetupRevisionId))?.setup.id ?? payload.teamGameSetupRevisionId)
-    return { payload: validateSharePayload({ ...payload, version: 4, records: { ...payload.records, gameSetups, personalDefinitions, buildRevisions }, ...(teamGameSetupRevisionId ? { teamGameSetupRevisionId } : {}) }), changedInterpretation: true, missingSources: [] }
   } catch (reason) {
     return { missingSources: [...missingSources], error: reason instanceof Error ? reason.message : 'Matching imports could not be applied. The original checkpoint is preserved.' }
   }

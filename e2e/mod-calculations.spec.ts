@@ -4,7 +4,6 @@ import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import { NATIVE_GAME_DATA } from '../src/catalog/native-game'
 import { NATIVE_DATA } from '../src/domain/calculation-rules'
-import { createSharePayload, createShareUrl } from '../src/interchange/share'
 import type { LocalData } from '../src/domain/types'
 import { skipInitialModSetup, openBuildGameSetup, openCurrentGameSetup, openGameSetupSection, saveAndApplyGameSetup } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
@@ -133,9 +132,10 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   expect(revision.content.calculation?.genderSelection).toEqual({ version: 1, id: 8 })
   expect(localData.gameSetups[revision.gameSetupRevisionId]!.modComposition?.version).toBe(3)
   await exporting.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  const shareUrl = createShareUrl(createSharePayload(localData, { kind: 'build', revisionId: revision.id }), `${baseURL}/`)
+  await page.getByRole('button', { name: 'Share build', exact: true }).click()
+  const shareUrl = await page.getByRole('dialog', { name: 'Share build', exact: true }).getByLabel('Share URL', { exact: true }).inputValue()
   await page.goto(shareUrl)
-  const shared = page.getByRole('region', { name: 'Shared build loadout', exact: true })
+  const shared = page.getByRole('region', { name: 'Slot 1 calculations', exact: true })
   await openStatBreakdown(shared)
   await expect(shared.getByText('Gender: Synthetic extra', { exact: true })).toBeVisible()
   await expect(shared.getByRole('table', { name: 'Calculated character stats', exact: true }).locator('th, td')).toHaveText(previewStats)
@@ -234,8 +234,10 @@ test('mod automatic statuses and ability cost overrides survive checkpoints, bac
   expect(composition.version).toBe(3)
   expect(composition.identityMappings).toEqual(expect.arrayContaining(['Abilities', 'Passives', 'Statuses'].map(family => ({ projectId: 'crystal-edit:synthetic-battle-mod', family, originalId: addedId, effectiveId: addedId }))))
   await exporting.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  await page.goto(createShareUrl(createSharePayload(localData, { kind: 'build', revisionId: revision.id }), `${baseURL}/`))
-  const shared = page.getByRole('region', { name: 'Shared build loadout', exact: true })
+  await page.getByRole('button', { name: 'Share build', exact: true }).click()
+  const shareUrl = await page.getByRole('dialog', { name: 'Share build', exact: true }).getByLabel('Share URL', { exact: true }).inputValue()
+  await page.goto(shareUrl)
+  const shared = page.getByRole('region', { name: 'Slot 1 calculations', exact: true })
   await expect(shared.getByRole('table', { name: 'Calculated character stats', exact: true }).locator('th, td')).toHaveText(previewStats)
   await shared.getByRole('button', { name: 'Checks & notes', exact: true }).click()
   await shared.getByText('Ability and hit-chance preview', { exact: true }).click()
