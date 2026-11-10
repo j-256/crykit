@@ -1,11 +1,15 @@
 import 'fake-indexeddb/auto'
 import { createPersonalDefinition } from '../domain'
 import { createTestLocalData } from '../domain/test-helpers'
-import { act, useState, useLayoutEffect, useRef } from 'react'
+import { act, StrictMode, useState, useLayoutEffect, useRef } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
+import { flushSync } from 'react-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { installProfile, invalidateProfile, type ProfileToken } from '../account/profile'
+import { captureProfileEpoch, currentProfileToken, installProfile, invalidateProfile, type ProfileToken } from '../account/profile'
 import { WorkspaceProvider, useWorkspace } from './WorkspaceProvider'
+import { AccountView } from './account/AccountView'
+import { NAVIGATION_EVENT } from './navigation/history'
+import { BuildInputProvider, useBuildInput, useBuildInputState } from './build-input-session'
 import * as account from '../workspace/account-repository'
 import * as lifecycle from '../account/lifecycle'
 import * as selection from '../workspace/device-selection'
@@ -99,15 +103,171 @@ it('remounts drafts on account activation and locks without opening guest data',
   expect(container.textContent).toContain('Account workspace locked')
   expect(container.textContent).not.toContain('guest:')
 })
-it('a delayed old account opening cannot install after a profile transition', async () => {
+it.each(['transition', 'pagehide'] as const)('a delayed old account opening cannot install after %s', async reason => {
   let resolve!: (value: Awaited<ReturnType<typeof account.openAccountRepository>>) => void
   vi.spyOn(account, 'openAccountRepository').mockReturnValue(new Promise(finish => { resolve = finish }))
   await act(async () => root.render(<WorkspaceProvider><Probe/></WorkspaceProvider>))
   const pending = open(token)
-  invalidateProfile()
+  invalidateProfile(reason)
   resolve({ ...createGuestRepository(), kind: 'account' })
   await expect(pending).rejects.toMatchObject({ code: 'PROFILE_CHANGED' })
   expect(container.textContent).toBe('guest:clean')
+})
+
+async function accountNavigationFixture(strict: boolean) {
+  invalidateProfile()
+  window.history.replaceState(null, '', '#/builds')
+  let selected!: ReturnType<typeof useWorkspace>
+  let mounts = 0
+  let input!: NonNullable<ReturnType<typeof useBuildInput>>
+  function BuildDraft() {
+    input = useBuildInput()!
+    const [title, setTitle] = useBuildInputState('title', 'Fresh guest Build')
+    return <><input aria-label="Reopened Build title" readOnly value={title}/><button onClick={() => setTitle('Editable after authentication')}>Edit reopened Build</button></>
+  }
+  function Navigation() {
+    selected = useWorkspace()
+    const [account, setAccount] = useState(false)
+    useLayoutEffect(() => { mounts++ }, [])
+    const navigate = () => {
+      window.history.replaceState(null, '', account ? '#/builds' : '#/settings/account')
+      // Notify before React unmounts Account, as the real navigation controller does
+      window.dispatchEvent(new Event(NAVIGATION_EVENT))
+      flushSync(() => setAccount(!account))
+    }
+    return <><button onClick={navigate}>{account ? 'Leave Account' : 'Enter Account'}</button>{account ? <AccountView onOpenWorkspace={selected.openAccount} onContinueLocal={selected.continueLocal}/> : <BuildInputProvider scope="auth-return-test"><BuildDraft/></BuildInputProvider>}</>
+  }
+  const content = <WorkspaceProvider><Navigation/></WorkspaceProvider>
+  await act(async () => root.render(strict ? <StrictMode>{content}</StrictMode> : content))
+  const click = async (label: string) => {
+    const button = [...container.querySelectorAll('button')].find(value => value.textContent === label)!
+    expect(button, label).toBeDefined()
+    await act(async () => button.click())
+  }
+  await click('Enter Account')
+  return { selected: () => selected, mounts: () => mounts, input: () => input, click }
+}
+async function submitAccountSignIn() {
+  container.querySelector<HTMLInputElement>('input[name="email"]')!.value = 'synthetic@example.org'
+  container.querySelector<HTMLInputElement>('input[name="password"]')!.value = 'synthetic long password'
+  await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+}
+it.each([false, true])('abandoned authentication reopens a fenced guest only after leaving Account with StrictMode=%s', async strict => {
+  let finish!: () => void
+  let epoch!: ReturnType<typeof captureProfileEpoch>
+  vi.spyOn(lifecycle, 'signInProfile').mockImplementation(async () => {
+    epoch = captureProfileEpoch()
+    await new Promise<void>(resolve => { finish = resolve })
+    epoch.assertCurrent()
+    return installProfile('AAAAAAAAAAAAAAAAAAAAAA', new Uint8Array(32))
+  })
+  const view = await accountNavigationFixture(strict), old = view.selected()
+  await observe(() => old.repository.load())
+  await submitAccountSignIn()
+  await view.click('Leave Account')
+  expect(epoch.signal.aborted).toBe(true)
+  expect(view.selected().isCurrent()).toBe(true)
+  expect(view.selected().repository).not.toBe(old.repository)
+  expect(() => view.input().controller.assertView(view.input().view)).not.toThrow()
+  await view.click('Edit reopened Build')
+  expect(container.querySelector<HTMLInputElement>('[aria-label="Reopened Build title"]')!.value).toBe('Editable after authentication')
+  await observe(() => view.selected().repository.load())
+  await expect(old.repository.load()).rejects.toMatchObject({ code: 'PROFILE_CHANGED' })
+  await act(async () => finish())
+  expect(currentProfileToken()).toBeUndefined()
+})
+it.each([false, true])('failed activation remains mounted until leaving Account and reopens the latest guest epoch with StrictMode=%s', async strict => {
+  vi.spyOn(lifecycle, 'signInProfile').mockImplementation(async () => { invalidateProfile(); invalidateProfile(); throw new Error('AUTH_FAILED') })
+  const view = await accountNavigationFixture(strict), old = view.selected(), mounts = view.mounts()
+  await observe(() => old.repository.load())
+  await submitAccountSignIn()
+  expect(container.textContent).toContain('Sign-in failed.')
+  expect(view.mounts()).toBe(mounts)
+  expect(view.selected().repository).toBe(old.repository)
+  expect(old.isCurrent()).toBe(false)
+  await view.click('Leave Account')
+  expect(view.selected().isCurrent()).toBe(true)
+  await observe(() => view.selected().repository.load())
+  await expect(old.repository.load()).rejects.toMatchObject({ code: 'PROFILE_CHANGED' })
+})
+it.each([false, true])('failed local unlock reopens a fresh guest after leaving Account with StrictMode=%s', async strict => {
+  vi.mocked(selection.readDeviceSelection).mockResolvedValue({ key: 'selected', version: 1, kind: 'guest' })
+  vi.mocked(device.listCachedProfiles).mockResolvedValue([{ accountId: token.accountId, remembered: true, passwordAvailable: false, revocationPending: false }])
+  vi.spyOn(lifecycle, 'unlockRememberedProfile').mockImplementation(async () => { invalidateProfile(); throw new Error('AUTH_FAILED') })
+  const view = await accountNavigationFixture(strict), old = view.selected(), mounts = view.mounts()
+  await observe(() => old.repository.load())
+  await view.click('Unlock remembered account')
+  expect(container.textContent).toContain('Sign-in failed.')
+  expect(view.mounts()).toBe(mounts)
+  expect(view.selected().repository).toBe(old.repository)
+  await view.click('Leave Account')
+  expect(view.selected().isCurrent()).toBe(true)
+  expect(() => view.input().controller.assertView(view.input().view)).not.toThrow()
+  await view.click('Edit reopened Build')
+  expect(container.querySelector<HTMLInputElement>('[aria-label="Reopened Build title"]')!.value).toBe('Editable after authentication')
+  await observe(() => view.selected().repository.load())
+  await expect(old.repository.load()).rejects.toMatchObject({ code: 'PROFILE_CHANGED' })
+})
+it.each(['repository', 'selection'] as const)('failed account %s opening also reopens the guest after leaving Account', async phase => {
+  if (phase === 'repository') vi.spyOn(account, 'openAccountRepository').mockRejectedValue(new Error('Synthetic opening failure'))
+  else {
+    vi.spyOn(account, 'openAccountRepository').mockResolvedValue({ ...createGuestRepository(), kind: 'account' })
+    vi.mocked(selection.writeDeviceSelection).mockRejectedValueOnce(new Error('Synthetic opening failure'))
+  }
+  const view = await accountNavigationFixture(false), old = view.selected()
+  const nextToken = installProfile('AAAAAAAAAAAAAAAAAAAAAA', new Uint8Array(32))
+  await act(async () => { await expect(old.openAccount(nextToken)).rejects.toThrow('Synthetic opening failure') })
+  await view.click('Leave Account')
+  expect(view.selected().isCurrent()).toBe(true)
+  expect(view.selected().repository).not.toBe(old.repository)
+  expect(old.isCurrent()).toBe(false)
+  await observe(() => view.selected().repository.load())
+})
+it('a delayed account selection transaction rejects after deferred guest reopening even while its profile stays active', async () => {
+  vi.spyOn(account, 'openAccountRepository').mockResolvedValue({ ...createGuestRepository(), kind: 'account' })
+  const view = await accountNavigationFixture(false)
+  await act(async () => invalidateProfile())
+  const nextToken = installProfile('AAAAAAAAAAAAAAAAAAAAAA', new Uint8Array(32))
+  let guard!: () => void
+  let finish!: () => void
+  vi.mocked(selection.writeDeviceSelection).mockImplementationOnce(async (_next, assertCurrent) => {
+    guard = assertCurrent!
+    await new Promise<void>(resolve => { finish = resolve })
+    guard()
+  })
+  let pending!: Promise<unknown>
+  await act(async () => { pending = view.selected().openAccount(nextToken).catch(error => error) })
+  expect(guard).toBeDefined()
+  await view.click('Leave Account')
+  const successor = view.selected()
+  expect(successor.repository.kind).toBe('guest')
+  expect(successor.isCurrent()).toBe(true)
+  expect(currentProfileToken()).toBe(nextToken)
+  let guardError: unknown
+  try { guard() } catch (error) { guardError = error }
+  let openingError: unknown
+  await act(async () => { finish(); openingError = await pending })
+  expect(guardError).toMatchObject({ code: 'PROFILE_CHANGED' })
+  expect(openingError).toMatchObject({ code: 'PROFILE_CHANGED' })
+  expect(view.selected().repository).toBe(successor.repository)
+  expect(view.selected().isCurrent()).toBe(true)
+})
+it.each(['account', 'guest'] as const)('deferred guest reopening preserves an explicit %s successor', async kind => {
+  const opened = { ...createGuestRepository(), kind: 'account' as const }
+  vi.spyOn(account, 'openAccountRepository').mockResolvedValue(opened)
+  const view = await accountNavigationFixture(false), old = view.selected(), mounts = view.mounts()
+  await act(async () => invalidateProfile())
+  expect(view.mounts()).toBe(mounts)
+  expect(view.selected().repository).toBe(old.repository)
+  await act(async () => {
+    if (kind === 'account') await view.selected().openAccount(installProfile('AAAAAAAAAAAAAAAAAAAAAA', new Uint8Array(32)))
+    else await view.selected().continueLocal()
+  })
+  const successor = view.selected()
+  await act(async () => window.dispatchEvent(new Event(NAVIGATION_EVENT)))
+  expect(view.selected().repository).toBe(successor.repository)
+  expect(view.selected().isCurrent()).toBe(true)
+  expect(view.selected().repository.kind).toBe(kind)
 })
 
 it.each(['password-only', 'missing-envelope', 'bad-envelope', 'locked-tab', 'invalid-selection', 'missing-selection'])('startup keeps %s account access closed without guest fallback', async mode => {
@@ -170,6 +330,37 @@ it('explicit local continuation creates a fresh guest export lifetime without re
   await expect(old.exportPlannerBackup(draft)).rejects.toMatchObject({ code: 'PROFILE_CHANGED' })
   await act(async () => invalidateProfile())
   await expect(fresh.exportPlannerBackup(draft)).rejects.toMatchObject({ code: 'PROFILE_CHANGED' })
+})
+
+it.each([false, true])('guest Build input survives pagehide/pageshow with StrictMode=%s', async strict => {
+  invalidateProfile()
+  let selected!: ReturnType<typeof useWorkspace>
+  let input!: NonNullable<ReturnType<typeof useBuildInput>>
+  function Draft() {
+    selected = useWorkspace()
+    input = useBuildInput()!
+    const [title, setTitle] = useBuildInputState('title', 'Initial guest title')
+    return <><input aria-label="Guest Build title" readOnly value={title}/><button onClick={() => { setTitle(current => current === 'Initial guest title' ? 'Retained guest title' : 'Edited after return'); input.controller.dirty(input.view, true) }}>Edit guest draft</button></>
+  }
+  const content = <WorkspaceProvider><BuildInputProvider scope="guest-lifecycle-test"><Draft/></BuildInputProvider></WorkspaceProvider>
+  await act(async () => root.render(strict ? <StrictMode>{content}</StrictMode> : content))
+  await act(async () => container.querySelector('button')!.click())
+  const original = selected, view = input.view
+  const before = await observe(() => selected.repository.load())
+  // Exercise lifecycle's exact transition without closing Dexie's process-wide jsdom transport
+  await act(async () => invalidateProfile('pagehide'))
+  await act(async () => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })))
+  expect(selected.isCurrent()).toBe(true)
+  expect(input.view).toBe(view)
+  expect(input.controller.recoveryInput(view).title).toBe('Retained guest title')
+  expect(input.controller.snapshot().dirty).toBe(true)
+  expect(container.querySelector('input')!.value).toBe('Retained guest title')
+  expect(container.textContent).not.toContain('Build input needs recovery')
+  expect((await observe(() => selected.repository.load())).localData).toEqual(before.localData)
+  expect(selected.repository).toBe(original.repository)
+  await act(async () => container.querySelector('button')!.click())
+  expect(container.querySelector('input')!.value).toBe('Edited after return')
+  expect(input.controller.recoveryInput(view).title).toBe('Edited after return')
 })
 
 it('pagehide clears access without converting remembered reopening into an explicit lock', async () => {

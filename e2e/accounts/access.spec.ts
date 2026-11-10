@@ -1,5 +1,6 @@
 import { expectPrimedSignInRateLimit, nativeCredentialQuota, prepareAccountProofCache } from './network-fixture'
 import { readCompleteBackup } from '../workspace-backup'
+import { readLocalData } from '../local-data-helpers'
 import { formatAppRoute } from '../../src/ui/navigation/routes'
 import { BUILDS_ROUTE } from '../../src/ui/navigation/types'
 import { readFile, stat, writeFile } from 'node:fs/promises'
@@ -433,6 +434,49 @@ async function databaseDump(page: import('@playwright/test').Page, name: string)
     } finally { database.close() }
   }, name)
 }
+
+test('leaving mounted Account during sign-in cancels late activation and keeps guest Builds writable', async ({ page, context }, testInfo) => {
+  const account = await uiSignup(page)
+  await openAccountSettingsInMountedPlanner(page)
+  const guestBefore = await databaseDump(page, 'crykit')
+  const finishPath = '/api/v1/auth/login/finish'
+  expect((await page.request.post('/__accounts/control/response-gate', { data: { path: finishPath, phase: 'before-headers' } })).ok()).toBe(true)
+  let cancelled = false
+  const observeFailure = (request: import('@playwright/test').Request) => { if (new URL(request.url()).pathname === finishPath) cancelled = true }
+  page.on('requestfailed', observeFailure)
+  try {
+    await page.getByLabel('Email', { exact: true }).fill(account.email)
+    await page.getByLabel('Password', { exact: true }).fill(uiPassword)
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+    // This native gate holds response delivery after the real login handler has committed
+    await expect.poll(async () => (await (await page.request.get('/__accounts/control/response-gate')).json()).arrived).toBe(true)
+    await page.getByRole('button', { name: 'Builds', exact: true }).first().click()
+    await expect(page.getByRole('heading', { name: 'Account', exact: true })).toHaveCount(0)
+    await expect.poll(() => cancelled).toBe(true)
+    expect((await page.request.post('/__accounts/control/release-response', { data: {} })).ok()).toBe(true)
+    await page.getByRole('button', { name: 'Account', exact: true }).first().click()
+    await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: `Signed in as ${account.username}`, exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Open account workspace', exact: true })).toHaveCount(0)
+    expect((await context.cookies()).some(cookie => cookie.name === '__Host-crykit-session')).toBe(false)
+    expect(await databaseDump(page, 'crykit')).toBe(guestBefore)
+    await page.getByRole('button', { name: 'Builds', exact: true }).first().click()
+    await page.getByRole('button', { name: 'New Build', exact: true }).click()
+    const title = 'Synthetic guest Build after interrupted sign-in'
+    await expect(page.getByRole('textbox', { name: 'Build title', exact: true })).toBeEditable()
+    await page.getByRole('textbox', { name: 'Build title', exact: true }).fill(title)
+    await expect(page.getByRole('region', { name: 'Build import recovery', exact: true })).toHaveCount(0)
+    await page.getByRole('combobox', { name: 'Class', exact: true }).filter({ visible: true }).fill('Wizard')
+    await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
+    await page.getByRole('button', { name: 'Save build', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
+    expect(Object.values((await readLocalData(page)).builds).some(build => build.title === title)).toBe(true)
+    await testInfo.attach('interrupted-sign-in', { body: JSON.stringify({ nativeLoginResponseHeld: true, cancelled, noSessionCookie: true, noLateLocalActivation: true, guestBuildSaved: true }), contentType: 'application/json' })
+  } finally {
+    page.off('requestfailed', observeFailure)
+    expect((await page.request.post('/__accounts/control/release-response', { data: {} })).ok()).toBe(true)
+  }
+})
 
 test('normalAppSignInOpensIndependentEncryptedWorkspaceAndLocksOnReload', async ({ page }, testInfo) => {
   const prefix = 'workspace-startup '

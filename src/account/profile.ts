@@ -20,6 +20,8 @@ interface ActiveProfile {
 }
 let generation = 0
 let jobs = new AbortController()
+let guestGeneration = 0
+let guestJobs = new AbortController()
 let active: ActiveProfile | undefined
 export type ProfileTransitionReason = 'transition' | 'pagehide'
 const transitionCleanups = new Set<(reason: ProfileTransitionReason) => void>()
@@ -27,6 +29,12 @@ export function onProfileTransition(cleanup: (reason: ProfileTransitionReason) =
 export function captureProfileEpoch() {
   const captured = generation
   return { signal: jobs.signal, assertCurrent: () => { if (generation !== captured) throw new ProfileChangedError() } }
+}
+// Guest input can return from BFCache without account credentials or a new workspace selection
+// Keep its storage lifetime through pagehide, but never across an actual profile transition
+export function captureGuestWorkspaceEpoch() {
+  const captured = guestGeneration
+  return { signal: guestJobs.signal, assertCurrent: () => { if (guestGeneration !== captured) throw new ProfileChangedError() } }
 }
 export function assertActiveProfile(token: ProfileToken): void {
   if (!active || active.token.accountId !== token.accountId || active.token.generation !== token.generation) throw new ProfileChangedError()
@@ -42,10 +50,15 @@ export function trackProfileUrl(token: ProfileToken, url: string): void { assert
 export function invalidateProfile(reason: ProfileTransitionReason = 'transition'): void {
   // Invalidate before notifying consumers so cleanup cannot publish old-generation projections
   generation++
+  if (reason !== 'pagehide') guestGeneration++
   const previous = active
   active = undefined
   jobs.abort(new ProfileChangedError())
   jobs = new AbortController()
+  if (reason !== 'pagehide') {
+    guestJobs.abort(new ProfileChangedError())
+    guestJobs = new AbortController()
+  }
   previous?.key.fill(0)
   for (const url of previous?.urls ?? []) URL.revokeObjectURL(url)
   // One faulty consumer must not retain another consumer's secrets or jobs

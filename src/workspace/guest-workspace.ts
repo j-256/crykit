@@ -1,4 +1,4 @@
-import { captureProfileEpoch } from '../account/profile'
+import { captureGuestWorkspaceEpoch } from '../account/profile'
 import { openSelectedGuestPlanner } from './open-required-guest-planner'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { CryKitDatabase } from '../persistence/database'
@@ -23,7 +23,7 @@ export interface GuestBindings { readonly coordinator: GuestCoordinatorDatabase;
 const ACTIVE_RECORD = 'local-data-record'
 export const GUEST_ACTIVATED_EVENT = 'crykit-guest-activated'
 export async function openGuestBindings(original: CryKitDatabase): Promise<GuestBindings> {
-  const profile = captureProfileEpoch()
+  const profile = captureGuestWorkspaceEpoch()
   const primary = original.name === 'crykit'
   const coordinator = new GuestCoordinatorDatabase(primary ? undefined : `${original.name}-coordinator`)
   let selected = await coordinator.active.get('active')

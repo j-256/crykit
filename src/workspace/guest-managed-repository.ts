@@ -23,7 +23,7 @@ import type { GuestCoordinatorDatabase } from './guest-coordinator'
 import { createGuestLocalStore, GuestManagedManifestSchema, type GuestManagedManifest } from './guest-local-store'
 import { admitLocalRoot, prepareLocalWorkspace, captureManagedPlannerInput, type AdmittedLocalSnapshot, type CapturedLocalLifetime } from './local-root'
 import { nowTimestamp, randomId } from '../interchange/util'
-import { captureProfileEpoch } from '../account/profile'
+import { captureGuestWorkspaceEpoch } from '../account/profile'
 import { WorkspaceError, type WorkspaceRepository } from './repository'
 import { prepareManagedPlannerSave } from './managed-planner'
 import type { LocalDataNotification } from '../interchange/types'
@@ -80,7 +80,7 @@ export async function copyManagedGuestRecovery(repository: WorkspaceRepository, 
 // The managed entrypoint is connected only after legacy preparation has produced a selected v3 head
 // Each wrapper captures one head; only an owned receipt constructs a wrapper for its exact successor
 export async function openGuestManagedRepository(database: GuestCoordinatorDatabase, manifest: GuestManagedManifest): Promise<WorkspaceRepository> {
-  const profile = captureProfileEpoch(), store = createGuestLocalStore(database, profile.assertCurrent)
+  const profile = captureGuestWorkspaceEpoch(), store = createGuestLocalStore(database, profile.assertCurrent)
   const lifetime: CapturedLocalLifetime = { check: profile.assertCurrent, assertCurrent: async () => profile.assertCurrent() }
   await store.assertCurrent(manifest)
   let unsubscribe = () => {}

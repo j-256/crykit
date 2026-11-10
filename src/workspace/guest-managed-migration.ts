@@ -12,7 +12,7 @@ import { joinWorkspaceSnapshotEvidence } from '../interchange/workspace-backup-e
 import { GUEST_FILES_V1_STORES, GUEST_EVIDENCE_STORES } from './guest-evidence'
 import { requireGuestManagedMigration, type GuestManagedMigration } from './guest-managed-contract'
 export { requireGuestManagedMigration, type GuestManagedMigration } from './guest-managed-contract'
-import { captureProfileEpoch } from '../account/profile'
+import { captureGuestWorkspaceEpoch } from '../account/profile'
 import { assertGuestCurrent, type GuestBindings } from './guest-workspace'
 import { checkGuestRecovery } from './guest-recovery'
 import { captureLegacyBranch, holdLegacyReaders, compareHeldLegacyBranch, compareLegacyBranch, LegacyCaptureDatabase, type HeldLegacyReaders, type LegacyParticipant } from './legacy-capture'
@@ -90,7 +90,7 @@ function projectLegacyPlanner(state: WorkspaceState, version: number) {
 }
 
 export async function captureGuestNativeForCopy(binding: GuestBindings): Promise<{ readonly snapshot: WorkspaceSnapshot; readonly originals: CapturedGuestEvidence }> {
-  const profile = captureProfileEpoch()
+  const profile = captureGuestWorkspaceEpoch()
   if ((await checkGuestRecovery(binding, profile.signal)).length) throw new Error('Resolve retained guest recovery before copying')
   const opened = await migrationParticipants(binding), frozen = new LegacyCaptureDatabase(`crykit-copy-guest-capture-${crypto.randomUUID()}`)
   let disposed = false, disposal: Promise<void> | undefined
@@ -123,7 +123,7 @@ export async function captureGuestNativeForCopy(binding: GuestBindings): Promise
 // Native ownership excludes a still-live publisher before interrupted barriers are released
 // A published receipt is never rolled back, even after a later managed edit changes the active head
 export async function reconcileGuestManagedMigration(binding: GuestBindings, id: string): Promise<'published' | 'failed'> {
-  const profile = captureProfileEpoch(), rows = binding.coordinator.table<GuestManagedMigration, string>('managedMigrations')
+  const profile = captureGuestWorkspaceEpoch(), rows = binding.coordinator.table<GuestManagedMigration, string>('managedMigrations')
   return withGuestOperationOwner(binding.coordinator, profile.signal, async owner => {
     const row = requireGuestManagedMigration(await rows.get(id))
     if (!equalLegacyValue(row.expected, binding.manifest) || !equalLegacyValue(await binding.coordinator.captures.get(row.capture.id), row.capture)) throw new Error('Managed migration source changed')
@@ -163,7 +163,7 @@ export async function reconcileGuestManagedMigration(binding: GuestBindings, id:
 // Preparation is explicit startup work, never charged to the first ordinary save
 // The old participant stores and frozen source remain recoverable after the one coordinator CAS
 export async function migrateGuestWorkspace(binding: GuestBindings): Promise<GuestManagedManifest> {
-  const profile = captureProfileEpoch()
+  const profile = captureGuestWorkspaceEpoch()
   const check = () => profile.assertCurrent()
   if ((await checkGuestRecovery(binding, profile.signal)).length) throw new Error('Resolve retained guest recovery before migration')
   await assertGuestCurrent(binding)

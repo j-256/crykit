@@ -69,7 +69,6 @@ export function AccountView({ onOpenWorkspace, onContinueLocal, onBackup, localC
   const pendingAccess = useRef<ReturnType<typeof captureProfileEpoch>>(undefined)
   useEffect(() => {
     mounted.current = true
-    if (!currentProfileToken()) pendingAccess.current = captureProfileEpoch()
     void listCachedProfiles().then(value => { if (mounted.current) setCached(value) }).catch(() => { if (mounted.current) setError('Saved account access could not be read. You can still sign in online.') })
     const stop = onProfileTransition(() => { pendingAccess.current = undefined; profileVersion.current++; setToken(undefined); setMetadata(undefined); setBusy(false); setError(''); setStatus('') })
     // Cancel only pre-login work this view owns; sign-out owns its successor revocation epoch
@@ -101,18 +100,27 @@ export function AccountView({ onOpenWorkspace, onContinueLocal, onBackup, localC
     const version = profileVersion.current
     setBusy(true); setError('')
     const startsWithoutProfile = !currentProfileToken()
+    let accessEpoch: ReturnType<typeof captureProfileEpoch> | undefined
     try {
       const result = work()
       // Sign-in starts a new epoch synchronously; capture it after that transition
       // Explicit guest handoff owns its new epoch after this view unmounts
-      if (ownsPendingAccess && startsWithoutProfile && !currentProfileToken()) pendingAccess.current = captureProfileEpoch()
+      if (ownsPendingAccess && startsWithoutProfile && !currentProfileToken()) {
+        accessEpoch = captureProfileEpoch()
+        pendingAccess.current = accessEpoch
+      }
       await result
     }
     catch (reason) {
       if (!mounted.current || (id !== operation.current || (!transitions && version !== profileVersion.current)) || (reason instanceof Error && reason.message === 'PROFILE_CHANGED')) return
       const key = reason instanceof Error ? reason.message : ''
       setError(localBackup ? formatAppError(reason, 'The private backup could not be prepared. Saved data stays in place.') : messages[key] ?? 'The action could not be completed. Retry when connected. Saved data stays in place.')
-    } finally { if (mounted.current && id === operation.current) setBusy(false) }
+    } finally {
+      // Visiting Account settings owns no cancellation, and settled work owns none afterward
+      // An older completion must not release a newer operation's epoch
+      if (accessEpoch && pendingAccess.current === accessEpoch) pendingAccess.current = undefined
+      if (mounted.current && id === operation.current) setBusy(false)
+    }
   }
   function run(work: () => Promise<void>, transitions = false, ownsPendingAccess = true) { void execute(work, transitions, false, ownsPendingAccess) }
   async function accessed(next: ProfileToken) {

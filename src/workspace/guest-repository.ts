@@ -4,7 +4,7 @@ import { recordWorkspaceStartup, WORKSPACE_STARTUP_PHASE } from '../diagnostics/
 import { openGuestManagedRepository, managedGuestSelection, checkManagedGuestRecovery, managedGuestRecoveryNotices, observeManagedGuestRecovery, inspectManagedGuestRecovery, exportManagedGuestRecovery, copyManagedGuestRecovery } from './guest-managed-repository'
 import { registerDeferredOwnedFileCommitter } from './owned-file-command'
 import { registerWorkspaceCapture, type WorkspaceSnapshot } from './snapshot'
-import { captureProfileEpoch } from '../account/profile'
+import { captureGuestWorkspaceEpoch } from '../account/profile'
 import { validateWorkspaceClosure } from './closure'
 import { assertOwnedInspectorCapture, reconcilableFileOutcome, registerOwnedFileCommitter, ownedFileReceipt, assertFileCommandResult, type OwnedFileReceipt } from './owned-file-command'
 import { CryKitDatabase } from '../persistence/database'
@@ -27,10 +27,10 @@ import type { OwnedFileCommand, OwnedFileOutcome } from './owned-file-command'
 
 import { compareGuestEvidence, readGuestEvidence, databaseEvidenceRows, type CapturedGuestEvidence } from './guest-evidence'
 
-const guestProfiles = new WeakMap<WorkspaceRepository, ReturnType<typeof captureProfileEpoch>>()
+const guestProfiles = new WeakMap<WorkspaceRepository, ReturnType<typeof captureGuestWorkspaceEpoch>>()
 const bindings = new WeakMap<WorkspaceRepository, Promise<GuestBindings>>()
 async function commitOwnedGuestSuccessor(binding: GuestBindings, before: WorkspaceState, next: WorkspaceState, command: OwnedFileCommand): Promise<OwnedFileOutcome> {
-  const profile = captureProfileEpoch()
+  const profile = captureGuestWorkspaceEpoch()
   let target: GuestManifestV2 | undefined, expected: WorkspaceState | undefined, expectedEvidence: CapturedGuestEvidence | undefined, failure: unknown
   let receipt: OwnedFileReceipt | undefined, verified: WorkspaceRepository | undefined
   let resolving: Promise<unknown> = Promise.resolve()
@@ -187,7 +187,7 @@ export async function copyRepositoryGuestRecovery(repository: WorkspaceRepositor
   await copyGuestRecovery(binding, capture, canReplace)
 }
 export function createGuestRepository(original?: CryKitDatabase): WorkspaceRepository {
-  const profile = captureProfileEpoch()
+  const profile = captureGuestWorkspaceEpoch()
   let opening: Promise<WorkspaceRepository> | undefined
   // Account entry does not consume local data, so constructing its guest facade must not migrate it
   // First use chooses one captured repository; the original profile fence still rejects stale callbacks before IO
@@ -224,7 +224,7 @@ export function createGuestRepository(original?: CryKitDatabase): WorkspaceRepos
 
 export interface GuestCopySource { readonly snapshot: WorkspaceSnapshot; readonly originals?: CapturedGuestEvidence }
 export async function captureGuestWorkspaceForCopy(original = getDatabase()): Promise<GuestCopySource> {
-  const profile = captureProfileEpoch(), startup = await prepareGuestStartup(original, 'capture')
+  const profile = captureGuestWorkspaceEpoch(), startup = await prepareGuestStartup(original, 'capture')
   profile.assertCurrent()
   if (startup.kind === 'managed') {
     const repository = await openGuestManagedRepository(startup.coordinator, startup.manifest)
@@ -239,7 +239,7 @@ export async function captureGuestWorkspaceForCopy(original = getDatabase()): Pr
 }
 
 function guestRepository(captured: Promise<GuestBindings>): WorkspaceRepository {
-  const exportProfile = captureProfileEpoch()
+  const exportProfile = captureGuestWorkspaceEpoch()
   // This promise captures named handles once; activation opens a successor instead of retargeting queued work
   // Construction may precede the first consumer; the original promise still rejects for every caller
   void captured.catch(() => {})
@@ -318,7 +318,7 @@ function guestRepository(captured: Promise<GuestBindings>): WorkspaceRepository 
   bindings.set(repository, captured)
   registerWorkspaceCapture(repository, async () => { const { captureGuestSnapshot } = await import('./guest-snapshot'); return captureGuestSnapshot(await captured) })
   registerOwnedFileCommitter(repository, async (before, next, command) => {
-    const profile = captureProfileEpoch()
+    const profile = captureGuestWorkspaceEpoch()
     const binding = await captured
     if (binding.manifest.version === 2) return commitOwnedGuestSuccessor(binding, before, next, command)
     let expectedEvidence: CapturedGuestEvidence | undefined

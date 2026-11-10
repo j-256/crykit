@@ -1,5 +1,5 @@
 import Dexie from 'dexie'
-import { captureProfileEpoch } from '../account/profile'
+import { captureGuestWorkspaceEpoch } from '../account/profile'
 import { openSelectedGuestPlanner } from './open-required-guest-planner'
 import { CryKitDatabase } from '../persistence/database'
 import { InspectorStorage } from '../mod-inspector/storage'
@@ -21,7 +21,7 @@ export interface GuestRecoveryNotice { readonly id: string; readonly status: 'di
 async function participants(binding: GuestBindings, journal: GuestActivationJournal | GuestRestoreJournal | GuestSuccessorJournal) {
   await assertGuestCurrent(binding)
   // Retained participants keep their recorded layouts; a normal constructor would migrate behind the retired barrier
-  const profile = captureProfileEpoch()
+  const profile = captureGuestWorkspaceEpoch()
   const planner = journal.expected.version === 2
     ? await openSelectedGuestPlanner(journal.expected.planner, { signal: profile.signal, assertCurrent: () => { profile.assertCurrent(); return undefined } })
     : new Dexie(journal.expected.planner)
