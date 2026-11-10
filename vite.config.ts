@@ -5,6 +5,7 @@ import { offlinePlugin } from './scripts/offline-plugin.ts'
 import { ocrAssets } from './scripts/ocr-assets.ts'
 import { softwareLicenses } from './scripts/software-licenses.ts'
 import { previewPlugin } from './scripts/preview-plugin.ts'
+import { rumPlugin } from './scripts/rum-plugin.ts'
 
 const PERSISTENCE_TEST_TIMEOUT_MS = 30_000
 const CI_TEST_WORKERS = 2
@@ -48,6 +49,7 @@ const DOM_TEST_FILES = [
   'src/ui/route-state.test.ts',
   'src/ui/useQueuedTileUpdates.test.tsx',
   'src/ui/BuildDetailsControl.test.tsx',
+  'src/ui/BuildsView.navigation.test.tsx',
   'src/ui/CombatPreview.test.tsx',
   'src/ui/mod-inspector/inspector.test.tsx',
   'src/ui/mod-inspector/editor-persistence.test.tsx',
@@ -60,6 +62,7 @@ export default defineConfig({
     ocrAssets(),
     softwareLicenses(),
     previewPlugin(),
+    rumPlugin(),
     offlinePlugin(),
     {
       name: 'development-csp',
