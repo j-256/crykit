@@ -99,6 +99,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build application
+        env:
+          CRYKIT_RUM_SITE_TOKEN: ${{ github.event_name != 'pull_request' && github.repository == 'j-256/crykit' && github.ref == 'refs/heads/main' && vars.CRYKIT_RUM_SITE_TOKEN || '' }}
         run: npm run build
       - name: Validate deployment
         run: npm run deploy:dry-run -- --example

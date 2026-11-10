@@ -22,6 +22,7 @@
   },
   "include": [
     "e2e/accounts/**/*.ts",
+    "scripts/rum-proof/**/*.ts",
     "worker/testing/service-fixture.ts",
     "worker/testing/probe-client.ts"
   ]
