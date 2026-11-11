@@ -30,6 +30,10 @@ const MIME = {
 const hash = bytes => createHash('sha256').update(bytes).digest('hex')
 const fail = message => { throw Error(message) }
 
+function validSnapshotName(name) {
+  return !/[\\\u0000-\u001f\u007f]/.test(name) && name.split('/').every(part => part !== '' && part !== '.' && part !== '..')
+}
+
 async function owned(path, directory = false) {
   const stat = await lstat(path)
   const correctType = directory ? stat.isDirectory() : stat.isFile()
@@ -53,9 +57,10 @@ async function state({ root, cache }) {
 async function inventory(directory, prefix = '') {
   const files = Object.create(null)
   for (const name of (await readdir(directory)).sort()) {
-    if (name === '.snapshot.json' || name.includes('\\')) fail('Unsupported build filename')
-    const path = join(directory, name)
     const relative = prefix + name
+    // Publication must admit exactly the names that a later snapshot reader accepts
+    if (name === '.snapshot.json' || !validSnapshotName(relative)) fail('Unsupported build filename')
+    const path = join(directory, name)
     const stat = await lstat(path)
     if (stat.isSymbolicLink()) fail('Build symlinks are not allowed')
     if (stat.isDirectory()) {
@@ -122,7 +127,13 @@ async function pointer(session) {
 async function manifest(session, id) {
   const path = join(session, id, '.snapshot.json')
   await owned(path)
-  return JSON.parse(await readFile(path, 'utf8'))
+  const files = JSON.parse(await readFile(path, 'utf8'))
+  if (!files || typeof files !== 'object' || Array.isArray(files)) fail('Invalid review snapshot manifest')
+  for (const [name, digest] of Object.entries(files)) {
+    if (!validSnapshotName(name)) fail('Invalid review snapshot filename')
+    if (typeof digest !== 'string' || !/^[a-f0-9]{64}$/.test(digest)) fail('Invalid review snapshot digest')
+  }
+  return files
 }
 
 async function publish(session, dist) {
@@ -228,7 +239,7 @@ function finish(response, status, body = '', headers = {}) {
   response.end(body)
 }
 
-async function serveRequest(request, response, { server, session, getManifest }) {
+async function serveRequest(request, response, { server, session, getFiles }) {
   if (!['GET', 'HEAD'].includes(request.method)) {
     finish(response, 405, '', { allow: 'GET, HEAD' })
     return
@@ -255,7 +266,7 @@ async function serveRequest(request, response, { server, session, getManifest })
     return
   }
   const published = await pointer(session)
-  const current = await getManifest(published.current)
+  const current = await getFiles(published.current)
   const query = request.url.includes('?') ? '?' + request.url.split('?').slice(1).join('?') : ''
   if (path === 'index.html' || path.endsWith('/index.html')) {
     finish(response, 308, '', { location: '/' + path.slice(0, -'index.html'.length) + query })
@@ -263,26 +274,24 @@ async function serveRequest(request, response, { server, session, getManifest })
   }
   if (path === '' || path.endsWith('/')) {
     path += 'index.html'
-  } else if (Object.hasOwn(current, path + '/index.html')) {
+  } else if (current.has(path + '/index.html')) {
     finish(response, 308, '', { location: '/' + path + '/' + query })
     return
   }
-  let selected = Object.hasOwn(current, path) ? published.current : undefined
+  let selected = current.get(path)
   // Only content-addressed assets can cross snapshot boundaries
   // An unknown module must return 404 rather than HTML from the newest shell
   if (!selected && HASHED.test(path)) {
     for (const id of [...published.history].reverse()) {
-      if (Object.hasOwn(await getManifest(id), path)) {
-        selected = id
-        break
-      }
+      selected = (await getFiles(id)).get(path)
+      if (selected) break
     }
   }
   if (!selected) {
     finish(response, 404)
     return
   }
-  const body = await readFile(join(session, selected, path))
+  const body = await readFile(selected)
   const policy = headers(await readFile(join(session, published.current, '_headers'), 'utf8'), '/' + path)
   const cacheControl = HASHED.test(path) ? 'public, max-age=31536000, immutable' : 'no-cache'
   response.writeHead(200, {
@@ -306,14 +315,19 @@ export async function startReview({ root, dist, cache, port = DEFAULT_PORT }) {
   }
   const session = await mkdtemp(join(directory, 'session-'))
   await publish(session, dist)
-  const manifests = new Map()
-  const getManifest = async id => {
-    if (!manifests.has(id)) manifests.set(id, await manifest(session, id))
-    return manifests.get(id)
+  const fileIndexes = new Map()
+  const getFiles = async id => {
+    if (!fileIndexes.has(id)) {
+      // Filesystem paths come only from validated publication names, never from request text
+      // Requests select an existing entry so decoding or routing changes cannot extend the snapshot
+      const names = Object.keys(await manifest(session, id))
+      fileIndexes.set(id, new Map(names.map(name => [name, join(session, id, name)])))
+    }
+    return fileIndexes.get(id)
   }
   const server = createServer((request, response) => {
     const started = performance.now()
-    void serveRequest(request, response, { server, session, getManifest }).catch(error => {
+    void serveRequest(request, response, { server, session, getFiles }).catch(error => {
       const requestId = randomUUID()
       const reason = ['ENOENT', 'EACCES', 'ENOTDIR', 'EIO', 'EPERM'].includes(error?.code) ? error.code : 'INVALID_SNAPSHOT'
       console.error(JSON.stringify({ event: 'crykit-review-error', code: 'SNAPSHOT_READ_FAILED', reason, requestId, durationMs: Math.round(performance.now() - started) }))

@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
 import { createHash } from 'node:crypto'
+import { request as httpRequest } from 'node:http'
 import { startReview, publishReview } from './review-server.mjs'
 
 async function build(directory, version) {
@@ -59,6 +60,84 @@ test('publication rejects symlinks, hashed path collisions and concurrent sessio
     assert.match(await (await fetch(server.origin + '/assets/main-AAAAAAAA.js')).text(), /build='A'/)
     const { symlink } = await import('node:fs/promises'); await symlink('/etc/hosts', join(dist, 'unsafe'))
     await assert.rejects(publishReview({ root, dist, cache }), /symlink|regular/i)
+  } finally { await server.close() }
+})
+
+async function snapshotDirectory(root, cache) {
+  const key = createHash('sha256').update(await realpath(root)).digest('hex').slice(0, 24)
+  const directory = join(cache, 'crykit-review', key)
+  const record = JSON.parse(await readFile(join(directory, 'active.json'), 'utf8'))
+  const session = join(directory, record.session)
+  const published = JSON.parse(await readFile(join(session, 'current.json'), 'utf8'))
+  return join(session, published.current)
+}
+
+test('raw request paths cannot select unpublished files or escape a snapshot', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'crykit-review-paths-'))
+  const dist = join(root, 'dist'), cache = join(root, 'cache')
+  await build(dist, 'A')
+  await writeFile(join(dist, 'safe name.txt'), 'Published name')
+  await writeFile(join(root, 'private.txt'), 'SYNTHETIC_PRIVATE_MARKER')
+  const server = await startReview({ root, dist, cache, port: 0 })
+  try {
+    await writeFile(join(await snapshotDirectory(root, cache), 'unpublished.txt'), 'SYNTHETIC_PRIVATE_MARKER')
+    // Keep traversal bytes intact instead of letting a URL client normalize them before sending
+    const get = path => new Promise((resolve, reject) => {
+      const request = httpRequest(server.origin, { path }, response => {
+        let body = ''
+        response.setEncoding('utf8')
+        response.on('data', chunk => { body += chunk })
+        response.on('end', () => resolve({ status: response.statusCode, body }))
+        response.on('error', reject)
+      })
+      request.on('error', reject)
+      request.end()
+    })
+    for (const path of ['/../private.txt', '/assets/%2e%2e/%2e%2e/private.txt', '/%2e%2e%2fprivate.txt', '/assets%5c..%5cprivate.txt', '/%00private.txt']) {
+      const response = await get(path)
+      assert.equal(response.status, 400, path)
+      assert.doesNotMatch(response.body, /SYNTHETIC_PRIVATE_MARKER/)
+    }
+    for (const path of ['/unpublished.txt', '/%252e%252e%252fprivate.txt', '/.snapshot.json', '/_headers']) assert.equal((await get(path)).status, 404, path)
+    assert.deepEqual(await get('/%73afe%20name.txt'), { status: 200, body: 'Published name' })
+  } finally { await server.close() }
+})
+
+test('unsafe snapshot route manifests fail before any file is served', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'crykit-review-manifest-'))
+  const dist = join(root, 'dist'), cache = join(root, 'cache')
+  await build(dist, 'A')
+  const server = await startReview({ root, dist, cache, port: 0 })
+  const logging = mock.method(console, 'error', () => {})
+  try {
+    const path = join(await snapshotDirectory(root, cache), '.snapshot.json')
+    const original = JSON.parse(await readFile(path, 'utf8'))
+    for (const name of ['../private.txt', '/private.txt', 'nested/../private.txt', 'nested//private.txt', 'nested\\private.txt']) {
+      await writeFile(path, JSON.stringify({ ...original, [name]: 'a'.repeat(64) }))
+      assert.equal((await fetch(server.origin)).status, 503, name)
+    }
+    await writeFile(path, JSON.stringify({ ...original, 'bad-hash.txt': 'not-a-digest' }))
+    assert.equal((await fetch(server.origin)).status, 503)
+    await writeFile(path, JSON.stringify(original))
+    assert.match(await (await fetch(server.origin)).text(), /Build A/)
+  } finally { logging.mock.restore(); await server.close() }
+})
+
+test('publication rejects unservable filenames before replacing the current snapshot', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'crykit-review-invalid-name-'))
+  const dist = join(root, 'dist'), cache = join(root, 'cache')
+  await build(dist, 'A')
+  const server = await startReview({ root, dist, cache, port: 0 })
+  try {
+    assert.match(await (await fetch(server.origin)).text(), /Build A/)
+    await build(dist, 'B')
+    await writeFile(join(dist, 'bad\nname.txt'), 'Unservable filename')
+    await assert.rejects(publishReview({ root, dist, cache }), /filename/)
+    assert.match(await (await fetch(server.origin)).text(), /Build A/)
+    assert.equal((await fetch(server.origin + '/assets/main-BBBBBBBB.js')).status, 404)
+    await rm(join(dist, 'bad\nname.txt'))
+    await publishReview({ root, dist, cache })
+    assert.match(await (await fetch(server.origin)).text(), /Build B/)
   } finally { await server.close() }
 })
 test('CLI help and invalid arguments are explicit without starting a server', () => {
