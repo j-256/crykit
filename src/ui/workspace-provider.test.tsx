@@ -715,6 +715,44 @@ it('Save marker capture cannot acknowledge unsaved pending input as durable', as
   expect(controller.snapshot().dirty).toBe(true)
 })
 
+it.each([false, true])('opens fresh Build input during a pending planner write with StrictMode=%s', async strict => {
+  let selected!: ReturnType<typeof useWorkspace>
+  function Draft() {
+    const input = useBuildInput()!
+    const [title] = useBuildInputState('title', 'Fresh Build')
+    return <input aria-label="Fresh Build title" disabled={input.pending} readOnly value={title}/>
+  }
+  function Planner() {
+    selected = useWorkspace()
+    // Planner commits expose optimistic setup changes before their durable write settles
+    useLayoutEffect(() => selected.registerDraftPresence(() => true), [selected.registerDraftPresence])
+    return <BuildInputProvider scope="fresh-pending-write"><Draft/></BuildInputProvider>
+  }
+  const content = <WorkspaceProvider><Planner/></WorkspaceProvider>
+  await act(async () => root.render(strict ? <StrictMode>{content}</StrictMode> : content))
+  expect(container.textContent).not.toContain('Build input needs recovery')
+  expect(container.querySelector<HTMLInputElement>('input')!.disabled).toBe(false)
+  expect(selected.isCurrent()).toBe(true)
+  expect(selected.buildInputSession.hydration).toBeUndefined()
+})
+
+it('rejects fresh Build confirmation from retired views and workspace generations', async () => {
+  let selected!: ReturnType<typeof useWorkspace>
+  function Owner() { selected = useWorkspace(); return null }
+  await act(async () => root.render(<WorkspaceProvider><Owner/></WorkspaceProvider>))
+  const old = selected, session = selected.buildInputSession
+  const oldView = session.controller.attach()
+  session.controller.revoke()
+  const view = session.controller.attach()
+  await expect(selected.confirmBuildHydration(oldView)).rejects.toThrow('retired')
+  await expect(selected.confirmBuildHydration(view)).resolves.toBeUndefined()
+  vi.spyOn(account, 'openAccountRepository').mockResolvedValue({ ...createGuestRepository(), kind: 'account' })
+  await act(async () => selected.openAccount(token))
+  const successorView = session.controller.attach()
+  await expect(old.confirmBuildHydration(successorView)).rejects.toThrow('workspace changed')
+  await expect(selected.confirmBuildHydration(successorView)).resolves.toBeUndefined()
+})
+
 it.each([1, 2])('owned Build import remounts exact dirty input with %s hydration confirmations and leaves unrelated owners as blockers', async confirmations => {
   await sameRealmIndexedDb()
   const { previewCrystalEdit } = await import('../interchange/crystal-edit')
@@ -747,6 +785,43 @@ it.each([1, 2])('owned Build import remounts exact dirty input with %s hydration
   expect(() => selected.buildInputSession.controller.edit(oldView, 'title', 'stale')).toThrow('retired')
   await expect(old.repository.load()).rejects.toThrow('retired')
   expect(selected.fileCommandPending()).toBe(false)
+})
+
+it('keeps a receipt-backed Build transfer blocked until other planner drafts and writes settle', async () => {
+  await sameRealmIndexedDb()
+  const { previewCrystalEdit } = await import('../interchange/crystal-edit')
+  let selected!: ReturnType<typeof useWorkspace>
+  function Owner() {
+    selected = useWorkspace()
+    const session = selected.buildInputSession
+    session.view ??= session.controller.attach()
+    return null
+  }
+  await act(async () => root.render(<WorkspaceProvider><Owner/></WorkspaceProvider>))
+  const session = selected.buildInputSession, old = selected, oldView = session.view!
+  session.controller.edit(oldView, 'title', 'Unsaved imported Build')
+  session.controller.dirty(oldView, true)
+  const before = await observe(() => selected.repository.load())
+  const preview = await previewCrystalEdit(new TextEncoder().encode('{"ID":"blocked-hydration","Title":"Blocked hydration","EditorVersion":34,"Items":[]}'), 'hydration.json')
+  await act(async () => selected.importBuildSource(preview, { id: before.localData.id, revision: before.revision }))
+  expect(selected.repository).not.toBe(old.repository)
+  const hydration = session.hydration, view = session.view!
+  expect(hydration).toBeDefined()
+  expect(session.phase).toBe('hydrating')
+  const unblock = selected.registerDraftPresence(() => true)
+  await expect(selected.confirmBuildHydration(view)).rejects.toThrow('workspace changed')
+  expect(session.hydration).toBe(hydration)
+  expect(selected.fileCommandPending()).toBe(true)
+  expect(() => session.controller.edit(view, 'title', 'Blocked edit')).toThrow('Wait for the imported source')
+  unblock()
+  await expect(old.confirmBuildHydration(view)).rejects.toThrow('workspace changed')
+  await expect(selected.confirmBuildHydration(oldView)).rejects.toThrow('retired')
+  await act(async () => selected.confirmBuildHydration(view))
+  expect(session.hydration).toBeUndefined()
+  expect(session.phase).toBe('idle')
+  expect(selected.fileCommandPending()).toBe(false)
+  expect(session.controller.recoveryInput(view).title).toBe('Unsaved imported Build')
+  expect(() => session.controller.edit(view, 'title', 'Reopened Build')).not.toThrow()
 })
 
 it.each(['other-owner', 'edited-input'] as const)('owned Build import keeps recovery after post-publication %s', async cause => {
