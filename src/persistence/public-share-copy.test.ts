@@ -10,10 +10,14 @@ import { openManagedNativeWorkspace } from './managed-sync.test-helpers'
 import { inspectWorkspaceClosure } from '../workspace/closure'
 import { privateRecordKey, type WorkspaceState } from '../workspace/documents'
 import { createBlankLocalData } from '../domain/local-data'
+import type { CatalogSnapshot, EntityId } from '../domain/types'
 import { validatePublicSnapshot, type PublicSnapshot } from '../interchange/public-share-schema'
 import { editCopiedCheckpoint } from '../interchange/public-checkpoint-edit'
 import { CURRENT_CATALOG } from '../catalog/bundled'
 import { createPublicSnapshot } from '../interchange/public-share'
+
+const AVAILABLE_CATALOG_PIN = Object.freeze({ catalogId: 'synthetic-public-copy-catalog' as CatalogSnapshot['id'], catalogRevisionId: 'synthetic-public-copy-v1' as CatalogSnapshot['revisionId'] })
+const AVAILABLE_ENTITY_ID = 'synthetic-present-item' as EntityId
 
 let database: AccountDatabase | undefined
 afterEach(async () => { vi.restoreAllMocks(); invalidateProfile(); await database?.delete(); database = undefined })
@@ -21,7 +25,7 @@ export function missingTeam(): PublicSnapshot {
   return { version: 5, kind: 'team', title: 'Receipt-only Team', setup: { baseline: { catalogId: 'missing-base', catalogRevisionId: 'historical-base' }, catalogLock: { 'missing-base': 'historical-base', 'crystal-edit:missing': 'historical-mod' }, layers: [{ catalogId: 'crystal-edit:missing', catalogRevisionId: 'historical-mod', title: 'Missing exact mod', checksum: `sha256:${'b'.repeat(64)}` }], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [null, null, null, null], receipts: [] }
 }
 function unknownCatalogSnapshot(kind: 'build' | 'team' = 'build', available = false): PublicSnapshot {
-  const ref = { kind: 'catalog', catalogId: available ? CURRENT_CATALOG.id : 'missing-base', catalogRevisionId: available ? CURRENT_CATALOG.revisionId : 'historical-base', entityId: available ? 'base:equipment:41' : 'unknown-selected-item' }
+  const ref = { kind: 'catalog', catalogId: available ? AVAILABLE_CATALOG_PIN.catalogId : 'missing-base', catalogRevisionId: available ? AVAILABLE_CATALOG_PIN.catalogRevisionId : 'historical-base', entityId: available ? AVAILABLE_ENTITY_ID : 'unknown-selected-item' }
   const loadout = { primaryClass: null, secondaryClass: null, equipment: [{ slotId: 'hand', ref }], equipmentGroups: [], passives: [] }
   return validatePublicSnapshot({ ...missingTeam(), kind, title: 'Unknown catalog selection', setup: { ...missingTeam().setup, baseline: { catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId }, catalogLock: { [ref.catalogId]: ref.catalogRevisionId }, layers: [], slots: [{ id: 'hand', label: 'Hand' }] }, slots: kind === 'team' ? [null, loadout, null, null] : [loadout], receipts: [{ ref, kind: null, origin: null, name: 'Saved unknown selection' }] })
 }
@@ -29,7 +33,15 @@ function unknownCatalogSnapshot(kind: 'build' | 'team' = 'build', available = fa
 it.each([{ kind: 'build', available: false }, { kind: 'team', available: false }, { kind: 'build', available: true }] as const)('unknown catalog $kind copy with exact definition available $available survives reopen, notes, re-share, backup and isolated closure', async ({ kind, available }) => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   database = new AccountDatabase(token.accountId)
-  const repository = await openAccountRepository(token), before = await repository.readWorkspace(), snapshot = unknownCatalogSnapshot(kind, available)
+  const repository = await openAccountRepository(token)
+  if (available) {
+    const initial = await repository.readWorkspace()
+    // A distinct complete catalog exercises exact present-definition authority without archiving the entire native dataset
+    // Publish through the real repository before capture so every later reopen, backup, and closure owns the same fixture
+    const catalog: CatalogSnapshot = { id: AVAILABLE_CATALOG_PIN.catalogId, revisionId: AVAILABLE_CATALOG_PIN.catalogRevisionId, schemaVersion: 'synthetic-public-copy-1', checksum: 'synthetic-public-copy-v1', importedAt: initial.planner.localData.createdAt, applicability: { state: 'unknown' }, rights: { state: 'unknown' }, entities: { [AVAILABLE_ENTITY_ID]: { id: AVAILABLE_ENTITY_ID, kind: 'item', name: 'Exact synthetic item', aliases: [], fields: {}, sources: [] } }, claims: [] }
+    await repository.commitWorkspace({ ...initial, planner: { ...initial.planner, catalogs: [...initial.planner.catalogs, catalog] } }, initial.planner.localData.revision)
+  }
+  const before = await repository.readWorkspace(), snapshot = unknownCatalogSnapshot(kind, available)
   const result = await copyPublicSnapshot(repository, snapshot)
   const current = await openAccountRepository(token), after = await current.readWorkspace(), data = after.planner.localData
   const revision = result.buildId ? data.buildRevisions[data.builds[result.buildId]!.latestRevisionId!]! : Object.values(data.teamRevisions).find(checkpoint => checkpoint.teamId === result.teamId)!
@@ -42,7 +54,10 @@ it.each([{ kind: 'build', available: false }, { kind: 'team', available: false }
   expect(after.planner.catalogs).toEqual(before.planner.catalogs)
   expect(after.planner.sources).toEqual(before.planner.sources)
   expect(data.playthroughs).toEqual(before.planner.localData.playthroughs)
-  if (available) expect(after.planner.catalogs.some(catalog => catalog.id === CURRENT_CATALOG.id && catalog.revisionId === CURRENT_CATALOG.revisionId && catalog.entities['base:equipment:41'])).toBe(true)
+  if (available) {
+    expect(after.planner.catalogs.some(catalog => catalog.id === AVAILABLE_CATALOG_PIN.catalogId && catalog.revisionId === AVAILABLE_CATALOG_PIN.catalogRevisionId && catalog.entities[AVAILABLE_ENTITY_ID])).toBe(true)
+    expect(after.planner.catalogs.some(catalog => catalog.id === CURRENT_CATALOG.id && catalog.revisionId === CURRENT_CATALOG.revisionId && catalog.entities['base:equipment:41'])).toBe(true)
+  }
   const notes = { ...(kind === 'team' ? { checkpoint: 'Recipient Team checkpoint' } : {}), slots: snapshot.slots.map(slot => slot ? { rotationNotes: 'Recipient note without mechanics', checkpoint: 'Recipient checkpoint', contextAssumptions: [] } : null) }
   const edited = editCopiedCheckpoint(after, { checkpoint: 'slots' in revision ? { kind: 'team', revisionId: revision.id } : { kind: 'build', revisionId: revision.id }, notes })
   await current.commitWorkspace({ ...after, planner: { ...after.planner, localData: edited.localData } }, data.revision)
