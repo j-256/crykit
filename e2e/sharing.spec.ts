@@ -535,7 +535,7 @@ for (const historical of [false, true]) test(`v5 mod receipts require viewer-own
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toHaveCount(0)
 })
 
-test('missing mod details stay optional while calculation locks offer local JSON recovery', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('missing display names block sharing while calculation locks offer local JSON recovery', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const { text } = await installMissingModFixture(page)
   const original = await storedData(page)
   const build = Object.values(original.builds).find(candidate => candidate.title === 'Portable mod build')!
@@ -555,8 +555,9 @@ test('missing mod details stay optional while calculation locks offer local JSON
   await expect(page.getByRole('region', { name: 'Build validity', exact: true })).toContainText('No known loadout conflicts')
   await page.getByRole('button', { name: 'Share build', exact: true }).click()
   const sharing = page.getByRole('dialog', { name: 'Share build', exact: true })
+  // Unknown catalog metadata is shareable, but the primary class has no saved display name here
   await expect(sharing.getByRole('button', { name: 'Copy link', exact: true })).toBeDisabled()
-  await expect(sharing).toContainText('restore the matching source before sharing')
+  await expect(sharing).toContainText('A selected entry needs its exact saved display receipt before sharing')
   await sharing.getByRole('button', { name: 'Close', exact: true }).click()
   await modFiles.getByRole('button', { name: 'Upload mod JSON', exact: true }).click()
   let dialog = page.getByRole('dialog', { name: 'Restore mod definitions', exact: true })
