@@ -113,6 +113,12 @@ test('native damage stays prominent with inherited stats and optional details co
   await page.screenshot({ path: testInfo.outputPath('thousand-cuts-identity.png') })
   await page.locator('summary').filter({ hasText: /^Formula reference$/ }).click()
   const formula = page.getByLabel('Ability estimate', { exact: true })
+  for (const [region, label] of [[selectedAbility, 'Ability sources for 1000 Cuts'], [formula, 'Ability formula sources']] as const) {
+    const title = (await region.getByRole('heading', { name: '1000 Cuts', exact: true }).boundingBox())!
+    const source = (await region.getByRole('button', { name: label, exact: true }).boundingBox())!
+    expect(source.x).toBeGreaterThanOrEqual(title.x + title.width)
+    expect(source.y).toBeLessThan(title.y + title.height)
+  }
   await expect(formula.locator('dt').filter({ hasText: /^Power coefficient$/ }).locator('..').locator('dd')).toHaveText('1,000')
   for (const label of ['JP', 'Displayed LP', 'Whole LP needed']) await expect(formula.locator('dt').filter({ hasText: new RegExp(`^${label}$`) }).locator('..').locator('dd')).toHaveText('0')
   await expect(formula.locator('input, select, textarea')).toHaveCount(0)

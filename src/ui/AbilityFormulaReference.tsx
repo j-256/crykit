@@ -21,8 +21,7 @@ export function AbilityFormulaReference({ ability, abilityName, definition, nume
   const attackStat = typeof numericRecord?.PDefAsPAtk === 'boolean' ? numericRecord.PDefAsPAtk ? 'DEF' : 'ATK' : 'Unknown'
   return <section aria-label="Ability estimate" className="ability-formula">
     <header className="ability-formula__heading">
-      <h4>{abilityName}</h4>
-      {definition && <Sources label="Ability formula sources"><SourceReferences includeGameExports sources={definition.sources}/></Sources>}
+      {definition ? <Sources anchor={<h4>{abilityName}</h4>} label="Ability formula sources"><SourceReferences includeGameExports sources={definition.sources}/></Sources> : <h4>{abilityName}</h4>}
     </header>
     <div className="ability-formula__overview">
       <dl className="ability-formula__power">

@@ -14,8 +14,8 @@ import { PrimaryClassGrowth } from './PrimaryClassGrowth'
 
 export type LoadoutView = 'loadout' | 'checks'
 
-export function LoadoutSelectionDetails({ option, comparedWith, catalogs, localData, gameSetup, showIdentity, showClassPermissions }: { option?: DefinitionOption; comparedWith?: DefinitionOption; catalogs?: readonly CatalogSnapshot[]; localData?: LocalData; gameSetup?: GameSetupRevision; showIdentity?: boolean; showClassPermissions?: boolean }) {
-  return option ? <BuildSelectionDetails catalogs={catalogs} comparedWith={comparedWith} gameSetup={gameSetup} localData={localData} option={option} showClassPermissions={showClassPermissions} showIdentity={showIdentity}/> : <p>Select a class, item, or passive for details. Empty means nothing is equipped; Unknown means it has not been recorded.</p>
+export function LoadoutSelectionDetails({ option, comparedWith, catalogs, localData, gameSetup, heading, showClassPermissions }: { option?: DefinitionOption; comparedWith?: DefinitionOption; catalogs?: readonly CatalogSnapshot[]; localData?: LocalData; gameSetup?: GameSetupRevision; heading?: ReactNode; showClassPermissions?: boolean }) {
+  return option ? <BuildSelectionDetails catalogs={catalogs} comparedWith={comparedWith} gameSetup={gameSetup} localData={localData} option={option} showClassPermissions={showClassPermissions} heading={heading}/> : <p>Select a class, item, or passive for details. Empty means nothing is equipped; Unknown means it has not been recorded.</p>
 }
 
 export function LoadoutSheet({ content, slots, localData, catalogs, gameSetup, view, onViewChange, viewLabel, primaryClassField, subCommandField, equipmentFields, passiveFields, passiveTools, selection, comparedWith, notes, context, onCalculationChange, onReviewGameSetup, onUploadMod, onReviewIssues, recorded, unknownInputs, unknownSecondaryClass, unknownPrimaryClass, selectionActions, showClassPermissions, showChecks = true, showStats = true, readOnly = false }: {
@@ -58,8 +58,7 @@ export function LoadoutSheet({ content, slots, localData, catalogs, gameSetup, v
         </div>
         <aside aria-label="Selection details" className="build-sheet__preview">
           {!readOnly && <span className="eyebrow">Selection details</span>}
-          {selection && <h3 className="icon-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={selection.ref}/>{nativeDisplayName(selection.record)}</h3>}
-          <LoadoutSelectionDetails catalogs={catalogs} comparedWith={comparedWith} gameSetup={gameSetup} localData={localData} option={selection} showClassPermissions={showClassPermissions} showIdentity={false}/>{selection && selectionActions}
+          <LoadoutSelectionDetails catalogs={catalogs} comparedWith={comparedWith} gameSetup={gameSetup} localData={localData} option={selection} showClassPermissions={showClassPermissions} heading={selection && <h3 className="icon-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={selection.ref}/>{nativeDisplayName(selection.record)}</h3>}/>{selection && selectionActions}
         </aside>
       </div>
       {context}

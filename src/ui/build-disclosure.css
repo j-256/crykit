@@ -1,0 +1,19 @@
+.build-disclosure { min-width: 0; border-top: 1px solid var(--line); }
+.build-disclosure > .build-disclosure__summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 52px; padding: 14px 16px; background: var(--ink-900); color: var(--text); font-size: .875rem; font-weight: 600; line-height: 1.5; cursor: pointer; list-style: none; }
+.build-disclosure > .build-disclosure__summary::-webkit-details-marker { display: none; }
+.build-disclosure__summary > span { min-width: 0; overflow-wrap: anywhere; }
+.build-disclosure__summary > svg { flex: none; width: 18px; height: 18px; color: var(--text-dim); }
+.build-disclosure[open] > .build-disclosure__summary > svg { transform: rotate(180deg); }
+.build-disclosure > .build-disclosure__summary:hover { background: var(--ink-850); }
+.build-disclosure > .build-disclosure__summary:focus-visible { position: relative; outline: 2px solid var(--cyan-300); outline-offset: -2px; }
+.build-disclosure > .build-disclosure__body { min-width: 0; padding: 16px; color: var(--text-dim); font-size: .875rem; line-height: 1.6; overflow-wrap: anywhere; }
+.build-disclosure__body > :first-child { margin-top: 0; }
+.build-disclosure__body > :last-child { margin-bottom: 0; }
+.build-disclosure__body :is(h3, h4, h5) { color: var(--text); }
+.build-disclosure .build-disclosure > .build-disclosure__summary { padding-inline: 0; background: transparent; font-weight: 500; }
+.build-disclosure .build-disclosure > .build-disclosure__summary:hover { color: var(--cyan-300); }
+.build-disclosure .build-disclosure > .build-disclosure__body { padding: 4px 0 16px; }
+@media (max-width: 600px) {
+  .build-disclosure > .build-disclosure__summary { padding-inline: 12px; }
+  .build-disclosure > .build-disclosure__body { padding: 12px; }
+}
