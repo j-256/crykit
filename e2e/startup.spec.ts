@@ -41,6 +41,8 @@ for (const reducedMotion of ['no-preference', 'reduce'] as const) {
 
         await expectLoadingMotion(loading, reducedMotion === 'reduce')
         releaseApplication()
+        // Released downloads still need to finish before asserting the module-rendered storage phase
+        await page.waitForLoadState('domcontentloaded')
         await expect(loading.getByRole('status')).toHaveText('Opening saved workspace...')
         await expect(loading.locator('.loading-screen__crystal svg')).toBeVisible()
         await expect(loading).toHaveCSS('background-color', 'rgb(23, 29, 34)')
