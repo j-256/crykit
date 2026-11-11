@@ -80,6 +80,8 @@ Battle scenarios are saved assumptions, separate from character observations. Ne
 
 Battle outcomes are snapshot previews before random rolls, survival effects, and resource clamping. They do not simulate action scheduling, reactions, target legality, encounter progression, or game-state inspection. Shares and saved copies preserve scenario inputs and show the same supported calculations.
 
+Read-only Build and Team views also let you choose a preview ability and try battle conditions under **Checks & Notes > Ability and hit-chance preview**. These experiments use the viewed Build's matching sources and are not saved. **Reset preview** restores the shared inputs; leaving the checks view, changing members, or reloading clears the experiment. **Save a copy** copies the original shared inputs.
+
 ## Share a build or team
 
 Choose **Share build** on a build card or an open saved checkpoint, or **Share team** on a saved Team overview, then choose **Copy link**. Build cards share the latest checkpoint. A recipient sees **Read-only snapshot**, can inspect its selections, and can choose **Save a copy**. A new unsaved Build or Team shows **Not yet saved**. Matching Game Setups are reused; a different setup gets a unique name if its name is already taken. Team copies save four build slots directly, without requiring tracked characters. **Include written notes** adds rotation notes, written assumptions, and checkpoint names. Build behavior and calculation inputs are always included, and character observations and inventory remain local. See [share links](share-links.md) for URL capacity, catalog requirements, and privacy.
