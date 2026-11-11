@@ -809,7 +809,9 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
       const hydration = buildInputSession.hydration
       const guard = () => {
         buildInputSession.controller.assertView(view)
-        if (!isCurrent() || draftPresence.current(buildInputSession.controller.owner) || hydration !== buildInputSession.hydration || hydration && hydration.generation !== version.current) throw new Error('The workspace changed during Build reopening')
+        // Fresh forms attach to the existing planner while its ordinary saves can still be pending
+        // Only receipt-backed transfers replace input ownership and must wait for other drafts and writes
+        if (!isCurrent() || hydration !== buildInputSession.hydration || hydration && (draftPresence.current(buildInputSession.controller.owner) || hydration.generation !== version.current)) throw new Error('The workspace changed during Build reopening')
       }
       guard()
       // StrictMode can confirm the same transferred view twice while its receipt check is pending
