@@ -48,8 +48,8 @@ function ChanceMeter({ label, value }: { readonly label: string; readonly value:
   return value !== null && value >= 0 && value <= MAX_PERCENT ? <meter className="combat-chance-meter" aria-label={label} min={0} max={MAX_PERCENT} value={value}>{value}%</meter> : null
 }
 
-export function CombatPreview({ content, slots, localData, catalogs, gameSetup, onChange, onUploadMod, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: {
-  readonly content: BuildRevisionContent; readonly slots: readonly SlotDefinition[]; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly gameSetup?: GameSetupRevision; readonly onChange?: (plan: BuildCalculationPlan | undefined) => void; readonly onUploadMod?: () => void; readonly unknownInputs?: readonly string[]; readonly unknownSecondaryClass?: boolean
+export function CombatPreview({ content, slots, localData, catalogs, gameSetup, onChange, onUploadMod, temporaryPreview = false, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: {
+  readonly content: BuildRevisionContent; readonly slots: readonly SlotDefinition[]; readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[]; readonly gameSetup?: GameSetupRevision; readonly onChange?: (plan: BuildCalculationPlan | undefined) => void; readonly onUploadMod?: () => void; readonly unknownInputs?: readonly string[]; readonly unknownSecondaryClass?: boolean; readonly temporaryPreview?: boolean
 }) {
   const section = useRef<HTMLElement>(null)
   const plan = content.calculation
@@ -124,7 +124,7 @@ export function CombatPreview({ content, slots, localData, catalogs, gameSetup, 
           {preview.statuses.length > 0 && <div><h5>Ability status effects</h5><ul className="combat-status-results">{preview.statuses.map((status, index) => <li key={`${status.recipient}:${status.name}:${index}`}><strong>{status.name}</strong><span>{status.recipient === 'user' ? 'Actor' : 'Target'} · Chance: <PreviewValue {...valueContext} recipient={status.recipient} value={status.chance} reasons={preview.unavailable[`${status.name} chance (${status.recipient})`]} suffix="%"/> · Duration: <PreviewValue {...valueContext} recipient={status.recipient} value={status.duration} reasons={preview.unavailable[`${status.name} duration (${status.recipient})`]}/>{status.condition && <small>{status.condition}</small>}</span></li>)}</ul></div>}
         </div></details>
       </div>
-      <div className="combat-assumptions-heading"><h4>Optional battle conditions</h4><p className="field__hint">Saved with this plan; recorded character stats stay unchanged.</p></div>
+      <div className="combat-assumptions-heading"><h4>Optional battle conditions</h4><p className="field__hint">{temporaryPreview ? 'Used only in this preview.' : 'Saved with this plan; recorded character stats stay unchanged.'}</p></div>
       <BattleCalculationControls battle={battle} maxima={preview.maxima} localData={localData} catalogs={catalogs} gameSetup={gameSetup} onChange={onChange ? battle => update({ battle }) : undefined}/>
       {plan.statuses.length > 0 && onChange && <InlineNotice title="Saved status assumptions"><p>Add these saved statuses to the scenario to calculate their effects.</p><Button tone="quiet" type="button" onClick={includeRetainedStatuses}>Use saved statuses in scenario</Button></InlineNotice>}
     </>}

@@ -9,7 +9,8 @@ import { Button, IconButton, InlineNotice } from './components'
 
 export function BuildLibraryImport({ onChooseLibrary }: { readonly onChooseLibrary?: () => void }) {
   const input = useBuildInput()
-  return input ? <OwnedBuildLibraryImport onChooseLibrary={onChooseLibrary}/> : null
+  const library = useDefinitionLibrary()
+  return input && library.onImportMod ? <OwnedBuildLibraryImport onChooseLibrary={onChooseLibrary}/> : null
 }
 function OwnedBuildLibraryImport({ onChooseLibrary }: { readonly onChooseLibrary?: () => void }) {
   const workspace = useWorkspace(), library = useDefinitionLibrary()

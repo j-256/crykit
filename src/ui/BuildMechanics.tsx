@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import { withoutRetainedMechanics } from '../domain/retained-selections'
 import { calculationModResolver } from '../domain/calculation-mods'
 import { resolveGameRules } from '../domain/game-rules'
@@ -7,6 +8,7 @@ import { calculateBuildStats, physicalHitChance, type StatRange } from '../domai
 import { estimateAbility } from '../domain/ability-estimates'
 import { nativeStatRecord } from '../domain/pc-stats'
 import type { BuildCalculationPlan, BuildRevisionContent, CatalogSnapshot, EntityRef, LocalData, GameSetupRevision, SlotDefinition } from '../domain/types'
+import { DefinitionProvider } from './definitions'
 import { CombatPreview } from './CombatPreview'
 import { AbilityFormulaReference } from './AbilityFormulaReference'
 import { BuildDisclosure } from './BuildDisclosure'
@@ -25,7 +27,24 @@ export function formatStatRange(value: StatRange | null): string {
 
 const NO_UNKNOWN_INPUTS: readonly string[] = []
 
-export function BuildMechanics({ content, slots, localData, catalogs, gameSetup, onChange, onReviewIssues, onReviewGameSetup, onUploadMod, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false }: { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onChange?: (plan: BuildCalculationPlan | undefined) => void; onReviewIssues?: () => void; onReviewGameSetup?: () => void; onUploadMod?: () => void; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean }) {
+type BuildMechanicsProps = { content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision; onChange?: (plan: BuildCalculationPlan | undefined) => void; onReviewIssues?: () => void; onReviewGameSetup?: () => void; onUploadMod?: () => void; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean }
+
+const rejectPreviewDefinitionSave = async (): Promise<EntityRef> => { throw new Error('Definitions cannot be changed from this preview') }
+
+export function BuildMechanics(props: BuildMechanicsProps) {
+  const [preview, setPreview] = useState<{ source: BuildRevisionContent; setup?: GameSetupRevision; plan?: BuildCalculationPlan }>()
+  // Read-only sheets keep experiments in component state; a different source or setup invalidates them
+  const changed = !props.onChange && preview?.source === props.content && preview?.setup === props.gameSetup
+  const content = changed ? { ...props.content, calculation: preview.plan } : props.content
+  const onChange = props.onChange ?? ((plan: BuildCalculationPlan | undefined) => setPreview({ source: props.content, setup: props.gameSetup, plan }))
+  const scopedData = useMemo(() => props.gameSetup ? { ...props.localData, planningGameSetupRevisionId: props.gameSetup.id, gameSetups: { ...props.localData.gameSetups, [props.gameSetup.id]: props.gameSetup } } : props.localData, [props.localData, props.gameSetup])
+  const mechanics = <BuildMechanicsContent {...props} content={content} onChange={onChange} temporaryPreview={!props.onChange} onResetPreview={changed ? () => setPreview(undefined) : undefined}/>
+  // Shared projections may use a different catalog pin than the viewer's active planning setup
+  // Keep their pickers inside the same source scope as the calculations, without library writes
+  return props.onChange ? mechanics : <DefinitionProvider localData={scopedData} catalogs={props.catalogs} onSaveDefinition={rejectPreviewDefinitionSave}>{mechanics}</DefinitionProvider>
+}
+
+function BuildMechanicsContent({ content, slots, localData, catalogs, gameSetup, onChange, onReviewIssues, onReviewGameSetup, onUploadMod, unknownInputs = NO_UNKNOWN_INPUTS, unknownSecondaryClass = false, temporaryPreview, onResetPreview }: BuildMechanicsProps & { temporaryPreview: boolean; onResetPreview?: () => void }) {
   const resolve = withoutRetainedMechanics(content, (ref: EntityRef) => resolveEntity(localData, catalogs, ref))
   const identity = (ref: EntityRef) => logicalEntityKey(localData, ref)
   const equipment = analyzeBuildEquipment(content, slots, resolve, identity)
@@ -48,7 +67,8 @@ export function BuildMechanics({ content, slots, localData, catalogs, gameSetup,
       <BuildDisclosure className="equipment-check-coverage" label="What these checks cover"><p>Checks class permissions, equipment slots, shared copies, and unique items. Sub-commands grant permissions only through an explicit effect.</p></BuildDisclosure>
     </div>
     <BuildDisclosure label="Ability and hit-chance preview"><div className="stack">
-      <CombatPreview onUploadMod={onUploadMod} content={content} slots={slots} localData={localData} catalogs={catalogs} gameSetup={gameSetup} onChange={onChange} unknownInputs={unknownInputs} unknownSecondaryClass={unknownSecondaryClass}/>
+      {temporaryPreview && <div className="split build-preview-tools"><p className="field__hint">Try abilities and battle conditions here. Changes are not saved.</p>{onResetPreview && <Button tone="quiet" onClick={onResetPreview} type="button">Reset preview</Button>}</div>}
+      <CombatPreview temporaryPreview={temporaryPreview} onUploadMod={onUploadMod} content={content} slots={slots} localData={localData} catalogs={catalogs} gameSetup={gameSetup} onChange={onChange} unknownInputs={unknownInputs} unknownSecondaryClass={unknownSecondaryClass}/>
       <BuildDisclosure className="combat-reference" label="Formula reference"><div className="stack">
         {abilityScope.issues.size > 0 && <InlineNotice title="Ability preview unresolved">{[...abilityScope.issues].join(' ')} Review enabled mods and their source revisions in Game Setup.{onReviewGameSetup && <Button onClick={onReviewGameSetup} tone="secondary" type="button">Review Game Setup</Button>}</InlineNotice>}
         {ability ? <AbilityFormulaReference ability={ability} abilityName={abilityDefinition?.name ?? 'Selected ability'} definition={abilityDefinition} numericRecord={abilityRecord}/> : <p className="field__hint">Choose an ability to see its base power and learning costs.</p>}
