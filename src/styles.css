@@ -1038,10 +1038,6 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .spinner { width: 22px; height: 22px; display: inline-block; border: 2px solid var(--line-strong); border-top-color: var(--cyan-300); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.loading-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
-.loading-screen__content { display: grid; justify-items: center; gap: 14px; color: var(--text-dim); text-align: center; }
-.loading-screen__content .brand__mark { width: 58px; height: 58px; }
-.loading-screen__content p { font-size: .8rem; }
 .error-screen { width: min(620px, calc(100% - 32px)); margin: 12vh auto; }
 
 h1::after { position: absolute; left: 0; bottom: 0; width: 100%; height: 2px; content: ""; background: var(--cyan-500); }
