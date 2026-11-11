@@ -18,7 +18,7 @@ test('credits and bundled licenses remain available offline without external req
   await panel.getByRole('button', { name: 'Credits & licenses', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
-  await expect(panel.getByRole('heading', { name: 'Your data stays in this browser' })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'Your data and privacy' })).toBeVisible()
   const licenses = await page.evaluate(async (applicationLicense) => {
     const read = async (url: string) => (await fetch(url)).text()
     return Promise.all([read(applicationLicense!), read('./pixel-operator-CC0.txt'), read('./third-party-licenses.txt')])
