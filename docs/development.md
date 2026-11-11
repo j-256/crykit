@@ -56,6 +56,8 @@ Review state belongs to `${XDG_CACHE_HOME:-$HOME/.cache}/crykit-review/`, separa
 
 Publication is serialized and checks source digests before copying, against the copied snapshot, and after copying. Keep builds and publication sequential: these checks reject observed source changes but do not prove that another build process is not paused at a structurally valid intermediate state. Old unhashed resources are not version-pinned for existing tabs. Dependency or worker-protocol changes can therefore require a deliberate guarded refresh even while old hashed modules remain available.
 
+The local server accepts only its exact loopback host and resolves requests through a validated snapshot file index. Filesystem paths are constructed from publication records before a request selects an entry; URL text never supplies a filesystem path. Unpublished files, hidden state, traversal paths, and symlinked build inputs remain unavailable. Invalid snapshot records return a diagnostic response without serving files.
+
 ## Capture UI reviews
 
 After each major interface change, capture representative desktop and mobile states for visual review:
