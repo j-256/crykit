@@ -110,7 +110,12 @@ export function Spinner({ label = 'Loading' }: { label?: string }) {
 }
 
 export function LoadingScreen({ detail }: { detail: string }) {
-  // Keep the same layout as the HTML fallback so module loading and storage opening do not flash a blank screen
-  // The visible status carries progress even when the user's motion preference disables the decorative spinner
-  return <main aria-busy="true" className="loading-screen"><div className="loading-screen__content"><span aria-hidden="true" className="brand__mark"><span className="spinner"/></span><h1>Opening Crystal Kit</h1><p role="status">{detail}</p></div></main>
+  // Keep this markup aligned with the HTML fallback; both use its inline styles before app CSS arrives
+  // The visible status carries progress even when reduced motion disables the decorative spinner
+  return <main aria-busy="true" className="loading-screen"><div className="loading-screen__content">
+    <span aria-hidden="true" className="loading-screen__crystal"><Icon name="crystal"/></span>
+    <h1><span className="loading-screen__opening">Opening </span>Crystal Kit</h1>
+    <p className="loading-screen__tagline">A Crystal Project planner</p>
+    <p className="loading-screen__status" role="status"><span aria-hidden="true" className="spinner"/>{detail}</p>
+  </div></main>
 }
