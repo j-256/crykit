@@ -504,7 +504,7 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 .build-sheet__source { margin-top: 18px; color: var(--text-faint); font-size: .68rem; }
 .build-sheet__planning-note { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--text-faint); font-size: .72rem; }
 .build-sheet__planning-note svg { width: 16px; height: 16px; }
-.build-sheet__checks { width: min(100%, 820px); margin-inline: auto; }
+.build-sheet__checks { width: 100%; min-width: 0; gap: 24px; padding-top: 8px; }
 .build-details, .build-readiness { color: var(--text-dim); font-size: .8rem; }
 .build-details { padding-top: 16px; border-top: 1px solid var(--line); }
 .build-details > h3 { margin-bottom: 14px; }

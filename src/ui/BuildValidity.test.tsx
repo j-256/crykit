@@ -78,3 +78,35 @@ describe('Build draft and compatibility feedback', () => {
     expect(markup).toContain('Inspect selection')
   })
 })
+
+describe('public check coverage', () => {
+  const missingSlotRule = { code: 'SLOT_ACCEPTANCE_UNKNOWN', status: 'undetermined' as const, message: "Main hand: CryKit doesn't know what can go in this slot", slotId: 'main-hand' }
+  const missingBodyRule = { ...missingSlotRule, slotId: 'body', message: "Body: CryKit doesn't know what can go in this slot" }
+  const sharedReport = { ...report, status: 'undetermined' as const, issues: [missingSlotRule, missingBodyRule] }
+
+  it('keeps omitted internal metadata out of shared check feedback', () => {
+    const before = structuredClone(sharedReport)
+    const markup = renderToStaticMarkup(<BuildValidity readOnly report={sharedReport} unsharedSlotIds={['main-hand', 'body']}/>)
+    expect(markup).toContain('No known loadout conflicts')
+    expect(markup).not.toContain('build-validity__help')
+    expect(markup).not.toContain('Not checked')
+    expect(markup).not.toContain('Additional loadout details')
+    expect(markup).toContain('data-status="undetermined"')
+    expect(sharedReport).toEqual(before)
+  })
+
+  it('keeps unknown slot rules outside the public omission scope', () => {
+    const markup = renderToStaticMarkup(<BuildValidity report={sharedReport} unsharedSlotIds={['main-hand']}/>)
+    expect(markup).toContain('Body: CryKit')
+    expect(markup).toContain('Not checked')
+    expect(markup).not.toContain('No known loadout conflicts')
+    expect(renderToStaticMarkup(<BuildValidity report={sharedReport}/>)).toContain('Main hand: CryKit')
+  })
+
+  it('retains real equipment failures and unavailable definitions', () => {
+    const markup = renderToStaticMarkup(<BuildValidity readOnly report={{ ...sharedReport, status: 'invalid', issues: [...sharedReport.issues, { code: 'EQUIPMENT_ROLE', status: 'invalid', message: 'Dirk does not fit Body', slotId: 'body' }, { code: 'EQUIPMENT_DEFINITION', status: 'undetermined', message: 'Off hand definition is unavailable', slotId: 'off-hand' }] }} unsharedSlotIds={['main-hand', 'body', 'off-hand']}/>)
+    expect(markup).toContain('Dirk does not fit Body')
+    expect(markup).toContain('Off hand definition is unavailable')
+    expect(markup).not.toContain('No known loadout conflicts')
+  })
+})

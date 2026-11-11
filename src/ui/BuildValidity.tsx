@@ -4,11 +4,16 @@ import { Button } from './components'
 import { Icon } from './icons'
 import { BUILD_REVIEW_FIELDS, buildValidityGuidance } from './build-validity-guidance'
 
-export function BuildValidity({ report, hasPrimaryClass = true, onReviewField, onReviewSetup, onUploadMod, fieldLabels, readOnly = false, panelRef }: { readonly report: BuildValidityReport; readonly hasPrimaryClass?: boolean; readonly onReviewField?: (slotId: string) => void; readonly onReviewSetup?: () => void; readonly onUploadMod?: () => void; readonly fieldLabels?: Readonly<Record<string, string>>; readonly readOnly?: boolean; readonly panelRef?: Ref<HTMLElement> }) {
+export function BuildValidity({ report, hasPrimaryClass = true, onReviewField, onReviewSetup, onUploadMod, fieldLabels, readOnly = false, panelRef, unsharedSlotIds = [] }: { readonly report: BuildValidityReport; readonly hasPrimaryClass?: boolean; readonly onReviewField?: (slotId: string) => void; readonly onReviewSetup?: () => void; readonly onUploadMod?: () => void; readonly fieldLabels?: Readonly<Record<string, string>>; readonly readOnly?: boolean; readonly panelRef?: Ref<HTMLElement>; readonly unsharedSlotIds?: readonly string[] }) {
   const emptyDraft = !hasPrimaryClass && report.status === 'valid'
   const title = emptyDraft ? 'Choose a class to start' : report.status === 'invalid' ? 'Build needs changes' : 'No known loadout conflicts'
   const conflicts = report.issues.filter(issue => issue.status === 'invalid')
-  const incomplete = report.issues.filter(issue => issue.status === 'undetermined')
+  // Public links omit internal slot acceptance metadata; it is not a user-actionable finding
+  // The report stays undetermined, and actual equipment failures and other unknowns remain visible
+  const omittedSlotRules = (issue: BuildValidityReport['issues'][number]) => issue.code === 'SLOT_ACCEPTANCE_UNKNOWN' && issue.slotId !== undefined && unsharedSlotIds.includes(issue.slotId)
+  const hasOmittedSlotRules = report.issues.some(omittedSlotRules)
+  const incomplete = report.issues.filter(issue => issue.status === 'undetermined' && !omittedSlotRules(issue))
+  const showSummary = report.status !== 'undetermined' || hasOmittedSlotRules && incomplete.length === 0
   const sourceDetails = onUploadMod && incomplete.some(issue => buildValidityGuidance(issue, true).importSource)
   const labels: Readonly<Record<string, string>> = { [BUILD_REVIEW_FIELDS.primaryClass]: 'Class', [BUILD_REVIEW_FIELDS.secondaryClass]: 'Sub-command', [BUILD_REVIEW_FIELDS.passives]: 'passives', ...fieldLabels }
   const issueList = (issues: BuildValidityReport['issues']) => <ul className="validation-issues">{issues.map(issue => {
@@ -23,7 +28,7 @@ export function BuildValidity({ report, hasPrimaryClass = true, onReviewField, o
     // Review actions focus the panel, so reveal its recovery controls before the user continues
     if (event.target === event.currentTarget) for (const details of event.currentTarget.querySelectorAll<HTMLDetailsElement>('.build-validity__details')) details.open = true
   }}>
-    {report.status !== 'undetermined' && <div className="build-validity__summary"><Icon name={emptyDraft ? 'info' : report.status === 'valid' ? 'check' : 'warning'}/><strong>{title}</strong></div>}
+    {showSummary && <div className="build-validity__summary"><Icon name={emptyDraft ? 'info' : conflicts.length ? 'warning' : 'check'}/><strong>{title}</strong></div>}
     {conflicts.length > 0 && issueList(conflicts)}
     {incomplete.length > 0 && <details className="build-validity__details">
       <summary className="build-validity__summary"><Icon name="info"/><span>{sourceDetails ? 'More details with mod JSON' : 'Additional loadout details'}</span><Icon name="chevron-down"/></summary>

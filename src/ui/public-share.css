@@ -30,14 +30,14 @@
 .share-class-growth { color: var(--text-dim); font-size: .78rem; }
 .share-class-growth > summary { padding-block: 8px; cursor: pointer; }
 .share-sources, .share-copy-controls { border-top: 1px solid var(--line); scroll-margin-top: calc(var(--desktop-header-height) + 16px); }
-.share-sources > summary, .share-copy-controls > summary { padding-block: 16px; color: var(--text-dim); font-size: .85rem; cursor: pointer; }
-.share-sources__body { max-width: 54rem; padding-block: 8px 20px; }
+.share-copy-controls > summary { padding-block: 16px; color: var(--text-dim); font-size: .85rem; cursor: pointer; }
+.share-sources__body { max-width: 54rem; }
 .share-sources__body h3 { margin: 0 0 12px; font-family: inherit; font-size: 1rem; }
 .share-sources__body h4 { margin: 0; font-size: .9rem; }
 .share-sources__body p { font-size: .85rem; }
-.share-sources__body details > summary { padding-block: 8px; cursor: pointer; }
 .share-sources__file { padding-block: 12px; border-bottom: 1px solid var(--line); }
 .share-sources__unknown { color: var(--text-dim); font-size: .8rem; }
+.share-notes { max-width: 70ch; }
 .share-copy-notice { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; color: var(--text-dim); font-size: .8rem; }
 .share-copy-controls > .panel { border: 0; background: transparent; }
 .share-copy-controls > .panel > .panel__body { padding: 8px 0 20px; }

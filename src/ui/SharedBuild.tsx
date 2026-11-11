@@ -10,6 +10,7 @@ import { CalculationInputs } from './CalculationInputs'
 import { resolveGameRules } from '../domain/game-rules'
 import { KnowledgeValue } from './KnowledgeValue'
 import { BuildValidity } from './BuildValidity'
+import { BuildDisclosure } from './BuildDisclosure'
 import { BuildModFiles } from './BuildModFiles'
 import { resolveEntity } from './model'
 import { buildReferenceName } from '../domain/build-reference-names'
@@ -50,7 +51,7 @@ export function SharedBuild({ revision, preview, onUploadMod, onReviewSetup }: {
     { label: 'Passive PP limit', value: setup.ppLimit ?? { state: 'unknown' } }, { label: 'Nonnegative PP costs', value: setup.ppCostsNonNegative },
   ]
   const reviewSetup = onReviewSetup ?? (() => { if (setupRef.current) { setupRef.current.open = true; setupRef.current.scrollIntoView({ block: 'center' }); setupRef.current.focus() } })
-  const validity = <BuildValidity panelRef={validityRef} hasPrimaryClass={Boolean(content.primaryClass)} readOnly report={report} fieldLabels={Object.fromEntries([...slots.map(slot => [slot.id, slot.label]), ...content.passives.map((_selection, index) => [passivePosition(index).id, passivePosition(index).label])])} onUploadMod={setup.modSourceReceipts?.length ? onUploadMod : undefined} onReviewField={target => { setView('loadout'); focusFieldElement(`${fieldScope}:${target === BUILD_REVIEW_FIELDS.passives ? passivePosition(0).id : target}`) }} onReviewSetup={reviewSetup}/>
+  const validity = <BuildValidity unsharedSlotIds={slots.filter(slot => slot.acceptedEntityKinds === undefined).map(slot => slot.id)} panelRef={validityRef} hasPrimaryClass={Boolean(content.primaryClass)} readOnly report={report} fieldLabels={Object.fromEntries([...slots.map(slot => [slot.id, slot.label]), ...content.passives.map((_selection, index) => [passivePosition(index).id, passivePosition(index).label])])} onUploadMod={setup.modSourceReceipts?.length ? onUploadMod : undefined} onReviewField={target => { setView('loadout'); focusFieldElement(`${fieldScope}:${target === BUILD_REVIEW_FIELDS.passives ? passivePosition(0).id : target}`) }} onReviewSetup={reviewSetup}/>
   return <div className="stack build-sheet shared-build-sheet" data-validity={report.status}>
     {report.status === 'invalid' && validity}
     <LoadoutSheet readOnly onUploadMod={setup.modSourceReceipts?.length ? onUploadMod : undefined} onReviewGameSetup={reviewSetup} onReviewIssues={reviewSolutions} gameSetup={setup} catalogs={catalogs} content={content} localData={localData} slots={slots} view={view} onViewChange={setView} viewLabel="Shared build view" selection={inspection ? inspection.option : findDefinitionOption(options, content.primaryClass)} showClassPermissions={inspection?.showClassPermissions}
@@ -58,9 +59,9 @@ export function SharedBuild({ revision, preview, onUploadMod, onReviewSetup }: {
       equipmentFields={<>{slots.map(slot => equipmentField(slot.id, slot.label))}{retained.length > 0 && <div><p className="field__hint">These selections use slots outside this Game Setup.</p>{retained.map(id => equipmentField(id, id))}</div>}</>}
       passiveTools={<PassiveCapacityMeter pp={report.pp}/>}
       passiveFields={content.passives.length ? content.passives.map((selection, index) => <div key={index}>{field(`Equipped passive ${index + 1}`, selection.ref, 'Empty', selection.observedName, passivePosition(index).id)}</div>) : <p>No passives equipped.</p>}
-      notes={<>{content.calculation && <details><summary>Calculation inputs</summary><CalculationInputs catalogs={catalogs} localData={localData} plan={content.calculation} genders={rules.genders}/></details>}{(revision.note || content.rotationNotes || content.contextAssumptions.length > 0) && <details><summary>Build notes and assumptions</summary><div className="share-notes">{revision.note && <p>{revision.note}</p>}{content.rotationNotes && <p>{content.rotationNotes}</p>}{content.contextAssumptions.map((note, index) => <p key={index}>{note}</p>)}</div></details>}</>}
+      notes={<>{content.calculation && <BuildDisclosure label="Calculation inputs"><CalculationInputs catalogs={catalogs} localData={localData} plan={content.calculation} genders={rules.genders}/></BuildDisclosure>}{(revision.note || content.rotationNotes || content.contextAssumptions.length > 0) && <BuildDisclosure label="Build notes and assumptions"><div className="share-notes">{revision.note && <p>{revision.note}</p>}{content.rotationNotes && <p>{content.rotationNotes}</p>}{content.contextAssumptions.map((note, index) => <p key={index}>{note}</p>)}</div></BuildDisclosure>}</>}
     />
     {report.status !== 'invalid' && validity}
-    {!onReviewSetup && <><BuildModFiles setup={setup} catalogs={catalogs} onOpen={onUploadMod}/><details ref={setupRef} tabIndex={-1}><summary>Game Setup: {setup.label}</summary><dl className="definition-list">{setupFacts.map(({ label, value }) => <div className="definition-row" key={label}><dt>{label}</dt><dd><KnowledgeValue showSources value={value}/></dd></div>)}</dl></details></>}
+    {!onReviewSetup && <><BuildModFiles setup={setup} catalogs={catalogs} onOpen={onUploadMod}/><BuildDisclosure ref={setupRef} tabIndex={-1} label={`Game Setup: ${setup.label}`}><dl className="definition-list">{setupFacts.map(({ label, value }) => <div className="definition-row" key={label}><dt>{label}</dt><dd><KnowledgeValue showSources value={value}/></dd></div>)}</dl></BuildDisclosure></>}
   </div>
 }

@@ -9,6 +9,7 @@ import { nativeStatRecord } from '../domain/pc-stats'
 import type { BuildCalculationPlan, BuildRevisionContent, CatalogSnapshot, EntityRef, LocalData, GameSetupRevision, SlotDefinition } from '../domain/types'
 import { CombatPreview } from './CombatPreview'
 import { AbilityFormulaReference } from './AbilityFormulaReference'
+import { BuildDisclosure } from './BuildDisclosure'
 import { Icon } from './icons'
 export { CalculationPicker } from './CalculationPicker'
 import { Button, Field, InlineNotice } from './components'
@@ -42,16 +43,17 @@ export function BuildMechanics({ content, slots, localData, catalogs, gameSetup,
   const numberInput = (value: string) => value.trim() ? Number(value) : null
   const hasSelections = Object.values(content.equipment).some(Boolean) || content.passives.length > 0
   return <section aria-label="Build mechanics" className="build-mechanics stack">
-    <div><h3>Equipment checks</h3><details className="equipment-check-coverage"><summary>What these checks cover</summary><p>Checks class permissions, equipment slots, shared copies, and unique items. Sub-commands grant permissions only through an explicit effect.</p></details>
-      {equipment.length ? <><ul aria-label="Equipment findings" className="mechanics-findings">{equipment.map((issue, index) => <li data-status={issue.status} key={`${issue.code}:${issue.slotId}:${index}`}><strong>{issue.status === 'invalid' ? 'Conflict' : 'Unresolved'}:</strong> {issue.message}<p className="field__hint">{buildValidityGuidance(issue).message}</p></li>)}</ul>{onReviewIssues && <Button onClick={onReviewIssues} tone="secondary" type="button">Review solutions</Button>}</> : <p role="status">{hasSelections ? 'No known equipment conflicts.' : 'Add equipment to check this build.'}</p>}
+    <div className="build-mechanics__equipment"><div className="build-mechanics__heading"><h3>Equipment checks</h3>{!equipment.length && <p role="status"><Icon name={hasSelections ? 'check' : 'info'}/>{hasSelections ? 'No known equipment conflicts.' : 'Add equipment to check this build.'}</p>}</div>
+      {equipment.length > 0 && <><ul aria-label="Equipment findings" className="mechanics-findings">{equipment.map((issue, index) => <li data-status={issue.status} key={`${issue.code}:${issue.slotId}:${index}`}><strong>{issue.status === 'invalid' ? 'Conflict' : 'Unresolved'}:</strong> {issue.message}<p className="field__hint">{buildValidityGuidance(issue).message}</p></li>)}</ul>{onReviewIssues && <Button onClick={onReviewIssues} tone="secondary" type="button">Review solutions</Button>}</>}
+      <BuildDisclosure className="equipment-check-coverage" label="What these checks cover"><p>Checks class permissions, equipment slots, shared copies, and unique items. Sub-commands grant permissions only through an explicit effect.</p></BuildDisclosure>
     </div>
-    <details><summary>Ability and hit-chance preview</summary><div className="stack">
+    <BuildDisclosure label="Ability and hit-chance preview"><div className="stack">
       <CombatPreview onUploadMod={onUploadMod} content={content} slots={slots} localData={localData} catalogs={catalogs} gameSetup={gameSetup} onChange={onChange} unknownInputs={unknownInputs} unknownSecondaryClass={unknownSecondaryClass}/>
-      <details className="combat-reference"><summary>Formula reference</summary><div className="stack">
+      <BuildDisclosure className="combat-reference" label="Formula reference"><div className="stack">
         {abilityScope.issues.size > 0 && <InlineNotice title="Ability preview unresolved">{[...abilityScope.issues].join(' ')} Review enabled mods and their source revisions in Game Setup.{onReviewGameSetup && <Button onClick={onReviewGameSetup} tone="secondary" type="button">Review Game Setup</Button>}</InlineNotice>}
         {ability ? <AbilityFormulaReference ability={ability} abilityName={abilityDefinition?.name ?? 'Selected ability'} definition={abilityDefinition} numericRecord={abilityRecord}/> : <p className="field__hint">Choose an ability to see its base power and learning costs.</p>}
-      </div></details>
-      <details className="hit-chance-calculator"><summary>Base hit-chance calculator</summary><div className="stack">
+      </div></BuildDisclosure>
+      <BuildDisclosure className="hit-chance-calculator" label="Base hit-chance calculator"><div className="stack">
         <p className="field__hint">Compare this Build's accuracy with an evasion value. This does not change the battle target.</p>
         <div className="hit-chance-calculator__flow">
           <div className="hit-chance-calculator__accuracy"><span>Build accuracy</span><strong>{formatStatRange(accuracy)}</strong></div>
@@ -59,7 +61,7 @@ export function BuildMechanics({ content, slots, localData, catalogs, gameSetup,
           <div className="hit-chance-calculator__result" aria-label="Base physical hit chance"><span><Icon name="compass"/>Base physical hit chance: </span><strong>{hitChance === null ? 'Unknown' : `${hitChance}%`}</strong></div>
         </div>
         <p className="field__hint">Zero evasion gives 100%. This estimate excludes ability accuracy, hit modifiers, guaranteed hits or misses, difficulty, Luck, and miss protection. Use the battle preview for a specific target.</p>
-      </div></details>
-    </div></details>
+      </div></BuildDisclosure>
+    </div></BuildDisclosure>
   </section>
 }

@@ -75,8 +75,7 @@ export function CombatAbilitySummary({ abilityRef, localData, catalogs, gameSetu
   return <section aria-label="Selected ability" className="combat-ability-summary">
     <div className="combat-ability-summary__heading">
       <div className="combat-ability-summary__artwork">{definition && abilityRef.kind === 'catalog' ? <CatalogArtwork catalogId={abilityRef.catalogId} entity={{ ...definition, id: abilityRef.entityId }}/> : <ArtworkPlaceholder entity={{ kind: definition?.kind ?? 'ability', name }}/>}</div>
-      <div className="combat-ability-summary__identity"><h4>{name}</h4><dl className="combat-ability-summary__facts">{facts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}</dl></div>
-      {definition && <Sources label={`Ability sources for ${name}`}><SourceReferences includeGameExports sources={definition.sources}/></Sources>}
+      <div className="combat-ability-summary__identity">{definition ? <Sources anchor={<h4>{name}</h4>} label={`Ability sources for ${name}`}><SourceReferences includeGameExports sources={definition.sources}/></Sources> : <h4>{name}</h4>}<dl className="combat-ability-summary__facts">{facts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}</dl></div>
     </div>
     {record ? <div className="combat-ability-summary__behavior">
       {basePower !== undefined && basePower !== 0 && <p><strong>Base power: {basePower.toLocaleString()}{attribute && ['HP', 'MP', 'AP'].includes(attribute) ? ` ${attribute}` : ''}</strong><span>Before scaling and battle modifiers.</span></p>}

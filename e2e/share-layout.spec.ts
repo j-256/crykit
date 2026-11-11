@@ -29,6 +29,20 @@ test('a shared Build leads with one loadout and supports keyboard inspection and
   const inspection = isMobile ? dirk.locator('..').locator('details') : loadout.getByRole('complementary', { name: 'Selection details', exact: true })
   await expect(inspection).toBeVisible()
   await expect(inspection).toContainText('Attack')
+  const citation = inspection.getByRole('button', { name: 'Sources for Dirk', exact: true })
+  const title = isMobile ? inspection.locator('.build-selection-details strong').filter({ hasText: /^Dirk$/ }).first() : inspection.getByRole('heading', { name: 'Dirk', exact: true })
+  const titleBounds = (await title.boundingBox())!
+  const citationBounds = (await citation.boundingBox())!
+  expect(citationBounds.x).toBeGreaterThanOrEqual(titleBounds.x + titleBounds.width)
+  expect(citationBounds.y).toBeLessThan(titleBounds.y + titleBounds.height)
+  await citation.focus()
+  await citation.press('Enter')
+  await expect(page.getByRole('dialog', { name: 'Sources for Dirk', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(citation).toBeFocused()
+  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Build validity', exact: true })).toHaveText('No known loadout conflicts')
+  await expect(page.getByText('Not checked:', { exact: true })).toHaveCount(0)
   await openShareSources(page)
   await expect(page.getByText('All selected definitions are available.', { exact: true })).toBeVisible()
   expect(await readLocalData(page)).toEqual(before)
@@ -47,6 +61,9 @@ test('a shared Team keeps its roster while switching one member sheet and empty 
   await expect(page.getByRole('button', { name: 'View A second Rogue', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByRole('region', { name: 'Slot 3 calculations', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Slot 1 calculations', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Build validity', exact: true })).toHaveText('No known loadout conflicts')
+  await expect(page.getByText('Not checked:', { exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'View empty slot 2', exact: true }).click()
   await expect(page.getByText('No build in this slot.', { exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Read-only calculations', exact: true })).toHaveCount(0)
@@ -83,4 +100,18 @@ test('missing mechanics retain readable selections and conflicting setup receipt
   await openShareSources(page)
   await expect(page.getByText('The shared source reports conflicting claims.', { exact: true })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})
+
+test('shared checks retain a real equipment-role conflict', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
+  const url = await sampleBuildUrl(page)
+  const snapshot = decodePublicSnapshot(new URL(url).hash.split('/')[3]!)
+  const loadout = snapshot.slots[0]!
+  const dirk = loadout.equipment.find(entry => entry.slotId === 'plan-main-hand')!.ref
+  const body = loadout.equipment.find(entry => entry.slotId === 'plan-body')!.ref
+  const invalid = { ...snapshot, slots: [{ ...loadout, equipment: loadout.equipment.map(entry => entry.slotId === 'plan-body' ? { ...entry, ref: dirk } : entry.slotId === 'plan-main-hand' ? { ...entry, ref: body } : entry) }] }
+  await page.goto(createPublicShareUrl(invalid, `${baseURL}/`))
+  const validity = page.getByRole('region', { name: 'Build validity', exact: true })
+  await expect(validity).toContainText('Build needs changes')
+  await expect(validity).toContainText('Dirk (Dagger) does not fit Body')
+  await expect(validity).not.toContainText("CryKit doesn't know what can go in this slot")
 })

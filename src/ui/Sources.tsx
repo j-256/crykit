@@ -4,6 +4,7 @@ import { Dropdown } from './Dropdown'
 import './sources.css'
 
 const SourcesContext = createContext(false)
+// Supply the cited title or value as the anchor so wrapping cannot strand its marker on another row
 type SourcesProps = PropsWithChildren<{ label?: string; title?: string; anchor?: ReactNode }>
 
 function SourcesPopup({ label = 'Sources', title = label, anchor, children }: SourcesProps) {
