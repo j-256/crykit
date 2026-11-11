@@ -40,8 +40,8 @@ async function expectSummaryArtwork(page: Page, stepId: string) {
 }
 
 async function openData(page: Page) {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
 }
 
 test.beforeEach(async ({ page }) => {
@@ -243,7 +243,7 @@ test('a failed tile save rolls back and can be retried in place', { tag: MOBILE_
 test('the whole guide completes offline and keeps progress separate between playthroughs', async ({ page, context }) => {
   const originalId = selectedPlaythrough(await readLocalData(page)).id
   let panel = await openData(page)
-  await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await panel.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
   await expectOfflineReady(panel)

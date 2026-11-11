@@ -59,7 +59,7 @@ test('confirming Synthetic Class enables the exact imported source and preserves
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/#/settings/storage')
-  const storage = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  const storage = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   await storage.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(storage)
   await storage.getByRole('button', { name: 'Close dialog', exact: true }).click()

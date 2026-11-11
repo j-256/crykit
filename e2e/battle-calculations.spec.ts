@@ -10,7 +10,7 @@ async function chooseNative(page: Page, label: string, name: string) {
 }
 
 async function openCombat(page: Page) {
-  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   const disclosure = page.getByText('Ability and hit-chance preview', { exact: true })
   if (!(await page.getByRole('region', { name: 'Combat preview', exact: true }).isVisible())) await disclosure.click()
 }
@@ -43,7 +43,7 @@ test('native damage stays prominent with inherited stats and optional details co
   await chooseNative(page, 'Preview ability', 'Fire')
   await page.getByRole('button', { name: 'Add battle scenario', exact: true }).click()
   await page.getByRole('button', { name: 'Loadout', exact: true }).click()
-  await expect(calculationContext.getByText("Includes active statuses and elapsed turns from Checks & notes.", { exact: true })).toBeVisible()
+  await expect(calculationContext.getByText("Includes active statuses and elapsed turns from Checks & Notes.", { exact: true })).toBeVisible()
   await expect(calculationContext.getByText("Resting stats, without active statuses or turn effects.", { exact: true })).toHaveCount(0)
   await expect(page.locator('.calculation-coverage')).toHaveJSProperty('open', false)
   await openCombat(page)
@@ -276,11 +276,11 @@ test('battle assumptions survive editing, sharing, saved copies and offline relo
   await expect(page.getByLabel('Elapsed target turns', { exact: true })).toHaveValue('3')
   await page.getByRole('combobox', { name: 'Battle target', exact: true }).selectOption('self')
   await expect(outcome.locator('dt, dd')).toHaveText(results)
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
   await expect(page.getByText('Unsaved edits are still open', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Save and continue', exact: true }).click()
-  const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  await settings.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await test.step('prepare the core offline application', async () => {
     await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
     await expectOfflineReady(settings)

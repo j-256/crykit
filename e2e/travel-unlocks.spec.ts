@@ -8,13 +8,13 @@ import type { LocalData } from '../src/domain'
 import { TRAVEL_UNLOCK_GROUPS } from '../src/catalog/travel-unlock-groups'
 
 async function openSettings(page: Page) {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
 }
 
 async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await openSettings(page)
-  await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await panel.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   const downloading = page.waitForEvent('download')
   if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
@@ -156,7 +156,7 @@ test('retains a failed acquisition and retries one record before continuing', as
 
 test('records and reads unlocks offline and starts a second Playthrough blank', async ({ page, context }) => {
   const panel = await openSettings(page)
-  await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await panel.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(panel)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()

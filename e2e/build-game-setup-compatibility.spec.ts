@@ -53,8 +53,8 @@ async function loadFixture(page: Page, localData = compatibilityFixture()): Prom
     'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.1.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
     'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [], bundledCatalogs, evidence: [], history: [] }),
   })
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-build-compatibility.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
@@ -69,7 +69,7 @@ async function loadFixture(page: Page, localData = compatibilityFixture()): Prom
 
 test('the build library is independent of the playthrough and copies rules explicitly', async ({ page }) => {
   await loadFixture(page)
-  const library = page.getByRole('region', { name: 'Build library', exact: true })
+  const library = page.getByRole('region', { name: 'Build Library', exact: true })
   await expect(library.locator('.build-card')).toHaveCount(4)
   await expect(page.locator('.build-card--inapplicable')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Game Setup:/ })).toHaveCount(0)

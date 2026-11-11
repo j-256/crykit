@@ -13,8 +13,8 @@ import type { EntityId, LocalData } from '../src/domain/types'
 const MOD_LAYER_BACKUP_JOURNEY_TIMEOUT_MS = 90_000
 
 async function openSettings(page: Page, section: string) {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   if (section === 'Game Setup') await openCurrentGameSetup(panel)
   else await panel.getByRole('button', { name: section, exact: true }).click()
   if (section === 'Game Setup') await openGameSetupSection(panel, 'Imported mod files')
@@ -22,7 +22,7 @@ async function openSettings(page: Page, section: string) {
 }
 
 async function exportData(page: Page) {
-  const panel = await openSettings(page, 'Import & backup')
+  const panel = await openSettings(page, 'Import & Backup')
   const download = page.waitForEvent('download')
   if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
@@ -42,7 +42,7 @@ test('ordered mod layers supply effective definitions while saved builds retain 
   await page.goto('/')
   await skipInitialModSetup(page)
   for (const preview of [mods.first, mods.second]) {
-    const panel = await openSettings(page, 'Import & backup')
+    const panel = await openSettings(page, 'Import & Backup')
     await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: preview.filename, mimeType: 'application/json', buffer: Buffer.from(preview.proposed.sources[0]!.bytes) })
     await panel.getByRole('button', { name: 'Add references', exact: true }).click()
     await expect(panel).not.toBeVisible()
@@ -100,7 +100,7 @@ test('ordered mod layers supply effective definitions while saved builds retain 
   await expect(options.getByRole('option').filter({ has: page.locator('strong', { hasText: /^Second Fighter$/ }) })).toHaveCount(0)
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Cancel and discard', exact: true }).click()
-  const offline = await openSettings(page, 'Offline & storage')
+  const offline = await openSettings(page, 'Offline & Storage')
   await offline.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(offline)
   await offline.getByRole('button', { name: 'Close dialog', exact: true }).click()
@@ -126,12 +126,12 @@ test('changing layers requires an explicit personal override decision and label 
   })
   await page.goto('/')
   await skipInitialModSetup(page)
-  const importing = await openSettings(page, 'Import & backup')
+  const importing = await openSettings(page, 'Import & Backup')
   await importing.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-mod-overrides.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await replacePlannerData(importing)
   await expect(importing).not.toBeVisible()
   await choosePlaythrough(page, localData.playthroughs[localData.selectedPlaythroughId!]!.label)
-  const adding = await openSettings(page, 'Import & backup')
+  const adding = await openSettings(page, 'Import & Backup')
   await adding.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: mods.first.filename, mimeType: 'application/json', buffer: Buffer.from(mods.first.proposed.sources[0]!.bytes) })
   await adding.getByRole('button', { name: 'Add references', exact: true }).click()
   await expect(adding).not.toBeVisible()

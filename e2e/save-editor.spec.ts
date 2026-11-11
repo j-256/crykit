@@ -340,9 +340,9 @@ test('reopens the exact stored original and working save offline before further 
   await page.getByRole('button', { name: 'Apply currency', exact: true }).click()
   const workingBytes = (await downloadSave(page, 'Export edited save')).bytes
   expect(decodeCrystalSave(workingBytes).header.currencyAmount).toBe(456)
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  await settings.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(settings)
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()

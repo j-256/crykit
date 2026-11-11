@@ -15,13 +15,13 @@ import { blockGuestSavePublication } from './save-write-failure'
 const CATALOG_BACKUP_JOURNEY_TIMEOUT_MS = 90_000
 
 async function openData(page: Page) {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
 }
 
 async function exportLocalData(page: Page) {
   const panel = await openData(page)
-  await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await panel.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   const downloaded = page.waitForEvent('download')
   if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
@@ -330,7 +330,7 @@ test('saved catalog versions preserve stock and checkpoints and can be collected
   await page.getByRole('button', { name: /^(Builds|Builds & teams)$/ }).filter({ visible: true }).click()
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
   const creation = page.locator('.build-sheet')
-  await creation.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await creation.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await creation.getByText('Build details & notes', { exact: true }).click()
   await page.locator('.context-bar').getByRole('textbox', { name: 'Build title', exact: true }).fill('Synthetic catalog checkpoint')
   const buildEditor = page.locator('.build-sheet')
@@ -339,7 +339,7 @@ test('saved catalog versions preserve stock and checkpoints and can be collected
   const itemPicker = page.getByRole('listbox', { name: 'Choose Main hand', exact: true })
   await page.getByRole('combobox', { name: 'Main hand', exact: true }).fill('Iron Sword')
   await itemPicker.getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Iron Sword$/ }) }).click()
-  await buildEditor.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await buildEditor.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await buildEditor.getByLabel('Checkpoint name').fill('Original catalog checkpoint')
   const palette = await search(page, 'Taunt')
   await palette.locator('[data-universal-result="true"]').first().click()

@@ -697,7 +697,7 @@ it('retains the map scroll position through an owned quiet-save handoff', { time
 })
 it.each(['isometric', 'overview'] as const)('keeps an %s gesture started during saved-receipt verification until its release', { timeout: LOCAL_EDITOR_COMMAND_MS }, async kind => {
   await openSelectedMap()
-  if (kind === 'overview') await click('World map overview')
+  if (kind === 'overview') await click('World Map Overview')
   const child = mapChildren.at(-1)!, view = workspace.editorSession.transferView
   const viewport = container.querySelector<HTMLDivElement>('.world-map-viewport')!
   viewport.setPointerCapture = () => {}

@@ -14,13 +14,13 @@ import { nativeSourceRecord } from '../src/domain/native-game'
 const WARRIOR_PATH = referencePath('base:job:0')
 
 async function openData(page: Page) {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
 }
 
 async function exportLocalData(page: Page): Promise<LocalData> {
   const settings = await openData(page)
-  await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await settings.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   const download = page.waitForEvent('download')
   if (!await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await settings.getByText("What's included in a backup?", { exact: true }).click()
   await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
@@ -92,7 +92,7 @@ test('bundled class calculations respond to explicit mixed growth and work offli
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(page.viewportSize()!.width)
   await page.screenshot({ path: testInfo.outputPath('class-growth-and-tree.png'), fullPage: true })
   const settings = await openData(page)
-  await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await settings.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(settings)
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
@@ -112,7 +112,7 @@ test('custom class imports preserve the playthrough and supply tree names and co
   await skipInitialModSetup(page)
   const before = await exportLocalData(page)
   const settings = await openData(page)
-  await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await settings.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   await settings.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-mod.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(syntheticCrystalEdit())) })
   await expect(settings.getByRole('combobox', { name: /^Import action/ })).toHaveValue('add-reference')
   await expect(settings.getByText(/referenced ability or passive definitions are absent/)).toBeVisible()
@@ -185,7 +185,7 @@ test('draws every simultaneous prerequisite into its skill and keeps arrows alig
   await page.goto('/')
   await skipInitialModSetup(page)
   const settings = await openData(page)
-  await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await settings.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   await settings.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-prerequisites.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(syntheticPrerequisiteCrystalEdit())) })
   await settings.getByRole('button', { name: 'Add references', exact: true }).click()
   await expect(settings).not.toBeVisible()

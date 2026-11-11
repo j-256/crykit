@@ -60,7 +60,7 @@ A build can be recorded as a current observation after a visible diff and explic
 
 ### Builds and teams
 
-Provide a searchable Build library, optional tags, cloning, named immutable checkpoints, the pinned equipment layout, ordered passive selection, class selection, notes, and contextual pickers. Builds have no draft, template, or hypothetical classification; any saved Build can be cloned. Keep recorded observations separate from planned Builds, and retain recorded current, draft, and hypothetical contexts for tracked party plans. A class change retains selections and displays resulting issues.
+Provide a searchable Build Library, optional tags, cloning, named immutable checkpoints, the pinned equipment layout, ordered passive selection, class selection, notes, and contextual pickers. Builds have no draft, template, or hypothetical classification; any saved Build can be cloned. Keep recorded observations separate from planned Builds, and retain recorded current, draft, and hypothetical contexts for tracked party plans. A class change retains selections and displays resulting issues.
 
 Compare two checkpointed alternatives by selections, known costs, raw/typed listed contributions, documented effects, missing learning, and stock. Missing values remain unresolved rather than tying at zero. Provide a basic actionable requirements list that separates known shortages from facts needing confirmation.
 
@@ -114,7 +114,7 @@ Use a restrictive production CSP, no remote fonts, no runtime scraping, no dynam
 
 ## Presentation and accessibility
 
-Use Builds, Teams, Reference, World Map, and Mods as the planning destinations. Group Characters, Inventory, and Progress under Tracking. Data & settings contains imports, backups, Playthrough selection, reusable Game Setups, history, storage, credits, and offline/update status. Planning pages use a persistent title and command header. Tracking pages show Playthrough and party-plan context where they affect results; saved builds and observations retain their own rule summaries.
+Use Builds, Teams, Reference, World Map, and Mods as the planning destinations. Group Characters, Inventory, and Progress under Tracking. Data & Settings contains imports, backups, Playthrough selection, reusable Game Setups, history, storage, credits, and offline/update status. Planning pages use a persistent title and command header. Tracking pages show Playthrough and party-plan context where they affect results; saved builds and observations retain their own rule summaries.
 
 Desktop can use a navigation rail and adjacent selection/detail panels. Mobile uses a compact header and bottom navigation. Definition choices use searchable dropdowns anchored to their fields on both layouts, keeping the surrounding form usable. Larger editing workflows use centered dialogs with a dim, unblurred backdrop and a scrolling body constrained to the viewport. All core actions need visible keyboard focus, semantic labels, touch-sized controls, and no hover or dragging dependency. Status uses text as well as color. Empty states offer the next useful action.
 

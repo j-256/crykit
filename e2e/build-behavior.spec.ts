@@ -42,7 +42,7 @@ test('owns discrete known and custom mod choices and version while keeping earli
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/#/settings/storage')
-  const storage = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  const storage = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   await storage.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(storage)
   await storage.getByRole('button', { name: 'Close dialog', exact: true }).click()
@@ -223,7 +223,7 @@ test('validity review targets unavailable passives without changing the saved ch
   const validity = page.getByRole('region', { name: 'Build validity', exact: true })
   await validity.locator('.build-validity__details > summary').click()
   for (let index = 0; index < 3; index += 1) {
-    await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+    await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
     await validity.getByRole('button', { name: `Review Equipped passive ${index + 1}`, exact: true }).click()
     const field = page.locator(`[data-field-key="slot:passive-${index + 1}"]`)
     await expect(field).toBeFocused()
@@ -246,7 +246,7 @@ test('validity review focuses retained equipment after copying a different slot 
   await page.goto(`${baseURL}/#/builds/library/${build.id}`)
   await page.locator('.build-behavior > summary').click()
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption({ label: 'Synthetic reduced-layout preset · r1' })
-  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   const issue = page.getByRole('region', { name: 'Build validity', exact: true }).getByRole('listitem').filter({ hasText: "A selection uses a slot missing from this Game Setup" })
   await issue.getByRole('button', { name: 'Review selection', exact: true }).click()
   const retained = page.locator(`[data-field-key="slot:${removedSlot.id}"]`)

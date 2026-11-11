@@ -12,13 +12,13 @@ import { currentReferencePath } from './reference-helpers'
 const SUMMON_QUEUE_DRAIN_TIMEOUT_MS = 15_000
 
 async function openSettings(page: Page) {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
 }
 
 async function exportBackup(page: Page) {
   const panel = await openSettings(page)
-  await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await panel.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   const downloading = page.waitForEvent('download')
   if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
@@ -190,7 +190,7 @@ test('keeps marks separate between Playthroughs and restores them from a backup'
   expect(selectedPlaythrough(second.localData).progress).toEqual({})
   expect(second.localData.playthroughs[first.id]?.progress).toEqual(first.progress)
   const panel = await openSettings(page)
-  await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await panel.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-summons.zip', mimeType: 'application/zip', buffer: backup.bytes })
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
@@ -206,7 +206,7 @@ test('keeps marks separate between Playthroughs and restores them from a backup'
 
 observedOfflineTest('records summon unlocks and reads their artwork offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   const panel = await openSettings(page)
-  await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await panel.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await panel.getByRole('checkbox', { name: 'Artwork', exact: true }).check()
   await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(panel)

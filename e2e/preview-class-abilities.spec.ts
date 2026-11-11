@@ -12,7 +12,7 @@ async function chooseNative(page: Page, label: string, query: string, displayNam
 }
 
 async function openPreview(page: Page) {
-  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   if (!(await page.getByRole('region', { name: 'Combat preview', exact: true }).isVisible())) {
     await page.getByText('Ability and hit-chance preview', { exact: true }).click()
   }

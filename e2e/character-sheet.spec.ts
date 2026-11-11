@@ -48,8 +48,8 @@ function syntheticLocalData(changedContext = false, nativeCalculations = false):
 }
 
 async function dataPanel(page: Page) {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
 }
 
 async function loadFixture(page: Page, changedContext = false, nativeCalculations = false) {
@@ -157,7 +157,7 @@ test('recorded sheets inspect and compare exact snapshots without changing obser
   expect(equipmentBounds!.y).toBeLessThan(statBounds!.y)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.goto('/#/builds/library')
-  const library = page.getByRole('region', { name: 'Build library', exact: true })
+  const library = page.getByRole('region', { name: 'Build Library', exact: true })
   await expect(library.getByRole('button', { name: 'Synthetic Rowan proposal', exact: true })).toBeVisible()
   await expect(library.getByRole('button', { name: 'Synthetic Mira proposal', exact: true })).toBeVisible()
   await page.goto(`/#/characters/${CHARACTER_ID}/current`)
@@ -220,7 +220,7 @@ test('member details stay pinned during pointer transit and follow deliberate fo
 test('direct slot editing protects a draft and saves a new observation offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   const original = await loadFixture(page)
   const storage = await dataPanel(page)
-  await storage.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await storage.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await storage.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(storage)
   await storage.getByRole('button', { name: 'Close dialog', exact: true }).click()
@@ -437,7 +437,7 @@ test('the grouped member sheet aligns loadout sections and learning shares a sin
   expect(classes).not.toBeNull()
   expect(equipment).not.toBeNull()
   expect(equipment!.y).toBeGreaterThan(classes!.y)
-  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Build mechanics', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Loadout', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Choose Equipped passive 1', exact: true })).toHaveCount(0)

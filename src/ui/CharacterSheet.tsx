@@ -35,7 +35,7 @@ export function RecordedModStatus({ availability, className = '' }: { readonly a
   return <details className={`recorded-sources recorded-mod ${className}`}>
     <summary><ModBadge name={availability.requiredMod} state={availability.state}/></summary>
     <p>This entry comes from the {availability.requiredMod} mod. {RECORDED_MOD_EXPLANATIONS[availability.state]} This label does not check slot compatibility.</p>
-    <p>Choose updated rules in <a href={navigation.href(GAME_SETUP_SETTINGS_ROUTE)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(GAME_SETUP_SETTINGS_ROUTE) } }}>Playthrough game settings</a>, then capture a new character snapshot. Edit rules under Saved setups. Earlier snapshots keep their mod settings.</p>
+    <p>Choose updated rules in <a href={navigation.href(GAME_SETUP_SETTINGS_ROUTE)} onClick={(event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigation.navigate(GAME_SETUP_SETTINGS_ROUTE) } }}>Playthrough game settings</a>, then capture a new character snapshot. Edit rules under Saved Setups. Earlier snapshots keep their mod settings.</p>
   </details>
 }
 

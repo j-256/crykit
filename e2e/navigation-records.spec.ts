@@ -11,13 +11,13 @@ async function navigate(page: Page, destination: string) {
 }
 
 async function openData(page: Page) {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
 }
 
 async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await openData(page)
-  await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await panel.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   const downloaded = page.waitForEvent('download')
   if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
@@ -150,7 +150,7 @@ test('direct nested modal routes restore the top layer and close one layer at a 
 
   await page.goto('/#/settings/data/search?q=blade')
   await page.reload()
-  const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   const search = page.getByRole('dialog', { name: 'Search CryKit', exact: true })
   await expect(search).toBeVisible()
   await expectActiveDialog(page, 'Search CryKit')
@@ -158,7 +158,7 @@ test('direct nested modal routes restore the top layer and close one layer at a 
   await page.keyboard.press('Escape')
   await expect(search).not.toBeVisible()
   await expect(settings).toBeVisible()
-  await expectActiveDialog(page, 'Data & settings')
+  await expectActiveDialog(page, 'Data & Settings')
 })
 
 test('reference source options remain readable, bounded, and exact', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {

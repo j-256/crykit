@@ -1,5 +1,5 @@
 [
-  { "id": "builds", "label": "Build library and saved Build editor" },
+  { "id": "builds", "label": "Build Library and saved Build editor" },
   { "id": "teams", "label": "Saved Team overview and Team editor" },
   { "id": "inventory", "label": "Inventory observations and item entry" },
   { "id": "characters", "label": "Character roster, tracked character, and snapshot entry" },

@@ -63,7 +63,7 @@ Original bytes, working copies, and unfinished choices are stored in the selecte
 
 If input changes after a strict Apply or download marker was saved, the original command cannot adopt that later input. **Download recovery copy** creates a separate versioned JSON-lines file containing the verified saved original and working bytes, the stored pending payload, and the latest live form. It is an inert preservation format, not an automatic restore or game save. Lengths and SHA-256 digests identify the byte streams and pending payloads. Streaming file saving supports larger copies; browsers without it use a bounded 8 MiB fallback. Metadata is limited to 2 MiB. An unavailable saved result or a resource failure leaves the live form open. **Discard open form and reload** separately confirms discarding the live form and rechecks the selected saved result before reloading.
 
-Prepare CryKit for offline use under **Data & settings > Offline & storage** before disconnecting. The Save Editor and its bundled rules work offline with the rest of the app. Mod-aware editing also requires the matching JSON files to remain available on the device for manual selection.
+Prepare CryKit for offline use under **Data & Settings > Offline & Storage** before disconnecting. The Save Editor and its bundled rules work offline with the rest of the app. Mod-aware editing also requires the matching JSON files to remain available on the device for manual selection.
 
 ## Implementation and verification
 

@@ -34,9 +34,9 @@ async function choose(page: Page, label: string, name: string, options: { readon
 }
 
 async function exportLocalData(page: Page): Promise<LocalData> {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  await settings.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   const download = page.waitForEvent('download')
   if (!await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await settings.getByText("What's included in a backup?", { exact: true }).click()
   await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
@@ -122,9 +122,9 @@ test('a blank playthrough can plan unowned gear directly and reopen it offline',
   for (const key of ['inventory', 'inventoryEvents', 'characters', 'scenarios', 'progress'] as const) expect(selectedPlaythrough(before)[key]).toEqual({})
   expect(before.personalDefinitions).toEqual({})
   expect(before.gameSetups[before.planningGameSetupRevisionId!]!.mods.state).toBe('unknown')
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  await settings.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(settings)
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()

@@ -50,7 +50,7 @@ for (const retained of [true, false]) it(`preserves the actual editor and member
   await click('Edit member')
   expect(container.textContent!.includes("outside the build's pinned catalog revision")).toBe(retained)
   expect(container.textContent!.includes('occupied by Broadsword')).toBe(!retained)
-  await click('Checks & notes')
+  await click('Checks & Notes')
   const notes = container.querySelector('textarea')!
   await act(async () => { Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(notes, 'Changed Team note'); notes.dispatchEvent(new Event('input', { bubbles: true })) })
   await click('Save member and return to Team')

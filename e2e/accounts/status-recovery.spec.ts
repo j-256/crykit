@@ -136,8 +136,8 @@ test('account setup and Playthrough publication establish the status recovery wo
   // Adopt that committed root through the normal reopen before starting a new form
   await page.getByRole('button', { name: 'Load updated data', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Load updated data', exact: true })).toBeHidden()
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const data = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  const data = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   await data.getByRole('button', { name: 'Playthrough', exact: true }).click()
   const label = data.getByLabel('New blank Playthrough')
   if (!await label.isVisible()) await data.locator('.playthrough-create > summary').click()

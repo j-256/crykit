@@ -7,9 +7,9 @@ test('completeGuestBackupDownloadsValidatedSavedWorkspace', async ({ page }) => 
   await page.addInitScript(() => { Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined }) })
   await page.goto('/')
   await waitForPlannerReady(page)
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  await panel.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   const pending = page.waitForEvent('download')
   await panel.getByRole('button', { name: 'Export backup', exact: true }).click()
   const download = await pending

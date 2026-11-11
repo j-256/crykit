@@ -23,10 +23,10 @@ test('backdrop dismissal ignores panel clicks and drags and restores focus witho
   const referenceBounds = await reference.boundingBox()
   expect(referenceBounds).not.toBeNull()
   const outside = { x: referenceBounds!.x + referenceBounds!.width / 2, y: referenceBounds!.y + referenceBounds!.height / 2 }
-  const trigger = page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true })
+  const trigger = page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true })
   await trigger.click()
-  const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  const heading = panel.getByRole('heading', { name: 'Data & settings', exact: true })
+  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const heading = panel.getByRole('heading', { name: 'Data & Settings', exact: true })
   await heading.click()
   await expect(panel).toBeVisible()
   const headingBounds = await heading.boundingBox()

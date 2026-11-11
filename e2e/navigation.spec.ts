@@ -10,8 +10,8 @@ async function navigate(page: Page, destination: string) {
 }
 
 async function openData(page: Page) {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
 }
 
 async function setHash(page: Page, hash: string) {
@@ -129,7 +129,7 @@ test('settings routes retain dirty forms and expired previews recover explicitly
   await expect(reopened.getByText('Import preview', { exact: true })).toBeVisible()
   await expect(page).toHaveURL(/#\/settings\/data\/import\/[^/?]+$/)
   await page.reload()
-  const restored = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  const restored = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   await expect(restored.getByText('Import preview expired', { exact: true })).toBeVisible()
 
   await page.evaluate(() => { window.location.hash = '#/settings/data' })
@@ -149,7 +149,7 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
   await expect(page).toHaveURL(/#\/builds\/library\/new$/)
   const creation = page.locator('.build-sheet')
-  await creation.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await creation.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await creation.getByText('Build details & notes', { exact: true }).click()
   await page.locator('.context-bar').getByLabel('Build title', { exact: true }).fill('Synthetic routed character build')
   const editor = page.locator('.build-sheet')
@@ -163,7 +163,7 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
 
   await page.goBack()
   await expect(picker).not.toBeVisible()
-  await editor.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await editor.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await expect(editor.getByLabel('Rotation or use notes')).toHaveValue('Draft retained across nested history')
   await editor.getByRole('button', { name: 'Loadout', exact: true }).click()
   await page.goForward()
@@ -174,7 +174,7 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
   const acceptedUrl = page.url()
   await page.evaluate(() => { window.location.hash = '#/inventory' })
   await expect(page).toHaveURL(acceptedUrl)
-  await editor.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await editor.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await expect(editor.getByLabel('Rotation or use notes')).toHaveValue('Draft retained across nested history')
   await editor.getByRole('button', { name: 'Loadout', exact: true }).click()
   await editor.getByRole('combobox', { name: 'Class', exact: true }).click()
@@ -192,7 +192,7 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
   const secondEditor = page.locator('.build-sheet')
   await secondEditor.getByRole('combobox', { name: 'Class', exact: true }).click()
   await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option', { name: /Leave empty/ }).click()
-  await secondEditor.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await secondEditor.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await secondEditor.getByText('Build details & notes', { exact: true }).click()
   await secondEditor.getByLabel('Checkpoint name').fill('Second routed checkpoint')
   const firstRevisionUrl = page.url()
@@ -223,7 +223,7 @@ test('build drafts, checkpoint pickers, and comparisons have restorable routes',
   await expect(page.getByRole('article', { name: 'Synthetic routed character', exact: true }).getByText('Warrior', { exact: true })).toBeVisible()
 
   await navigate(page, 'Builds')
-  await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
+  await page.getByRole('button', { name: 'Compare Revisions', exact: true }).click()
   await expect(page).toHaveURL(/#\/builds\/compare$/)
   await page.getByLabel('Revision A').selectOption({ index: 1 })
   await page.getByLabel('Revision B').selectOption({ index: 2 })

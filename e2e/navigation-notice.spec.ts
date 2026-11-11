@@ -80,8 +80,8 @@ test('repeated blocked Team navigation reveals all recovery choices between fixe
 test('deep Game Setup navigation and close attempts reveal their own choices without saving or discarding fields', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/')
   await skipInitialModSetup(page)
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   await openCurrentGameSetup(panel)
   await openGameSetupSection(panel, 'Rules from game data')
   for (const summary of await panel.locator('.game-setup-derived summary').all()) {

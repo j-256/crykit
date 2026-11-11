@@ -8,7 +8,7 @@ import type { LocalData } from '../src/domain/types'
 import { skipInitialModSetup, createBlankPlaythrough, openGameSetupSection, replacePlannerData, selectedPlaythrough, readLocalData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 
-const settings = (page: Page) => page.getByRole('dialog', { name: 'Data & settings', exact: true })
+const settings = (page: Page) => page.getByRole('dialog', { name: 'Data & Settings', exact: true })
 const save = (page: Page) => settings(page).getByRole('button', { name: 'Save Game Setup', exact: true })
 
 async function readData(page: Page): Promise<LocalData> {
@@ -31,7 +31,7 @@ test('Playthrough assignment and Game Setup editing open distinct screens', asyn
   await expect(panel.getByRole('combobox', { name: 'Game version', exact: true })).toBeVisible()
   await expect(panel.getByRole('combobox', { name: 'Difficulty', exact: true })).toBeVisible()
   await expect(panel.getByRole('combobox', { name: 'Game Setup to apply', exact: true })).toHaveCount(0)
-  await expect(panel.getByRole('button', { name: 'Saved setups', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(panel.getByRole('button', { name: 'Saved Setups', exact: true })).toHaveAttribute('aria-pressed', 'true')
   expect(await readData(page)).toEqual(data)
 })
 
@@ -138,12 +138,12 @@ test('saving a setup is independent and applying it to a playthrough is explicit
   expect(saved.gameSetups[source.id]).toEqual(source)
   expect(saved.playthroughs).toEqual(original.playthroughs)
   expect(saved.planningGameSetupRevisionId).toBe(original.planningGameSetupRevisionId)
-  await expect(panel.getByRole('button', { name: 'Saved setups', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(panel.getByRole('button', { name: 'Saved Setups', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await panel.getByRole('button', { name: 'Back to saved setups', exact: true }).click()
   await expect(panel.getByRole('heading', { name: 'Saved Game Setups', exact: true })).toBeVisible()
   await panel.getByRole('button', { name: 'Playthrough', exact: true }).click()
   await expect(panel.getByRole('button', { name: 'Playthrough', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await expect(panel.getByRole('button', { name: 'Saved setups', exact: true })).toHaveAttribute('aria-pressed', 'false')
+  await expect(panel.getByRole('button', { name: 'Saved Setups', exact: true })).toHaveAttribute('aria-pressed', 'false')
   await expect(panel.getByRole('combobox', { name: 'Game version', exact: true })).toHaveCount(0)
   await expect(page).toHaveURL(/settings\/playthrough$/)
   await panel.getByRole('combobox', { name: 'Game Setup to apply', exact: true }).selectOption(setup.id)
@@ -209,7 +209,7 @@ test('unrelated edits preserve unresolved knowledge and backup round trips', asy
   const setup = Object.values(saved.gameSetups).find(value => !localData.gameSetups[value.id])!
   for (const key of ['platform', 'gameVersion', 'mode', 'difficulty', 'ppLimit', 'ppCostsNonNegative', 'mods'] as const) expect(setup[key]).toEqual(source[key])
   expect(saved.gameSetups[id]).toEqual(source)
-  await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await panel.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   const download = page.waitForEvent('download')
   if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
@@ -227,7 +227,7 @@ test('a failed new setup save retries inside the panel and survives offline relo
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
   await prepare.click()
   await expectOfflineReady(panel)
-  await panel.getByRole('button', { name: 'Saved setups', exact: true }).click()
+  await panel.getByRole('button', { name: 'Saved Setups', exact: true }).click()
   const original = await readData(page)
   await panel.getByRole('button', { name: 'New Game Setup', exact: true }).click()
   await panel.getByLabel('Game Setup label').fill('Synthetic recovered setup')

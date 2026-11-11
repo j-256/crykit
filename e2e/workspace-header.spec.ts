@@ -32,7 +32,7 @@ test('planning headers identify the page and keep commands usable at narrow widt
     await expect(header.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
     await expect(header.getByRole('button', { name: 'New Build', exact: true })).toBeVisible()
     await expect(page.locator('.content .screen-header')).toHaveCount(0)
-    await expect(page.locator('.content').getByRole('searchbox', { name: 'Search Build library', exact: true })).toBeVisible()
+    await expect(page.locator('.content').getByRole('searchbox', { name: 'Search Build Library', exact: true })).toBeVisible()
     await expectHeaderControls(page)
     await page.getByRole('button', { name: SAMPLE_BUILD, exact: true }).click()
     await expect(header.getByRole('heading', { name: SAMPLE_BUILD, exact: true })).toBeVisible()

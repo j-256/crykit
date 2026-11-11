@@ -69,7 +69,7 @@ test('Build Mods badges consolidate requirements without overflow or changing sa
     await expect(tooltip).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(tooltip).not.toBeVisible()
-    await page.getByRole('searchbox', { name: 'Search Build library', exact: true }).focus()
+    await page.getByRole('searchbox', { name: 'Search Build Library', exact: true }).focus()
     await badge.focus()
     await expect(tooltip).toBeVisible()
     await page.keyboard.press('Escape')
@@ -97,7 +97,7 @@ test('Build Mods badges consolidate requirements without overflow or changing sa
     await expect(tooltip).toBeVisible()
     await expectWithinViewport(tooltip)
   }
-  await page.getByRole('searchbox', { name: 'Search Build library', exact: true }).click()
+  await page.getByRole('searchbox', { name: 'Search Build Library', exact: true }).click()
   await expect(tooltip).not.toBeVisible()
   await expect(page).toHaveURL(/#\/builds\/library$/)
   expect(await storedData(page)).toEqual(before)
