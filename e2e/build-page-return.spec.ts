@@ -26,7 +26,7 @@ test('guest Build input remains editable and saves after a persisted page return
     const classInput = page.getByRole('combobox', { name: 'Class', exact: true }).filter({ visible: true })
     await classInput.fill('Wizard')
     await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
-    await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+    await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
     const notes = page.getByRole('textbox', { name: 'Rotation or use notes', exact: true })
     await notes.fill(PRIVATE_NOTES)
     const originalTimeOrigin = await page.evaluate(() => performance.timeOrigin)

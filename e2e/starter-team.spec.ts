@@ -9,13 +9,13 @@ import { strFromU8, unzipSync } from 'fflate'
 import type { LocalData } from '../src/domain/types'
 
 async function openData(page: Page) {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
 }
 
 async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await openData(page)
-  await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await panel.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   const download = page.waitForEvent('download')
   if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
@@ -81,7 +81,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   expect(selectedPlaythrough(saved).inventory).toEqual(selectedPlaythrough(original).inventory)
 
   const settings = await openData(page)
-  await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await settings.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   const prepare = settings.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
   await expectOfflineReady(settings)
@@ -99,7 +99,7 @@ test('an explicitly created blank playthrough keeps its records empty while shar
   await skipInitialModSetup(page)
   await createBlankPlaythrough(page)
   await page.reload()
-  await expect(page.getByRole('region', { name: 'Build library', exact: true }).locator('.build-card')).toHaveCount(8)
+  await expect(page.getByRole('region', { name: 'Build Library', exact: true }).locator('.build-card')).toHaveCount(8)
   await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
   await expect(page.getByRole('heading', { name: 'Your roster is blank', exact: true })).toBeVisible()
   const localData = await exportLocalData(page)
@@ -109,7 +109,7 @@ test('an explicitly created blank playthrough keeps its records empty while shar
 
 test('Game Setup starts with core fields and reveals optional settings on demand', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   await page.goto('/#/settings/game-setup?scope=playthrough')
-  const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   await openCurrentGameSetup(panel)
   await expect(panel.getByRole('combobox', { name: 'Difficulty', exact: true })).toBeVisible()
   const mods = panel.locator('.game-setup-mods')
@@ -177,7 +177,7 @@ test('sample team uncertainty uses plain language and targeted actions', async (
 
   await setup.locator('summary').click()
   await setup.getByRole('button', { name: 'Review setup', exact: true }).click()
-  let panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  let panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   await expect(panel.getByText('Saved revision 1', { exact: true })).toBeVisible()
   await expect(panel.locator('.game-setup-derived')).not.toHaveAttribute('open')
   await expect(panel.getByLabel('Game version', { exact: true })).toBeFocused()
@@ -185,7 +185,7 @@ test('sample team uncertainty uses plain language and targeted actions', async (
 
   await defaults.locator('summary').click()
   await defaults.getByRole('button', { name: 'Review equipment slots', exact: true }).click()
-  panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   await expect(panel.locator('.game-setup-derived')).toHaveAttribute('open')
   await expect(panel.getByText('Saved equipment layout', { exact: true })).toBeVisible()
   await expect(panel.getByRole('button', { name: 'Apply planner defaults', exact: true })).toHaveCount(0)
@@ -200,7 +200,7 @@ test('sample team uncertainty uses plain language and targeted actions', async (
 
 test('PC game data remains scoped when a team uses Switch 1.6.6', async ({ page }) => {
   await page.goto('/#/settings/game-setup?scope=playthrough')
-  const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   await openCurrentGameSetup(panel)
   await openGameSetupSection(panel, 'Game context')
   await panel.getByLabel('Platform', { exact: true }).selectOption('Windows')

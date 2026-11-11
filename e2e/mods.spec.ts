@@ -30,13 +30,13 @@ function backup(localData: LocalData): Uint8Array {
 }
 
 async function dataPanel(page: Page) {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
 }
 
 async function exportLocalData(page: Page): Promise<LocalData> {
   const panel = await dataPanel(page)
-  await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await panel.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   const downloaded = page.waitForEvent('download')
   if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
@@ -47,7 +47,7 @@ async function exportLocalData(page: Page): Promise<LocalData> {
 
 async function importBackup(page: Page, bytes: Uint8Array, playthroughLabel: string) {
   const panel = await dataPanel(page)
-  await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await panel.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-mods.zip', mimeType: 'application/zip', buffer: Buffer.from(bytes) })
   const manifest = JSON.parse(strFromU8(unzipSync(bytes)['manifest.json']!)) as { formatVersion: string }
   await panel.getByText('File details and source notices', { exact: true }).click()
@@ -91,7 +91,7 @@ test('recorded mod help opens settings and preserves the snapshot after a mod ch
   expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(44)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await help.getByRole('link', { name: 'Playthrough game settings', exact: true }).click()
-  const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   await expect(settings.getByRole('combobox', { name: 'Game version', exact: true })).toHaveCount(0)
   await openCurrentGameSetup(settings)
   await openSwitchModPacks(settings)
@@ -186,7 +186,7 @@ test('Reference and pickers retain non-enabled mods at the bottom while recorded
   await expect(page.getByRole('region', { name: 'Hand', exact: true }).locator('[data-mod-badge="Doge Shield"][data-mod-state="enabled"]')).toHaveCount(2)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   const panel = await dataPanel(page)
-  await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await panel.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   const downloaded = page.waitForEvent('download')
   if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
@@ -226,7 +226,7 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   await page.goto('/')
   await skipInitialModSetup(page)
   let panel = await dataPanel(page)
-  await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await panel.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
   await expectOfflineReady(panel)
@@ -291,7 +291,7 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   await page.getByRole('button', { name: 'Retry save', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   panel = await dataPanel(page)
-  await panel.getByRole('button', { name: 'Saved setups', exact: true }).click()
+  await panel.getByRole('button', { name: 'Saved Setups', exact: true }).click()
   await panel.locator('.game-setup-library__item').filter({ has: page.getByRole('heading', { name: 'Synthetic Switch choices', exact: true }) }).getByRole('button', { name: 'Edit setup', exact: true }).click()
   await applySavedGameSetup(panel)
   await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()

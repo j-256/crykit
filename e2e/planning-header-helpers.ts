@@ -7,7 +7,7 @@ export async function openBuildLibrary(page: Page) {
 
 export async function openBuildComparison(page: Page) {
   await openBuildLibrary(page)
-  await page.getByRole('button', { name: 'Compare revisions', exact: true }).click()
+  await page.getByRole('button', { name: 'Compare Revisions', exact: true }).click()
 }
 
 export async function openBuildActions(page: Page) {

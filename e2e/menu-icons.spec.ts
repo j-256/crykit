@@ -65,9 +65,9 @@ test('game icons accompany character equipment, inventory, and both pickers with
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.getByRole('button', { name: 'Cancel and discard', exact: true }).click()
 
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  await panel.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await panel.getByRole('checkbox', { name: 'Artwork', exact: true }).check()
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()

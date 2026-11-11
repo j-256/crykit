@@ -16,8 +16,8 @@ import type { LocalData } from '../src/domain/types'
 const DEFAULT_CATALOG = observedSkillMapCatalogFixture({ ...CURRENT_CATALOG, entities: {}, claims: [] })
 
 async function dataPanel(page: Page) {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
 }
 
 async function loadFixture(page: Page, localData: LocalData = { ...screenshotTestLocalData(), changes: [] }) {
@@ -172,7 +172,7 @@ test('screenshots compile reviewed names offline, skip duplicates, and preserve 
   const pixels = await syntheticScreenshot(page)
   const wrong = await syntheticScreenshot(page, 'Equip')
   const panel = await dataPanel(page)
-  await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await panel.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await panel.getByRole('checkbox', { name: 'Screenshot recognition', exact: true }).check()
   await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(panel)

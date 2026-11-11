@@ -42,7 +42,7 @@ export function LoadoutSheet({ content, slots, localData, catalogs, gameSetup, v
     section.focus({ preventScroll: true })
   }
   return <div className="stack loadout-sheet">
-    {showChecks && <div className="build-sheet__view-switch"><Segmented label={viewLabel} onChange={onViewChange} options={[{ value: 'loadout', label: 'Loadout' }, { value: 'checks', label: 'Checks & notes' }]} value={view}/></div>}
+    {showChecks && <div className="build-sheet__view-switch"><Segmented label={viewLabel} onChange={onViewChange} options={[{ value: 'loadout', label: 'Loadout' }, { value: 'checks', label: 'Checks & Notes' }]} value={view}/></div>}
     {view === 'loadout' ? <>
       <nav aria-label="Loadout sections" className="loadout-sections">
         <button aria-label="Jump to class and command" onClick={() => reveal(classSection.current)} type="button">Class</button>

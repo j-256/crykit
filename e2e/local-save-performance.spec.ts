@@ -58,7 +58,7 @@ async function openOperation(page: Page, operation: Operation, observePreparatio
   if (operation === 'Build notes') {
     await page.evaluate(() => { location.hash = '#/builds/library' })
     await page.getByRole('button', { name: 'Rowan: sample Warrior', exact: true }).click()
-    await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+    await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   } else if (operation === 'progress tile') {
     await page.evaluate(() => { location.hash = '#/progress/summons' })
     await page.getByRole('heading', { name: 'Progress', exact: true }).waitFor()

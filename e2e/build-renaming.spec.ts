@@ -9,9 +9,9 @@ const ORIGINAL_TITLE = 'Rowan: sample Warrior'
 const RENAMED_TITLE = 'Rowan: frontline protector'
 
 async function exportLocalData(page: Page): Promise<LocalData> {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await settings.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  await settings.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   const download = page.waitForEvent('download')
   if (!await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await settings.getByText("What's included in a backup?", { exact: true }).click()
   await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
@@ -70,7 +70,7 @@ test('canceling and saving an unchanged title make no local transaction', async 
 test('renaming keeps an unfinished loadout and its navigation guard even when the library search stops matching', async ({ page }) => {
   const before = await exportLocalData(page)
   await openBuildLibrary(page)
-  await page.getByRole('searchbox', { name: 'Search Build library', exact: true }).fill(ORIGINAL_TITLE)
+  await page.getByRole('searchbox', { name: 'Search Build Library', exact: true }).fill(ORIGINAL_TITLE)
   await chooseWizard(page)
   await rename(page, RENAMED_TITLE)
   await page.getByRole('button', { name: 'Save details', exact: true }).click()

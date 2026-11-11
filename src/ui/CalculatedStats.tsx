@@ -65,7 +65,7 @@ export function CalculatedStats({ content, slots, localData, catalogs, gameSetup
     <h3>Calculated stats</h3>
     {/* Current assumptions belong beside the totals they affect, even when source details stay closed */}
     <div aria-label="Calculation context" role="group">
-      <p className="field__hint">{plan.battle ? 'Includes active statuses and elapsed turns from Checks & notes.' : 'Resting stats, without active statuses or turn effects.'}</p>
+      <p className="field__hint">{plan.battle ? 'Includes active statuses and elapsed turns from Checks & Notes.' : 'Resting stats, without active statuses or turn effects.'}</p>
       <p className="field__hint">Balance mode: {rules.mode ?? plan.pcMode ?? 'standard'} · {rules.mode ? 'from Game Setup' : 'calculation assumption; choose Game mode in Game Setup to confirm'}</p>
       {assumedCompatible && <p className="field__hint">Uses PC 1.6.9.0 calculation rules for this version.</p>}
     </div>
@@ -81,7 +81,7 @@ export function CalculatedStats({ content, slots, localData, catalogs, gameSetup
       </div>)}
       <div className="cluster"><Button disabled={plan.growth.length >= PC_LEVEL_CAP} onClick={() => update({ growthMode: 'manual', growth: [...plan.growth, { classRef: null, levels: 0 }] })} tone="secondary" type="button">Add growth class</Button><Button onClick={() => update({ growthMode: 'primary', growth: [{ classRef: content.primaryClass, levels: plan.level }] })} tone="quiet" type="button">Follow primary class for all growth</Button></div>
     </div></details></> : <details className="growth-controls"><summary>Level-up growth · {allocated}/{plan.level ?? '?'}</summary><CalculationInputs catalogs={catalogs} localData={localData} plan={plan} genders={rules.genders}/></details>}
-    {(plan.statuses.length > 0 && !plan.battle || plan.bonuses.length > 0) && <InlineNotice title="Additional saved assumptions"><p>Use a battle scenario in Checks & notes to calculate saved status effects. Custom stat bonuses are unsupported.</p>{onChange && <Button onClick={() => update({ statuses: [], bonuses: [] })} tone="quiet" type="button">Clear saved statuses and custom bonuses</Button>}</InlineNotice>}
+    {(plan.statuses.length > 0 && !plan.battle || plan.bonuses.length > 0) && <InlineNotice title="Additional saved assumptions"><p>Use a battle scenario in Checks & Notes to calculate saved status effects. Custom stat bonuses are unsupported.</p>{onChange && <Button onClick={() => update({ statuses: [], bonuses: [] })} tone="quiet" type="button">Clear saved statuses and custom bonuses</Button>}</InlineNotice>}
     {!hasResults && (!content.primaryClass ? <p>Choose a primary class to calculate stats.</p> : <CalculationStatus onUploadMod={onUploadMod} issues={estimate.issues} requiredMod={modSelection ? requiredMod : undefined} onReviewGameSetup={requiredMod && modSelection ? () => modSelection.enable(requiredMod) : rules.issues.length || requiredMod ? onReviewGameSetup : undefined}/>)}
     {hasResults && Object.values(total).some(value => value === null) && onUploadMod && <CalculationStatus onUploadMod={onUploadMod} issues={estimate.issues} partial/>}
     {hasResults && (!onUploadMod || Object.values(total).every(value => value !== null)) && estimate.issues.length > 0 && <InlineNotice title="Some calculation values unavailable" tone="warning"><ul>{estimate.issues.map(issue => <li key={issue}>{issue}</li>)}</ul></InlineNotice>}

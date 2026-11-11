@@ -8,7 +8,7 @@ test('home opens the build library and separates tracking on desktop and touch',
   await skipInitialModSetup(page)
   await expect(page).toHaveURL(/#\/builds\/library$/)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
-  const library = page.getByRole('region', { name: 'Build library', exact: true })
+  const library = page.getByRole('region', { name: 'Build Library', exact: true })
   const warriorButton = page.getByRole('button', { name: /Rowan: sample Warrior/ })
   const warrior = library.getByRole('article').filter({ has: warriorButton })
   await expect(warriorButton).toBeVisible()
@@ -74,11 +74,11 @@ test('home opens the build library and separates tracking on desktop and touch',
 
 test('direct settings return to Builds and saved build tracking requires an explicit choice', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/settings/data')
-  const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   await expect(settings).toBeVisible()
   await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
   await expect(page).toHaveURL(/#\/builds\/library$/)
-  await page.getByRole('region', { name: 'Build library', exact: true }).getByRole('button', { name: /Rowan: sample Warrior/ }).click()
+  await page.getByRole('region', { name: 'Build Library', exact: true }).getByRole('button', { name: /Rowan: sample Warrior/ }).click()
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Warrior')
   await expect(page.getByRole('button', { name: 'Record as current', exact: true })).not.toBeVisible()
   const readiness = page.locator('.build-readiness')

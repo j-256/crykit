@@ -28,7 +28,7 @@ async function failNextSave(page: Page) {
   })
 }
 
-test('edits Team-owned content, retries atomically and leaves the pinned sibling and complete Build library unchanged', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('edits Team-owned content, retries atomically and leaves the pinned sibling and complete Build Library unchanged', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto(`/${NEW_TEAM_ROUTE}`)
   await page.getByRole('combobox', { name: /^Choose shared setup/ }).selectOption({ label: 'Sample starter Game Setup · r1' })
   await page.getByRole('textbox', { name: 'Team name', exact: true }).fill('Synthetic member workflow')
@@ -75,7 +75,7 @@ test('canceling member edits or creation preserves the unsaved Team name and che
   await chooseTeamCheckpoint(page, 1, revision.id)
   const first = page.getByRole('region', { name: 'Team slot 1 loadout', exact: true })
   await first.getByRole('button', { name: 'Edit member', exact: true }).click()
-  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await page.getByLabel('Rotation or use notes').fill('Canceled member edit')
   await page.getByRole('button', { name: 'Cancel and return to Team', exact: true }).click()
   await expect(first.getByRole('heading', { name: before.builds[revision.buildId]!.title, exact: true })).toBeVisible()
@@ -228,7 +228,7 @@ test('saves changed Team member content through the navigation guard without adv
   const before = await storedData(page), source = Object.values(before.buildRevisions)[0]!
   await chooseTeamCheckpoint(page, 1, source.id)
   await page.getByRole('region', { name: 'Team slot 1 loadout', exact: true }).getByRole('button', { name: 'Edit member', exact: true }).click()
-  await page.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await page.getByLabel('Rotation or use notes').fill('Changed through navigation guard')
   await page.getByRole('button', { name: 'Builds', exact: true }).filter({ visible: true }).click()
   await page.getByRole('button', { name: 'Save and continue', exact: true }).click()

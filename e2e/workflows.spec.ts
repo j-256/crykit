@@ -21,12 +21,12 @@ const SYNTHETIC_RESEARCH = {
 }
 
 async function openData(page: Page) {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
 }
 
 async function closeData(page: Page) {
-  await page.getByRole('dialog', { name: 'Data & settings', exact: true }).getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Data & Settings', exact: true }).getByRole('button', { name: 'Close dialog', exact: true }).click()
 }
 
 async function stageServiceWorkerUpdate(page: Page) {
@@ -76,7 +76,7 @@ async function addItem(page: Page, name: string, count?: number) {
 
 async function exportPayload(page: Page) {
   const panel = await openData(page)
-  await panel.getByRole('button', { name: 'Import & backup', exact: true }).click()
+  await panel.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   const downloadPromise = page.waitForEvent('download')
   if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
@@ -99,10 +99,10 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('settings keeps keyboard focus within its sheet and returns focus on escape', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
-  const trigger = page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true })
+  const trigger = page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true })
   await trigger.focus()
   await page.keyboard.press('Enter')
-  const dialog = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  const dialog = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   await expect(dialog).toBeVisible()
   for (let index = 0; index < 12; index += 1) {
     await page.keyboard.press('Tab')
@@ -385,7 +385,7 @@ test('a production shell reloads and exports after going offline', { tag: MOBILE
   await createBlankPlaythrough(page)
   await addItem(page, 'Offline keepsake', 1)
   const panel = await openData(page)
-  await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await panel.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
   await expectOfflineReady(panel)
@@ -402,7 +402,7 @@ test('a production shell reloads and exports after going offline', { tag: MOBILE
 
 test('offline preparation repairs missing cached assets before reporting ready', async ({ page, context }) => {
   let panel = await openData(page)
-  await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await panel.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(panel)
   await closeData(page)
@@ -414,7 +414,7 @@ test('offline preparation repairs missing cached assets before reporting ready',
     }
   })
   panel = await openData(page)
-  await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await panel.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await expect(panel.getByText('Not ready', { exact: true })).toBeVisible()
   await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(panel)
@@ -471,7 +471,7 @@ test('a quota failure keeps the draft exportable and leaves persisted observatio
   const recovery = await exportPayload(page)
   expect(Object.values(selectedPlaythrough(recovery.payload.localData).inventory)).toEqual(expect.arrayContaining([expect.objectContaining({ observedName: 'Recovery-only observation' })]))
   const storage = await openData(page)
-  await storage.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await storage.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await expect(storage.getByRole('button', { name: 'Refresh app', exact: true })).toBeDisabled()
   await closeData(page)
   await page.reload()
@@ -544,7 +544,7 @@ test('subpath installation stages updates without reloading an open draft', asyn
     await page.goto(`http://127.0.0.1:${address.port}/journal/#/inventory`)
     await addItem(page, 'Portable origin observation', 1)
     const panel = await openData(page)
-    await panel.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+    await panel.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
     await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
     await expectOfflineReady(panel)
     await page.evaluate(async () => {
@@ -563,7 +563,7 @@ test('subpath installation stages updates without reloading an open draft', asyn
     await expect(entry.getByLabel('Item name')).toHaveValue('Keep this unsaved form')
     await entry.getByRole('button', { name: 'Cancel', exact: true }).click()
     const update = await openData(page)
-    await update.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+    await update.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
     await expect(update.getByRole('button', { name: 'Apply app update', exact: true })).toBeVisible()
     // Activation reloads the page before the settings dialog is restored
     await Promise.all([
@@ -586,7 +586,7 @@ test('subpath installation stages updates without reloading an open draft', asyn
     generation = 3
     await stageServiceWorkerUpdate(page)
     const thirdUpdate = await openData(page)
-    await thirdUpdate.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+    await thirdUpdate.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
     await Promise.all([
       page.waitForEvent('load'),
       thirdUpdate.getByRole('button', { name: 'Apply app update', exact: true }).click(),

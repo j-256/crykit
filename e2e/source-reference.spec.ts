@@ -17,7 +17,7 @@ test('reference entries are read-only and offer source issue reporting', { tag: 
   await expect(page.getByRole('link', { name: 'Report a data issue', exact: true })).toHaveAttribute('href', 'https://github.com/j-256/crykit/issues')
   await expect(page.getByRole('button', { name: /^(Quick edit|Correct shared reference|Corrections)/ })).toHaveCount(0)
   await page.goto('/#/settings/data')
-  await expect(page.getByRole('heading', { name: 'Data & settings', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Data & Settings', exact: true })).toBeVisible()
   await expect(page.getByText('Reference corrections', { exact: true })).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })

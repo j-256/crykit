@@ -12,8 +12,8 @@ async function navigate(page: Page, destination: string) {
 }
 
 async function openData(page: Page) {
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
 }
 
 async function configureGameSetup(page: Page, _slotLabels = ['Main hand']) {
@@ -222,13 +222,13 @@ test('build drafts resist navigation and recording current preserves level and t
   await chooseFourTeamMembers(currentTeam)
   await currentTeam.getByRole('button', { name: 'Create party plan', exact: true }).click()
   await expect(currentTeam).not.toBeVisible()
-  await page.getByRole('button', { name: 'Build library', exact: true }).click()
+  await page.getByRole('button', { name: 'Build Library', exact: true }).click()
   await page.getByRole('button', { name: 'New Build', exact: true }).click()
   await openBuildGameSetup(page)
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
   const build = page.locator('.build-sheet')
   await expect(page.getByRole('status', { name: 'Build PP summary' })).toContainText('0 / 10 PP')
-  await build.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await build.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await build.getByText('Build details & notes', { exact: true }).click()
   await page.getByLabel('Build title', { exact: true }).fill('Observed Rowan build')
   await expect(page.getByLabel('PP reference character')).toHaveCount(0)
@@ -300,7 +300,7 @@ test('named shared-copy checkpoints clone independently and picker history prese
   const grouping = editor.getByRole('combobox', { name: 'Off hand: Item copies', exact: true })
   await expect(grouping).toHaveValue('')
   await grouping.selectOption({ label: 'Share one item with Main hand' })
-  await editor.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await editor.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await editor.getByLabel('Checkpoint name').fill('One physical staff')
   await page.screenshot({ path: testInfo.outputPath('build-editor.png'), fullPage: true })
   await page.locator('.context-bar').getByRole('button', { name: /^Save (build|new revision)$/ }).click()
@@ -360,10 +360,10 @@ test('named shared-copy checkpoints clone independently and picker history prese
   await stock.getByRole('button', { name: 'Save observation', exact: true }).click()
   await expect(stock).not.toBeVisible()
   await navigate(page, 'Builds')
-  await expect(page.getByRole('region', { name: 'Build library', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Build Library', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Two-slot template', exact: true }).click()
   await editor.getByRole('combobox', { name: 'Off hand: Item copies', exact: true }).selectOption('')
-  await editor.getByRole('button', { name: 'Checks & notes', exact: true }).click()
+  await editor.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await editor.getByText('Build details & notes', { exact: true }).click()
   await editor.getByLabel('Checkpoint name').fill('Separate physical copies')
   await page.locator('.context-bar').getByRole('button', { name: /^Save (build|new revision)$/ }).click()

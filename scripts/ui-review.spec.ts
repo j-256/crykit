@@ -116,7 +116,7 @@ async function openPage(page: Page, route: PageRoute) {
 
 async function settings(page: Page, section: 'data' | 'history' | 'playthrough') {
   await openPage(page, { page: 'settings', section })
-  const panel = page.getByRole('dialog', { name: 'Data & settings', exact: true })
+  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
   await expect(panel).toBeVisible()
   return panel
 }
@@ -151,7 +151,7 @@ async function scenario(page: Page, screen: string, shot: (state: string, descri
     await openPage(page, { page: 'builds', view: 'library' })
     await page.getByRole('checkbox', { name: 'Show sample Builds', exact: true }).check()
     await expect(page.locator('.build-card').first()).toBeVisible()
-    await shot('sample-library', 'Nonempty synthetic Build library with native equipment artwork')
+    await shot('sample-library', 'Nonempty synthetic Build Library with native equipment artwork')
     await openPage(page, { page: 'builds', view: 'build', buildId: build.id })
     await expect(page.getByRole('heading', { name: build.title, exact: true })).toBeVisible()
     await shot('saved-editor', 'Saved Build checkpoint, equipped slots, and accessible header actions')

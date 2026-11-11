@@ -685,7 +685,7 @@ test('creates, undoes and exports a voxel platform with blank original and persi
   await files.selectOption(id!)
   await page.getByRole('tab', { name: 'Map Editor', exact: true }).click()
   // Presentation and operative history belong to the durable owned form, including after a full reload
-  await expect(page.getByRole('button', { name: 'World map overview', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: 'World Map Overview', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('button', { name: 'Isometric', exact: true }).click()
   await expectMap(page)
   await expect(placements).toHaveCount(4)
@@ -739,9 +739,9 @@ test('loads the map editor and exports its saved draft after offline preparation
   // Prepare before visiting Map Editor so its deferred chunk must also survive an offline reload
   await page.getByLabel('Open mod JSON file', { exact: true }).setInputFiles({ name: FILENAME, mimeType: 'application/json', buffer: Buffer.from(SOURCE) })
   await expect(page.getByRole('status').filter({ hasText: /^Saved in this browser$/ })).toBeVisible()
-  await page.getByRole('button', { name: /^(Data & settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const settings = page.getByRole('dialog', { name: 'Data & settings', exact: true })
-  await settings.getByRole('button', { name: 'Offline & storage', exact: true }).click()
+  await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
+  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  await settings.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await settings.getByRole('checkbox', { name: 'Maps', exact: true }).check()
   await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(settings)
