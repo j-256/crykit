@@ -95,3 +95,9 @@
 .team-review__issues svg { width: 17px; height: 17px; color: var(--amber) }
 .team-review__clear { color: var(--text-dim) }
 .team-review__clear svg { width: 17px; height: 17px; color: var(--moss) }
+
+.team-member-actions { display: grid; gap: 8px; padding: 14px; margin-top: 16px; border-top: 1px solid var(--line); }
+.team-member-actions p { margin: 0; font-size: .75rem; color: var(--text-dim); }
+.team-checkpoint-history { border-top: 1px solid var(--line); }
+.team-checkpoint-history > summary { padding-block: 16px; cursor: pointer; }
+.team-checkpoint-history > section { padding-bottom: 16px; }

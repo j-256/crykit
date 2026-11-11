@@ -1,0 +1,76 @@
+.public-shared-preview { gap: 24px; }
+.share-member { min-width: 0; }
+.share-member__heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.share-member__heading h2 { margin: 0; font-size: 1.7rem; }
+.share-member__heading > span { flex-shrink: 0; color: var(--text-dim); font-size: .78rem; }
+.share-roster { min-width: 0; }
+.share-roster__paging { display: none; }
+.share-roster ol { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.share-roster li, .share-roster section { min-width: 0; height: 100%; }
+.share-roster__member { display: flex; flex-direction: column; gap: 8px; width: 100%; height: 100%; min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--ink-900); color: var(--text); text-align: left; overflow-wrap: anywhere; }
+.share-roster__member:hover { background: var(--selection); border-color: var(--line-strong); }
+.share-roster__member[aria-pressed="true"] { border-color: var(--cyan-300); background: var(--selection); }
+.share-roster__identity { display: flex; align-items: center; gap: 10px; }
+.share-roster__identity > span:last-child { display: grid; gap: 3px; min-width: 0; }
+.share-roster__identity small { color: var(--text-dim); font-size: .7rem; }
+.share-roster__identity strong { font-size: .9rem; line-height: 1.4; }
+.share-roster__portrait { flex: 0 0 32px; display: grid; place-items: center; width: 32px; height: 40px; }
+.share-roster__portrait > svg { width: 24px; height: 24px; color: var(--text-dim); }
+.share-roster__class { font-size: .8rem; }
+.share-roster__gear { color: var(--text-dim); font-size: .73rem; line-height: 1.5; }
+.shared-build-sheet .build-sheet__slots { gap: 28px; }
+.shared-build-sheet .build-field { grid-template-columns: minmax(0, 1fr); gap: 5px; align-items: start; }
+.shared-build-sheet .build-field__label, .share-receipt-selection__label { color: var(--text-dim); font-size: .75rem; }
+.shared-build-sheet .build-field__evidence { grid-column: 1; }
+.shared-build-sheet .build-readonly-selection { min-height: 44px; padding: 10px 12px; }
+.shared-build-sheet button.build-readonly-selection:hover { border-color: var(--cyan-300); background: var(--selection); }
+.shared-build-sheet .build-readonly-selection--empty { min-height: 36px; padding-block: 6px; color: var(--text-dim); border-style: dashed; }
+.shared-build-sheet .build-readonly-selection--empty strong { font-weight: 400; }
+.shared-build-sheet .build-sheet__preview { background: var(--ink-900); }
+.share-class-growth { color: var(--text-dim); font-size: .78rem; }
+.share-class-growth > summary { padding-block: 8px; cursor: pointer; }
+.share-sources, .share-copy-controls { border-top: 1px solid var(--line); scroll-margin-top: calc(var(--desktop-header-height) + 16px); }
+.share-sources > summary, .share-copy-controls > summary { padding-block: 16px; color: var(--text-dim); font-size: .85rem; cursor: pointer; }
+.share-sources__body { max-width: 54rem; padding-block: 8px 20px; }
+.share-sources__body h3 { margin: 0 0 12px; font-family: inherit; font-size: 1rem; }
+.share-sources__body h4 { margin: 0; font-size: .9rem; }
+.share-sources__body p { font-size: .85rem; }
+.share-sources__body details > summary { padding-block: 8px; cursor: pointer; }
+.share-sources__file { padding-block: 12px; border-bottom: 1px solid var(--line); }
+.share-sources__unknown { color: var(--text-dim); font-size: .8rem; }
+.share-copy-notice { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0; color: var(--text-dim); font-size: .8rem; }
+.share-copy-controls > .panel { border: 0; background: transparent; }
+.share-copy-controls > .panel > .panel__body { padding: 8px 0 20px; }
+.share-receipt-loadout { display: grid; gap: 28px; max-width: 58rem; }
+.share-receipt-classes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.share-receipt-selection { display: grid; gap: 5px; min-width: 0; }
+.share-receipt-selection > details { min-width: 0; border-bottom: 1px solid var(--line); }
+.share-receipt-selection summary { padding: 10px 0; cursor: pointer; }
+.share-receipt-selection summary small { display: block; margin-top: 5px; color: var(--text-dim); font-size: .72rem; }
+.share-receipt-selection__empty { padding-block: 10px; color: var(--text-dim); font-size: .85rem; }
+.share-empty-member { padding-block: 24px; color: var(--text-dim); }
+@media (min-width: 1101px) {
+  .shared-build-sheet .build-field__evidence > details { display: none; }
+  .shared-build-sheet .build-sheet__layout { grid-template-columns: minmax(0, 1fr) minmax(260px, .72fr); gap: 32px; }
+}
+@media (max-width: 1100px) {
+  .share-roster ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .shared-build-sheet .build-sheet__preview { display: none; }
+}
+@media (max-width: 600px) {
+  .public-shared-preview { gap: 20px; }
+  .share-roster ol { display: flex; gap: 8px; overflow-x: auto; padding: 3px 3px 10px; margin: -3px; }
+  .share-roster__paging { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; color: var(--text-dim); font-size: .78rem; }
+  .share-roster__paging button { display: grid; place-items: center; width: 44px; min-height: 44px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); }
+  .share-roster__paging button:hover:not(:disabled) { border-color: var(--cyan-300); }
+  .share-member__heading > span { display: none; }
+  .share-roster li { flex: 0 0 188px; }
+  .share-roster__member { padding: 12px; }
+  .share-member__heading { flex-wrap: wrap; gap: 4px 12px; margin-bottom: 16px; }
+  .share-member__heading h2 { font-size: 1.5rem; }
+  .shared-build-sheet .build-sheet__equipment { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 10px; }
+  .shared-build-sheet .build-field__evidence { font-size: .75rem; }
+  .shared-build-sheet .build-readonly-selection { padding-inline: 8px; font-size: .8rem; }
+  .share-receipt-classes { grid-template-columns: minmax(0, 1fr); }
+  .share-sources, .share-copy-controls { scroll-margin-top: 12px; }
+}

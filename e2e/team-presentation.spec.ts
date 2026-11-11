@@ -21,7 +21,7 @@ async function checkLoadoutOrder(sheet: Locator) {
   await expect(sheet.getByRole('table', { name: 'Gender stat comparison', exact: true })).not.toBeVisible()
 }
 
-test('build, character, and shared loadouts put controls before collapsible stats', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
+test('build, character, and shared loadouts put controls before collapsible stats', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL, isMobile }) => {
   await page.goto('/')
   await skipInitialModSetup(page)
   await page.getByRole('button', { name: 'Rowan: sample Warrior', exact: true }).click()
@@ -41,16 +41,19 @@ test('build, character, and shared loadouts put controls before collapsible stat
   await checkLoadoutOrder(page.locator('.loadout-sheet'))
   await page.getByRole('button', { name: 'Inspect Sub-command: Black Magic (Wizard)', exact: true }).click()
   await expect(page.locator('.build-field').filter({ has: page.getByRole('button', { name: 'Inspect Sub-command: Black Magic (Wizard)', exact: true }) }).locator('.build-selection-facts')).toHaveCount(0)
-  const sharedDetails = page.getByRole('complementary', { name: 'Selection details', exact: true })
+  const sharedDetails = isMobile ? page.locator('.build-field').filter({ has: page.getByRole('button', { name: 'Inspect Sub-command: Black Magic (Wizard)', exact: true }) }).locator('details') : page.getByRole('complementary', { name: 'Selection details', exact: true })
   const sharedPermissions = sharedDetails.locator('.build-selection-details > .definition-list > .definition-row').filter({ has: page.locator('dt', { hasText: /^(Weapons|Armor)$/ }) })
   await expect(sharedDetails).toContainText('Black Magic')
   await expect(sharedDetails).not.toContainText('equipment permissions')
   await expect(sharedDetails.locator('.stat-ratings')).toHaveCount(0)
+  await page.locator('summary').filter({ hasText: /^Class growth$/ }).click()
   await expect(page.getByRole('region', { name: 'Warrior growth', exact: true })).toBeVisible()
   await expect(sharedPermissions).toHaveCount(0)
   await page.getByRole('button', { name: 'Inspect Class: Warrior', exact: true }).click()
-  await expect(sharedPermissions).toHaveCount(2)
-  await expect(sharedPermissions.filter({ hasText: 'Swords' })).toBeVisible()
+  const classDetails = isMobile ? page.locator('.build-field').filter({ has: page.getByRole('button', { name: 'Inspect Class: Warrior', exact: true }) }).locator('details') : sharedDetails
+  const classPermissions = classDetails.locator('.build-selection-details > .definition-list > .definition-row').filter({ has: page.locator('dt', { hasText: /^(Weapons|Armor)$/ }) })
+  await expect(classPermissions).toHaveCount(2)
+  await expect(classPermissions.filter({ hasText: 'Swords' })).toBeVisible()
   await expect(sharedDetails).not.toContainText("The sub-command does not grant class equipment permissions.")
   const playthrough = before.playthroughs[before.selectedPlaythroughId!]!
   const character = Object.values(playthrough.characters).find(character => character.name === 'Rowan')!

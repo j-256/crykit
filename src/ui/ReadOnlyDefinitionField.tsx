@@ -14,7 +14,7 @@ export function ReadOnlyDefinitionField({ label, option, value, empty = 'Empty',
   const name = option ? label === 'Sub-command' ? subCommandLabel(option) : nativeDisplayName(option.record, option.name) : empty
   return <div className="build-field">
     <span className="build-field__label">{label}</span>
-    <button aria-label={`Inspect ${label}: ${name}`} className="build-readonly-selection" onClick={inspect} type="button"><DefinitionArtwork catalogs={catalogs} localData={localData} value={option?.ref ?? value}/><strong>{name}</strong></button>
+    {option || value ? <button aria-label={`Inspect ${label}: ${name}`} className="build-readonly-selection" onClick={inspect} type="button"><DefinitionArtwork catalogs={catalogs} localData={localData} value={option?.ref ?? value}/><strong>{name}</strong></button> : <span className="build-readonly-selection build-readonly-selection--empty"><strong>{name}</strong></span>}
     {option && <div className="build-field__evidence">{label !== 'Sub-command' && <BuildSelectionFacts option={option}/>}<details ref={details}><summary aria-label={`Details for ${option.name}`}>Details</summary><BuildSelectionDetails catalogs={catalogs} gameSetup={gameSetup} localData={localData} option={option} showClassPermissions={label !== 'Sub-command'}/></details></div>}
   </div>
 }

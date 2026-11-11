@@ -1,3 +1,4 @@
+import { openTeamHistory } from '../share-view-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { chooseTeamCheckpoint } from '../team-helpers'
 import type { LocalData, TeamRevision } from '../../src/domain/types'
@@ -42,6 +43,7 @@ async function teamJourney(page: Page) {
   await page.getByRole('button', { name: 'Move slot 2 left', exact: true }).click()
   await page.getByRole('combobox', { name: /^Choose shared setup/ }).selectOption('other-team-setup')
   await page.getByRole('button', { name: 'Save Team', exact: true }).click()
+  await openTeamHistory(page)
   await expect(page.getByRole('region', { name: 'Team checkpoint history' })).toContainText('Other shared rules')
   const changed = await state(page), changedRevision = owned(changed, 'Owned Team journey')
   expect(changedRevision.slots[1]!.content.rotationNotes).toBe('Owned member content changed')
@@ -50,6 +52,7 @@ async function teamJourney(page: Page) {
   await page.getByText('Compare all four slots with previous checkpoint', { exact: true }).click()
   await expect(page.locator('.team-checkpoint-comparison')).toHaveCount(4)
   await page.getByRole('combobox', { name: 'Team checkpoint', exact: true }).selectOption(firstRevision.id)
+  await openTeamHistory(page)
   await expect(page.getByRole('region', { name: 'Team checkpoint history' })).toContainText('Verified test Game Setup')
   await page.getByRole('combobox', { name: 'Team checkpoint', exact: true }).selectOption(changedRevision.id)
   await page.getByRole('button', { name: 'Save slot 2 as Build', exact: true }).click()
@@ -150,6 +153,7 @@ for (const [id, title] of [['legacy', 'Legacy empty Team'], ['mixed', 'Legacy mi
   expect((await state(page)).teams[id!]).toEqual(before.teams[id!])
   await setup.selectOption('other-team-setup')
   await page.getByRole('button', { name: 'Save Team', exact: true }).click()
+  await openTeamHistory(page)
   await expect(page.getByRole('region', { name: 'Team checkpoint history' })).toContainText('Other shared rules')
   const after = await state(page), checkpoint = owned(after, title!)
   const original = before.teams[id!]!
