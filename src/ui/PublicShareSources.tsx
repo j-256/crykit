@@ -7,6 +7,7 @@ import { BuildDisclosure } from './BuildDisclosure'
 import { decisionFacts } from './build-evidence'
 import { KnowledgeValue } from './KnowledgeValue'
 import { PrivateArtwork } from './mods/PrivateArtwork'
+import { publicCatalogLabel, publicReceiptSourceSummary } from './public-source-summary'
 
 export function PublicSelectionEvidence({ entry }: { readonly entry?: PublicEnrichedEntry }) {
   if (!entry?.definition) return <p>Definition unavailable. The saved name supplies no mechanics.</p>
@@ -38,7 +39,7 @@ export function PublicShareSources({ snapshot, enrichment, open, onToggle, detai
         <div className="definition-row"><dt>Nonnegative PP costs</dt><dd><KnowledgeValue value={publicKnowledge(snapshot.setup.ppCostsNonNegative)}/></dd></div>
       </dl>
       <section aria-label="Required sources"><h3>Required sources</h3>
-        {snapshot.setup.baseline && <p>Baseline: {snapshot.setup.baseline.catalogId} · {snapshot.setup.baseline.catalogRevisionId}</p>}
+        {snapshot.setup.baseline && <p>Baseline: {publicCatalogLabel(snapshot.setup.baseline.catalogId)} · {snapshot.setup.baseline.catalogRevisionId}</p>}
         {!snapshot.setup.layers.length && <p>No mod sources required.</p>}
         {snapshot.receipts.some(receipt => receipt.ref.kind === 'personal') && <p>Selected personal definitions require matching content fingerprints.</p>}
         {snapshot.setup.layers.length > 0 && <section aria-label="Matching sources" className="stack">{snapshot.setup.layers.map(layer => <div className="share-sources__file" key={JSON.stringify([layer.catalogId, layer.catalogRevisionId])}>
@@ -48,7 +49,7 @@ export function PublicShareSources({ snapshot, enrichment, open, onToggle, detai
         </div>)}{busy && <p role="status">Saving matching source...</p>}{canImport && <p className="field__hint">Files are saved to your own library. Your active Playthrough and enabled mods stay unchanged.</p>}</section>}
       </section>
       {enrichment && <section aria-label="Your matching definitions"><h3>Selected definitions</h3><p className="field__hint">Available details come from matching sources in your library.</p>{enrichment.entries.map(entry => <BuildDisclosure key={publicRefKey(entry.receipt.ref)} label={<>{entry.receipt.name}{!entry.definition && <span className="share-sources__unknown"> · Unavailable</span>}</>}><PublicSelectionEvidence entry={entry}/></BuildDisclosure>)}</section>}
-      <BuildDisclosure label="Selected entry requirements">{snapshot.receipts.map(receipt => <p key={publicRefKey(receipt.ref)}>{receipt.name} · {receipt.origin ? <>{receipt.origin.projectId} · {receipt.origin.sourceRevisionId} · {receipt.origin.catalogRevisionId}{receipt.origin.modelKey ? ` · ${receipt.origin.modelKey}` : ''}</> : 'Source identity unavailable'}</p>)}</BuildDisclosure>
+      <BuildDisclosure label="Selected entry requirements">{snapshot.receipts.map(receipt => <p key={publicRefKey(receipt.ref)}>{receipt.name} · {receipt.origin ? publicReceiptSourceSummary(receipt.origin) : 'Source identity unavailable'}</p>)}</BuildDisclosure>
     </div>
   </BuildDisclosure>
 }
