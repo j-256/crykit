@@ -10,7 +10,7 @@ import type { LocalData } from '../src/domain/types'
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  return page.getByRole('region', { name: 'Data & Settings', exact: true })
 }
 
 async function exportLocalData(page: Page): Promise<LocalData> {
@@ -20,7 +20,7 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const archive = unzipSync(await readFile((await (await download).path())!))
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   return (JSON.parse(strFromU8(archive['bundle.json']!)) as { localData: LocalData }).localData
 }
 
@@ -85,7 +85,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   const prepare = settings.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
   await expectOfflineReady(settings)
-  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
   await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Rapier')
@@ -109,7 +109,7 @@ test('an explicitly created blank playthrough keeps its records empty while shar
 
 test('Game Setup starts with core fields and reveals optional settings on demand', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
   await page.goto('/#/settings/game-setup?scope=playthrough')
-  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await openCurrentGameSetup(panel)
   await expect(panel.getByRole('combobox', { name: 'Difficulty', exact: true })).toBeVisible()
   const mods = panel.locator('.game-setup-mods')
@@ -177,19 +177,19 @@ test('sample team uncertainty uses plain language and targeted actions', async (
 
   await setup.locator('summary').click()
   await setup.getByRole('button', { name: 'Review setup', exact: true }).click()
-  let panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  let panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await expect(panel.getByText('Saved revision 1', { exact: true })).toBeVisible()
   await expect(panel.locator('.game-setup-derived')).not.toHaveAttribute('open')
   await expect(panel.getByLabel('Game version', { exact: true })).toBeFocused()
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
 
   await defaults.locator('summary').click()
   await defaults.getByRole('button', { name: 'Review equipment slots', exact: true }).click()
-  panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await expect(panel.locator('.game-setup-derived')).toHaveAttribute('open')
   await expect(panel.getByText('Saved equipment layout', { exact: true })).toBeVisible()
   await expect(panel.getByRole('button', { name: 'Apply planner defaults', exact: true })).toHaveCount(0)
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   const saved = await exportLocalData(page)
   const savedTeam = Object.values(selectedPlaythrough(saved).scenarios).find(scenario => scenario.label === 'Sample starter team')!
   expect(saved.gameSetups[savedTeam.gameSetupRevisionId]!.slots.every(slot => slot.provenance === 'suggested')).toBe(true)
@@ -200,7 +200,7 @@ test('sample team uncertainty uses plain language and targeted actions', async (
 
 test('PC game data remains scoped when a team uses Switch 1.6.6', async ({ page }) => {
   await page.goto('/#/settings/game-setup?scope=playthrough')
-  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await openCurrentGameSetup(panel)
   await openGameSetupSection(panel, 'Game context')
   await panel.getByLabel('Platform', { exact: true }).selectOption('Windows')
@@ -208,7 +208,7 @@ test('PC game data remains scoped when a team uses Switch 1.6.6', async ({ page 
   await panel.getByLabel('Game mode', { exact: true }).selectOption('Standard')
   await saveAndApplyGameSetup(panel)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await page.goto('/#/builds/teams')
 
   async function createTeam(label: string) {
@@ -232,7 +232,7 @@ test('PC game data remains scoped when a team uses Switch 1.6.6', async ({ page 
   await panel.getByLabel('Game version', { exact: true }).selectOption('1.6.6')
   await saveAndApplyGameSetup(panel)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await page.goto('/#/builds/teams')
   const switchTeam = await createTeam('Synthetic Switch context')
   const scope = switchTeam.locator('.validation-group').filter({ hasText: 'Compatibility has not been verified' })

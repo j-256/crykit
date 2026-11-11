@@ -18,7 +18,7 @@ test('guest complete restore preserves saved drafts, original bytes and history 
   await page.goto('/#/builds')
   await waitForPlannerReady(page)
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  let panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  let panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await panel.getByRole('button', { name: 'Playthrough', exact: true }).click()
   await panel.locator('.playthrough-create > summary').click()
   await panel.getByLabel('New blank Playthrough').fill('Later playthrough')
@@ -47,7 +47,7 @@ test('guest complete restore preserves saved drafts, original bytes and history 
   await reopened
   await waitForPlannerReady(page)
   await expect.poll(() => stagingNames(page)).toEqual([])
-  panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await expect(panel).toBeVisible()
   await panel.getByRole('button', { name: 'Playthrough', exact: true }).click()
   await expect(panel.getByRole('heading', { name: 'Playthrough', exact: true })).toBeVisible()
@@ -90,7 +90,7 @@ test('account complete restore replaces the selected workspace and keeps exact o
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: 60_000 })
   await page.evaluate(() => { window.location.hash = '#/settings/data' })
-  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await expect(panel.getByText('selected account workspace', { exact: false })).toBeVisible()
   await panel.getByLabel('Choose complete workspace backup').setInputFiles({ name: 'synthetic.crykit', mimeType: 'application/octet-stream', buffer: backup })
   await expect(panel.getByText('Sign in to resume sync after reopening if prompted', { exact: false })).toBeVisible()
@@ -100,7 +100,7 @@ test('account complete restore replaces the selected workspace and keeps exact o
   await reopened
   await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Needs sign-in')
   const download = page.waitForEvent('download')
-  await page.getByRole('dialog', { name: 'Data & Settings', exact: true }).getByRole('button', { name: 'Export backup', exact: true }).click()
+  await page.getByRole('region', { name: 'Data & Settings', exact: true }).getByRole('button', { name: 'Export backup', exact: true }).click()
   const restored = await readWorkspaceBackup(memoryBlob(await readFile((await (await download).path())!)).open())
   try {
     expect(restored.state.editorDocuments[0].unfinished.validation).toBe('invalid')
@@ -148,7 +148,7 @@ test('a pre-feature guest tab writes only to the retained branch after restore',
   await page.goto('/__accounts-proof/account-workspace.html#/builds')
   await waitForPlannerReady(page)
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await panel.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   await panel.getByLabel('Choose complete workspace backup').setInputFiles({ name: 'synthetic.crykit', mimeType: 'application/octet-stream', buffer: backup })
   await expect(panel.getByText('Complete workspace preview', { exact: true })).toBeVisible()
@@ -158,11 +158,11 @@ test('a pre-feature guest tab writes only to the retained branch after restore',
   await reopened
   await waitForPlannerReady(page)
   const selectedBackup = async () => {
-    if (!(await page.getByRole('dialog', { name: 'Data & Settings', exact: true }).isVisible())) {
+    if (!(await page.getByRole('region', { name: 'Data & Settings', exact: true }).isVisible())) {
       await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
     }
     const download = page.waitForEvent('download')
-    await page.getByRole('dialog', { name: 'Data & Settings', exact: true }).getByRole('button', { name: 'Export backup', exact: true }).click()
+    await page.getByRole('region', { name: 'Data & Settings', exact: true }).getByRole('button', { name: 'Export backup', exact: true }).click()
     return readCompleteBackup(await readFile((await (await download).path())!))
   }
   const selected = await selectedBackup()
@@ -173,11 +173,11 @@ test('a pre-feature guest tab writes only to the retained branch after restore',
   await waitForPlannerReady(page)
   const recoveryNotice = page.getByRole('alert', { name: 'Older local workspace needs recovery' })
   await expect(recoveryNotice.getByText('An older tab changed its saved data after this workspace opened.')).toBeVisible()
-  await page.getByRole('dialog', { name: 'Data & Settings', exact: true }).getByRole('button', { name: 'Close dialog' }).click()
+  await page.getByRole('region', { name: 'Data & Settings', exact: true }).getByRole('link', { name: 'Back to previous page' }).click()
   await recoveryNotice.getByRole('button', { name: 'Inspect retained data' }).click()
   await expect(recoveryNotice.getByText(/exact originals remain separate/)).toBeVisible()
   expect((await selectedBackup()).planner.localData).toEqual(selected.planner.localData)
-  await page.getByRole('dialog', { name: 'Data & Settings', exact: true }).getByRole('button', { name: 'Close dialog' }).click()
+  await page.getByRole('region', { name: 'Data & Settings', exact: true }).getByRole('link', { name: 'Back to previous page' }).click()
   await page.evaluate(() => {
     const state = { chunks: [] as Uint8Array[], closed: false }
     Object.assign(window, { recoveryProof: state })

@@ -9,7 +9,7 @@ import { TRAVEL_UNLOCK_GROUPS } from '../src/catalog/travel-unlock-groups'
 
 async function openSettings(page: Page) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  return page.getByRole('region', { name: 'Data & Settings', exact: true })
 }
 
 async function exportLocalData(page: Page): Promise<LocalData> {
@@ -22,7 +22,7 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   if (!path) throw new Error('The backup download is unavailable')
   const files = unzipSync(await readFile(path))
   const localData = (JSON.parse(strFromU8(files['bundle.json']!)) as { localData: LocalData }).localData
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   return localData
 }
 
@@ -159,7 +159,7 @@ test('records and reads unlocks offline and starts a second Playthrough blank', 
   await panel.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(panel)
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
   const toggle = page.getByRole('checkbox', { name: 'Babel Quintar: acquired', exact: true })

@@ -14,7 +14,7 @@ const MOD_LAYER_BACKUP_JOURNEY_TIMEOUT_MS = 90_000
 
 async function openSettings(page: Page, section: string) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   if (section === 'Game Setup') await openCurrentGameSetup(panel)
   else await panel.getByRole('button', { name: section, exact: true }).click()
   if (section === 'Game Setup') await openGameSetupSection(panel, 'Imported mod files')
@@ -29,7 +29,7 @@ async function exportData(page: Page) {
   const bytes = await readFile((await (await download).path())!)
   const files = unzipSync(bytes)
   const bundle = JSON.parse(strFromU8(files['bundle.json']!)) as { localData: LocalData }
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   return { localData: bundle.localData, bytes }
 }
 
@@ -65,7 +65,7 @@ test('ordered mod layers supply effective definitions while saved builds retain 
   const oldSetupHeading = await panel.locator('.game-setup-context p').filter({ hasText: /revision/ }).innerText()
   await saveAndApplyGameSetup(panel)
   await expect(panel.locator('.game-setup-context p').filter({ hasText: /revision/ })).not.toHaveText(oldSetupHeading)
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await expect(panel).not.toBeVisible()
   await page.goto('/#/builds/library/new')
   await openBuildGameSetup(page)
@@ -86,7 +86,7 @@ test('ordered mod layers supply effective definitions while saved builds retain 
   const priorHeading = await changed.locator('.game-setup-context p').filter({ hasText: /revision/ }).innerText()
   await saveAndApplyGameSetup(changed)
   await expect(changed.locator('.game-setup-context p').filter({ hasText: /revision/ })).not.toHaveText(priorHeading)
-  await changed.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await changed.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await expect(changed).not.toBeVisible()
   const newer = await exportData(page)
   expect(newer.localData.buildRevisions[oldRevision.id]).toEqual(oldRevision)
@@ -103,7 +103,7 @@ test('ordered mod layers supply effective definitions while saved builds retain 
   const offline = await openSettings(page, 'Offline & Storage')
   await offline.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(offline)
-  await offline.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await offline.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
   const reloaded = await openSettings(page, 'Game Setup')
@@ -144,7 +144,7 @@ test('changing layers requires an explicit personal override decision and label 
   const initialHeading = await panel.locator('.game-setup-context p').filter({ hasText: /revision/ }).innerText()
   await saveAndApplyGameSetup(panel)
   await expect(panel.locator('.game-setup-context p').filter({ hasText: /revision/ })).not.toHaveText(initialHeading)
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   const saved = await exportData(page)
   const layered = saved.localData.gameSetups[saved.localData.planningGameSetupRevisionId!]!
   expect(layered.definitionOverrides).toEqual([])
@@ -155,7 +155,7 @@ test('changing layers requires an explicit personal override decision and label 
   await saveAndApplyGameSetup(editing)
   await expect(editing.getByRole('button', { name: 'Save Game Setup', exact: true })).toBeDisabled()
   await expect(editing.getByLabel('Game Setup label')).toHaveValue('Renamed mod setup')
-  await editing.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await editing.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   const renamed = await exportData(page)
   expect(renamed.localData.gameSetups[renamed.localData.planningGameSetupRevisionId!]!.catalogLock).toEqual(layered.catalogLock)
 })

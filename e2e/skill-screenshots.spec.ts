@@ -17,7 +17,7 @@ const DEFAULT_CATALOG = observedSkillMapCatalogFixture({ ...CURRENT_CATALOG, ent
 
 async function dataPanel(page: Page) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  return page.getByRole('region', { name: 'Data & Settings', exact: true })
 }
 
 async function loadFixture(page: Page, localData: LocalData = { ...screenshotTestLocalData(), changes: [] }) {
@@ -108,7 +108,7 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const path = await (await download).path()
   const payload = JSON.parse(strFromU8(unzipSync(await readFile(path!))['bundle.json'])) as { localData: LocalData }
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   return payload.localData
 }
 
@@ -123,7 +123,7 @@ async function useConfirmedSwitchSetup(page: Page) {
   for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name: name, exact: true })).toHaveValue('disabled')
   await saveAndApplyGameSetup(panel)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
 }
 
 for (const ambiguous of [false, true]) {
@@ -176,7 +176,7 @@ test('screenshots compile reviewed names offline, skip duplicates, and preserve 
   await panel.getByRole('checkbox', { name: 'Screenshot recognition', exact: true }).check()
   await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(panel)
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
   const outside: string[] = []

@@ -15,7 +15,7 @@ const WARRIOR_PATH = referencePath('base:job:0')
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  return page.getByRole('region', { name: 'Data & Settings', exact: true })
 }
 
 async function exportLocalData(page: Page): Promise<LocalData> {
@@ -25,7 +25,7 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   if (!await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await settings.getByText("What's included in a backup?", { exact: true }).click()
   await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const entries = unzipSync(await readFile((await (await download).path())!))
-  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   return (JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData }).localData
 }
 
@@ -95,7 +95,7 @@ test('bundled class calculations respond to explicit mixed growth and work offli
   await settings.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(settings)
-  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
   await research.getByText('Growth calculator', { exact: true }).click()

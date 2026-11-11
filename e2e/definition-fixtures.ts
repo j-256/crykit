@@ -17,7 +17,7 @@ export async function readPlannerData(page: Page): Promise<LocalData> {
 async function storeFixture(page: Page, localData: LocalData, definition: PersonalDefinition) {
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   await page.goto('/#/settings/data')
-  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   const downloaded = page.waitForEvent('download')
   if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()

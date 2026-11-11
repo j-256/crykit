@@ -4,12 +4,12 @@ import { useCallback, useLayoutEffect, useRef, useState, type ChangeEvent } from
 import type { LocalData, PlaythroughId, GameSetupRevisionId } from '../domain/types'
 import { AppDataError, MAX_IMPORT_BYTES } from '../interchange'
 import type { ImportCommitMode, ImportPreview } from '../interchange/types'
-import { Button, DefinitionRow, Field, InlineNotice, Spinner } from './components'
+import { Button, DefinitionRow, Field, InlineNotice, ScreenHeader, Spinner } from './components'
 import { Icon } from './icons'
 import { downloadBytes, formatAppError, ownRecordValue } from './model'
-import { useNavigation, useNavigationBlocker, type SettingsSection } from './navigation'
+import { BUILDS_ROUTE, parseAppRoute, routeTitle, useNavigation, useNavigationBlocker, type SettingsSection } from './navigation'
 import { useNavigationNotice } from './useNavigationNotice'
-import { Sheet } from './Sheet'
+import { navigationState } from './navigation/history'
 import { CreditsSection } from './CreditsSection'
 import { GameSetupLibrary } from './GameSetupLibrary'
 import { PlaythroughSettings } from './PlaythroughSettings'
@@ -67,7 +67,7 @@ function ImportPanel({ preview, importError, busy, disabled, onPreview, onCommit
   return <div className="stack">{(importError || readError) && <InlineNotice title="Data operation could not be completed" tone="danger">{importError ?? readError} Your existing planner data has not been replaced.</InlineNotice>}<button className="import-zone" disabled={busy || disabled} onClick={() => inputRef.current?.click()} type="button">{busy ? <Spinner label="Reading import"/> : <><Icon name="upload"/><span><strong>Choose a JSON, ZIP, or workbook</strong><span>Review the file before importing.</span></span></>}</button><input accept=".json,.zip,.xlsx,application/json,application/zip,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" aria-label="Choose import file" className="sr-only" onChange={(event) => void choose(event)} ref={inputRef} type="file"/><InlineNotice title="Private local import">Files stay in this browser. Nothing is uploaded.</InlineNotice></div>
 }
 
-export function DataPanel({ open, localData, preview, importError, busy, canUndo, dirty, saveError, onClose, onPreview, onCommit, onClearPreview, onExport, onExportWorkspace, onWorkspaceRestoreTarget = 'guest', onWorkspaceRestorePreview, onWorkspaceRestoreActivate, onWorkspaceRestoreClear, onSaveGameSetup, onRetrySave, onSelectGameSetup, onCreatePlaythrough, onSelectPlaythrough, onUndo }: { open: boolean; localData: LocalData; preview?: ImportPreview; importError?: string; busy: boolean; canUndo: boolean; dirty: boolean; saveError?: string; onClose: () => void; onPreview: (bytes: Uint8Array, filename: string) => Promise<void>; onCommit: (preview: ImportPreview, mode: ImportCommitMode) => Promise<void>; onClearPreview: () => void; onExport: () => Promise<Uint8Array>; onExportWorkspace?: () => Promise<void>; onWorkspaceRestoreTarget?: 'guest' | 'account'; onWorkspaceRestorePreview?: (file: File) => Promise<CompleteWorkspaceRestorePreview>; onWorkspaceRestoreActivate?: (preview: CompleteWorkspaceRestorePreview) => Promise<void>; onWorkspaceRestoreClear?: () => Promise<void>; onSaveGameSetup: (draft: GameSetupDraft, options: GameSetupSaveOptions) => Promise<void>; onRetrySave: () => Promise<void>; onSelectGameSetup: (revisionId: GameSetupRevisionId) => Promise<void>; onCreatePlaythrough: (label: string, setupId?: GameSetupRevisionId) => Promise<void>; onSelectPlaythrough: (playthroughId: PlaythroughId) => Promise<void>; onUndo: () => Promise<void> }) {
+export function DataPanel({ localData, preview, importError, busy, canUndo, dirty, saveError, onClose, onPreview, onCommit, onClearPreview, onExport, onExportWorkspace, onWorkspaceRestoreTarget = 'guest', onWorkspaceRestorePreview, onWorkspaceRestoreActivate, onWorkspaceRestoreClear, onSaveGameSetup, onRetrySave, onSelectGameSetup, onCreatePlaythrough, onSelectPlaythrough, onUndo }: { localData: LocalData; preview?: ImportPreview; importError?: string; busy: boolean; canUndo: boolean; dirty: boolean; saveError?: string; onClose: () => void; onPreview: (bytes: Uint8Array, filename: string) => Promise<void>; onCommit: (preview: ImportPreview, mode: ImportCommitMode) => Promise<void>; onClearPreview: () => void; onExport: () => Promise<Uint8Array>; onExportWorkspace?: () => Promise<void>; onWorkspaceRestoreTarget?: 'guest' | 'account'; onWorkspaceRestorePreview?: (file: File) => Promise<CompleteWorkspaceRestorePreview>; onWorkspaceRestoreActivate?: (preview: CompleteWorkspaceRestorePreview) => Promise<void>; onWorkspaceRestoreClear?: () => Promise<void>; onSaveGameSetup: (draft: GameSetupDraft, options: GameSetupSaveOptions) => Promise<void>; onRetrySave: () => Promise<void>; onSelectGameSetup: (revisionId: GameSetupRevisionId) => Promise<void>; onCreatePlaythrough: (label: string, setupId?: GameSetupRevisionId) => Promise<void>; onSelectPlaythrough: (playthroughId: PlaythroughId) => Promise<void>; onUndo: () => Promise<void> }) {
   const navigation = useNavigation()
   const settingsPage = navigation.route.page.page === 'settings' ? navigation.route.page : undefined
   const section = settingsPage?.section ?? 'data'
@@ -93,12 +93,13 @@ export function DataPanel({ open, localData, preview, importError, busy, canUndo
   const [undoConfirmed, setUndoConfirmed] = useState(false)
   const [closeRequested, setCloseRequested] = useState(false)
   const [setupFooter, setSetupFooter] = useState<HTMLDivElement | null>(null)
-  useLayoutEffect(() => { const body = sectionNavigationRef.current?.closest('.sheet__body'); if (body) body.scrollTop = 0 }, [section, requestedGameSetupId, newGameSetup])
+  useLayoutEffect(() => { const main = sectionNavigationRef.current?.closest('.main-shell'); if (main) main.scrollTop = 0; window.scrollTo(0, 0) }, [section, requestedGameSetupId, newGameSetup])
   const blocked = dirty || panelDirty
   const setGameSetupDirty = useCallback((value: boolean) => { panelDirtyRef.current = value; setPanelDirty(value); if (!value) { setPanelError(undefined); setCloseRequested(false) } }, [])
   const warnBeforeLeavingSetup = () => { setPanelError('Save or discard your Game Setup changes before leaving this editor.'); if (closeRequested) closeNotice.revealNotice(); else panelNotice.revealNotice() }
-  useNavigationBlocker(navigation.route, () => panelDirtyRef.current, warnBeforeLeavingSetup, undefined, true)
+  useNavigationBlocker(navigation.route, () => panelDirtyRef.current || storageReloadingRef.current, () => { if (storageReloadingRef.current) { setPanelError(APP_REFRESH_PENDING_MESSAGE); panelNotice.revealNotice() } else warnBeforeLeavingSetup() }, undefined, true)
   const changeSection = (next: SettingsSection) => {
+    if (storageReloadingRef.current) { setPanelError(APP_REFRESH_PENDING_MESSAGE); panelNotice.revealNotice(); return }
     if (panelDirty) {
       warnBeforeLeavingSetup()
       return
@@ -136,7 +137,17 @@ export function DataPanel({ open, localData, preview, importError, busy, canUndo
     await onSaveGameSetup(draft, { id })
     finishSetupSave()
   }
-  return <Sheet footer={editingSetup ? <div className="game-setup-footer">{closeRequested && <div aria-label="Game Setup close choices" ref={closeNotice.noticeRef} role="region" tabIndex={-1}><div className="game-setup-discard" role="alert"><p>Discard your unsaved Game Setup changes and close?</p><div className="cluster"><Button onClick={close} tone="danger">Discard and close</Button><Button onClick={() => setCloseRequested(false)} tone="secondary">Keep editing</Button></div></div></div>}<div aria-label="Game Setup navigation warning" hidden={closeRequested} ref={panelNotice.noticeRef} role="region" tabIndex={-1}>{panelError && <InlineNotice title="Unsaved Game Setup fields" tone="warning">{panelError}</InlineNotice>}<div ref={setSetupFooter}/></div></div> : undefined} onRequestClose={() => { if (storageReloadingRef.current) { setPanelError(APP_REFRESH_PENDING_MESSAGE); panelNotice.revealNotice(); return false } if (panelDirtyRef.current && !(dirty && saveError)) { setCloseRequested(true); closeNotice.revealNotice(); return false } return true }} onClose={close} open={open} title="Data & Settings" width="wide">
+  // Reuse the controller's stored entry route across settings tabs and reloads
+  const returnHash = navigationState(window.history.state)?.returnHash
+  const returnRoute = returnHash ? parseAppRoute(returnHash) : BUILDS_ROUTE
+  const requestReturn = () => {
+    if (storageReloadingRef.current) { setPanelError(APP_REFRESH_PENDING_MESSAGE); panelNotice.revealNotice(); return }
+    if (panelDirtyRef.current && !(dirty && saveError)) { setCloseRequested(true); closeNotice.revealNotice(); return }
+    close()
+  }
+  return <section aria-label="Data & Settings" className="data-settings-page stack">
+    <ScreenHeader title="Data & Settings" description="Manage your Playthroughs, saved setups, and local data."/>
+    <a aria-label="Back to previous page" className="data-settings-back" href={navigation.href(returnRoute)} onClick={event => { if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; event.preventDefault(); requestReturn() }}><Icon name="arrow-left"/>Back to {routeTitle(returnRoute).replace(/ \| CryKit$/, '')}</a>
     <div className="data-nav" ref={sectionNavigationRef} role="group" aria-label="Data and settings sections">{([{ id: 'playthrough', label: 'Playthrough' }, { id: 'game-setup', label: 'Saved Setups' }, { id: 'data', label: 'Import & Backup' }, { id: 'history', label: 'History' }, { id: 'storage', label: 'Offline & Storage' }, { id: 'credits', label: 'Credits & Licenses' }] as const).map((item) => <button aria-pressed={section === item.id} key={item.id} onClick={() => changeSection(item.id)} type="button">{item.label}</button>)}</div>
 
     {panelError && section !== 'game-setup' && <div aria-label="Data navigation warning" ref={panelNotice.noticeRef} role="region" tabIndex={-1}><InlineNotice title={panelError === APP_REFRESH_PENDING_MESSAGE ? 'App refresh is still in progress' : 'Data operation could not be completed'} tone={panelError === APP_REFRESH_PENDING_MESSAGE ? 'warning' : 'danger'}>{panelError}</InlineNotice></div>}
@@ -158,5 +169,6 @@ export function DataPanel({ open, localData, preview, importError, busy, canUndo
     {section === 'history' && <div className="stack"><section className="settings-section"><div className="split"><div><h3>Undo latest saved change</h3><p className="settings-section__intro">Restore the previous saved state. The undo is recorded in History.</p></div><Button disabled={blocked || busy || dataBusy || !canUndo || !undoConfirmed} icon="history" onClick={() => void runDataAction(async () => { await onUndo(); setUndoConfirmed(false) })} tone="secondary">Undo latest</Button></div><label className="check-row"><input checked={undoConfirmed} disabled={blocked || busy || dataBusy || !canUndo} onChange={(event) => setUndoConfirmed(event.target.checked)} type="checkbox"/><span><strong>Restore the previous saved planner state</strong><small>{canUndo ? 'The restored state is recorded as a new revision' : 'No saved change is available to undo'}</small></span></label></section><HistoryEntries changes={localData.changes}/></div>}
     {section === 'storage' && <StorageSection dirty={blocked} saving={busy || dataBusy} onExport={onExport} onExportWorkspace={onExportWorkspace} onReloadingChange={setStorageReloading} localData={localData} saveError={saveError}/>}
     {section === 'credits' && <CreditsSection/>}
-  </Sheet>
+    {editingSetup ? <div className="game-setup-footer">{closeRequested && <div aria-label="Game Setup return choices" ref={closeNotice.noticeRef} role="region" tabIndex={-1}><div className="game-setup-discard" role="alert"><p>Discard your unsaved Game Setup changes and go back?</p><div className="cluster"><Button onClick={close} tone="danger">Discard and go back</Button><Button onClick={() => setCloseRequested(false)} tone="secondary">Keep editing</Button></div></div></div>}<div aria-label="Game Setup navigation warning" hidden={closeRequested} ref={panelNotice.noticeRef} role="region" tabIndex={-1}>{panelError && <InlineNotice title="Unsaved Game Setup fields" tone="warning">{panelError}</InlineNotice>}<div ref={setSetupFooter}/></div></div> : null}
+  </section>
 }

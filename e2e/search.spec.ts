@@ -16,7 +16,7 @@ const CATALOG_BACKUP_JOURNEY_TIMEOUT_MS = 90_000
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  return page.getByRole('region', { name: 'Data & Settings', exact: true })
 }
 
 async function exportLocalData(page: Page) {
@@ -30,7 +30,7 @@ async function exportLocalData(page: Page) {
   const bytes = await readFile(path)
   const entries = unzipSync(bytes)
   const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData; catalogs: readonly CatalogSnapshot[]; bundledCatalogs?: readonly Pick<CatalogSnapshot, 'id' | 'revisionId' | 'checksum'>[] }
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   expect(JSON.parse(strFromU8(entries['manifest.json']!)).formatVersion).toBe('2.1.0')
   return { ...bundle, catalogs: [...bundle.catalogs, ...resolveBundledCatalogPins(bundle.bundledCatalogs ?? [], BUNDLED_CATALOGS)], bytes }
 }
@@ -316,7 +316,7 @@ test('saved catalog versions preserve stock and checkpoints and can be collected
   await settings.getByLabel('Game Setup label').fill('Synthetic base rules')
   await settings.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('0')
   await saveAndApplyGameSetup(settings)
-  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
 
   await page.getByRole('button', { name: 'Add item', exact: true }).click()
   const stock = page.getByRole('dialog', { name: 'Add inventory item', exact: true })

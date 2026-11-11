@@ -63,11 +63,11 @@ test('persistent entry-module failure stops retrying and allows explicit recover
 
 test('offline startup failure recovers from the retained app cache without clearing records', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   await page.goto('/#/settings/data')
-  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await panel.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(panel)
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   const saved = await readLocalData(page)
   // Retain the exact native cached response while injecting an unavailable module
   // Request interception cannot fault a response supplied by the real ServiceWorker

@@ -57,11 +57,11 @@ test('crafting ingredients link to their own acquisition routes and missing rout
 test('item sources and prerequisite navigation work offline', async ({ page, context }) => {
   await page.goto(referencePath('base:item:203'))
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const settings = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(settings)
-  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
   const section = page.getByRole('region', { name: 'How to obtain', exact: true })

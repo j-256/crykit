@@ -41,7 +41,7 @@ async function expectSummaryArtwork(page: Page, stepId: string) {
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  return page.getByRole('region', { name: 'Data & Settings', exact: true })
 }
 
 test.beforeEach(async ({ page }) => {
@@ -247,7 +247,7 @@ test('the whole guide completes offline and keeps progress separate between play
   const prepare = panel.getByRole('button', { name: 'Prepare for offline use', exact: true })
   if (await prepare.isVisible()) await prepare.click()
   await expectOfflineReady(panel)
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Quintar breeding', exact: true })).toBeVisible()
@@ -275,7 +275,7 @@ test('the whole guide completes offline and keeps progress separate between play
   await panel.getByRole('button', { name: 'Playthrough', exact: true }).click()
   await panel.getByRole('combobox', { name: 'Active Playthrough', exact: true }).selectOption(originalId)
   await expect(panel).toBeVisible()
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await expect(panel).not.toBeVisible()
   await page.getByRole('button', { name: 'Progress', exact: true }).filter({ visible: true }).click()
   await page.getByRole('navigation', { name: 'Progress guides', exact: true }).getByRole('link', { name: 'Quintar breeding', exact: true }).click()

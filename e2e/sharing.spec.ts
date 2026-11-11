@@ -112,11 +112,11 @@ for (const modelMarker of [true, false]) test(`shared PC stats ${modelMarker ? '
   await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const settings = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(settings)
-  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   let before = await storedData(page)
   const build = Object.values(before.builds)[0]!
   const revision = before.buildRevisions[build.latestRevisionId!]!

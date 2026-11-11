@@ -21,14 +21,14 @@ async function chooseContext(page: Page, label: ContextLabel, name: string) {
 async function addGameSetupRevision(page: Page) {
   const picker = await openContext(page, 'Playthrough')
   await picker.getByRole('button', { name: 'Manage Playthrough', exact: true }).click()
-  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const settings = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await openCurrentGameSetup(settings)
   await openGameSetupSection(settings, 'Game context')
   await settings.getByLabel('Platform', { exact: true }).selectOption('PC')
   await saveAndApplyGameSetup(settings)
   await expect(settings.getByRole('button', { name: 'Save Game Setup', exact: true })).toBeDisabled()
   await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
-  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
 }
 
 test.beforeEach(async ({ page }) => {
@@ -118,11 +118,11 @@ test('Game Setup revisions and scenarios persist independently while saved pins 
   await expect(page.locator('article').filter({ has: page.getByRole('heading', { name: 'Sample starter team', exact: true }) }).getByText('Active', { exact: true })).toBeVisible()
   picker = await openContext(page, 'Playthrough')
   await picker.getByRole('button', { name: 'Manage Playthrough', exact: true }).click()
-  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const settings = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await settings.getByRole('combobox', { name: 'Game Setup to apply', exact: true }).selectOption(original.planningGameSetupRevisionId!)
   await settings.getByRole('button', { name: 'Apply to Sample playthrough', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await chooseContext(page, 'Party plan', 'Synthetic alternate team')
   const selected = await readLocalData(page)
   expect(selected.planningGameSetupRevisionId).toBe(original.planningGameSetupRevisionId)
@@ -186,11 +186,11 @@ test('failed selection remains recoverable and can be retried and reopened offli
   const original = await readLocalData(page)
   const playthroughs = await openContext(page, 'Playthrough')
   await playthroughs.getByRole('button', { name: 'Manage Playthrough', exact: true }).click()
-  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const settings = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await settings.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   if (await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).isVisible()) await settings.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(settings)
-  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await context.setOffline(true)
   await page.evaluate(() => {
     const originalPut = IDBObjectStore.prototype.put

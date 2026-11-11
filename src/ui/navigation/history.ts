@@ -38,7 +38,7 @@ export function writeRouteHistory(next: AppRoute, replace: boolean, notify: bool
   const nextIndex = replace ? currentIndex : currentIndex + 1
   const enteringSettings = next.page.page === 'settings' && currentRoute.page.page !== 'settings'
   const remainingInSettings = next.page.page === 'settings' && currentRoute.page.page === 'settings'
-  // Keep the entry route and index through settings detours so Close returns to the original page
+  // Keep the entry route and index through settings detours so Back returns to the original page
   const state = withNavigationState(window.history.state, {
     index: nextIndex,
     ...(replace && currentState?.parentHash ? { parentHash: currentState.parentHash } : !replace ? { parentHash: formatAppRoute(currentRoute, resolveName) } : {}),
