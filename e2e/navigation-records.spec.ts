@@ -158,7 +158,16 @@ test('direct nested modal routes restore the top layer and close one layer at a 
   await page.keyboard.press('Escape')
   await expect(search).not.toBeVisible()
   await expect(settings).toBeVisible()
-  await expectActiveDialog(page, 'Data & Settings')
+  await expect(page).toHaveURL(/#\/settings\/data$/)
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(settings).toBeVisible()
+  const searchTrigger = page.getByRole('button', { name: /^(Search|Search planner)$/ }).filter({ visible: true })
+  await searchTrigger.click()
+  await expectActiveDialog(page, 'Search CryKit')
+  await page.keyboard.press('Escape')
+  await expect(searchTrigger).toBeFocused()
+  await expect(settings.getByRole('link', { name: 'Back to previous page', exact: true })).toBeVisible()
 })
 
 test('reference source options remain readable, bounded, and exact', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
