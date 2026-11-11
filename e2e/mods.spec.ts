@@ -219,7 +219,7 @@ test('Reference and pickers retain non-enabled mods at the bottom while recorded
   await page.keyboard.press('Escape')
 })
 
-test('fixed Switch choices start unknown, apply the confirmed setup, and recover an offline save failure', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
+test('fixed Switch choices start unknown, apply the confirmed setup, and recover an offline save failure', { tag: MOBILE_TEST_TAG }, async ({ page, context }, testInfo) => {
   const externalRequests: string[] = []
   const appOrigin = new URL(test.info().project.use.baseURL!).origin
   page.on('request', request => { if (new URL(request.url()).origin !== appOrigin) externalRequests.push(request.url()) })
@@ -287,6 +287,8 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   await expect(panel.getByText('Game Setup not saved', { exact: true })).toBeVisible()
   await openSwitchModPacks(panel)
   await expect(shield).toHaveValue('disabled')
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).scrollIntoViewIfNeeded()
+  await page.screenshot({ path: testInfo.outputPath('settings-save-failure.png') })
   await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await page.getByRole('button', { name: 'Retry save', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
