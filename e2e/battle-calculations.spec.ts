@@ -1,3 +1,4 @@
+import { openCopiedCheckpointControls } from './share-view-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { createBlankPlaythrough, openBuildGameSetup, skipInitialModSetup } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
@@ -260,6 +261,7 @@ test('battle assumptions survive editing, sharing, saved copies and offline relo
   await page.locator('summary').filter({ hasText: /^Calculation inputs$/ }).click()
   await expect(page.getByLabel('Calculation inputs', { exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Elapsed target turns \(retained for other targets\)$/ }) }).locator('dd')).toHaveText('3')
   await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
+  await openCopiedCheckpointControls(page)
   await page.getByRole('button', { name: 'Create editable checkpoint', exact: true }).click()
   await openCombat(page)
   await openAdvanced(page)

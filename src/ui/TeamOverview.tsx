@@ -1,5 +1,5 @@
 import { withoutRetainedMechanics } from '../domain/retained-selections'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { teamMemberName } from '../domain/team-checkpoints'
 import { sameBuildBehavior } from '../domain/build-behavior'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
@@ -21,6 +21,7 @@ interface Props {
   readonly localData: LocalData
   readonly catalogs: readonly CatalogSnapshot[]
   readonly compact?: boolean
+  readonly memberActions?: (index: number) => ReactNode
 }
 
 interface MemberProps extends Omit<Props, 'slots'> {
@@ -53,7 +54,7 @@ export function teamSetupStatus(slots: readonly (BuildRevisionId | null)[], loca
   return setups.every(setup => sameBuildBehavior(setups[0], setup)) ? 'compatible' : 'different'
 }
 
-function TeamMemberCard({ id, index, localData, catalogs, compact = false, showSetup, layout, check }: MemberProps) {
+function TeamMemberCard({ id, index, localData, catalogs, compact = false, showSetup, layout, check, memberActions }: MemberProps) {
   const revision = id ? localData.buildRevisions[id] : undefined
   const memberName = id ? teamMemberName(localData, id, `Team member ${index + 1}`) : undefined
   const sourceSetup = revision ? localData.gameSetups[revision.gameSetupRevisionId] : undefined
@@ -73,7 +74,7 @@ function TeamMemberCard({ id, index, localData, catalogs, compact = false, showS
   const commandName = command ? subCommandLabel({ record: command, name: command.name }) : secondaryClass ? entityName(localData, catalogs, secondaryClass) : undefined
   const newer = revision ? newerTeamCheckpoint(localData, revision) : undefined
   const MemberHeading = compact ? 'h3' : 'h2'
-  if (setup?.publicSourceContext && revision) return <li className="team-overview__member"><section aria-label={`Team slot ${index + 1} overview`}><h3>{memberName ?? `Slot ${index + 1}`}</h3><BuildLoadoutSummary content={revision.content} localData={localData} catalogs={catalogs} gameSetup={setup}/></section></li>
+  if (setup?.publicSourceContext && revision) return <li className="team-overview__member"><section aria-label={`Team slot ${index + 1} overview`}><h3>{memberName ?? `Slot ${index + 1}`}</h3><BuildLoadoutSummary content={revision.content} localData={localData} catalogs={catalogs} gameSetup={setup}/>{memberActions?.(index)}</section></li>
   return <li className="team-overview__member">
     <section aria-label={`Team slot ${index + 1} overview`}>
       <div className="team-overview__hero">
@@ -100,11 +101,12 @@ function TeamMemberCard({ id, index, localData, catalogs, compact = false, showS
           {revision.content.calculation && <details className="team-overview__notes"><summary>Calculation inputs</summary><CalculationInputs catalogs={catalogs} genders={setup ? resolveGameRules(setup, catalogs).genders : undefined} localData={localData} plan={revision.content.calculation}/></details>}
         </div>}
       </>}
+      {memberActions?.(index)}
     </section>
   </li>
 }
 
-export function TeamOverview({ slots, localData, catalogs, compact = false }: Props) {
+export function TeamOverview({ slots, localData, catalogs, compact = false, memberActions }: Props) {
   const [layout, setLayout] = useState<TeamLayout>(initialTeamLayout)
   const [pageIndex, setPageIndex] = useState(0)
   const review = reviewTeam(slots, localData, catalogs)
@@ -140,7 +142,7 @@ export function TeamOverview({ slots, localData, catalogs, compact = false }: Pr
     </div>
     {!compact && <div aria-label="Team layout" className="segmented team-overview__layout" role="group">{TEAM_LAYOUT_OPTIONS.map(option => <button aria-pressed={layout === option.value} key={option.value} onClick={() => setLayout(option.value)} title={option.label} type="button"><Icon name={option.icon}/><span className="sr-only">{option.label}</span></button>)}</div>}
     {!compact && layout === 'page' && pager('top')}
-    <div className="team-overview__viewport"><ol className="team-overview__members">{slots.map((id, index) => compact || layout !== 'page' || index === page ? <TeamMemberCard catalogs={catalogs} check={review.members.find(member => member.index === index)} compact={compact} id={id} index={index} key={index} layout={layout} localData={localData} showSetup={showSetup}/> : null)}</ol></div>
+    <div className="team-overview__viewport"><ol className="team-overview__members">{slots.map((id, index) => compact || layout !== 'page' || index === page ? <TeamMemberCard catalogs={catalogs} check={review.members.find(member => member.index === index)} compact={compact} id={id} index={index} key={index} layout={layout} localData={localData} showSetup={showSetup} memberActions={memberActions}/> : null)}</ol></div>
     {!compact && layout === 'page' && pager('bottom')}
   </div>
 }

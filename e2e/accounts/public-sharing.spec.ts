@@ -1,3 +1,4 @@
+import { openTeamHistory } from '../share-view-helpers'
 import { expect, test } from '@playwright/test'
 import type { LocalData } from '../../src/domain/types'
 import { decodePublicSnapshot } from '../../src/interchange/public-share'
@@ -42,6 +43,7 @@ for (const account of [false, true]) test(`${account ? 'account' : 'guest'} port
   await page.getByRole('button', { name: 'Edit Team', exact: true }).click()
   await page.getByRole('button', { name: 'Move slot 2 left', exact: true }).click()
   await page.getByRole('button', { name: 'Save Team', exact: true }).click()
+  await openTeamHistory(page)
   await expect(page.getByRole('combobox', { name: 'Team checkpoint', exact: true }).getByRole('option')).toHaveCount(2)
   before = await page.evaluate(() => (window as unknown as { workspaceProof: Proof }).workspaceProof.teamState())
   expect(before.teams['public-team']).not.toEqual(team)
@@ -62,7 +64,8 @@ for (const account of [false, true]) test(`${account ? 'account' : 'guest'} port
   try {
     await recipient.goto(url)
     await expect(recipient.getByRole('heading', { name: 'Portable Team', exact: true })).toBeVisible()
-    await expect(recipient.getByText('Hand: Synthetic sword', { exact: true }).first()).toBeVisible()
+    const hand = recipient.getByRole('region', { name: 'Equipment', exact: true }).locator('.share-receipt-selection').filter({ has: recipient.getByText('Hand', { exact: true }) })
+    await expect(hand.getByText('Synthetic sword', { exact: true })).toBeVisible()
     await expect(recipient.getByText('Empty slot', { exact: true })).toHaveCount(2)
     await expect(recipient.getByRole('button', { name: 'Save a copy', exact: true })).toBeVisible()
     for (const secret of secrets) expect(await recipient.locator('body').textContent()).not.toContain(secret)

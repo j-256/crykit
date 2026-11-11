@@ -8,12 +8,15 @@ import { CopiedPublicCheckpointView, PublicSharedView, HostedSharedView } from '
 import { clearServiceNotice } from '../account/service-notice'
 import { preparePublicSnapshotCopy } from '../interchange/public-share-enrichment'
 import { editCopiedCheckpoint } from '../interchange/public-checkpoint-edit'
+import { createSampleLocalData } from '../domain/sample-data'
+import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
+import { publicRefKey } from '../interchange/public-share-schema'
 const context = vi.hoisted(() => ({ current: undefined as unknown }))
 vi.mock('./WorkspaceProvider', () => ({ useOptionalWorkspace: () => context.current }))
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 const container = document.createElement('div')
 let root = createRoot(container)
-afterEach(async () => { await act(async () => root.unmount()); root = createRoot(container); context.current = undefined; clearServiceNotice(); vi.restoreAllMocks() })
+afterEach(async () => { await act(async () => root.unmount()); root = createRoot(container); context.current = undefined; clearServiceNotice(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 it('letsAViewerRetryTheSameRateLimitedLinkWithoutRequestingAReplacement', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('limited', { status: 429 })).mockResolvedValueOnce(Response.json({ error: { code: 'NOT_FOUND', requestId: 'synthetic' } }, { status: 404 }))
   await act(async () => root.render(<HostedSharedView shareId="AAAAAAAAAAAAAAAAAAAAAA"/>))
@@ -31,6 +34,62 @@ function fixture() {
   const snapshot = createPublicSnapshot(state, { kind: 'build', revisionId: 'Shared sword-revision' as never }, { includeNotes: false })
   return { state, encoded: encodePublicSnapshot(snapshot) }
 }
+
+function nativeFixture() {
+  const localData = createSampleLocalData(CURRENT_CATALOG)
+  const base = fixture().state
+  const state: WorkspaceState = { ...base, planner: { ...base.planner, localData, catalogs: BUNDLED_CATALOGS } }
+  const snapshots = Object.values(localData.builds).map(build => createPublicSnapshot(state, { kind: 'build', revisionId: build.latestRevisionId! }, { includeNotes: false }))
+  context.current = { repository: { readWorkspace: async () => state, subscribe: () => () => undefined } }
+  return { state, snapshots }
+}
+
+it('opens a single native build directly to one loadout with secondary source details', async () => {
+  const { snapshots } = nativeFixture()
+  const snapshot = snapshots.find(value => value.title === 'Tavi: sample Rogue')!
+  await act(async () => root.render(<PublicSharedView encoded={encodePublicSnapshot(snapshot)}/>))
+  const loadout = container.querySelector('[aria-label="Shared build loadout"]')!
+  expect(loadout.querySelectorAll('button[aria-label="Inspect Main hand: Dirk"]')).toHaveLength(1)
+  expect(loadout.querySelector('h2')?.textContent).toBe('Loadout')
+  expect([...container.querySelectorAll('h2')].some(heading => heading.textContent === 'Slot 1')).toBe(false)
+  const sources = container.querySelector<HTMLDetailsElement>('details[aria-label="Game Setup and sources"]')!
+  expect(sources).not.toBeNull()
+  expect(sources.open).toBe(false)
+  expect(sources.contains(container.querySelector('[aria-label="Your matching definitions"]'))).toBe(true)
+  expect(container.textContent).not.toContain('Matching definitions available')
+  expect(loadout.compareDocumentPosition(sources) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})
+
+it('switches the focused Team member and clears the sheet for an empty position', async () => {
+  const { snapshots } = nativeFixture()
+  const first = snapshots.find(value => value.title === 'Rowan: sample Warrior')!
+  const second = snapshots.find(value => value.title === 'Tavi: sample Rogue')!
+  const snapshot = { ...first, kind: 'team' as const, title: 'Synthetic Team', slots: [{ ...first.slots[0]!, name: 'Rowan' }, null, { ...second.slots[0]!, name: 'Tavi' }, null], receipts: [...new Map([...first.receipts, ...second.receipts].map(receipt => [publicRefKey(receipt.ref), receipt])).values()] }
+  await act(async () => root.render(<PublicSharedView encoded={encodePublicSnapshot(snapshot)}/>))
+  expect(container.querySelectorAll('[aria-label^="Shared team slot "]')).toHaveLength(4)
+  expect(container.querySelector('button[aria-label="Inspect Main hand: Short Sword"]')).not.toBeNull()
+  expect(container.querySelector('button[aria-label="Inspect Main hand: Dirk"]')).toBeNull()
+  await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="View Tavi"]')!.click())
+  expect(container.querySelector('button[aria-label="Inspect Main hand: Dirk"]')).not.toBeNull()
+  expect(container.querySelector('button[aria-label="Inspect Main hand: Short Sword"]')).toBeNull()
+  await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="View empty slot 2"]')!.click())
+  expect(container.querySelector('[aria-label="Read-only calculations"]')).toBeNull()
+  expect(container.querySelector('[aria-label="Selected Team member"]')?.textContent).toContain('No build in this slot')
+})
+it('resets the selected member and inspection when opening a different shared snapshot', async () => {
+  vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: false })))
+  const { snapshots } = nativeFixture()
+  const first = snapshots.find(value => value.title === 'Rowan: sample Warrior')!
+  const second = snapshots.find(value => value.title === 'Tavi: sample Rogue')!
+  const snapshot = { ...first, kind: 'team' as const, title: 'First Team', slots: [{ ...second.slots[0]!, name: 'Tavi' }, null, { ...first.slots[0]!, name: 'Rowan' }, null], receipts: [...new Map([...first.receipts, ...second.receipts].map(receipt => [publicRefKey(receipt.ref), receipt])).values()] }
+  await act(async () => root.render(<PublicSharedView encoded={encodePublicSnapshot(snapshot)}/>))
+  await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="View Rowan"]')!.click())
+  await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="Inspect Main hand: Short Sword"]')!.click())
+  expect(container.querySelector('[aria-label="Selection details"] h3')?.textContent).toBe('Short Sword')
+  await act(async () => root.render(<PublicSharedView encoded={encodePublicSnapshot({ ...snapshot, title: 'Another Team' })}/>))
+  expect(container.querySelector('button[aria-label="View Tavi"]')?.getAttribute('aria-pressed')).toBe('true')
+  expect(container.querySelector('[aria-label="Selection details"] h3')?.textContent).toBe('Rogue')
+})
 it('offers an explicit editable checkpoint while keeping the copied public checkpoint intact', async () => {
   const { state: original, encoded } = fixture()
   const { decodePublicSnapshot } = await import('../interchange/public-share')

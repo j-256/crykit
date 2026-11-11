@@ -18,7 +18,7 @@ export function LoadoutSelectionDetails({ option, comparedWith, catalogs, localD
   return option ? <BuildSelectionDetails catalogs={catalogs} comparedWith={comparedWith} gameSetup={gameSetup} localData={localData} option={option} showClassPermissions={showClassPermissions} showIdentity={showIdentity}/> : <p>Select a class, item, or passive for details. Empty means nothing is equipped; Unknown means it has not been recorded.</p>
 }
 
-export function LoadoutSheet({ content, slots, localData, catalogs, gameSetup, view, onViewChange, viewLabel, primaryClassField, subCommandField, equipmentFields, passiveFields, passiveTools, selection, comparedWith, notes, context, onCalculationChange, onReviewGameSetup, onUploadMod, onReviewIssues, recorded, unknownInputs, unknownSecondaryClass, unknownPrimaryClass, selectionActions, showClassPermissions, showChecks = true, showStats = true }: {
+export function LoadoutSheet({ content, slots, localData, catalogs, gameSetup, view, onViewChange, viewLabel, primaryClassField, subCommandField, equipmentFields, passiveFields, passiveTools, selection, comparedWith, notes, context, onCalculationChange, onReviewGameSetup, onUploadMod, onReviewIssues, recorded, unknownInputs, unknownSecondaryClass, unknownPrimaryClass, selectionActions, showClassPermissions, showChecks = true, showStats = true, readOnly = false }: {
   content: BuildRevisionContent; slots: readonly SlotDefinition[]; localData: LocalData; catalogs: readonly CatalogSnapshot[]; gameSetup?: GameSetupRevision
   view: LoadoutView; onViewChange: (view: LoadoutView) => void; viewLabel: string
   primaryClassField: ReactNode; subCommandField: ReactNode; equipmentFields: ReactNode; passiveFields: ReactNode; passiveTools?: ReactNode
@@ -26,6 +26,7 @@ export function LoadoutSheet({ content, slots, localData, catalogs, gameSetup, v
   notes?: ReactNode; context?: ReactNode; onCalculationChange?: (plan: BuildCalculationPlan | undefined) => void; onReviewGameSetup?: () => void; onUploadMod?: () => void; onReviewIssues?: () => void
   recorded?: Readonly<Record<string, ObservedStat>>; unknownInputs?: readonly string[]; unknownSecondaryClass?: boolean; unknownPrimaryClass?: boolean
   showChecks?: boolean; showStats?: boolean
+  readOnly?: boolean
 }) {
   // Missing enabled layers can change calculation rules even when selected native facts are known
   // Offer import only for unavailable source pins, never as a remedy for ordinary missing inputs
@@ -51,12 +52,12 @@ export function LoadoutSheet({ content, slots, localData, catalogs, gameSetup, v
       </nav>
       <div className="build-sheet__layout">
         <div className="build-sheet__slots">
-          <section aria-label="Class and command" className="build-sheet__group" ref={classSection} tabIndex={-1}><h3><Icon name="crystal"/>Class & command</h3>{primaryClassField}<PrimaryClassGrowth catalogs={catalogs} localData={localData} primaryClass={content.primaryClass}/>{subCommandField}</section>
+          <section aria-label="Class and command" className="build-sheet__group" ref={classSection} tabIndex={-1}><h3><Icon name="crystal"/>Class & command</h3>{primaryClassField}{!readOnly && <PrimaryClassGrowth catalogs={catalogs} localData={localData} primaryClass={content.primaryClass}/>}{subCommandField}{readOnly && content.primaryClass && <details className="share-class-growth"><summary>Class growth</summary><PrimaryClassGrowth catalogs={catalogs} localData={localData} primaryClass={content.primaryClass}/></details>}</section>
           <section aria-label="Equipment" className="build-sheet__group" ref={equipmentSection} tabIndex={-1}><h3><Icon name="sword"/>Equipment</h3><div className="build-sheet__equipment">{equipmentFields}</div></section>
           <section aria-label="Passives" className="build-sheet__group" ref={passiveSection} tabIndex={-1}><h3><Icon name="spark"/>Equipped passives</h3>{passiveTools}<div className="build-sheet__passives">{passiveFields}</div></section>
         </div>
         <aside aria-label="Selection details" className="build-sheet__preview">
-          <span className="eyebrow">Selection details</span>
+          {!readOnly && <span className="eyebrow">Selection details</span>}
           {selection && <h3 className="icon-label"><DefinitionArtwork catalogs={catalogs} localData={localData} value={selection.ref}/>{nativeDisplayName(selection.record)}</h3>}
           <LoadoutSelectionDetails catalogs={catalogs} comparedWith={comparedWith} gameSetup={gameSetup} localData={localData} option={selection} showClassPermissions={showClassPermissions} showIdentity={false}/>{selection && selectionActions}
         </aside>

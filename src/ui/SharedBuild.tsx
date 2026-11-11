@@ -17,7 +17,7 @@ import { focusFieldElement } from './field-focus'
 import { BUILD_REVIEW_FIELDS } from './build-validity-guidance'
 import { passivePosition } from '../domain/passive-loadout'
 
-export function SharedBuild({ revision, preview, onUploadMod }: { readonly revision: BuildRevision; readonly preview: { readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[] }; readonly onUploadMod: () => void }) {
+export function SharedBuild({ revision, preview, onUploadMod, onReviewSetup }: { readonly revision: BuildRevision; readonly preview: { readonly localData: LocalData; readonly catalogs: readonly CatalogSnapshot[] }; readonly onUploadMod: () => void; readonly onReviewSetup?: () => void }) {
   const fieldScope = useId()
   const validityRef = useRef<HTMLElement>(null)
   const reviewSolutions = () => { validityRef.current?.scrollIntoView({ block: 'center' }); validityRef.current?.focus({ preventScroll: true }) }
@@ -49,16 +49,18 @@ export function SharedBuild({ revision, preview, onUploadMod }: { readonly revis
     { label: 'Enabled mods', value: setup.mods }, { label: 'Disabled mods', value: setup.disabledMods ?? { state: 'unknown' } },
     { label: 'Passive PP limit', value: setup.ppLimit ?? { state: 'unknown' } }, { label: 'Nonnegative PP costs', value: setup.ppCostsNonNegative },
   ]
-  return <div className="stack build-sheet" data-validity={report.status}>
-    <BuildModFiles setup={setup} catalogs={catalogs} onOpen={onUploadMod}/>
-    <details ref={setupRef} tabIndex={-1}><summary>Game Setup: {setup.label}</summary><dl className="definition-list">{setupFacts.map(({ label, value }) => <div className="definition-row" key={label}><dt>{label}</dt><dd><KnowledgeValue showSources value={value}/></dd></div>)}</dl></details>
-    <BuildValidity panelRef={validityRef} hasPrimaryClass={Boolean(content.primaryClass)} readOnly report={report} fieldLabels={Object.fromEntries([...slots.map(slot => [slot.id, slot.label]), ...content.passives.map((_selection, index) => [passivePosition(index).id, passivePosition(index).label])])} onUploadMod={setup.modSourceReceipts?.length ? onUploadMod : undefined} onReviewField={target => { setView('loadout'); focusFieldElement(`${fieldScope}:${target === BUILD_REVIEW_FIELDS.passives ? passivePosition(0).id : target}`) }} onReviewSetup={() => { if (setupRef.current) { setupRef.current.open = true; setupRef.current.scrollIntoView({ block: 'center' }); setupRef.current.focus() } }}/>
-    <LoadoutSheet onUploadMod={setup.modSourceReceipts?.length ? onUploadMod : undefined} onReviewIssues={reviewSolutions} gameSetup={setup} catalogs={catalogs} content={content} localData={localData} slots={slots} view={view} onViewChange={setView} viewLabel="Shared build view" selection={inspection ? inspection.option : findDefinitionOption(options, content.primaryClass)} showClassPermissions={inspection?.showClassPermissions}
+  const reviewSetup = onReviewSetup ?? (() => { if (setupRef.current) { setupRef.current.open = true; setupRef.current.scrollIntoView({ block: 'center' }); setupRef.current.focus() } })
+  const validity = <BuildValidity panelRef={validityRef} hasPrimaryClass={Boolean(content.primaryClass)} readOnly report={report} fieldLabels={Object.fromEntries([...slots.map(slot => [slot.id, slot.label]), ...content.passives.map((_selection, index) => [passivePosition(index).id, passivePosition(index).label])])} onUploadMod={setup.modSourceReceipts?.length ? onUploadMod : undefined} onReviewField={target => { setView('loadout'); focusFieldElement(`${fieldScope}:${target === BUILD_REVIEW_FIELDS.passives ? passivePosition(0).id : target}`) }} onReviewSetup={reviewSetup}/>
+  return <div className="stack build-sheet shared-build-sheet" data-validity={report.status}>
+    {report.status === 'invalid' && validity}
+    <LoadoutSheet readOnly onUploadMod={setup.modSourceReceipts?.length ? onUploadMod : undefined} onReviewGameSetup={reviewSetup} onReviewIssues={reviewSolutions} gameSetup={setup} catalogs={catalogs} content={content} localData={localData} slots={slots} view={view} onViewChange={setView} viewLabel="Shared build view" selection={inspection ? inspection.option : findDefinitionOption(options, content.primaryClass)} showClassPermissions={inspection?.showClassPermissions}
       primaryClassField={field('Class', content.primaryClass, 'No class selected')} subCommandField={field('Sub-command', content.secondaryClass, 'No sub-command')}
       equipmentFields={<>{slots.map(slot => equipmentField(slot.id, slot.label))}{retained.length > 0 && <div><p className="field__hint">These selections use slots outside this Game Setup.</p>{retained.map(id => equipmentField(id, id))}</div>}</>}
       passiveTools={<PassiveCapacityMeter pp={report.pp}/>}
       passiveFields={content.passives.length ? content.passives.map((selection, index) => <div key={index}>{field(`Equipped passive ${index + 1}`, selection.ref, 'Empty', selection.observedName, passivePosition(index).id)}</div>) : <p>No passives equipped.</p>}
       notes={<>{content.calculation && <details><summary>Calculation inputs</summary><CalculationInputs catalogs={catalogs} localData={localData} plan={content.calculation} genders={rules.genders}/></details>}{(revision.note || content.rotationNotes || content.contextAssumptions.length > 0) && <details><summary>Build notes and assumptions</summary><div className="share-notes">{revision.note && <p>{revision.note}</p>}{content.rotationNotes && <p>{content.rotationNotes}</p>}{content.contextAssumptions.map((note, index) => <p key={index}>{note}</p>)}</div></details>}</>}
     />
+    {report.status !== 'invalid' && validity}
+    {!onReviewSetup && <><BuildModFiles setup={setup} catalogs={catalogs} onOpen={onUploadMod}/><details ref={setupRef} tabIndex={-1}><summary>Game Setup: {setup.label}</summary><dl className="definition-list">{setupFacts.map(({ label, value }) => <div className="definition-row" key={label}><dt>{label}</dt><dd><KnowledgeValue showSources value={value}/></dd></div>)}</dl></details></>}
   </div>
 }

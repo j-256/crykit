@@ -1,3 +1,4 @@
+import { openTeamHistory } from '../share-view-helpers'
 import { expectOfflineReady } from '../offline-helpers'
 import { skipInitialModSetup } from '../local-data-helpers'
 import { expect, test } from '@playwright/test'
@@ -72,6 +73,7 @@ test('hosted owner, recipient and anonymous lifecycle keeps private drafts and c
   await page.getByRole('button', { name: 'Move slot 2 left', exact: true }).click()
   expect(await (await read()).json()).toEqual(first)
   await page.getByRole('button', { name: 'Save Team', exact: true }).click()
+  await openTeamHistory(page)
   await expect(page.getByRole('combobox', { name: 'Team checkpoint', exact: true }).getByRole('option')).toHaveCount(2)
   expect(await (await read()).json()).toEqual(first)
   await page.getByRole('button', { name: 'Share team', exact: true }).click()

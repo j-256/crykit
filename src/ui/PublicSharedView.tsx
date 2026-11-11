@@ -4,7 +4,6 @@ import type { DraftActions, DraftChangeHandler } from './drafts'
 import type { CopiedCheckpointEdit, CopiedCheckpointRef } from '../interchange/public-checkpoint-edit'
 import type { PublicNotes } from '../interchange/public-share-schema'
 import { decodePublicSnapshot } from '../interchange/public-share'
-import { publicRefKey, type PublicRef } from '../interchange/public-share-schema'
 import { readPublishedSnapshot } from '../account/shares-client'
 import type { PublicShare } from '../account/shares-protocol'
 import type { PublicSnapshot } from '../interchange/public-share-schema'
@@ -17,9 +16,9 @@ import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { modSourceMatch } from '../domain/mod-source-match'
 import type { ModSourceReceipt } from '../domain/types'
 import { importLibrarySource } from '../workspace/mod-repository'
-import { PrivateArtwork } from './mods/PrivateArtwork'
-import { KnowledgeValue } from './KnowledgeValue'
-import { decisionFacts } from './build-evidence'
+import { PublicShareSources } from './PublicShareSources'
+import { PublicShareLoadout, PublicShareRoster, publicMemberName } from './PublicShareLoadout'
+import './public-share.css'
 import { SharedBuild } from './SharedBuild'
 import { publicSnapshotFromCheckpoint } from '../domain/public-source-context'
 import type { BuildRevision, TeamRevision, GameSetupRevision } from '../domain/types'
@@ -33,7 +32,8 @@ const MAX_MATCHING_FILE_BYTES = 32 * 1024 * 1024
 export function PublicSharedView({ encoded, onSave }: { readonly encoded: string; readonly onSave?: SavePublicSnapshot }) {
   const result = useMemo(() => { try { return { snapshot: decodePublicSnapshot(encoded) } } catch (error) { return { error: error instanceof Error ? error.message : 'Invalid public snapshot' } } }, [encoded])
   if (!result.snapshot) return <InlineNotice title="Shared snapshot unavailable" tone="danger">{result.error}</InlineNotice>
-  return <PublicSnapshotView snapshot={result.snapshot} onSave={onSave}/>
+  // A new link owns its member selection, inspection, and pending operations
+  return <PublicSnapshotView key={encoded} snapshot={result.snapshot} onSave={onSave}/>
 }
 
 export function HostedSharedView({ shareId, onSave }: { readonly shareId: string; readonly onSave?: SavePublicSnapshot }) {
@@ -62,6 +62,16 @@ export function PublicSnapshotView({ snapshot, copied = false, onSave, copiedAct
   const libraryReadEpoch = useRef(0)
   const refreshLibrary = useRef<{ repository: WorkspaceRepository; refresh: () => void }>(undefined)
   const [sourcesOpen, setSourcesOpen] = useState(false)
+  const sourcesRef = useRef<HTMLDetailsElement>(null)
+  const [selectedMember, setSelectedMember] = useState(0)
+  const openSources = () => {
+    setSourcesOpen(true)
+    if (sourcesRef.current) {
+      sourcesRef.current.open = true
+      sourcesRef.current.scrollIntoView?.({ block: 'start' })
+      sourcesRef.current.focus({ preventScroll: true })
+    }
+  }
   const currentRepository = useRef(repository)
   if (currentRepository.current !== repository) { currentOperation.current = undefined; libraryReadEpoch.current++ }
   currentRepository.current = repository
@@ -143,23 +153,25 @@ export function PublicSnapshotView({ snapshot, copied = false, onSave, copiedAct
     }
     finally { if (operationIsCurrent()) { currentOperation.current = undefined; setPending(undefined) } }
   }
-  const name = (ref: PublicRef | null) => ref ? snapshot.receipts.find(receipt => publicRefKey(receipt.ref) === publicRefKey(ref))!.name : 'Unselected'
+  const memberIndex = snapshot.kind === 'team' ? Math.min(selectedMember, snapshot.slots.length - 1) : 0
+  const revision = preview?.revisions[memberIndex]
+  const member = snapshot.slots[memberIndex]
+  const loadout = revision && preview ? <section aria-label="Read-only calculations"><section aria-label={snapshot.kind === 'team' ? `Slot ${memberIndex + 1} calculations` : 'Build calculations'}><SharedBuild key={memberIndex} revision={revision} preview={preview} onUploadMod={openSources} onReviewSetup={openSources}/></section></section> : <PublicShareLoadout key={memberIndex} snapshot={snapshot} index={memberIndex} enrichment={enrichment}/>
   return <div className="stack shared-preview public-shared-preview">
-    <ScreenHeader eyebrow={snapshot.kind === 'team' ? 'Shared team' : 'Shared build'} title={snapshot.title} description="Saved selections and source requirements. Private definitions and artwork are not included." actions={repository && !copied ? <Button disabled={busy || !viewer} onClick={() => void save()}>{busy ? 'Saving...' : 'Save a copy'}</Button> : undefined}/>
-    {copied && <InlineNotice title="Independent saved copy">The original checkpoint keeps its saved sources. Save your own notes or create an editable checkpoint with a local Game Setup.</InlineNotice>}
-    {viewer && copiedActions?.(viewer)}
+    <ScreenHeader description={snapshot.kind === 'team' ? 'Shared Team' : 'Shared Build'} title={snapshot.title} actions={repository && !copied ? <Button disabled={busy || !viewer} onClick={() => void save()}>{busy ? 'Saving...' : 'Save a copy'}</Button> : undefined}/>
+    {copied && <p className="share-copy-notice" role="status"><strong>Independent saved copy</strong><span>Your changes stay separate from the original.</span></p>}
     {saved && <InlineNotice title="Copy saved" tone="positive"><a href={formatAppRoute({ page: saved.teamId ? { page: 'teams', view: 'team', teamId: saved.teamId } : { page: 'builds', view: 'build', buildId: saved.buildId! }, overlays: [], query: {} })}>Open your independent copy</a></InlineNotice>}
-    {enrichment?.resolved ? <InlineNotice title="Matching definitions available" tone="positive">Definitions below come from your own files.</InlineNotice> : <InlineNotice title="Definitions required">Missing definitions remain unknown. Add matching files to inspect their effects.</InlineNotice>}
-    {enrichment?.adaptedProjections.length ? <InlineNotice title="Adapted interpretation" tone="warning">Your matching source uses a different parser projection. These details are a read-only interpretation; the shared historical pins remain unchanged.</InlineNotice> : null}
     {error && <InlineNotice title="Shared view could not finish" tone="danger">{error}{failure?.library && !busy && <Button onClick={() => { setError(undefined); if (refreshLibrary.current && refreshLibrary.current.repository === repository) refreshLibrary.current.refresh() }}>Retry library read</Button>}</InlineNotice>}
-    {repository && snapshot.setup.layers.length > 0 && <><Button tone="secondary" onClick={() => setSourcesOpen(value => !value)}>{repository.kind === 'account' ? 'Choose from my library' : 'Add matching files'}</Button>{sourcesOpen && <section className="panel" aria-label="Matching sources"><div className="panel__body stack">{snapshot.setup.layers.map(layer => <div key={JSON.stringify([layer.catalogId, layer.catalogRevisionId])}><h3>{layer.title}</h3><p>{layer.catalogId} · {layer.catalogRevisionId}</p><p>{!enrichment ? 'Reading your library...' : enrichment.missingSources.some(source => source.catalogId === layer.catalogId && source.catalogRevisionId === layer.catalogRevisionId) ? 'This exact source is missing from your library.' : 'Matching content is available in your library.'}</p><Field label={`Matching JSON for ${layer.title}`}><input type="file" accept=".json,application/json" disabled={busy || !viewer} onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) void importMatching(layer, file) }}/></Field></div>)}{busy && <p role="status">Saving matching source...</p>}<p>Files are saved to your own library. Your active Playthrough and enabled mods stay unchanged.</p></div></section>}</>}
-    {enrichment && <section aria-label="Your matching definitions">{enrichment.entries.map(entry => <details key={publicRefKey(entry.receipt.ref)}><summary>{entry.receipt.name}</summary>{entry.definition ? <div className="stack">{entry.viewerRef?.kind === 'catalog' && entry.artwork && <PrivateArtwork catalogId={entry.viewerRef.catalogId} catalogRevisionId={entry.viewerRef.catalogRevisionId} entity={{ ...entry.definition, id: entry.viewerRef.entityId }} detailed fallback={null}/>}<p>Definition from your library</p>{entry.definition.rawDescription && <p>{entry.definition.rawDescription}</p>}<dl className="definition-list">{decisionFacts(entry.definition).map(({ label, value }) => <div key={label}><dt>{label}</dt><dd><KnowledgeValue value={value}/></dd></div>)}</dl></div> : <p>Definition unavailable. The saved name supplies no mechanics.</p>}</details>)}</section>}
-    <section className="panel"><div className="panel__body"><h2>Required sources</h2>{snapshot.setup.baseline && <p>Baseline: {snapshot.setup.baseline.catalogId} · {snapshot.setup.baseline.catalogRevisionId}</p>}{snapshot.setup.layers.map((layer, index) => <p key={index}>{index + 1}. {layer.title} · {layer.catalogId} · {layer.catalogRevisionId}</p>)}{snapshot.receipts.some(receipt => receipt.ref.kind === 'personal') && <p>Selected personal definitions require matching content fingerprints.</p>}</div></section>
-    <div className={snapshot.kind === 'team' ? 'share-team-grid' : 'share-build-grid'}>{snapshot.slots.map((slot, index) => <section aria-label={snapshot.kind === 'team' ? `Shared team slot ${index + 1}` : 'Shared build loadout'} className="panel" key={index}><div className="panel__body stack"><h2>{slot?.name ?? `Slot ${index + 1}`}</h2>{slot ? <><p>Class: {name(slot.primaryClass)}</p><p>Subclass: {name(slot.secondaryClass)}</p><ul>{slot.equipment.map(entry => <li key={entry.slotId}>{snapshot.setup.slots.find(display => display.id === entry.slotId)?.label ?? entry.slotId}: {name(entry.ref)}</li>)}</ul>{slot.equipmentGroups.map((group, groupIndex) => <p key={groupIndex}>Shared equipment selection: {group.join(', ')}</p>)}<ul>{slot.passives.map((ref, passiveIndex) => <li key={passiveIndex}>{name(ref)}</li>)}</ul>{snapshot.notes?.slots[index] && <div className="share-notes">{snapshot.notes.slots[index]?.checkpoint && <p>{snapshot.notes.slots[index]?.checkpoint}</p>}{snapshot.notes.slots[index]?.rotationNotes && <p>{snapshot.notes.slots[index]?.rotationNotes}</p>}{snapshot.notes.slots[index]?.contextAssumptions.map((note, noteIndex) => <p key={noteIndex}>{note}</p>)}</div>}</> : <p>Empty slot</p>}</div></section>)}</div>
+    {enrichment?.adaptedProjections.length ? <InlineNotice title="Adapted interpretation" tone="warning">Your matching source uses a different parser projection. These details are a read-only interpretation; the shared historical pins remain unchanged.</InlineNotice> : null}
+    {snapshot.kind === 'team' ? <>
+      <PublicShareRoster snapshot={snapshot} enrichment={enrichment} selected={memberIndex} onSelect={setSelectedMember}/>
+      <section aria-label="Selected Team member" className="share-member"><header className="share-member__heading"><h2>{member ? publicMemberName(snapshot, memberIndex) : `Empty slot ${memberIndex + 1}`}</h2><span>Member {memberIndex + 1} of {snapshot.slots.length}</span></header>{loadout}</section>
+    </> : <section aria-label="Shared build loadout"><h2 className="sr-only">Loadout</h2>{loadout}</section>}
     {enrichment?.unresolvedCalculations && <InlineNotice title="Calculations unavailable">Exact source definitions and the saved setup lock are required. Missing mechanics remain unknown.</InlineNotice>}
-    {preview && <section aria-label="Read-only calculations"><h2>Loadout and calculations</h2>{preview.revisions.map((revision, index) => revision ? <section key={index} aria-label={`Slot ${index + 1} calculations`}><SharedBuild revision={revision} preview={preview} onUploadMod={() => setSourcesOpen(true)}/></section> : null)}</section>}
-    <details><summary>Selected entry requirements</summary>{snapshot.receipts.map(receipt => <p key={publicRefKey(receipt.ref)}>{receipt.name} · {receipt.origin ? <>{receipt.origin.projectId} · {receipt.origin.sourceRevisionId} · {receipt.origin.catalogRevisionId}{receipt.origin.modelKey ? ` · ${receipt.origin.modelKey}` : ''}</> : 'Source identity unavailable'}</p>)}</details>
-    {snapshot.notes?.checkpoint && <p className="share-notes">{snapshot.notes.checkpoint}</p>}
+    {repository && snapshot.setup.layers.length > 0 && (!enrichment || enrichment.unresolvedCalculations) && <div><Button tone="secondary" onClick={openSources}>{repository.kind === 'account' ? 'Choose from my library' : 'Add matching files'}</Button></div>}
+    {snapshot.notes?.checkpoint && <section className="share-notes"><h2>{snapshot.kind === 'team' ? 'Team notes' : 'Notes'}</h2><p>{snapshot.notes.checkpoint}</p></section>}
+    {viewer && copiedActions && <details className="share-copy-controls"><summary>Edit your copy</summary>{copiedActions(viewer)}</details>}
+    <PublicShareSources snapshot={snapshot} enrichment={enrichment} open={sourcesOpen} onToggle={setSourcesOpen} detailsRef={sourcesRef} canImport={Boolean(repository)} busy={Boolean(busy)} ready={Boolean(viewer)} onImport={(layer, file) => void importMatching(layer, file)}/>
   </div>
 }
 
