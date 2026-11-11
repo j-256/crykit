@@ -11,7 +11,7 @@ async function navigate(page: Page, destination: string) {
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  return page.getByRole('region', { name: 'Data & Settings', exact: true })
 }
 
 async function setHash(page: Page, hash: string) {
@@ -26,7 +26,7 @@ async function configureGameSetup(page: Page) {
   await panel.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('0')
   await saveAndApplyGameSetup(panel)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
 }
 
 async function addCharacter(page: Page, name: string) {
@@ -117,8 +117,8 @@ test('settings routes retain dirty forms and expired previews recover explicitly
   await page.goBack()
   await expect(page).toHaveURL(/#\/settings\/game-setup\?gameSetup=/)
   await expect(panel.getByLabel('Game Setup label')).toHaveValue('Unsaved semantic route Game Setup')
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  await panel.getByRole('button', { name: 'Discard and close', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
+  await panel.getByRole('button', { name: 'Discard and go back', exact: true }).click()
 
   const reopened = await openData(page)
   await reopened.getByLabel('Choose import file', { exact: true }).setInputFiles({
@@ -129,7 +129,7 @@ test('settings routes retain dirty forms and expired previews recover explicitly
   await expect(reopened.getByText('Import preview', { exact: true })).toBeVisible()
   await expect(page).toHaveURL(/#\/settings\/data\/import\/[^/?]+$/)
   await page.reload()
-  const restored = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const restored = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await expect(restored.getByText('Import preview expired', { exact: true })).toBeVisible()
 
   await page.evaluate(() => { window.location.hash = '#/settings/data' })

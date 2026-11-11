@@ -42,10 +42,10 @@ test('owns discrete known and custom mod choices and version while keeping earli
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/#/settings/storage')
-  const storage = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const storage = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await storage.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(storage)
-  await storage.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await storage.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   const { original, build, before } = await openBuild(page)
   await page.locator('.game-setup-mod-pack > summary').nth(1).click()
   await page.getByRole('combobox', { name: 'Doge Shield', exact: true }).selectOption('enabled')

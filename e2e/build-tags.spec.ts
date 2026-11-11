@@ -84,7 +84,7 @@ test('optional tags persist independently, round-trip in backups, and match both
   expect(JSON.stringify(snapshot)).not.toContain(TAG)
 
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const settings = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await settings.getByRole('button', { name: 'Import & Backup', exact: true }).click()
   const download = page.waitForEvent('download')
   if (!await settings.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await settings.getByText("What's included in a backup?", { exact: true }).click()
@@ -93,7 +93,7 @@ test('optional tags persist independently, round-trip in backups, and match both
   const backup = JSON.parse(strFromU8(unzipSync(bytes)['bundle.json']!)) as { localData: LocalData }
   expect(backup.localData.builds).toEqual(after.builds)
   expect((await previewNativeBackup(bytes, 'synthetic-tags.zip', BUNDLED_CATALOGS)).proposed.localData.builds).toEqual(after.builds)
-  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await page.reload()
   await waitForPlannerReady(page)
   await openTags(page)

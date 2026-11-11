@@ -74,9 +74,9 @@ test('home opens the build library and separates tracking on desktop and touch',
 
 test('direct settings return to Builds and saved build tracking requires an explicit choice', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
   await page.goto('/#/settings/data')
-  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const settings = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await expect(settings).toBeVisible()
-  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await expect(page).toHaveURL(/#\/builds\/library$/)
   await page.getByRole('region', { name: 'Build Library', exact: true }).getByRole('button', { name: /Rowan: sample Warrior/ }).click()
   await expect(page.getByRole('combobox', { name: 'Class', exact: true })).toHaveValue('Warrior')

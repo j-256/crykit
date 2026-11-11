@@ -78,13 +78,13 @@ export async function createBlankPlaythrough(page: Page): Promise<void> {
   const hash = new URL(page.url()).hash
   if (!hash || hash === '#/' || await page.getByRole('dialog', { name: 'Choose your mods', exact: true }).isVisible()) await skipInitialModSetup(page)
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await panel.getByRole('button', { name: 'Playthrough', exact: true }).click()
   await panel.locator('.playthrough-create > summary').click()
   await panel.getByLabel('New blank Playthrough').fill('Blank test playthrough')
   await panel.getByRole('button', { name: 'Create', exact: true }).click()
   await expect(panel.getByRole('combobox', { name: 'Active Playthrough', exact: true }).locator('option:checked')).toContainText('Blank test playthrough')
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
 }
 
 export async function replacePlannerData(panel: Locator): Promise<void> {
@@ -98,7 +98,7 @@ export async function replacePlannerData(panel: Locator): Promise<void> {
 export async function replacePlannerFixture(page: Page, localData: LocalData): Promise<LocalData> {
   const previousUrl = page.url()
   await page.goto('/#/settings/data')
-  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   const download = page.waitForEvent('download')
   if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()

@@ -82,12 +82,12 @@ test('failed saves expose diagnostics on demand and export the retained transact
   await expect(page.getByText('Synthetic direct recovery item', { exact: true })).not.toBeVisible()
 })
 
-test('backup help remains reachable in the dialog keyboard cycle', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('backup help remains reachable in the page keyboard order', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/')
   await skipInitialModSetup(page)
   await page.goto('/#/inventory')
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await panel.getByRole('button', { name: 'Export backup', exact: true }).focus()
   await page.keyboard.press('Tab')
   const help = panel.getByText("What's included in a backup?", { exact: true })
@@ -102,10 +102,6 @@ test('backup help remains reachable in the dialog keyboard cycle', { tag: MOBILE
   await page.keyboard.press('Tab')
   await expect(restore).toBeFocused()
   await page.keyboard.press('Tab')
-  await expect(restoreFile).toBeFocused()
-  await page.keyboard.press('Tab')
-  await expect(panel.getByRole('button', { name: 'Close dialog', exact: true })).toBeFocused()
-  await page.keyboard.press('Shift+Tab')
   await expect(restoreFile).toBeFocused()
   await page.keyboard.press('Shift+Tab')
   await expect(restore).toBeFocused()

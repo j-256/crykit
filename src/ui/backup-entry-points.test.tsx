@@ -15,6 +15,7 @@ beforeEach(() => {
   window.history.replaceState(null, '', '#/settings/data')
   container = document.createElement('div'); document.body.append(container); root = createRoot(container)
   HTMLElement.prototype.scrollIntoView = vi.fn()
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
   HTMLDialogElement.prototype.showModal = function () { this.open = true }
   HTMLDialogElement.prototype.close = function () { this.open = false }
 })
@@ -22,7 +23,7 @@ afterEach(async () => { await act(async () => root.unmount()); container.remove(
 const noop = async () => {}
 function Harness({ complete, native, restore, target = 'guest' }: { complete: () => Promise<void>; native: () => Promise<Uint8Array>; target?: 'guest' | 'account'; restore?: { preview(file: File): Promise<GuestRestorePreview | AccountRestorePreview>; activate(preview: GuestRestorePreview | AccountRestorePreview): Promise<void>; clear(): Promise<void> } }) {
   const navigation = useNavigationController()
-  return <NavigationProvider controller={navigation}><DataPanel open localData={createBlankLocalData()} busy={false} canUndo={false} dirty={false} onClose={() => {}} onPreview={noop} onCommit={noop} onClearPreview={() => {}} onExport={native} onExportWorkspace={complete} onWorkspaceRestoreTarget={target} onWorkspaceRestorePreview={restore?.preview} onWorkspaceRestoreActivate={restore?.activate} onWorkspaceRestoreClear={restore?.clear} onSaveGameSetup={noop} onRetrySave={noop} onSelectGameSetup={noop} onCreatePlaythrough={noop} onSelectPlaythrough={noop} onUndo={noop}/></NavigationProvider>
+  return <NavigationProvider controller={navigation}><DataPanel localData={createBlankLocalData()} busy={false} canUndo={false} dirty={false} onClose={() => {}} onPreview={noop} onCommit={noop} onClearPreview={() => {}} onExport={native} onExportWorkspace={complete} onWorkspaceRestoreTarget={target} onWorkspaceRestorePreview={restore?.preview} onWorkspaceRestoreActivate={restore?.activate} onWorkspaceRestoreClear={restore?.clear} onSaveGameSetup={noop} onRetrySave={noop} onSelectGameSetup={noop} onCreatePlaythrough={noop} onSelectPlaythrough={noop} onUndo={noop}/></NavigationProvider>
 }
 it('DataPanel uses complete backup and preserves captured-workspace errors', async () => {
   const complete = vi.fn(async () => { throw new Error('The captured workspace changed. Retry export.') }), native = vi.fn(async () => new Uint8Array())

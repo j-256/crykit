@@ -22,11 +22,11 @@ const SYNTHETIC_RESEARCH = {
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  return page.getByRole('region', { name: 'Data & Settings', exact: true })
 }
 
 async function closeData(page: Page) {
-  await page.getByRole('dialog', { name: 'Data & Settings', exact: true }).getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await page.getByRole('region', { name: 'Data & Settings', exact: true }).getByRole('link', { name: 'Back to previous page', exact: true }).click()
 }
 
 async function stageServiceWorkerUpdate(page: Page) {
@@ -98,23 +98,34 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
 })
 
-test('settings keeps keyboard focus within its sheet and returns focus on escape', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('settings uses page navigation and preserves its entry page through sections and reloads', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   const trigger = page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true })
   await trigger.focus()
   await page.keyboard.press('Enter')
-  const dialog = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
-  await expect(dialog).toBeVisible()
-  for (let index = 0; index < 12; index += 1) {
-    await page.keyboard.press('Tab')
-    expect(await page.evaluate(() => Boolean(document.activeElement?.closest('dialog[open]')))).toBe(true)
-  }
-  for (let index = 0; index < 12; index += 1) {
-    await page.keyboard.press('Shift+Tab')
-    expect(await page.evaluate(() => Boolean(document.activeElement?.closest('dialog[open]')))).toBe(true)
-  }
+  const settings = page.getByRole('region', { name: 'Data & Settings', exact: true })
+  await expect(settings).toBeVisible()
+  await expect(page.locator('dialog:modal')).toHaveCount(0)
   await page.keyboard.press('Escape')
-  await expect(dialog).not.toBeVisible()
-  await expect(trigger).toBeFocused()
+  await expect(settings).toBeVisible()
+  await page.getByRole('heading', { name: 'Data & Settings', exact: true }).click()
+  await expect(settings).toBeVisible()
+  await settings.getByRole('button', { name: 'History', exact: true }).click()
+  await page.reload()
+  const back = settings.getByRole('link', { name: 'Back to previous page', exact: true })
+  await expect(back).toHaveAttribute('href', '#/inventory')
+  await back.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('heading', { name: 'Inventory', exact: true })).toBeVisible()
+  await trigger.click()
+  await page.getByRole('button', { name: 'Reference', exact: true }).filter({ visible: true }).click()
+  await expect(settings).not.toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Reference', exact: true })).toBeVisible()
+  await trigger.click()
+  await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Reference', exact: true })).toBeVisible()
+  await page.goto('/#/settings/data')
+  await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
 })
 
 test('manual observations preserve unknowns and survive reload without horizontal overflow', { tag: MOBILE_TEST_TAG }, async ({ page }) => {

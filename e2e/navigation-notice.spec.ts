@@ -77,11 +77,11 @@ test('repeated blocked Team navigation reveals all recovery choices between fixe
   }
 })
 
-test('deep Game Setup navigation and close attempts reveal their own choices without saving or discarding fields', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('deep Game Setup navigation and return attempts reveal their own choices without saving or discarding fields', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/')
   await skipInitialModSetup(page)
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await openCurrentGameSetup(panel)
   await openGameSetupSection(panel, 'Rules from game data')
   for (const summary of await panel.locator('.game-setup-derived summary').all()) {
@@ -95,7 +95,7 @@ test('deep Game Setup navigation and close attempts reveal their own choices wit
   const notice = panel.getByRole('region', { name: 'Game Setup navigation warning', exact: true })
   for (let attempt = 0; attempt < 2; attempt += 1) {
     if (attempt) await notice.evaluate(element => (element as HTMLElement).blur())
-    await scrollDeep(page, panel)
+    await scrollDeep(page)
     await attemptRoute(page, { page: { page: 'settings', section: 'history' }, overlays: [], query: {} })
     await expect(page).toHaveURL(editorUrl)
     await expect(notice).toContainText('Save or discard your Game Setup changes')
@@ -103,11 +103,11 @@ test('deep Game Setup navigation and close attempts reveal their own choices wit
     await expect(label).toHaveValue('Synthetic deep setup draft')
     expect(await storedData(page)).toEqual(before)
   }
-  const closeNotice = panel.getByRole('region', { name: 'Game Setup close choices', exact: true })
+  const closeNotice = panel.getByRole('region', { name: 'Game Setup return choices', exact: true })
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    await scrollDeep(page, panel)
-    await page.keyboard.press('Escape')
-    await expectRecoveryVisible(closeNotice, ['Discard and close', 'Keep editing'])
+    await scrollDeep(page)
+    await panel.getByRole('link', { name: 'Back to previous page', exact: true }).evaluate(element => (element as HTMLElement).click())
+    await expectRecoveryVisible(closeNotice, ['Discard and go back', 'Keep editing'])
     await expect(label).toHaveValue('Synthetic deep setup draft')
     expect(await storedData(page)).toEqual(before)
     await closeNotice.getByRole('button', { name: 'Keep editing', exact: true }).click()

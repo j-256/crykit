@@ -21,7 +21,7 @@ test('hosted owner, recipient and anonymous lifecycle keeps private drafts and c
   await expect(recipient.locator('#status')).toHaveText('Browser worker and offline cache ready')
   await recipient.goto(`${origin}/#/settings/storage`)
   await skipInitialModSetup(recipient)
-  const storage = recipient.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const storage = recipient.getByRole('region', { name: 'Data & Settings', exact: true })
   await storage.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(storage)
   const username = `host_${crypto.randomUUID().replaceAll('-', '').slice(0, 10)}`, email = `${username}@example.org`, password = 'synthetic hosted publication password'

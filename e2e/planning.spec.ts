@@ -13,7 +13,7 @@ async function navigate(page: Page, destination: string) {
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  return page.getByRole('region', { name: 'Data & Settings', exact: true })
 }
 
 async function configureGameSetup(page: Page, _slotLabels = ['Main hand']) {
@@ -23,7 +23,7 @@ async function configureGameSetup(page: Page, _slotLabels = ['Main hand']) {
   await panel.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('0')
   await saveAndApplyGameSetup(panel)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  await panel.getByRole('button', { name: 'Close dialog' }).click()
+  await panel.getByRole('link', { name: 'Back to previous page' }).click()
 }
 
 async function addCharacter(page: Page, name: string) {
@@ -385,7 +385,7 @@ test('snapshot edits reject duplicate stats and distinguish empty from unrecorde
   await settings.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('0')
   await saveAndApplyGameSetup(settings)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
-  await settings.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await addCharacter(page, 'Synthetic Ash')
   await page.getByRole('button', { name: 'Capture snapshot', exact: true }).click()
   const form = page.getByRole('dialog', { name: 'Capture character snapshot', exact: true })

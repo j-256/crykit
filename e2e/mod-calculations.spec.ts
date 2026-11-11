@@ -16,7 +16,7 @@ const MOD_CALCULATION_JOURNEY_TIMEOUT_MS = 90_000
 
 async function settings(page: Page, section: string) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   if (section === 'Game Setup') await openCurrentGameSetup(panel)
   else await panel.getByRole('button', { name: section, exact: true }).click()
   return panel
@@ -44,7 +44,7 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   await setup.getByText('All bonus profiles · 3', { exact: true }).click()
   await expect(setup.getByLabel('Game Setup gender bonuses', { exact: true })).toContainText('Synthetic focus: STR, SPI, LUK')
   await saveAndApplyGameSetup(setup)
-  await setup.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await setup.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await page.goto('/#/builds/library/new')
   await openBuildGameSetup(page)
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
@@ -131,7 +131,7 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   const revision = localData.buildRevisions[build.latestRevisionId!]!
   expect(revision.content.calculation?.genderSelection).toEqual({ version: 1, id: 8 })
   expect(localData.gameSetups[revision.gameSetupRevisionId]!.modComposition?.version).toBe(3)
-  await exporting.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await exporting.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await page.getByRole('button', { name: 'Share build', exact: true }).click()
   const shareUrl = await page.getByRole('dialog', { name: 'Share build', exact: true }).getByLabel('Share URL', { exact: true }).inputValue()
   await page.goto(shareUrl)
@@ -142,7 +142,7 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   const offline = await settings(page, 'Offline & Storage')
   await offline.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(offline)
-  await offline.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await offline.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
   await openStatBreakdown(shared)
@@ -180,7 +180,7 @@ test('mod automatic statuses and ability cost overrides survive checkpoints, bac
   await layers.getByRole('combobox', { name: 'Imported mod to add', exact: true }).selectOption('crystal-edit:synthetic-battle-mod')
   await layers.getByRole('button', { name: 'Add mod layer', exact: true }).click()
   await saveAndApplyGameSetup(setup)
-  await setup.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await setup.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await page.goto('/#/builds/library/new')
   await openBuildGameSetup(page)
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('playthrough')
@@ -233,7 +233,7 @@ test('mod automatic statuses and ability cost overrides survive checkpoints, bac
   const composition = localData.gameSetups[revision.gameSetupRevisionId]!.modComposition!
   expect(composition.version).toBe(3)
   expect(composition.identityMappings).toEqual(expect.arrayContaining(['Abilities', 'Passives', 'Statuses'].map(family => ({ projectId: 'crystal-edit:synthetic-battle-mod', family, originalId: addedId, effectiveId: addedId }))))
-  await exporting.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await exporting.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await page.getByRole('button', { name: 'Share build', exact: true }).click()
   const shareUrl = await page.getByRole('dialog', { name: 'Share build', exact: true }).getByLabel('Share URL', { exact: true }).inputValue()
   await page.goto(shareUrl)
@@ -246,7 +246,7 @@ test('mod automatic statuses and ability cost overrides survive checkpoints, bac
   const offline = await settings(page, 'Offline & Storage')
   await offline.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(offline)
-  await offline.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await offline.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
   await expect(shared.getByRole('table', { name: 'Calculated character stats', exact: true }).locator('th, td')).toHaveText(previewStats)

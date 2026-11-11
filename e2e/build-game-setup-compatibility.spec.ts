@@ -54,7 +54,7 @@ async function loadFixture(page: Page, localData = compatibilityFixture()): Prom
     'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [], bundledCatalogs, evidence: [], history: [] }),
   })
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-build-compatibility.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()

@@ -12,7 +12,7 @@ async function navigate(page: Page, destination: string) {
 
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  return page.getByRole('region', { name: 'Data & Settings', exact: true })
 }
 
 async function exportLocalData(page: Page): Promise<LocalData> {
@@ -25,7 +25,7 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   if (!path) throw new Error('Expected a completed backup download')
   const entries = unzipSync(await readFile(path))
   const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData }
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   return bundle.localData
 }
 
@@ -150,7 +150,7 @@ test('direct nested modal routes restore the top layer and close one layer at a 
 
   await page.goto('/#/settings/data/search?q=blade')
   await page.reload()
-  const settings = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const settings = page.getByRole('region', { name: 'Data & Settings', exact: true })
   const search = page.getByRole('dialog', { name: 'Search CryKit', exact: true })
   await expect(search).toBeVisible()
   await expectActiveDialog(page, 'Search CryKit')

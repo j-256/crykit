@@ -54,7 +54,7 @@ async function startInstallation() {
 
 async function openStorage(page: Page) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  const panel = page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await panel.getByRole('button', { name: 'Offline & Storage', exact: true }).click()
   return panel
 }
@@ -72,7 +72,7 @@ async function exportLocalData(page: Page): Promise<LocalData> {
   if (!await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).isVisible()) await panel.getByText("What's included in a backup?", { exact: true }).click()
   await panel.getByRole('button', { name: 'Export planner ZIP', exact: true }).click()
   const files = unzipSync(await readFile((await (await download).path())!))
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   return JSON.parse(strFromU8(files['bundle.json']!)).localData
 }
 
@@ -119,7 +119,7 @@ test('core offline preparation reports real progress while the page stays respon
       return urls
     })
     expect(cached.filter(url => optionalUrls.includes(url))).toEqual([])
-    await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
     await context.setOffline(true)
     await page.reload()
     await expect(page.getByRole('button', { name: 'Add item', exact: true })).toBeVisible()
@@ -150,7 +150,7 @@ test('all selected extras verify every built asset before declaring offline read
     })
     expect(cached).toEqual(expect.arrayContaining(files.map(file => new URL(file, installation.url).href)))
     await panel.screenshot({ path: testInfo.outputPath('offline-download-options.png') })
-    await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
     await context.setOffline(true)
     await page.reload()
     const reopened = await openStorage(page)
@@ -200,7 +200,7 @@ test('refresh repairs cached files and preserves planner records and saved Mod I
     expect(await page.evaluate(async () => (await caches.keys()).filter(name => name.startsWith('crykit-refresh-')))).toHaveLength(1)
     expect(await page.evaluate(() => localStorage.getItem('synthetic-refresh-preference'))).toBe('keep')
     expect(await page.evaluate(async () => (await (await caches.open('unrelated-application')).match('/journal/index.html'))?.text())).toBe('Keep unrelated cache')
-    await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
     const files = page.getByRole('combobox', { name: 'Files opened in this tool', exact: true })
     const option = files.locator('option').filter({ hasText: MOD_FILENAME })
     await files.selectOption((await option.getAttribute('value'))!)
@@ -251,8 +251,12 @@ test('refresh discovers updates, keeps other tabs open, and recovers from failed
     try {
       await panel.getByRole('button', { name: 'Refresh app', exact: true }).click()
       await expect(panel.getByRole('button', { name: 'Refreshing app...', exact: true })).toBeDisabled()
-      await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+      await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
       await expect(panel.getByText('Wait for the app refresh to finish before leaving this section.', { exact: true })).toBeVisible()
+      await page.getByRole('button', { name: 'Reference', exact: true }).filter({ visible: true }).click()
+      await expect(panel.getByRole('button', { name: 'Refreshing app...', exact: true })).toBeVisible()
+      await panel.getByRole('button', { name: 'History', exact: true }).click()
+      await expect(panel.getByRole('button', { name: 'Refreshing app...', exact: true })).toBeVisible()
       await expect(panel).toBeVisible()
     } finally { resume() }
     await reloaded
@@ -266,7 +270,7 @@ test('refresh discovers updates, keeps other tabs open, and recovers from failed
     expect(await page.evaluate(() => caches.keys())).toEqual(expect.arrayContaining(refreshedCaches))
     await expect(form.getByLabel('Item name')).toHaveValue('Keep my open draft')
     expect(await draft.evaluate(() => performance.timeOrigin)).toBe(oldDocument)
-    await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+    await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
     await expect(page.getByText('Keep through app refresh', { exact: true })).toBeVisible()
     const thirdUpdate = await openStorage(page)
     installation.update()

@@ -8,7 +8,7 @@ import type { LocalData } from '../src/domain/types'
 import { skipInitialModSetup, createBlankPlaythrough, openGameSetupSection, replacePlannerData, selectedPlaythrough, readLocalData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 
-const settings = (page: Page) => page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+const settings = (page: Page) => page.getByRole('region', { name: 'Data & Settings', exact: true })
 const save = (page: Page) => settings(page).getByRole('button', { name: 'Save Game Setup', exact: true })
 
 async function readData(page: Page): Promise<LocalData> {
@@ -55,8 +55,8 @@ test('context is visible, unchanged drafts do not save, and discard protects nav
   }
   await panel.getByRole('button', { name: 'Playthrough', exact: true }).click()
   await expect(page).toHaveURL(/settings\/game-setup\?gameSetup=/)
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  await expect(panel.getByRole('button', { name: 'Discard and close', exact: true })).toBeVisible()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
+  await expect(panel.getByRole('button', { name: 'Discard and go back', exact: true })).toBeVisible()
   await panel.getByRole('button', { name: 'Keep editing', exact: true }).click()
   await expect(label).toHaveValue('Synthetic unsaved setup')
   await panel.getByRole('button', { name: 'Discard changes', exact: true }).click()
@@ -64,8 +64,8 @@ test('context is visible, unchanged drafts do not save, and discard protects nav
   await expect(label).toHaveValue(previous)
   await expect(save(page)).toBeDisabled()
   await label.fill('Synthetic close confirmation')
-  await page.keyboard.press('Escape')
-  await panel.getByRole('button', { name: 'Discard and close', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
+  await panel.getByRole('button', { name: 'Discard and go back', exact: true }).click()
   await expect(panel).not.toBeVisible()
   expect(await readData(page)).toEqual(original)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

@@ -13,7 +13,7 @@ const SUMMON_QUEUE_DRAIN_TIMEOUT_MS = 15_000
 
 async function openSettings(page: Page) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
-  return page.getByRole('dialog', { name: 'Data & Settings', exact: true })
+  return page.getByRole('region', { name: 'Data & Settings', exact: true })
 }
 
 async function exportBackup(page: Page) {
@@ -27,7 +27,7 @@ async function exportBackup(page: Page) {
   const bytes = await readFile(path)
   const files = unzipSync(bytes)
   const localData = (JSON.parse(strFromU8(files['bundle.json']!)) as { localData: LocalData }).localData
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   return { bytes, localData }
 }
 
@@ -210,7 +210,7 @@ observedOfflineTest('records summon unlocks and reads their artwork offline', { 
   await panel.getByRole('checkbox', { name: 'Artwork', exact: true }).check()
   await panel.getByRole('button', { name: 'Prepare for offline use', exact: true }).click()
   await expectOfflineReady(panel)
-  await panel.getByRole('button', { name: 'Close dialog', exact: true }).click()
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await context.setOffline(true)
   await page.reload()
   await waitForPlannerReady(page)
