@@ -1,4 +1,5 @@
 import { CHROMIUM_STATUS_COMPLETION_TAG } from '../test-tags'
+import { WORKSPACE_STARTUP_MARK } from '../../src/diagnostics/workspace-startup'
 import { accountConnectivity, prepareAccountProofCache } from './network-fixture'
 import { expect, test, type Page, type BrowserContext } from './test-fixture'
 import { writeFile } from 'node:fs/promises'
@@ -8,6 +9,7 @@ import type * as auth from '../../src/account/auth-client'
 
 const password = 'synthetic status recovery password'
 const STATUS_RECOVERY_PHASE_TIMEOUT_MS = 120_000
+const SETUP_RECOVERY_TITLE = 'account setup and Playthrough publication establish the status recovery workspace'
 const LOCAL_RECOVERY_TITLE = 'local saves and queued tiles remain durable through network delay and offline reload'
 const MAX_STATUS_OBSERVATIONS = 512
 const STATUS_OBSERVATION_INTERVAL_MS = 1000
@@ -47,21 +49,23 @@ test.describe.configure({ mode: 'serial' })
 test.beforeAll(async ({ browser, accountRuntime, viewport, isMobile, hasTouch, userAgent, colorScheme, ignoreHTTPSErrors }) => { started = Date.now(); network = await accountConnectivity(accountRuntime.origin, accountRuntime.certificate); context = await browser.newContext({ baseURL: network.origin, viewport, isMobile, hasTouch, userAgent, colorScheme, ignoreHTTPSErrors }); page = await context.newPage(); runtimeBefore = await (await page.request.get('/__accounts/measurement')).json(); page.on('response', response => { if (response.url().includes('/api/v1/sync/')) { const key = `${new URL(response.url()).pathname.replace(/(\/uploads|\/mutations)\/[^/]+/g, '$1/:id')}:${response.status()}`; syncResponses[key] = (syncResponses[key] ?? 0) + 1 } }) })
 test.afterAll(async () => { try { await context.close() } finally { await network.dispose() } })
 test.afterEach(async ({}, info) => {
-  if (info.title !== LOCAL_RECOVERY_TITLE) return
-  // Include both serial phases and their setup; the extra phase budget is not a throughput improvement
-  await info.attach('local-recovery-journey-receipt', { contentType: 'application/json', body: JSON.stringify({ elapsedFromJourneyStartMs: Date.now() - started, setupCompleted, checksCompleted: info.status === 'passed', sameContextAcrossCheckpoints: true, setupIncluded: true }) })
-  // Keep observations in the test process before timeout teardown can close the page
+  if (info.title !== LOCAL_RECOVERY_TITLE && info.title !== SETUP_RECOVERY_TITLE) return
+  if (info.title === LOCAL_RECOVERY_TITLE) {
+    // Include both serial phases and their setup; the extra phase budget is not a throughput improvement
+    await info.attach('local-recovery-journey-receipt', { contentType: 'application/json', body: JSON.stringify({ elapsedFromJourneyStartMs: Date.now() - started, setupCompleted, checksCompleted: info.status === 'passed', sameContextAcrossCheckpoints: true, setupIncluded: true }) })
+  }
+  // Setup failure skips the continuation, so each phase must retain its own pre-teardown observations
   const diagnostics = info.outputPath('status-recovery-diagnostics.json')
   await writeFile(diagnostics, JSON.stringify({ recoveryPhase, droppedStatusObservations, observations: statusObservations }, null, 2))
   await info.attach('status-recovery-diagnostics', { contentType: 'application/json', path: diagnostics })
 })
-test('account setup and Playthrough publication establish the status recovery workspace', async () => {
+test(SETUP_RECOVERY_TITLE, async () => {
   test.setTimeout(STATUS_RECOVERY_PHASE_TIMEOUT_MS)
   await page.exposeBinding('recordStatusRecovery', (_source, observation: StatusObservation) => {
     if (statusObservations.length === MAX_STATUS_OBSERVATIONS) { statusObservations.shift(); droppedStatusObservations++ }
     statusObservations.push({ ...observation, phase: recoveryPhase, journeyMs: Date.now() - started })
   })
-  await page.addInitScript(() => {
+  await page.addInitScript(({ startupMark }) => {
     Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined })
     const mapperPending = new Set<string>()
     const record = (event: string, detail: Partial<StatusObservation> = {}) => {
@@ -71,6 +75,14 @@ test('account setup and Playthrough publication establish the status recovery wo
       } catch { /* Observation delivery must not alter the native operation during teardown */ }
     }
     window.statusRecoveryDiagnostics = { record }
+    // Reopening can stall before App remounts; capture admission phases without workspace contents
+    new PerformanceObserver(list => {
+      for (const entry of list.getEntries()) {
+        if (entry.name !== startupMark) continue
+        const phase: unknown = (entry as PerformanceMark).detail?.phase
+        if (typeof phase === 'string') record('workspace-startup', { kind: phase })
+      }
+    }).observe({ type: 'mark', buffered: true })
     const NativeWorker = Worker
     window.Worker = class extends NativeWorker {
       private readonly statusMapper: boolean
@@ -114,7 +126,7 @@ test('account setup and Playthrough publication establish the status recovery wo
       try { const response = await original(...args); record('fetch-finished', { ...detail, status: response.status }); return response }
       catch (error) { record('fetch-failed', detail); throw error }
     }
-  })
+  }, { startupMark: WORKSPACE_STARTUP_MARK })
   await page.request.post('/__accounts/control/reset-rate-counters', { data: {} })
   await page.goto('/__accounts-proof/')
   await prepareAccountProofCache(page)
@@ -134,6 +146,7 @@ test('account setup and Playthrough publication establish the status recovery wo
   await expect(remote).toHaveText('Synced', { timeout: 60_000 })
   // Initial cloud projection advances the managed root after App captured its empty workspace
   // Adopt that committed root through the normal reopen before starting a new form
+  recoveryPhase = 'reopen-initial-workspace'
   await page.getByRole('button', { name: 'Load updated data', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Load updated data', exact: true })).toBeHidden()
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -146,7 +159,9 @@ test('account setup and Playthrough publication establish the status recovery wo
   await expect(data.getByRole('combobox', { name: 'Active Playthrough', exact: true }).locator('option:checked')).toContainText('Status recovery journey')
   await data.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await page.evaluate(() => { location.hash = '#/progress/unlocks' })
+  recoveryPhase = 'publish-playthrough'
   await expect(remote).toHaveText('Synced', { timeout: 60_000 })
+  recoveryPhase = 'reopen-published-playthrough'
   await page.getByRole('button', { name: 'Load updated data', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Load updated data', exact: true })).toBeHidden()
   setupCompleted = true
