@@ -23,7 +23,10 @@ test('installed identity ignores compiler caches while retaining dependency and 
   writeFileSync(join(cwd, 'package-lock.json'), '{}')
   writeFileSync(join(cwd, 'node_modules/dependency/index.js'), 'original')
   writeFileSync(join(browser, 'browser'), 'original')
-  writeFileSync(join(cwd, 'node_modules/playwright-core/lib/coreBundle.js'), `exports.registry = { registry: { findExecutable: () => ({ directory: ${JSON.stringify(browser)}, executablePath: () => 'browser' }) } }`)
+  const registryDirectory = join(cwd, 'node_modules/playwright-core/lib')
+  // Keep fixture paths in JSON so filesystem values never become JavaScript source
+  writeFileSync(join(registryDirectory, 'browser-directory.json'), JSON.stringify(browser))
+  writeFileSync(join(registryDirectory, 'coreBundle.js'), "const directory = require('./browser-directory.json')\nexports.registry = { registry: { findExecutable: () => ({ directory, executablePath: () => 'browser' }) } }\n")
   for (const metadata of [false, true]) {
     const read = () => readInstalled({ cwd, env: process.env, metadata })
     const baseline = read()
