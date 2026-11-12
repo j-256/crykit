@@ -3,7 +3,7 @@ import { parseArgs } from 'node:util'
 import { verifyIntegration } from './integration-verification.mjs'
 import { coordinateVerification } from './verification-coordination.mjs'
 
-const USAGE = `Usage: npm run verify -- [-h|--help] [-I|--if-needed]
+const USAGE = `Usage: npm run verify -- [-h|--help] [-I|--if-needed] [-r|--resume]
 Prepare each required build once, then pass prerequisite checks and exclusive saves.
 Run Vitest only after the complete save-performance project passes.
 After Vitest passes, run guest browsers alongside isolated HTTPS account journeys.
@@ -17,7 +17,10 @@ Installed, configured wt-queue coordinates full runs and checks base freshness.
 Other clones can verify standalone without wt-queue. Busy coordination exits 4.
 CRYKIT_WT_QUEUE selects a coordinator executable for review or custom installs.
 WT_QUEUE_VERIFICATION_TOKEN is issued by the coordinator for scoped nested runs.
--I, --if-needed reuses successful evidence for the exact clean tree and runtime.
+-r, --resume rebuilds inputs and reuses passing checkpoints for matching inputs.
+-I, --if-needed uses the same resume behavior for integration queues.
+Guest and account browser phases use complete, sequential shard partitions.
+Failures and their per-attempt reports remain available after recovery.
 XDG_CACHE_HOME selects the cache root (default HOME/.cache).
 Records live in crykit-verification beneath that root and are scoped to the
 Git repository, exact committed tree, and Node version/platform/architecture.
@@ -30,9 +33,9 @@ Exit: 0 passed/help, 1 check failure, 2 usage/changed source, 3 missing tool,
 `
 
 try {
-  const { values } = parseArgs({ options: { help: { type: 'boolean', short: 'h' }, 'if-needed': { type: 'boolean', short: 'I' } }, strict: true })
+  const { values } = parseArgs({ options: { help: { type: 'boolean', short: 'h' }, 'if-needed': { type: 'boolean', short: 'I' }, resume: { type: 'boolean', short: 'r' } }, strict: true })
   if (values.help) process.stdout.write(USAGE)
-  else await coordinateVerification(() => verifyIntegration({ ifNeeded: values['if-needed'] }))
+  else await coordinateVerification(() => verifyIntegration({ ifNeeded: values['if-needed'], resume: values.resume }))
 } catch (error) {
   console.error(`[verify] ${error.message}`)
   process.exitCode = error.exitCode ?? (error.code?.startsWith('ERR_PARSE_ARGS') ? 2 : 1)

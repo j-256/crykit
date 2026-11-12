@@ -1,23 +1,19 @@
-import { execFileSync, spawn } from 'node:child_process'
-import { createHash, randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
-import { dirname, isAbsolute, join } from 'node:path'
+import { isAbsolute, join } from 'node:path'
+import { acquireVerificationOwnership, createCheckpointSession, digest, readJson as readRecord, writeJson as writeRecord } from './verification-checkpoints.mjs'
+import { runLogged } from './verification-playwright.mjs'
+import { VERIFICATION_STEPS, VERIFICATION_COMMANDS, createVerificationPlan, readInstalled, readPrepared } from './verification-plan.mjs'
+import { VerificationError } from './verification-error.mjs'
+import { assertCoordinatedOwnership } from './verification-coordination.mjs'
 
-const RECORD_VERSION = 1
-const VERIFICATION_STEPS = Object.freeze({ prepare: 'prepare:verification', checks: 'check:deterministic:base', saves: 'test:e2e:saves:prepared', tests: 'test:vitest:prepared', browser: 'test:e2e', accounts: 'test:e2e:accounts:remaining' })
-const VERIFICATION_COMMANDS = Object.freeze(Object.values(VERIFICATION_STEPS))
+const RECORD_VERSION = 2
 const OBJECT_ID_PATTERN = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/
 const MAX_GIT_OUTPUT_BYTES = 32 * 1024 * 1024
 const runtime = Object.freeze({ node: process.version, platform: process.platform, arch: process.arch })
-const digest = value => createHash('sha256').update(value).digest('hex')
 
-export class VerificationError extends Error {
-  constructor(message, exitCode = 2) {
-    super(message)
-    this.exitCode = exitCode
-  }
-}
+export { VerificationError } from './verification-error.mjs'
 
 function git(cwd, args) {
   try { return execFileSync('git', args, { cwd, encoding: 'utf8', maxBuffer: MAX_GIT_OUTPUT_BYTES, stdio: ['ignore', 'pipe', 'pipe'] }).trim() }
@@ -42,79 +38,126 @@ export function verificationRecordPath(context, tree = context.tree) {
   return join(context.directory, `${tree}-${digest(JSON.stringify(runtime))}.json`)
 }
 
-function readRecord(path) {
-  try { return JSON.parse(readFileSync(path, 'utf8')) }
-  catch { return undefined }
-}
-
-function writeRecord(path, record) {
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
-  const temporary = `${path}.${randomUUID()}.tmp`
-  writeFileSync(temporary, JSON.stringify(record) + '\n', { mode: 0o600, flag: 'wx' })
-  renameSync(temporary, path)
-}
-
-function passedRecord(record, tree) {
+function passedRecord(record, tree, directory) {
   return record?.version === RECORD_VERSION && record.status === 'passed' && record.tree === tree &&
     JSON.stringify(record.runtime) === JSON.stringify(runtime) &&
     JSON.stringify(record.commands) === JSON.stringify(VERIFICATION_COMMANDS) &&
+    typeof record.inputs === 'string' && /^[a-f0-9]{64}$/.test(record.inputs) &&
+    typeof record.campaign === 'string' && Array.isArray(record.checkpoints?.executed) && Array.isArray(record.checkpoints?.reused) &&
+    completeCoverage(record, directory) &&
     typeof record.completedAt === 'string' && Number.isFinite(Date.parse(record.completedAt))
 }
 
-async function runNpm(command, { cwd, env }) {
+function completeCoverage(record, directory) {
+  const coverage = record.coverage
+  if (!Array.isArray(coverage) || JSON.stringify(coverage.map(phase => phase?.command)) !== JSON.stringify(VERIFICATION_COMMANDS.slice(1))) return false
+  if (coverage.some(phase => !Array.isArray(phase.checkpoints) || !phase.checkpoints.length || phase.checkpoints.some(id => typeof id !== 'string'))) return false
+  const required = coverage.flatMap(phase => phase.checkpoints).sort()
+  const completed = [...record.checkpoints.executed, ...record.checkpoints.reused].sort()
+  if (new Set(required).size !== required.length || JSON.stringify(required) !== JSON.stringify(completed)) return false
+  // The complete-plan receipt and durable campaign must agree; a truncated summary cannot qualify
+  const campaign = readRecord(join(directory, 'checkpoints', `${record.inputs}.json`))
+  if (campaign?.campaign !== record.campaign || !Array.isArray(campaign.steps)) return false
+  const latest = new Map()
+  for (const step of campaign.steps) {
+    if (!step || typeof step.id !== 'string') return false
+    latest.set(step.id, step.status)
+  }
+  return JSON.stringify([...latest].filter(([, status]) => status === 'passed').map(([id]) => id).sort()) === JSON.stringify(required)
+}
+
+async function runNpm(command, { cwd, env, log }) {
   const started = performance.now()
   process.stderr.write(`[verify] npm run ${command}\n`)
-  await new Promise((resolve, reject) => {
-    const child = spawn('npm', ['run', command], { cwd, env, stdio: 'inherit' })
-    child.once('error', error => reject(new VerificationError(error.code === 'ENOENT' ? 'npm is required' : `Unable to run npm run ${command}`, error.code === 'ENOENT' ? 3 : 1)))
-    child.once('exit', (code, signal) => {
-      process.stderr.write(`[verify] npm run ${command}: ${code === 0 ? 'passed' : 'failed'} in ${((performance.now() - started) / 1000).toFixed(3)}s\n`)
-      code === 0 ? resolve() : reject(new VerificationError(`npm run ${command} failed${signal ? ` (${signal})` : ''}; no publication record was created`, code || 1))
-    })
-  })
+  try { await runLogged('npm', ['run', command], { cwd, env, log }) }
+  catch (error) { throw new VerificationError(error.code === 'ENOENT' ? 'npm is required' : `npm run ${command} failed: ${error.message}`, error.code === 'ENOENT' ? 3 : 1) }
+  process.stderr.write(`[verify] npm run ${command}: passed in ${((performance.now() - started) / 1000).toFixed(3)}s\n`)
 }
 
-async function runVerificationCommands(run, options) {
-  // Finish every mutable build producer before consumers copy or load its output
-  // Standalone test commands still prepare their own inputs; the full gate prepares them once
-  await run(VERIFICATION_STEPS.prepare, options)
-  // Reject prerequisite failures before starting the long suite
-  // Cancelling an active Vitest case can run teardown before its database command finishes
-  await run(VERIFICATION_STEPS.checks, options)
-  // Qualify foreground save deadlines without unrelated verification load
-  // The saves project retains real background mapping and its existing worker cap
-  await run(VERIFICATION_STEPS.saves, options)
-  await run(VERIFICATION_STEPS.tests, options)
-  // Archive admission has measured deadline failures when browser preparation competes with it
-  // Keep that CPU-heavy phase separate, then overlap independent browser suites
-  // Retain coordinator ownership until every running sibling settles even after a failure
-  const results = await Promise.allSettled([VERIFICATION_STEPS.browser, VERIFICATION_STEPS.accounts].map(command => (async () => run(command, options))()))
-  const failed = results.find(result => result.status === 'rejected')
-  if (failed) throw failed.reason
-}
-
-export async function verifyIntegration({ cwd = process.cwd(), env = process.env, run = runNpm, ifNeeded = false, report = message => process.stderr.write(message + '\n') } = {}) {
+export async function verifyIntegration({ cwd = process.cwd(), env = process.env, run = runNpm, ifNeeded = false, resume = false,
+  readInstalled: installedIdentity = readInstalled, readPrepared: preparedIdentity = readPrepared, createPlan = createVerificationPlan,
+  report = message => process.stderr.write(message + '\n') } = {}) {
   const before = verificationContext(cwd, env)
-  const path = verificationRecordPath(before)
-  if (ifNeeded && before.clean && passedRecord(readRecord(path), before.tree)) {
-    report(`[verify] Reusing full verification for unchanged tree ${before.tree}`)
-    return { recorded: true, reused: true, tree: before.tree }
-  }
-  const attempt = randomUUID()
-  const record = { version: RECORD_VERSION, status: 'running', attempt, tree: before.tree, runtime, commands: VERIFICATION_COMMANDS }
-  // Invalidate prior success before running so failures and interruptions cannot retain it
-  if (before.clean) writeRecord(path, record)
-  await runVerificationCommands(run, { cwd: before.root, env })
-  const after = verificationContext(before.root, env)
-  if (!before.clean) {
-    report('[verify] Checks passed without a publication record: commit all changes, synchronize, then run npm run verify again')
-    return { recorded: false, tree: before.tree }
-  }
-  if (!after.clean || after.tree !== before.tree) throw new VerificationError('Source changed during verification; commit and synchronize, then run npm run verify again')
-  if (readRecord(path)?.attempt !== attempt) throw new VerificationError('Another verification replaced this attempt; no publication record was created')
-  writeRecord(path, { ...record, status: 'passed', completedAt: new Date().toISOString() })
-  report(`[verify] Full desktop/mobile verification recorded for tree ${before.tree}`)
-  return { recorded: true, tree: before.tree }
+  const ownership = acquireVerificationOwnership(join(before.directory, 'ownership'))
+  try {
+    const options = { cwd: before.root, env, run }
+    const path = verificationRecordPath(before)
+    const attempt = randomUUID()
+    const record = { version: RECORD_VERSION, status: 'running', attempt, tree: before.tree, runtime, commands: VERIFICATION_COMMANDS }
+    let inputStamp
+    const stamp = () => ({ 'installed tools': installedIdentity({ ...options, metadata: true }), 'prepared outputs': preparedIdentity({ ...options, metadata: true }) })
+    const assertCurrent = () => {
+      ownership.assertCurrent()
+      assertCoordinatedOwnership(options)
+      if (inputStamp !== undefined) {
+        const currentStamp = stamp()
+        const changed = Object.keys(inputStamp).filter(group => currentStamp[group] !== inputStamp[group])
+        if (changed.length) throw new VerificationError(`Verification inputs changed during the run (${changed.join(', ')}); no publication record was created`)
+      }
+      const current = verificationContext(before.root, env)
+      if (before.clean && (!current.clean || current.tree !== before.tree)) throw new VerificationError('Source changed during verification; commit and synchronize, then run npm run verify again')
+      if (before.clean && readRecord(path)?.attempt !== attempt) throw new VerificationError('Another verification replaced this attempt; no publication record was created')
+    }
+    // Rebuild even on resume: a path or old successful receipt does not certify ignored build output
+    // Invalidate publication immediately so failed preparation cannot leave a reusable full proof
+    if (before.clean) writeRecord(path, record)
+    const installed = installedIdentity(options)
+    // Preparation must not switch the installation whose identity will label later checkpoints
+    const installationStamp = installedIdentity({ ...options, metadata: true })
+    await run(VERIFICATION_STEPS.prepare, options)
+    assertCurrent()
+    if (installedIdentity({ ...options, metadata: true }) !== installationStamp) throw new VerificationError('Verification inputs changed during preparation; no checkpoints were accepted')
+    const prepared = preparedIdentity(options)
+    inputStamp = stamp()
+    const identity = JSON.stringify({ version: RECORD_VERSION, tree: before.tree, runtime, commands: VERIFICATION_COMMANDS, installed, prepared, ...(before.clean ? {} : { dirtyAttempt: attempt }) })
+    const session = createCheckpointSession({ directory: join(before.directory, 'checkpoints'), identity,
+      resume: before.clean && (resume || ifNeeded), assertCurrent, report })
+    try {
+      const plan = await createPlan(options)
+      const coverage = new Map()
+      const phase = async command => {
+        const step = plan[command]
+        if (!step) throw new VerificationError(`Missing required verification phase: ${command}`)
+        const ids = []
+        const phaseSession = { run: (id, ...args) => { ids.push(id); return session.run(id, ...args) } }
+        if (step.partitioned) await step.execute(phaseSession)
+        else {
+          const artifacts = await phaseSession.run(command, step.execute, step.validate)
+          await step.restore?.(artifacts)
+        }
+        coverage.set(command, ids)
+      }
+      // Preserve exclusive save deadlines and finish native archives before browser preparation
+      await phase(VERIFICATION_STEPS.checks)
+      await phase(VERIFICATION_STEPS.saves)
+      await phase(VERIFICATION_STEPS.tests)
+      // Keep coordinator ownership until both siblings finish, including after either fails
+      const results = await Promise.allSettled([VERIFICATION_STEPS.browser, VERIFICATION_STEPS.accounts].map(phase))
+      const failed = results.find(result => result.status === 'rejected')
+      if (failed) throw failed.reason
+      assertCurrent()
+      if (installedIdentity(options) !== installed || preparedIdentity(options) !== prepared) {
+        session.invalidate('Verification input contents changed')
+        throw new VerificationError('Verification inputs changed during the run; no publication record was created')
+      }
+      assertCurrent()
+      const checkpoints = session.summary()
+      report(`[verify] Checkpoints: ${checkpoints.executed.length} executed, ${checkpoints.reused.length} reused, ${checkpoints.recovered.length} recovered`)
+      if (checkpoints.recovered.length) report(`[verify] Earlier failed/interrupted steps recovered: ${checkpoints.recovered.join(', ')}`)
+      if (!before.clean) {
+        report('[verify] Checks passed without a publication record: commit all changes, synchronize, then run npm run verify again')
+        return { recorded: false, tree: before.tree, checkpoints }
+      }
+      const completed = { ...record, status: 'passed', completedAt: new Date().toISOString(), inputs: digest(identity), campaign: session.campaign, checkpoints, coverage: VERIFICATION_COMMANDS.slice(1).map(command => ({ command, checkpoints: coverage.get(command) })) }
+      if (!passedRecord(completed, before.tree, before.directory)) throw new VerificationError('Incomplete verification coverage; no publication record was created')
+      writeRecord(path, completed)
+      report(`[verify] Full desktop/mobile verification recorded for tree ${before.tree}`)
+      return { recorded: true, ...(checkpoints.executed.length === 0 ? { reused: true } : {}), tree: before.tree, checkpoints }
+    } catch (error) {
+      try { assertCurrent() } catch (drift) { session.invalidate(drift.message); throw drift }
+      throw error
+    } finally { session.close() }
+  } finally { ownership.close() }
 }
 
 export function checkPushVerification(input, { cwd = process.cwd(), env = process.env } = {}) {
@@ -128,7 +171,7 @@ export function checkPushVerification(input, { cwd = process.cwd(), env = proces
   if (!context.clean) throw new VerificationError('Publication requires a clean checkout; commit changes and run npm run verify in the task worktree')
   for (const update of updates) {
     const tree = git(context.root, ['rev-parse', '--verify', `${update.object}^{tree}`])
-    if (!passedRecord(readRecord(verificationRecordPath(context, tree)), tree)) {
+    if (!passedRecord(readRecord(verificationRecordPath(context, tree)), tree, context.directory)) {
       throw new VerificationError(`${update.ref}: full verification is missing or stale for tree ${tree}; run npm run verify in the clean, synchronized task worktree before retrying publication`)
     }
   }

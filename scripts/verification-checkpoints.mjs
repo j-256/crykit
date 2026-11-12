@@ -14,11 +14,13 @@ export function writeJson(path, value) {
   renameSync(temporary, path)
 }
 
-// Hash names and bytes, not mtimes: rebuilding identical inputs must preserve reuse
+// Content mode hashes names and bytes so rebuilding identical inputs preserves reuse
+// Metadata mode cheaply detects mid-run writes between full content checks
 // Dependency links include their target bytes so editing a linked package invalidates evidence
-export function fingerprintPaths(root, paths) {
+export function fingerprintPaths(root, paths, { ignore = () => false, metadata = false } = {}) {
   const hash = createHash('sha256')
   const visit = (path, name, ancestors = new Set()) => {
+    if (ignore(name)) return
     const stat = lstatSync(path)
     hash.update(JSON.stringify([name, stat.mode & 0o777]))
     if (stat.isSymbolicLink()) {
@@ -31,7 +33,7 @@ export function fingerprintPaths(root, paths) {
       for (const child of readdirSync(path).sort()) visit(join(path, child), `${name}/${child}`, ancestors)
     } else if (stat.isFile()) {
       hash.update(JSON.stringify(['file', stat.size]))
-      hash.update(readFileSync(path))
+      hash.update(metadata ? JSON.stringify([stat.mtimeMs, stat.ctimeMs, stat.ino]) : readFileSync(path))
     } else throw new Error(`Unsupported verification input: ${name}`)
   }
   for (const path of [...paths].sort()) visit(join(root, path), path)
@@ -56,6 +58,21 @@ function acquireLock(path, owner) {
   throw new Error(`Verification is already active (PID ${previous.pid})`)
 }
 
+export function acquireVerificationOwnership(directory) {
+  mkdirSync(directory, { recursive: true, mode: 0o700 })
+  const owner = { pid: process.pid, attempt: randomUUID() }
+  const lock = join(directory, 'active.json')
+  acquireLock(lock, owner)
+  return {
+    assertCurrent() {
+      if (readJson(lock)?.attempt !== owner.attempt) throw new Error('Another verification replaced this owner')
+    },
+    close() {
+      if (readJson(lock)?.attempt === owner.attempt) unlinkSync(lock)
+    },
+  }
+}
+
 export function createCheckpointSession({ directory, identity, resume = false, assertCurrent = () => {}, report = () => {} }) {
   mkdirSync(directory, { recursive: true, mode: 0o700 })
   const owner = { pid: process.pid, attempt: randomUUID() }
@@ -63,8 +80,18 @@ export function createCheckpointSession({ directory, identity, resume = false, a
   acquireLock(lock, owner)
   const path = join(directory, `${digest(identity)}.json`)
   const previous = resume ? readJson(path) : undefined
-  const record = previous?.version === CHECKPOINT_VERSION && previous.identity === identity && Array.isArray(previous.steps)
+  const valid = previous?.version === CHECKPOINT_VERSION && previous.identity === identity &&
+    typeof previous.campaign === 'string' && /^[a-f0-9-]{36}$/.test(previous.campaign) &&
+    Array.isArray(previous.steps) && previous.steps.every(step => step && typeof step.id === 'string' &&
+      ['running', 'passed', 'failed', 'invalidated'].includes(step.status) && typeof step.directory === 'string' && typeof step.attempt === 'string')
+  const record = valid
     ? previous : { version: CHECKPOINT_VERSION, identity, campaign: randomUUID(), steps: [] }
+  const persist = () => {
+    // Source/input drift must not prevent invalidation, but a replaced owner cannot write shared state
+    if (readJson(lock)?.attempt !== owner.attempt) throw new Error('Another verification replaced this checkpoint owner')
+    writeJson(join(directory, record.campaign, 'campaign.json'), record)
+    writeJson(path, record)
+  }
   const reused = []
   const executed = []
   const recovered = []
@@ -75,6 +102,10 @@ export function createCheckpointSession({ directory, identity, resume = false, a
   }
   return {
     campaign: record.campaign,
+    invalidate(reason) {
+      for (const step of record.steps) if (step.status === 'passed') { step.status = 'invalidated'; step.reason = reason }
+      persist()
+    },
     async run(id, execute, validate = () => {}) {
       assertOwner()
       if (active.has(id)) throw new Error(`Checkpoint already running: ${id}`)
@@ -98,7 +129,7 @@ export function createCheckpointSession({ directory, identity, resume = false, a
         mkdirSync(artifacts, { recursive: true, mode: 0o700 })
         const step = { id, status: 'running', directory: artifacts, attempt: owner.attempt, startedAt: new Date().toISOString() }
         record.steps.push(step)
-        writeJson(path, record)
+        persist()
         executed.push(id)
         try {
           await execute(artifacts)
@@ -113,7 +144,7 @@ export function createCheckpointSession({ directory, identity, resume = false, a
           throw error
         } finally {
           // Sibling completions share this in-memory record; synchronous writes cannot lose updates
-          if (readJson(lock)?.attempt === owner.attempt) writeJson(path, record)
+          if (readJson(lock)?.attempt === owner.attempt) persist()
         }
         return artifacts
       } finally { active.delete(id) }

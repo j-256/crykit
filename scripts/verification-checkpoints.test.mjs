@@ -122,3 +122,44 @@ test('an exited process leaves unfinished work for an explicit resume', async t 
   assert.deepEqual(session.summary().recovered, ['interrupted'])
   session.close()
 })
+
+test('fresh campaigns retain the preceding failure history alongside its artifacts', async t => {
+  const f = fixture(t)
+  const first = checkpoints.createCheckpointSession(f.options)
+  await assert.rejects(first.run('step', () => { throw new Error('retained failure') }), /retained failure/)
+  const campaign = first.campaign
+  first.close()
+  const next = checkpoints.createCheckpointSession(f.options)
+  await next.run('step', () => {})
+  next.close()
+  const archived = JSON.parse(readFileSync(join(f.directory, campaign, 'campaign.json'), 'utf8'))
+  assert.equal(archived.steps[0].error, 'retained failure')
+})
+
+test('structurally corrupt checkpoint records are discarded instead of blocking recovery', async t => {
+  const f = fixture(t)
+  const session = checkpoints.createCheckpointSession(f.options)
+  await session.run('step', () => {})
+  session.close()
+  const path = join(f.directory, `${checkpoints.digest(f.options.identity)}.json`)
+  const valid = JSON.parse(readFileSync(path, 'utf8'))
+  for (const corrupt of [{ ...valid, campaign: null }, { ...valid, steps: [null] }, { ...valid, steps: [{ id: 'step', status: 'passed' }] }]) {
+    writeFileSync(path, JSON.stringify(corrupt))
+    const resumed = checkpoints.createCheckpointSession({ ...f.options, resume: true })
+    let ran = false
+    try { await resumed.run('step', () => { ran = true }); assert.equal(ran, true) }
+    finally { resumed.close() }
+  }
+})
+
+test('invalidation cannot overwrite a replacement checkpoint owner', async t => {
+  const f = fixture(t)
+  const session = checkpoints.createCheckpointSession(f.options)
+  await session.run('step', () => {})
+  writeFileSync(join(f.directory, 'active.json'), JSON.stringify({ pid: process.pid, attempt: 'replacement' }))
+  const path = join(f.directory, `${checkpoints.digest(f.options.identity)}.json`)
+  writeFileSync(path, JSON.stringify({ replacement: true }))
+  assert.throws(() => session.invalidate('lost ownership'), /owner/)
+  assert.deepEqual(JSON.parse(readFileSync(path, 'utf8')), { replacement: true })
+  session.close()
+})
