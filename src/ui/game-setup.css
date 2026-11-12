@@ -48,7 +48,7 @@
   .game-setup-basics.stack { padding-bottom: 20px; gap: 14px; }
   .game-setup-disclosure > summary { min-height: 68px; padding-block: 12px; }
   .game-setup-footer .game-setup-save-bar { gap: 6px; }
-  .game-setup-save-bar > .cluster { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px; }
+  .game-setup-save-bar > .cluster { display: grid; width: 100%; grid-template-columns: minmax(0, 1fr) minmax(8.5rem, 1fr); gap: 6px; }
   .game-setup-footer .game-setup-save-bar .button { width: auto; min-width: 0; font-size: .7rem; padding: 10px; white-space: normal; }
 }
 
