@@ -28,7 +28,9 @@ function fixture(t) {
   writeFileSync(join(cwd, 'fixture.txt'), 'Initial source\n')
   git(['add', 'fixture.txt'])
   git(['commit', '--quiet', '-m', 'Initial fixture', '--', 'fixture.txt'])
-  const options = { cwd, env, run: async () => {}, report: () => {} }
+  const options = { cwd, env, run: async () => {}, report: () => {}, readInstalled: () => 'synthetic-installation', readPrepared: () => 'synthetic-build',
+    createPlan: ({ cwd, env, run }) => Object.fromEntries(VERIFICATION_COMMANDS.slice(1).map(command => [command, { execute: async () => run(command, { cwd, env }) }])),
+  }
   const input = (oid = git(['rev-parse', 'HEAD']), ref = 'main') => `refs/heads/${ref} ${oid} refs/heads/${ref} ${ZERO_OID}\n`
   return { directory, cwd, env, git, options, input }
 }
@@ -99,21 +101,22 @@ test('queue-owned verification reuses only complete evidence for the exact clean
   let executed = 0
   const options = { ...f.options, ifNeeded: true, run: async () => { executed++ } }
   assert.equal((await verifyIntegration(options)).reused, true)
-  assert.equal(executed, 0)
+  assert.equal(executed, 1)
   f.git(['commit', '--quiet', '--allow-empty', '-m', 'Metadata only'])
   assert.equal((await verifyIntegration(options)).reused, true)
   const path = verificationRecordPath(verificationContext(f.cwd, f.env))
   const valid = JSON.parse(readFileSync(path, 'utf8'))
   writeFileSync(path, JSON.stringify({ ...valid, runtime: { ...valid.runtime, node: 'different' } }))
+  options.readInstalled = () => 'different-installation'
   await verifyIntegration(options)
-  assert.equal(executed, VERIFICATION_COMMANDS.length)
+  assert.equal(executed, VERIFICATION_COMMANDS.length + 2)
   writeFileSync(join(f.cwd, 'fixture.txt'), 'Unsaved source\n')
   assert.equal((await verifyIntegration(options)).recorded, false)
-  assert.equal(executed, VERIFICATION_COMMANDS.length * 2)
+  assert.equal(executed, VERIFICATION_COMMANDS.length * 2 + 2)
   f.git(['add', 'fixture.txt'])
   f.git(['commit', '--quiet', '-m', 'Changed tree', '--', 'fixture.txt'])
   assert.equal((await verifyIntegration(options)).reused, undefined)
-  assert.equal(executed, VERIFICATION_COMMANDS.length * 3)
+  assert.equal(executed, VERIFICATION_COMMANDS.length * 3 + 2)
 })
 
 test('coordination allows standalone clones but never falls back after a collision or invalid ownership', async t => {
@@ -286,7 +289,7 @@ else {
 `)
   f.git(['add', 'package.json', 'stages.mjs'])
   f.git(['commit', '--quiet', '-m', 'Synthetic verification stages', '--', 'package.json', 'stages.mjs'])
-  const result = await verifyIntegration({ cwd: f.cwd, env: { ...f.env, CRYKIT_VERIFICATION_FIXTURE: events }, report: () => {} })
+  const result = await verifyIntegration({ ...f.options, run: undefined, env: { ...f.env, CRYKIT_VERIFICATION_FIXTURE: events } })
   assert.equal(result.recorded, true)
   checkPushVerification(f.input(), f.options)
 })
@@ -307,7 +310,7 @@ if (stage === 'checks') throw new Error('Synthetic source audit failure')
   f.git(['add', 'package.json', 'stages.mjs'])
   f.git(['commit', '--quiet', '-m', 'Synthetic failing prerequisite', '--', 'package.json', 'stages.mjs'])
   await verifyIntegration(f.options)
-  await assert.rejects(verifyIntegration({ cwd: f.cwd, env: { ...f.env, CRYKIT_VERIFICATION_FIXTURE: events }, report: () => {} }), /check:deterministic:base failed/)
+  await assert.rejects(verifyIntegration({ ...f.options, run: undefined, env: { ...f.env, CRYKIT_VERIFICATION_FIXTURE: events } }), /check:deterministic:base failed/)
   assert.equal(readFileSync(join(events, 'prepare'), 'utf8'), 'Started')
   assert.equal(readFileSync(join(events, 'checks'), 'utf8'), 'Started')
   for (const stage of ['saves', 'vitest', 'browser', 'accounts']) assert.throws(() => readFileSync(join(events, stage)), { code: 'ENOENT' })
@@ -407,7 +410,7 @@ test('the actual pre-push hook blocks an unverified tree and permits a verified 
   mkdirSync(join(f.cwd, 'scripts'))
   mkdirSync(join(f.cwd, '.githooks'))
   mkdirSync(join(f.cwd, 'e2e'))
-  const files = ['integration-verification.mjs', 'check-push-verification.mjs', 'check-e2e-contracts.mjs']
+  const files = ['integration-verification.mjs', 'check-push-verification.mjs', 'check-e2e-contracts.mjs', 'verification-coordination.mjs', 'verification-error.mjs', 'verification-checkpoints.mjs', 'verification-playwright.mjs', 'verification-plan.mjs']
   for (const name of files) copyFileSync(scriptPath(name), join(f.cwd, 'scripts', name))
   writeFileSync(join(f.cwd, 'scripts/privacy-check.mjs'), '// Synthetic privacy check\n')
   copyFileSync(fileURLToPath(new URL('../.githooks/pre-push', import.meta.url)), join(f.cwd, '.githooks/pre-push'))
@@ -425,4 +428,133 @@ test('the actual pre-push hook blocks an unverified tree and permits a verified 
   await verifyIntegration(f.options)
   f.git(['push', 'origin', 'HEAD:refs/heads/main'])
   assert.match(f.git(['ls-remote', '--heads', 'origin']), new RegExp(f.git(['rev-parse', 'HEAD'])))
+})
+
+test('explicit resume retains passing phases after browser failure and keeps publication blocked until complete', async t => {
+  const f = fixture(t)
+  const commands = []
+  let fail = true
+  const run = async command => {
+    commands.push(command)
+    if (command === 'test:e2e' && fail) throw new Error('browser failure')
+  }
+  await assert.rejects(verifyIntegration({ ...f.options, run }), /browser failure/)
+  assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
+  commands.length = 0
+  fail = false
+  const result = await verifyIntegration({ ...f.options, run, resume: true })
+  assert.deepEqual(commands, ['prepare:verification', 'test:e2e'])
+  assert.deepEqual(result.checkpoints.recovered, ['test:e2e'])
+  checkPushVerification(f.input(), f.options)
+})
+
+test('a changed input identity prevents partial reuse even when the Git tree is unchanged', async t => {
+  const f = fixture(t)
+  let input = 'installation-a'
+  let prepared = 'build-a'
+  const commands = []
+  const options = { ...f.options, readInstalled: () => input, readPrepared: () => prepared, run: async command => { commands.push(command) } }
+  await verifyIntegration(options)
+  for (const change of [() => { input = 'installation-b' }, () => { prepared = 'build-b' }]) {
+    commands.length = 0
+    change()
+    await verifyIntegration({ ...options, resume: true })
+    assert.deepEqual(commands, VERIFICATION_COMMANDS)
+  }
+})
+
+test('dirty verification cannot seed clean checkpoints for the unchanged committed tree', async t => {
+  const f = fixture(t)
+  writeFileSync(join(f.cwd, 'untracked.txt'), 'dirty')
+  await verifyIntegration(f.options)
+  rmSync(join(f.cwd, 'untracked.txt'))
+  const commands = []
+  await verifyIntegration({ ...f.options, resume: true, run: async command => commands.push(command) })
+  assert.deepEqual(commands, VERIFICATION_COMMANDS)
+})
+
+test('input changes during verification block publication even after all commands pass', async t => {
+  const f = fixture(t)
+  for (const [reader, label] of [['readInstalled', 'installed tools'], ['readPrepared', 'prepared outputs']]) {
+    let input = 'a'
+    await assert.rejects(verifyIntegration({ ...f.options, [reader]: () => input, run: async command => {
+      if (command === 'test:vitest:prepared') input = 'b'
+    } }), new RegExp(`inputs changed.*${label}`))
+    assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
+  }
+})
+
+test('a second verifier cannot overwrite an active attempt while it prepares inputs', async t => {
+  const f = fixture(t)
+  const ready = Promise.withResolvers()
+  const release = Promise.withResolvers()
+  const first = verifyIntegration({ ...f.options, run: async command => {
+    if (command === 'prepare:verification') { ready.resolve(); await release.promise }
+  } })
+  await ready.promise
+  const path = verificationRecordPath(verificationContext(f.cwd, f.env))
+  const attempt = JSON.parse(readFileSync(path, 'utf8')).attempt
+  try {
+    await assert.rejects(verifyIntegration(f.options), /already active/)
+    assert.equal(JSON.parse(readFileSync(path, 'utf8')).attempt, attempt)
+  } finally { release.resolve(); await first }
+})
+
+test('input drift invalidates retained checkpoints even if the original installation is restored later', async t => {
+  const f = fixture(t)
+  let installed = 'original'
+  const readInstalled = () => installed
+  await assert.rejects(verifyIntegration({ ...f.options, readInstalled, run: async command => {
+    if (command === 'test:vitest:prepared') { installed = 'changed'; throw new Error('interrupted after installation change') }
+  } }), /inputs changed/)
+  installed = 'original'
+  const commands = []
+  await verifyIntegration({ ...f.options, readInstalled, resume: true, run: async command => commands.push(command) })
+  assert.deepEqual(commands, VERIFICATION_COMMANDS)
+})
+
+test('installation changes during preparation cannot seed checkpoints under the previous identity', async t => {
+  const f = fixture(t)
+  let installation = 'A'
+  await assert.rejects(verifyIntegration({ ...f.options, readInstalled: () => installation, run: async command => {
+    if (command === 'prepare:verification') installation = 'B'
+    if (command === 'test:vitest:prepared') throw new Error('later failure')
+  } }), /inputs changed/)
+  installation = 'A'
+  const commands = []
+  await verifyIntegration({ ...f.options, readInstalled: () => installation, resume: true, run: async command => commands.push(command) })
+  assert.deepEqual(commands, VERIFICATION_COMMANDS)
+})
+
+test('publication rejects missing, duplicated, or bogus checkpoint coverage', async t => {
+  const f = fixture(t)
+  await verifyIntegration(f.options)
+  const path = verificationRecordPath(verificationContext(f.cwd, f.env))
+  const valid = JSON.parse(readFileSync(path, 'utf8'))
+  for (const executed of [[VERIFICATION_COMMANDS[1]], [...valid.checkpoints.executed, valid.checkpoints.executed[0]], ['bogus']]) {
+    writeFileSync(path, JSON.stringify({ ...valid, checkpoints: { executed, reused: [] } }))
+    assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
+  }
+})
+
+test('lost coordinator ownership before checkpoint acceptance blocks publication', async t => {
+  const f = fixture(t)
+  const coordinator = join(f.directory, 'owner')
+  const state = join(f.directory, 'owner-state')
+  writeFileSync(state, 'owned')
+  writeFileSync(coordinator, `#!${process.execPath}\nconst fs=require('node:fs');process.stdout.write(JSON.stringify({action:fs.readFileSync(${JSON.stringify(state)},'utf8')}))`)
+  chmodSync(coordinator, 0o755)
+  const env = { ...f.env, CRYKIT_WT_QUEUE: coordinator, WT_QUEUE_VERIFICATION_TOKEN: 'synthetic' }
+  await assert.rejects(coordinateVerification(() => verifyIntegration({ ...f.options, env, run: async command => {
+    if (command === 'check:deterministic:base') writeFileSync(state, 'inspect')
+  } }), { cwd: f.cwd, env }), /did not confirm ownership/)
+  assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
+})
+
+test('an empty required phase cannot create a successful publication record', async t => {
+  const f = fixture(t)
+  await assert.rejects(verifyIntegration({ ...f.options, createPlan: options => ({ ...f.options.createPlan(options),
+    'test:e2e': { partitioned: true, execute: async () => {} },
+  }) }), /Incomplete verification coverage/)
+  assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
 })

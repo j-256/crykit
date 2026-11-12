@@ -1,20 +1,26 @@
 import { execFileSync, spawn } from 'node:child_process'
-import { VerificationError } from './integration-verification.mjs'
+import { VerificationError } from './verification-error.mjs'
 
 const TOKEN_ENV = 'WT_QUEUE_VERIFICATION_TOKEN'
 const UNCONFIGURED_EXIT = 5
 const MAX_STATUS_BYTES = 1024 * 1024
 
+export function assertCoordinatedOwnership({ cwd = process.cwd(), env = process.env } = {}) {
+  if (!env[TOKEN_ENV]) return
+  const command = env.CRYKIT_WT_QUEUE || 'wt-queue'
+  let result
+  try {
+    result = JSON.parse(execFileSync(command, ['verification-status', '--json', '--token', env[TOKEN_ENV]],
+      { cwd, env, encoding: 'utf8', maxBuffer: MAX_STATUS_BYTES, stdio: ['ignore', 'pipe', 'pipe'] }))
+  } catch (error) { throw new VerificationError(`Cannot validate coordinated verification ownership: ${error.stderr?.toString().trim() || error.message}`, error.code === 'ENOENT' ? 3 : 2) }
+  if (result.action !== 'owned') throw new VerificationError('The coordinator did not confirm ownership of this verification')
+}
+
 export async function coordinateVerification(run, { cwd = process.cwd(), env = process.env,
   argv = [process.execPath, process.argv[1], ...process.argv.slice(2)], report = message => process.stderr.write(message + '\n') } = {}) {
   const command = env.CRYKIT_WT_QUEUE || 'wt-queue'
   if (env[TOKEN_ENV]) {
-    let result
-    try {
-      result = JSON.parse(execFileSync(command, ['verification-status', '--json', '--token', env[TOKEN_ENV]],
-        { cwd, env, encoding: 'utf8', maxBuffer: MAX_STATUS_BYTES, stdio: ['ignore', 'pipe', 'pipe'] }))
-    } catch (error) { throw new VerificationError(`Cannot validate coordinated verification ownership: ${error.stderr?.toString().trim() || error.message}`, error.code === 'ENOENT' ? 3 : 2) }
-    if (result.action !== 'owned') throw new VerificationError('The coordinator did not confirm ownership of this verification')
+    assertCoordinatedOwnership({ cwd, env })
     return run()
   }
   const result = await new Promise((resolve, reject) => {

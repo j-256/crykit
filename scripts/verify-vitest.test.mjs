@@ -206,7 +206,7 @@ test('commits the active database transaction before cleanup', async () => {
 test('help and invalid arguments never require dependencies or start tests', t => {
   const f = fixture(t), scripts = join(f.cwd, 'scripts')
   mkdirSync(scripts)
-  for (const name of ['verify-vitest.mjs', 'vitest-verification.mjs', 'integration-verification.mjs']) copyFileSync(scriptPath(name), join(scripts, name))
+  for (const name of ['verify-vitest.mjs', 'vitest-verification.mjs', 'verification-error.mjs']) copyFileSync(scriptPath(name), join(scripts, name))
   for (const flag of ['-h', '--help']) {
     const result = spawnSync(process.execPath, [join(scripts, 'verify-vitest.mjs'), flag], { cwd: f.cwd, encoding: 'utf8' })
     assert.equal(result.status, 0); assert.match(result.stdout, /Usage:/); assert.equal(result.stderr, '')

@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, renameSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { VerificationError } from './integration-verification.mjs'
+import { VerificationError } from './verification-error.mjs'
 
 const VITEST_CLI = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url))
 // Miniflare closes dispatched connections; separate loopback families reduce source-address allocation contention
