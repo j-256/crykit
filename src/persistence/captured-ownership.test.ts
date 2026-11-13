@@ -1,3 +1,4 @@
+import { previewCrystalEdit } from '../interchange/crystal-edit'
 import 'fake-indexeddb/auto'
 import { openManagedNativeWorkspace } from './managed-sync.test-helpers'
 import { expect, it } from 'vitest'
@@ -184,7 +185,6 @@ for (const malformed of ['missing', 'wrong-key', 'foreign-allocation'] as const)
 })
 
 for (const malformed of ['catalog-revision', 'catalog-checksum', 'body-digest'] as const) it(`keeps explicit captured pins exact: ${malformed}`, async () => {
-  const { BUNDLED_CATALOGS } = await import('../catalog/bundled')
   const { memoryBlob, hashBlob, blobIdentity } = await import('../workspace/blobs')
   const { stageAccountSource } = await import('../workspace/account-streams')
   const { workspaceDocumentSource } = await import('../workspace/document-codec')
@@ -192,10 +192,10 @@ for (const malformed of ['catalog-revision', 'catalog-checksum', 'body-digest'] 
   const { cipherRef } = await import('../workspace/account-cache')
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
   try {
-    const { state } = await fixture(false), checksum = `sha256:${'1'.repeat(64)}`
-    const catalog = { ...BUNDLED_CATALOGS[0], id: 'crystal-edit:captured-pin' as typeof BUNDLED_CATALOGS[0]['id'], revisionId: `${checksum}:rules-v1:library-v1` as typeof BUNDLED_CATALOGS[0]['revisionId'], checksum, entities: {}, claims: [] }
+    const { state } = await fixture(false)
+    const catalog = (await previewCrystalEdit(new TextEncoder().encode(JSON.stringify({ ID: 'captured-pin', EditorVersion: 34, Items: [] })), 'captured.json')).proposed.catalogs[0]!, checksum = catalog.checksum
     const content = memoryBlob(new Uint8Array([0, 255, 17])), ref = { documentId: 'exact-body', revisionId: 'exact-revision', byteLength: content.byteLength, sha256: await hashBlob(content), encoding: 'bytes' as const }
-    const complete: WorkspaceState = { ...state, planner: { ...state.planner, catalogs: [catalog] }, blobs: [{ ref, content }], saveDocuments: [{ version: 1, id: 'exact-save', revision: 0, filename: 'exact.sav', original: ref, working: ref, pendingForm: {}, requirements: [{ catalogId: catalog.id, catalogRevisionId: catalog.revisionId, checksum, title: 'Exact required catalog' }], coverage: { status: 'unsupported', diagnostics: [] }, createdAt: '2026-01-01', updatedAt: '2026-01-01', exportedRevision: null }] }
+    const complete: WorkspaceState = { ...state, planner: { ...state.planner, catalogs: [catalog] }, blobs: [{ ref, content }], saveDocuments: [{ version: 1, id: 'exact-save', revision: 0, filename: 'exact.sav', original: ref, working: ref, pendingForm: {}, requirements: [{ catalogId: catalog.id, catalogRevisionId: catalog.revisionId, checksum, contentFingerprint: (catalog.legacy as Record<string, string>).contentFingerprint!, title: 'Exact required catalog' }], coverage: { status: 'unsupported', diagnostics: [] }, createdAt: '2026-01-01', updatedAt: '2026-01-01', exportedRevision: null }] }
     const prepared = await prepareAccountWorkspace(database, token, complete)
     await activateLocalAccountCommit(database, token, { version: 1, id: accountLocalId(), expected: undefined, head: prepared.head, records: prepared.records })
     const opened = await openAccountWorkspace(database, token, prepared.head)

@@ -1,10 +1,14 @@
 import 'fake-indexeddb/auto'
+import '../../workspace/guest-managed-monitor.test-helpers'
 import { act } from 'react'
+import { CryKitDatabase, setDatabaseForTests } from '../../persistence/database'
+import { seedBlankManagedGuest } from '../../workspace/managed-guest.test-helpers'
+import { invalidateProfile } from '../../account/profile'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { InspectorDraft } from '../../mod-inspector/types'
 import { INSPECTOR_REFERENCE_ID } from '../../mod-inspector/reference'
-import { InspectorStorage, summarizeInspectorDraft } from '../../mod-inspector/storage'
+import { summarizeInspectorDraft } from '../../mod-inspector/storage'
 import type { DraftActions } from '../drafts'
 import { ModInspectorView as CapturedModInspectorView } from '../ModInspectorView'
 import { WorkspaceProvider } from '../WorkspaceProvider'
@@ -21,12 +25,17 @@ const { FixtureTextEncoder } = vi.hoisted(() => {
 
 vi.mock('../../workspace/device-selection', () => ({ readDeviceSelection: async () => ({ key: 'selected', version: 1, kind: 'guest' }) }))
 const storage = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), import: vi.fn(), save: vi.fn(), remove: vi.fn() }))
-// These presentation cases control legacy summary/body arrival while keeping the real native Editor lifecycle
-vi.mock('../../workspace/guest-managed-startup', async importOriginal => {
-  const actual = await importOriginal<typeof import('../../workspace/guest-managed-startup')>()
-  const { openGuestBindings } = await import('../../workspace/guest-workspace')
-  return { ...actual, prepareGuestStartup: async (original: import('../../persistence/database').CryKitDatabase) => ({ kind: 'legacy-recovery', binding: await openGuestBindings(original) }) }
+// Presentation cases control metadata and body arrival at the Editor storage boundary
+// The real managed workspace and input controller still own mounting and navigation
+vi.mock('./useEditorStorage', async importOriginal => {
+  const actual = await importOriginal<typeof import('./useEditorStorage')>()
+  const { useMemo } = await import('react')
+  return { ...actual, useEditorStorage: () => {
+    const owned = actual.useEditorStorage()
+    return useMemo(() => ({ ...owned, list: () => storage.list(), get: (id: string) => storage.get(id), save: (...args: Parameters<typeof owned.save>) => { storage.save(...args); return owned.save(...args) } }), [owned])
+  } }
 })
+let database: CryKitDatabase
 const originalText = '{"Count":1,"Values":[1]}'
 const saved: InspectorDraft = { schemaVersion: 1, id: 'synthetic', filename: 'synthetic.json', originalText, draftText: originalText, referenceId: 'synthetic', revision: 1, createdAt: '2026-01-01', updatedAt: '2026-01-01' }
 let container: HTMLDivElement
@@ -34,7 +43,7 @@ let root: ReturnType<typeof createRoot>
 const prototypeMethods = ['showPopover', 'hidePopover', 'scrollIntoView'] as const
 let originalMethods: (PropertyDescriptor | undefined)[]
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.stubGlobal('TextEncoder', FixtureTextEncoder)
   const nativeClone = structuredClone
   // Preserve the native clone while rehoming Node IndexedDB fixture bytes into the schema's realm
@@ -54,10 +63,11 @@ beforeEach(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} })
   storage.list.mockResolvedValue([summarizeInspectorDraft(saved)])
   storage.get.mockResolvedValue(saved)
-  vi.spyOn(InspectorStorage.prototype, 'list').mockImplementation(() => storage.list())
-  vi.spyOn(InspectorStorage.prototype, 'get').mockImplementation(id => storage.get(id))
   storage.remove.mockResolvedValue(undefined)
   storage.save.mockImplementation(async (_id: string, draftText: string, revision: number) => ({ ...saved, draftText, revision: revision + 1 }))
+  database = new CryKitDatabase(`inspector-dom-${crypto.randomUUID()}`)
+  setDatabaseForTests(database)
+  await seedBlankManagedGuest(database)
   container = document.createElement('div')
   document.body.append(container)
   root = createRoot(container)
@@ -65,6 +75,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount())
   container.remove()
+  invalidateProfile(); setDatabaseForTests(undefined); database.close()
   vi.clearAllMocks()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()

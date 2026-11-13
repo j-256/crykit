@@ -5,11 +5,10 @@ import { createBlankLocalData } from '../domain/local-data'
 import { createPersonalDefinition } from '../domain'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { AccountDatabase, activateLocalAccountCommit } from './account-database'
-import { accountLocalId, stageAccountJson, cipherRef, openAccountJson, AccountProjectionSchema, AccountIntentSchema } from '../workspace/account-cache'
+import { accountLocalId, stageAccountJson, cipherRef, AccountProjectionSchema, AccountIntentSchema } from '../workspace/account-cache'
 import { openAccountRepository } from '../workspace/account-repository'
-import { MappedWorkspaceIntentSchema, openExactAccountWorkspace, readMappedWorkspaceChanges } from '../workspace/account-intents'
 
-it('maps pending legacy edits from their original bases and preserves operation identity atomically', async () => {
+it('rejects pending prelaunch edits while preserving original bases and operation identity', async () => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   const database = new AccountDatabase(token.accountId)
   try {
@@ -22,17 +21,12 @@ it('maps pending legacy edits from their original bases and preserves operation 
     const id = accountLocalId()
     const intent = await stageAccountJson(database, token, AccountIntentSchema.parse({ version: 1, kind: 'unmapped-planner-intent', operationId: id, operation: 'save', mode: 'additive', base: cipherRef(base), target: cipherRef(target), localRevision: 1 }), [cipherRef(base), cipherRef(target)])
     await activateLocalAccountCommit(database, token, { version: 1, id, expected: fence, head: cipherRef(target), intent: cipherRef(intent), records: [target, intent] })
-    // Exercise the native pending-intent mapper directly, before the public opener's managed migration
-    // Complete native-to-managed startup is covered separately without changing this native fixture
-    const selected = await openExactAccountWorkspace(database, token, (await database.profileMeta.get('active'))!)
-    const row = (await database.outbox.toArray())[0]!
-    expect(row.id).toBe(id)
-    expect(row.status).toBe('mapped-local')
-    const mapped = await openAccountJson(database, token, row.ref, MappedWorkspaceIntentSchema)
-    expect(mapped.original).toEqual({ base: cipherRef(base), target: cipherRef(target) })
-    expect((await readMappedWorkspaceChanges(database, token, mapped)).some(change => change.kind === 'personal-definition' && change.before === null && change.after !== null)).toBe(true)
-    expect(selected.workspace.state.planner.localData.personalDefinitions).toEqual(next.personalDefinitions)
-    expect((await database.encryptedRevisions.get(base.revisionId))?.revisionId).toBe(base.revisionId)
+    const before = { fence: await database.profileMeta.get('active'), outbox: await database.outbox.toArray(), records: await database.encryptedRevisions.toArray() }
+    await expect(openAccountRepository(token)).rejects.toThrow('unsupported prelaunch format')
+    expect(await database.profileMeta.get('active')).toEqual(before.fence)
+    expect(await database.outbox.toArray()).toEqual(before.outbox)
+    expect(await database.encryptedRevisions.toArray()).toEqual(before.records)
+    expect(before.outbox[0]!.id).toBe(id)
     for (const table of database.tables) await table.each(row => {
       const value = table.name === 'stagedCipherChunks' ? new TextDecoder().decode(row.bytes) : JSON.stringify(row)
       expect(value).not.toContain('Original pending target')
@@ -40,7 +34,7 @@ it('maps pending legacy edits from their original bases and preserves operation 
   } finally { invalidateProfile(); await database.delete() }
 })
 
-it.each(['missing-original-base', 'unsupported-intent', 'activation-failure', 'stale-profile'])('keeps legacy authority and pending rows unchanged on %s', async failure => {
+it.each(['missing-original-base', 'unsupported-intent', 'stale-profile'])('keeps legacy authority and pending rows unchanged on %s', async failure => {
   const { vi } = await import('vitest')
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   const database = new AccountDatabase(token.accountId)
@@ -56,10 +50,6 @@ it.each(['missing-original-base', 'unsupported-intent', 'activation-failure', 's
     await activateLocalAccountCommit(database, token, { version: 1, id, expected: fence, head: cipherRef(target), intent: cipherRef(intent), records: [target, intent] })
     if (failure === 'missing-original-base') await database.encryptedRevisions.delete(base.revisionId)
     const before = { fence: await database.profileMeta.get('active'), outbox: await database.outbox.toArray() }
-    if (failure === 'activation-failure') {
-      const put = IDBObjectStore.prototype.put
-      vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function(this: IDBObjectStore, ...args) { if (this.name === 'profileMeta') throw new DOMException('Synthetic activation failure', 'QuotaExceededError'); return put.apply(this, args) })
-    }
     if (failure === 'stale-profile') invalidateProfile()
     await expect(openAccountRepository(token)).rejects.toThrow()
     expect(await database.profileMeta.get('active')).toEqual(before.fence)
@@ -68,7 +58,7 @@ it.each(['missing-original-base', 'unsupported-intent', 'activation-failure', 's
   } finally { vi.restoreAllMocks(); invalidateProfile(); await database.delete() }
 })
 
-it.each(['forward', 'reverse'])('preserves forked original pending bases in %s mapping order', async order => {
+it.each(['forward', 'reverse'])('rejects forked prelaunch roots without remapping original pending bases in %s order', async order => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   const database = new AccountDatabase(token.accountId)
   try {
@@ -83,15 +73,12 @@ it.each(['forward', 'reverse'])('preserves forked original pending bases in %s m
       const intent = await stageAccountJson(database, token, { version: 1, kind: 'unmapped-planner-intent', operationId: id, operation: 'save', mode: 'additive', base: cipherRef(base), target: cipherRef(target), localRevision: index + 1 }, [cipherRef(base), cipherRef(target)])
       fence = await activateLocalAccountCommit(database, token, { version: 1, id, expected: fence, head: cipherRef(target), intent: cipherRef(intent), records: [target, intent] })
     }
-    await openAccountRepository(token)
-    const changes = []
-    for (const id of ids) {
-      const row = (await database.outbox.get(id))!
-      const intent = await openAccountJson(database, token, row.ref, MappedWorkspaceIntentSchema)
-      changes.push((await readMappedWorkspaceChanges(database, token, intent)).find(change => change.kind === 'reference-preferences')!)
-    }
-    expect(changes[0].before).toEqual(changes[1].before)
-    expect(changes[0].after!.documentId).toBe(changes[1].after!.documentId)
-    expect((await database.encryptedRevisions.get(changes[1].after!.revisionId))!.descriptor.parents).toEqual([changes[1].before!.revisionId])
+    const before = { outbox: await database.outbox.toArray(), records: await database.encryptedRevisions.toArray(), chunks: await database.stagedCipherChunks.toArray() }
+    await expect(openAccountRepository(token)).rejects.toThrow('unsupported prelaunch format')
+    expect(await database.profileMeta.get('active')).toEqual(fence)
+    expect(await database.outbox.toArray()).toEqual(before.outbox)
+    expect(await database.encryptedRevisions.toArray()).toEqual(before.records)
+    expect(await database.stagedCipherChunks.toArray()).toEqual(before.chunks)
+    expect(before.outbox.map(row => row.id).sort()).toEqual([...ids].sort())
   } finally { invalidateProfile(); await database.delete() }
 })

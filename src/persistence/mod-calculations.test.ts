@@ -25,9 +25,10 @@ it('round-trips a versioned mod gender and its exact setup through storage and b
   const mod = { ID: 'synthetic-persisted-gender', EditorVersion: 34, Genders: [{ ...NATIVE_DATA.records.gender[0], ID: 8, Name: 'Synthetic extra bonus', BoostStr: true }] }
   const bytes = new TextEncoder().encode(JSON.stringify(mod))
   await loadLocalData()
-  await commitImport(await previewImport(bytes, 'synthetic.json'), { mode: 'add-reference' })
+  const imported = await previewImport(bytes, 'synthetic.json')
+  await commitImport(imported, { mode: 'add-reference' })
   const loaded = await loadLocalData()
-  const source = loaded.catalogs.find(catalog => catalog.id === 'crystal-edit:synthetic-persisted-gender')!
+  const source = loaded.catalogs.find(catalog => catalog.id === imported.proposed.catalogs[0]!.id)!
   const initial = loaded.localData.gameSetups[loaded.localData.planningGameSetupRevisionId!]!
   const behavior = selectBuildModRevision({ ...buildBehavior(initial), platform: { state: 'known', value: 'Windows' }, gameVersion: { state: 'known', value: '1.6.9' }, mode: { state: 'known', value: 'Standard' }, mods: { state: 'known', value: [] } }, source, loaded.catalogs)
   const configured = saveBuildBehavior(loaded.localData, behavior)

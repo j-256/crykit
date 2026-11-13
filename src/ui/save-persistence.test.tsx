@@ -12,6 +12,7 @@ import { resolveOwnedFileReceipt } from '../workspace/owned-file-command'
 import * as ownedFiles from '../workspace/owned-file-command'
 import * as blobs from '../workspace/blobs'
 import { DefinitionProvider } from './definitions'
+import { NavigationProvider, useNavigationController } from './navigation'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import type { LocalData } from '../domain/types'
 import { WorkspaceProvider, useWorkspace } from './WorkspaceProvider'
@@ -37,12 +38,13 @@ const SAVE_STRICT_RECOVERY_COPY_MS = 10_000
 const bytes = encodeCrystalSave(createSaveEditorFixture())
 function Owner({ shown = true }: { readonly shown?: boolean }) {
   workspace = useWorkspace()
+  const navigation = useNavigationController()
   const dirty = useRef(false)
   useLayoutEffect(() => workspace.registerDraftPresence(owner => dirty.current && owner !== workspace.saveSession.controller.owner), [workspace.registerDraftPresence])
   const editor = <SaveEditorWorkspaceView onDraftChange={(value, next) => { dirty.current = value; if (next) actions = next }}/>
   if (!shown) return <p>Other tool</p>
   const content = childEnabled ? <DefinitionProvider localData={localData} catalogs={[DEFAULT_CATALOG]} onSaveDefinition={async () => { throw new Error('Definition writes are outside this fixture') }}>{editor}</DefinitionProvider> : editor
-  return strictChildOnly ? <StrictMode>{content}</StrictMode> : content
+  return <NavigationProvider controller={navigation}>{strictChildOnly ? <StrictMode>{content}</StrictMode> : content}</NavigationProvider>
 }
 beforeEach(async () => {
   vi.stubGlobal('TextEncoder', FixtureTextEncoder)
@@ -699,13 +701,10 @@ describe('actual encrypted account Save owner', () => {
     const token = installProfile(btoa(crypto.randomUUID().slice(0, 16)).replace(/=/g, ''), crypto.getRandomValues(new Uint8Array(32)))
     account = new AccountDatabase(token.accountId)
     const { editorClosureFixture } = await import('../workspace/test-helpers')
-    const { prepareAccountWorkspace } = await import('../workspace/account-graph')
-    const { activateLocalAccountCommit } = await import('../persistence/account-database')
-    const { accountLocalId } = await import('../workspace/account-cache')
+    const { seedManagedWorkspace } = await import('../persistence/managed-sync.test-helpers')
     const fixture = await editorClosureFixture()
-    // This owner-race baseline has no catalog imports; all Save bytes still use real encrypted storage
-    const prepared = await prepareAccountWorkspace(account, token, { ...fixture.state, retainedContent: [], blobs: [] })
-    await activateLocalAccountCommit(account, token, { version: 1, id: accountLocalId(), expected: undefined, head: prepared.head, records: prepared.records })
+    // Owner races use a launch root with real encrypted Save bytes
+    await seedManagedWorkspace(account, token, { ...fixture.state, retainedContent: [], blobs: [] })
     const repository = await openAccountRepository(token)
     savedId = (await createSaveRepository(repository).importFile('account.sav', Uint8Array.from(bytes))).id
     await act(async () => workspace.openAccount(token))
@@ -750,14 +749,13 @@ describe('actual encrypted account Save owner', () => {
     let other: import('../persistence/account-database').AccountDatabase | undefined
     try {
       if (transition === 'switch') {
-        const { AccountDatabase, activateLocalAccountCommit } = await import('../persistence/account-database')
-        const { prepareAccountWorkspace } = await import('../workspace/account-graph')
+        const { AccountDatabase } = await import('../persistence/account-database')
+        const { seedManagedWorkspace } = await import('../persistence/managed-sync.test-helpers')
         const { editorClosureFixture } = await import('../workspace/test-helpers')
-        const { accountLocalId } = await import('../workspace/account-cache')
         const token = installProfile(btoa(crypto.randomUUID().slice(0, 16)).replace(/=/g, ''), crypto.getRandomValues(new Uint8Array(32)))
         other = new AccountDatabase(token.accountId)
-        const fixture = await editorClosureFixture(), prepared = await prepareAccountWorkspace(other, token, { ...fixture.state, retainedContent: [], blobs: [] })
-        await activateLocalAccountCommit(other, token, { version: 1, id: accountLocalId(), expected: undefined, head: prepared.head, records: prepared.records })
+        const fixture = await editorClosureFixture()
+        await seedManagedWorkspace(other, token, { ...fixture.state, retainedContent: [], blobs: [] })
         await act(async () => previous.openAccount(token))
       } else {
         // The account panel releases its pending access before the actual Continue action opens a guest epoch

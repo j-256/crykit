@@ -4,9 +4,11 @@ import { act, createElement, useCallback, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { CryKitDatabase, setDatabaseForTests } from '../../persistence/database'
-import { createBlankLocalData } from '../../domain/local-data'
 import '../../workspace/guest-managed-monitor.test-helpers'
-import { getInspectorStorage, type InspectorStorage } from '../../mod-inspector/storage'
+import { seedBlankManagedGuest } from '../../workspace/managed-guest.test-helpers'
+import { inspectorDraft } from './useEditorStorage'
+import { inspectWorkspaceClosure } from '../../workspace/closure'
+import type { EditorWorkspaceDocument } from '../../workspace/documents'
 import { createGuestRepository } from '../../workspace/guest-repository'
 import { createEditorRepository } from '../../workspace/editor-repository'
 import * as editorDocument from '../../workspace/editor-document'
@@ -31,7 +33,7 @@ const { FixtureTextEncoder } = vi.hoisted(() => {
   vi.stubGlobal('TextEncoder', FixtureTextEncoder)
   return { FixtureTextEncoder }
 })
-// Field and ownership cases use a closed planner; complete native migration has browser coverage
+// Field and ownership cases use a closed planner; source-heavy startup has browser coverage
 vi.mock('../../catalog/bundled', async importOriginal => ({ ...await importOriginal<typeof import('../../catalog/bundled')>(), BUNDLED_CATALOGS: [] }))
 vi.mock('../../catalog/world-map', async importOriginal => ({ ...await importOriginal<typeof import('../../catalog/world-map')>(), loadWorldMap: async () => ({ schemaVersion: 1, source: { platform: 'synthetic', gameVersion: 'synthetic', lastVanillaEntityId: 100, voxelNames: { 9: 'Synthetic voxel' } }, bounds: { x: 0, z: 0, width: 100, height: 100 }, layers: [{ id: 0, label: 'Synthetic layer', image: '' }], regions: [], markers: [] }) }))
 vi.mock('./MapPlacementEditor', async importOriginal => {
@@ -47,7 +49,7 @@ let forcedView: ModEditorView | undefined
 let remoteListeners: Set<() => void> | undefined
 const subscribed = new WeakSet<object>()
 vi.mock('../../workspace/device-selection', () => ({ readDeviceSelection: async () => ({ key: 'selected', version: 1, kind: 'guest' }) }))
-let db: CryKitDatabase, storage: InspectorStorage, saved: InspectorDraft, container: HTMLDivElement, root: ReturnType<typeof createRoot>
+let db: CryKitDatabase, storage: ReturnType<typeof fixtureStorage>, saved: InspectorDraft, container: HTMLDivElement, root: ReturnType<typeof createRoot>
 let workspace: ReturnType<typeof useWorkspace>, actions: DraftActions | undefined, reportedDirty: boolean | undefined
 const saveToLibrary = vi.fn(async (_text: string, _filename: string) => ({ title: 'Synthetic revision', unchanged: false, warnings: [] as string[] }))
 const LOCAL_EDITOR_COMMAND_MS = 15_000
@@ -63,6 +65,22 @@ function Owner() {
     })
   }
   return <main className="main-shell"><ModInspectorView view={forcedView ?? (mapView ? 'map' : undefined)} onSaveToLibrary={saveToLibrary} onDraftChange={(dirty, next) => { reportedDirty = dirty; if (next) actions = next }}/></main>
+}
+// Fixture commands use the same managed owner and immutable file history as the rendered Editor
+function fixtureStorage() {
+  const get = async (id: string): Promise<InspectorDraft | undefined> => {
+    const state = await createGuestRepository(db).readWorkspace()
+    const history = state.retainedContent.findLast(item => item.kind === 'file-history' && item.documentId === id && item.fileKind === 'editor')
+    const file = state.editorDocuments.find(item => item.id === id) ?? (history?.kind === 'file-history' ? (await inspectWorkspaceClosure(state, history.content)).value as EditorWorkspaceDocument : undefined)
+    return file ? inspectorDraft({ file, content: await editorDocument.readEditorContent(state, file) }) : undefined
+  }
+  return {
+    get,
+    import: async (filename: string, text: string, referenceId: string) => {
+      const file = await createEditorRepository(createGuestRepository(db)).importFile({ filename, text, referenceId })
+      return (await get(file.id))!
+    },
+  }
 }
 beforeEach(async () => {
   vi.stubGlobal('TextEncoder', FixtureTextEncoder)
@@ -83,14 +101,12 @@ beforeEach(async () => {
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() })
   sessionStorage.clear(); saveToLibrary.mockClear(); mapView = false; forcedView = undefined; remoteListeners = undefined; mapChildren.length = 0; childActions.length = 0
   db = new CryKitDatabase(`editor-dom-${crypto.randomUUID()}`); setDatabaseForTests(db)
-  // A normal guest planner exists before its first Inspector import; partial old storage must not be reseeded
-  const localData = createBlankLocalData()
-  await db.localDatas.add({ id: 'local-data-record', revision: localData.revision, updatedAt: localData.updatedAt, localData, lineage: { rootLocalDataId: localData.id } })
-  storage = getInspectorStorage(`${db.name}-inspector`)
+  await seedBlankManagedGuest(db)
+  storage = fixtureStorage()
   saved = await storage.import('synthetic.json', originalText, 'synthetic')
   container = document.createElement('div'); document.body.append(container); root = createRoot(container); actions = undefined; reportedDirty = undefined
 })
-afterEach(async () => { await act(async () => root.unmount()); container.remove(); invalidateProfile(); storage.close(); setDatabaseForTests(undefined); await db.delete(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+afterEach(async () => { await act(async () => root.unmount()); container.remove(); invalidateProfile(); setDatabaseForTests(undefined); await db.delete(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 async function wait(assertion: () => void | Promise<void>) { await vi.waitFor(async () => { await act(async () => { await Promise.resolve() }); await assertion() }, { timeout: LOCAL_EDITOR_COMMAND_MS }) }
 async function render() {
   await act(async () => root.render(<WorkspaceProvider><Owner/></WorkspaceProvider>))

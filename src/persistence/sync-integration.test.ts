@@ -105,7 +105,11 @@ it('adopts remote physical identities before publishing a migrated second-device
     await openAccountRepository(first.token); await settle(first)
     const second = openDevice(), original = state(createBlankLocalData())
     const native = await prepareAccountWorkspace(second.db, second.token, original)
-    await activateLocalAccountCommit(second.db, second.token, { version: 1, id: accountLocalId(), expected: undefined, head: native.head, records: native.records, intentStatus: 'mapped-local' })
+    const nativeFence = await activateLocalAccountCommit(second.db, second.token, { version: 1, id: accountLocalId(), expected: undefined, head: native.head, records: native.records, intentStatus: 'mapped-local' })
+    // Explicit detached-graph admission preserves a launch original without invoking prelaunch startup migration
+    const { prepareAccountManagedMigration } = await import('../workspace/account-managed-migration')
+    const migration = await prepareAccountManagedMigration(second.db, second.token, nativeFence)
+    try { await activateLocalAccountCommit(second.db, second.token, migration.prepared) } finally { await migration.dispose() }
     await openAccountRepository(second.token)
     const stage = intents.stageMappedWorkspaceIntent, predecessors: unknown[] = []
     spy = vi.spyOn(intents, 'stageMappedWorkspaceIntent').mockImplementation(async (...args) => {

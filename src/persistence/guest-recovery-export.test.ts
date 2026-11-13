@@ -1,28 +1,21 @@
 import 'fake-indexeddb/auto'
 import { afterEach, expect, it, vi } from 'vitest'
 import { createPersonalDefinition } from '../domain'
-import { createTestLocalData } from '../domain/test-helpers'
+import '../workspace/guest-managed-monitor.test-helpers'
+import { seedBlankManagedGuest, managedGuestBinding } from '../workspace/managed-guest.test-helpers'
 import { invalidateProfile } from '../account/profile'
-import { createGuestRepository, guestRepositoryBindings } from '../workspace/guest-repository'
+import { createGuestRepository } from '../workspace/guest-repository'
 import { CryKitDatabase } from './database'
 import * as local from './local-data'
-
-// Exercise retained native recovery before public startup migrates these named stores to managed storage
-vi.mock('../workspace/guest-managed-startup', async importOriginal => {
-  const actual = await importOriginal<typeof import('../workspace/guest-managed-startup')>()
-  const { openGuestBindings } = await import('../workspace/guest-workspace')
-  return { ...actual, prepareGuestStartup: async (original: CryKitDatabase) => ({ kind: 'legacy-recovery', binding: await openGuestBindings(original) }) }
-})
 
 const databases: CryKitDatabase[] = []
 afterEach(() => { invalidateProfile(); vi.restoreAllMocks(); for (const database of databases.splice(0)) database.close() })
 async function retired() {
   const database = new CryKitDatabase(`recovery-export-${crypto.randomUUID()}`)
   databases.push(database)
-  const data = { ...createTestLocalData(), revision: 0, changes: [] }
-  await database.localDatas.add({ id: 'local-data-record', revision: 0, updatedAt: data.updatedAt, localData: data, lineage: { rootLocalDataId: data.id } })
+  await seedBlankManagedGuest(database)
   const repository = createGuestRepository(database), state = await repository.readWorkspace()
-  const binding = await guestRepositoryBindings(repository)
+  const binding = await managedGuestBinding(repository)
   await repository.commitWorkspace(state, state.planner.localData.revision)
   const draft = createPersonalDefinition(state.planner.localData, { name: 'Kept unsaved recovery definition', kind: 'item' })
   return { database, repository, binding, draft }
@@ -42,16 +35,16 @@ it('exports the exact captured retired planner draft without changing its source
 })
 it('rejects a retired draft export after its captured profile lifetime ends before the read', async () => {
   const { repository, draft } = await retired()
-  const exporter = vi.spyOn(local, 'exportBackup')
+  const exporter = vi.spyOn(local, 'exportPlannerSnapshot')
   invalidateProfile()
   await expect(repository.exportPlannerBackup(draft)).rejects.toMatchObject({ code: 'PROFILE_CHANGED' })
   expect(exporter).not.toHaveBeenCalled()
 })
 it('clears completed inert ZIP bytes when the profile changes during an export', async () => {
   const { repository, draft } = await retired()
-  const original = local.exportBackup
+  const original = local.exportPlannerSnapshot
   let bytes!: Uint8Array
-  vi.spyOn(local, 'exportBackup').mockImplementation(async (...args) => {
+  vi.spyOn(local, 'exportPlannerSnapshot').mockImplementation(async (...args) => {
     bytes = await original(...args)
     expect(bytes.some(value => value !== 0)).toBe(true)
     invalidateProfile()

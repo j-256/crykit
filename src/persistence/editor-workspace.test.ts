@@ -1,7 +1,9 @@
 import 'fake-indexeddb/auto'
 import '../workspace/guest-managed-monitor.test-helpers'
 import { afterEach, expect, it, vi } from 'vitest'
-import { createGuestRepository, guestRepositoryBindings } from '../workspace/guest-repository'
+import { createGuestRepository } from '../workspace/guest-repository'
+import { seedBlankManagedGuest, managedGuestBinding, corruptManagedRecord } from '../workspace/managed-guest.test-helpers'
+import { privateRecordKey } from '../workspace/documents'
 import { CryKitDatabase } from './database'
 import { createEditorRepository } from '../workspace/editor-repository'
 import { readEditorContent, validateEditorContainer } from '../workspace/editor-document'
@@ -9,18 +11,12 @@ import { resolveOwnedFileReceipt, verifyOwnedFileReceipt, type OwnedFileOutcome 
 import type { WorkspaceRepository } from '../workspace/repository'
 import { inspectWorkspaceClosure } from '../workspace/closure'
 
-// Named participant and native receipt tests retain their actual pre-managed storage subject
-vi.mock('../workspace/guest-managed-startup', async importOriginal => {
-  const actual = await importOriginal<typeof import('../workspace/guest-managed-startup')>()
-  const { openGuestBindings } = await import('../workspace/guest-workspace')
-  return { ...actual, prepareGuestStartup: async (original: CryKitDatabase) => original.name.startsWith('native-editor-test-') ? { kind: 'legacy-recovery', binding: await openGuestBindings(original) } : actual.prepareGuestStartup(original) }
-})
-
 const databases: CryKitDatabase[] = []
 afterEach(async () => { for (const database of databases.splice(0)) database.close() })
-async function fixture(native = false) {
-  const database = new CryKitDatabase(`${native ? 'native-' : ''}editor-test-${crypto.randomUUID()}`)
+async function fixture() {
+  const database = new CryKitDatabase(`editor-test-${crypto.randomUUID()}`)
   databases.push(database)
+  await seedBlankManagedGuest(database)
   let repository: WorkspaceRepository = createGuestRepository(database)
   let outcome: OwnedFileOutcome | undefined
   const editor = () => createEditorRepository(repository, { onOutcome: value => { outcome = value } })
@@ -29,7 +25,7 @@ async function fixture(native = false) {
     repository = (await resolveOwnedFileReceipt(outcome!.receipt!)).repository
     outcome = undefined
   }
-  return { editor, advance, repository: () => repository, outcome: () => outcome }
+  return { database, editor, advance, repository: () => repository, outcome: () => outcome }
 }
 it('invalidUnfinishedTextReopensWithoutPromotion', async () => {
   const f = await fixture(), bytes = new TextEncoder().encode('{"Name":"original"}')
@@ -60,20 +56,18 @@ it('retainsMapAndFieldEditsAcrossDevice', async () => {
   expect((await f.editor().get(saved.id))?.unfinished.fieldState).toEqual(pendingMapAndFieldState)
   await expect(f.editor().saveUnfinished(saved.id, { text: '{}', editedPath: [], fieldState: null, validation: 'valid' }, row.revision)).rejects.toThrow(/revision|changed/i)
 })
-it('legacyTextOnlyOriginalPreservesCodeUnits', async () => {
-  const f = await fixture(true)
-  const binding = await guestRepositoryBindings(f.repository())
-  const legacy = await binding.inspector.import('legacy.json', '{"Name":"\ud800"}', 'old-reference')
-  const rows = await f.editor().list()
-  expect(rows.find(row => row.id === legacy.id)?.originalByteIdentity).toBe('text-only')
-  const row = rows.find(row => row.id === legacy.id)!
+it('textOnlyOriginalPreservesCodeUnits', async () => {
+  const f = await fixture()
+  const originalText = '{"Name":"\ud800"}'
+  const row = await f.editor().importFile({ filename: 'text-only.json', text: originalText, referenceId: 'synthetic' })
+  await f.advance()
+  expect(row.originalByteIdentity).toBe('text-only')
   const loneSurrogateDraft = '{"broken":"\ud800'
   const saved = await f.editor().saveUnfinished(row.id, { text: loneSurrogateDraft, editedPath: [], fieldState: { value: '\ud800' }, validation: 'invalid' }, row.revision)
   await f.advance()
   const content = await readEditorContent(await f.repository().readWorkspace(), saved)
   expect(content.unfinishedText).toBe(loneSurrogateDraft)
-  expect(content.originalText).toBe(legacy.originalText)
-  expect((await binding.inspector.get(legacy.id))?.originalText).toBe(legacy.originalText)
+  expect(content.originalText).toBe(originalText)
 })
 
 it('account commands keep invalid text encrypted and apply only explicitly', async () => {
@@ -118,15 +112,15 @@ it('rejects changed owner authority in the real final guest pointer transaction'
   expect((await f.repository().readWorkspace()).editorDocuments).toEqual(before.editorDocuments)
   expect((await f.repository().readWorkspace()).planner.localData.revision).toBe(before.planner.localData.revision)
 })
-it('distinguishes post-pointer rejection from rollback and rechecks actual successor on repeated receipts', async () => {
+it('keeps a durable save after notification failure and resolves repeated receipts', async () => {
   const { vi } = await import('vitest')
-  const f = await fixture(true)
+  const f = await fixture()
   vi.stubGlobal('BroadcastChannel', class { constructor() { throw new Error('synthetic post-pointer notification failure') } })
   try {
     const row = await f.editor().importFile({ filename: 'saved.json', text: '{}', referenceId: 'native' })
     const outcome = f.outcome()!
     expect(outcome.status).toBe('saved')
-    expect(String(outcome.error)).toContain('post-pointer')
+    expect(outcome.error).toBeUndefined()
     const a = await resolveOwnedFileReceipt(outcome.receipt!), b = await resolveOwnedFileReceipt(outcome.receipt!)
     expect(a.state.editorDocuments).toEqual([row])
     expect(b.state.editorDocuments).toEqual([row])
@@ -164,33 +158,36 @@ it('quota failure preserves the account fence, original bytes and pending draft 
   } finally { vi.restoreAllMocks(); invalidateProfile(); await db.delete() }
 })
 
-it('rejects legacy edits made after translation and before the coordinator capture', async () => {
-  const { newOwnedFileCommand } = await import('../workspace/owned-file-command')
-  const f = await fixture(true), binding = await guestRepositoryBindings(f.repository())
-  const legacy = await binding.inspector.import('legacy-race.json', '{"Count":1}', 'native')
-  let changed = false
-  const editor = createEditorRepository(f.repository(), { begin: operation => newOwnedFileCommand(operation, () => {
-    if (!changed) {
-      changed = true
-      // The asynchronous old-writer completes while the new command translates and prepares its body
-      void binding.inspector.save(legacy.id, '{"Count":2}', legacy.revision)
-    }
-  }) })
-  await expect(editor.saveUnfinished(legacy.id, { text: '{"unfinished":', editedPath: [], fieldState: null, validation: 'unchecked' }, legacy.revision)).rejects.toThrow()
-  expect((await binding.coordinator.active.get('active'))?.manifest.id).toBe(binding.manifest.id)
+it('rejects a competing owner write before final publication without changing its saved draft', async () => {
+  const localRoot = await import('../workspace/local-root')
+  const f = await fixture()
+  const row = await f.editor().importFile({ filename: 'race.json', text: '{"Count":1}', referenceId: 'synthetic' })
+  await f.advance()
+  const competing = createEditorRepository(createGuestRepository(f.database))
+  await competing.list()
+  const prepare = localRoot.prepareLocalWorkspace
+  const fault = vi.spyOn(localRoot, 'prepareLocalWorkspace').mockImplementationOnce(async (...args) => {
+    const prepared = await prepare(...args)
+    await competing.saveUnfinished(row.id, { text: '{"Count":2}', editedPath: [], fieldState: null, validation: 'valid' }, row.revision)
+    return prepared
+  })
+  try { await expect(f.editor().saveUnfinished(row.id, { text: '{"unfinished":', editedPath: [], fieldState: null, validation: 'invalid' }, row.revision)).rejects.toThrow() }
+  finally { fault.mockRestore() }
+  const current = createGuestRepository(f.database), state = await current.readWorkspace()
+  expect((await readEditorContent(state, state.editorDocuments[0]!)).unfinishedText).toBe('{"Count":2}')
 })
 
 it('reconciles an uncertain published command without a second activation', async () => {
   const { reconcileOwnedFileOutcome } = await import('../workspace/owned-file-command')
-  const f = await fixture(true), binding = await guestRepositoryBindings(f.repository())
+  const f = await fixture(), binding = await managedGuestBinding(f.repository())
   const originalPut = IDBObjectStore.prototype.put, originalGet = IDBObjectStore.prototype.get
   let published = false, lostRead = false, outcome: OwnedFileOutcome | undefined
   IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
-    if (this.name === 'active' && (args[0] as { manifest?: { id?: string } }).manifest?.id !== binding.manifest.id) published = true
+    if (this.name === 'active' && ((args[0] as { manifest?: { revision?: number } }).manifest?.revision ?? -1) > binding.manifest.revision) published = true
     return originalPut.apply(this, args)
   }
   IDBObjectStore.prototype.get = function (key: IDBValidKey | IDBKeyRange) {
-    if (this.name === 'journal' && published && !lostRead) { lostRead = true; throw new Error('Synthetic lost journal read') }
+    if (this.name === 'managedOperations' && published && !lostRead) { lostRead = true; throw new Error('Synthetic lost journal read') }
     return originalGet.call(this, key)
   }
   try {
@@ -198,12 +195,12 @@ it('reconciles an uncertain published command without a second activation', asyn
     await expect(editor.importFile({ filename: 'uncertain.json', text: '{}', referenceId: 'native' })).rejects.toThrow()
     expect(outcome?.status).toBe('uncertain')
   } finally { IDBObjectStore.prototype.put = originalPut; IDBObjectStore.prototype.get = originalGet }
-  const count = await binding.coordinator.journal.count(), active = await binding.coordinator.active.get('active')
+  const count = await binding.coordinator.table('managedOperations').count(), active = await binding.coordinator.active.get('active')
   const resolved = await reconcileOwnedFileOutcome(outcome!)
   expect(resolved.status).toBe('saved')
   expect((await resolveOwnedFileReceipt(resolved.receipt!)).state.editorDocuments.map(file => file.filename)).toEqual(['uncertain.json'])
   expect((await reconcileOwnedFileOutcome(outcome!)).receipt?.id).toBe(resolved.receipt?.id)
-  expect(await binding.coordinator.journal.count()).toBe(count)
+  expect(await binding.coordinator.table('managedOperations').count()).toBe(count)
   expect(await binding.coordinator.active.get('active')).toEqual(active)
 })
 
@@ -384,7 +381,6 @@ it('bounds owned account repository connections and cleanup registrations across
   } finally { vi.restoreAllMocks(); profile.invalidateProfile(); await database.delete() }
 })
 
-
 it('rejects changed encrypted completion metadata and authenticates stored bytes on verification and reopen', async () => {
   const { vi } = await import('vitest')
   const profile = await import('../account/profile')
@@ -457,59 +453,31 @@ it('keeps durable encrypted V recoverable when another legitimate command wins b
   } finally { profile.invalidateProfile(); await database.delete() }
 })
 
-
-it('reuses one guest successor for concurrent receipts and keeps exact shared handles alive after candidate failure', async () => {
-  const { vi } = await import('vitest')
-  const guest = await import('../workspace/guest-workspace')
-  const f = await fixture(true), binding = await guestRepositoryBindings(f.repository())
-  await binding.planner.open(); const inspector = await binding.inspector.openDatabase(); await inspector.open()
-  const row = await f.editor().importFile({ filename: 'guest-lifetime.json', text: '{}', referenceId: 'native' })
-  const close = vi.spyOn((await import('dexie')).default.prototype, 'close')
-  const read = guest.readGuestWorkspace
-  let candidate: Awaited<ReturnType<typeof guestRepositoryBindings>> | undefined
-  const fault = vi.spyOn(guest, 'readGuestWorkspace').mockImplementationOnce(async (...args) => {
-    candidate = args[0]
-    const state = await read(...args)
-    return { ...state, planner: { ...state.planner, localData: { ...state.planner.localData, revision: state.planner.localData.revision + 1 } } }
-  })
-  try {
-    await expect(resolveOwnedFileReceipt(f.outcome()!.receipt!)).rejects.toThrow()
-    expect(candidate!.planner.isOpen()).toBe(false)
-    expect(candidate!.files.isOpen()).toBe(false)
-    expect(close.mock.contexts).toContain(candidate!.planner)
-    expect(close.mock.contexts).toContain(candidate!.files)
-    expect(binding.planner.isOpen()).toBe(true)
-    expect(inspector.isOpen()).toBe(true)
-    expect(binding.coordinator.isOpen()).toBe(true)
-    expect(await binding.planner.localDatas.count()).toBeGreaterThan(0)
-    fault.mockRestore()
-    const [first, concurrent] = await Promise.all([resolveOwnedFileReceipt(f.outcome()!.receipt!), resolveOwnedFileReceipt(f.outcome()!.receipt!)])
-    expect(concurrent.repository).toBe(first.repository)
-    const freshRead = vi.spyOn(first.repository, 'readWorkspace')
-    expect((await resolveOwnedFileReceipt(f.outcome()!.receipt!)).repository).toBe(first.repository)
-    expect(freshRead).toHaveBeenCalledTimes(1)
-    const next = createEditorRepository(first.repository)
-    await next.saveUnfinished(row.id, { text: '{"later":', editedPath: [], fieldState: null, validation: 'invalid' }, row.revision)
-    await expect(resolveOwnedFileReceipt(f.outcome()!.receipt!)).rejects.toThrow('no longer selected')
-    await expect(f.repository().readWorkspace()).rejects.toThrow('retired')
-    expect(binding.planner.isOpen()).toBe(true)
-    expect(inspector.isOpen()).toBe(true)
-  } finally { vi.restoreAllMocks() }
+it('reuses one managed successor for concurrent receipts and keeps shared storage usable after failed verification', async () => {
+  const f = await fixture()
+  const row = await f.editor().importFile({ filename: 'guest-lifetime.json', text: '{}', referenceId: 'synthetic' })
+  const receipt = f.outcome()!.receipt!
+  const [first, concurrent] = await Promise.all([resolveOwnedFileReceipt(receipt), resolveOwnedFileReceipt(receipt)])
+  expect(concurrent.repository).toBe(first.repository)
+  const binding = await managedGuestBinding(first.repository)
+  const restore = await corruptManagedRecord(first.repository, privateRecordKey('editor', row.id))
+  try { await expect(verifyOwnedFileReceipt(receipt)).rejects.toThrow() } finally { await restore() }
+  expect(binding.coordinator.isOpen()).toBe(true)
+  await expect(verifyOwnedFileReceipt(receipt)).resolves.toBeUndefined()
+  expect((await resolveOwnedFileReceipt(receipt)).repository).toBe(first.repository)
+  await createEditorRepository(first.repository).saveUnfinished(row.id, { text: '{"later":', editedPath: [], fieldState: null, validation: 'invalid' }, row.revision)
+  await expect(resolveOwnedFileReceipt(receipt)).rejects.toThrow(/changed/)
+  await expect(f.repository().readWorkspace()).rejects.toThrow('retired')
 })
 
-it('revalidates untouched guest file bodies before granting owned completion', async () => {
-  const { vi } = await import('vitest')
-  const guest = await import('../workspace/guest-workspace')
-  const { memoryBlob, blobIdentity } = await import('../workspace/blobs')
-  const f = await fixture(true)
-  const first = await f.editor().importFile({ filename: 'unaffected.json', text: '{}', referenceId: 'native' })
+it('explicit guest verification revalidates untouched file bodies', async () => {
+  const { blobIdentity } = await import('../workspace/blobs')
+  const f = await fixture()
+  const first = await f.editor().importFile({ filename: 'unaffected.json', text: '{}', referenceId: 'synthetic' })
   await f.advance()
-  await f.editor().importFile({ filename: 'new.json', text: '{}', referenceId: 'native' })
-  const read = guest.readGuestWorkspace
-  vi.spyOn(guest, 'readGuestWorkspace').mockImplementationOnce(async (...args) => {
-    const state = await read(...args)
-    return { ...state, blobs: state.blobs.map(blob => blobIdentity(blob.ref) === blobIdentity(first.original) ? { ...blob, content: memoryBlob(new Uint8Array(blob.ref.byteLength)) } : blob) }
-  })
-  try { await expect(resolveOwnedFileReceipt(f.outcome()!.receipt!)).rejects.toThrow() }
-  finally { vi.restoreAllMocks() }
+  await f.editor().importFile({ filename: 'new.json', text: '{}', referenceId: 'synthetic' })
+  const receipt = f.outcome()!.receipt!
+  const restore = await corruptManagedRecord(createGuestRepository(f.database), privateRecordKey('blob', blobIdentity(first.original)))
+  try { await expect(verifyOwnedFileReceipt(receipt)).rejects.toThrow() } finally { await restore() }
+  await expect(verifyOwnedFileReceipt(receipt)).resolves.toBeUndefined()
 })

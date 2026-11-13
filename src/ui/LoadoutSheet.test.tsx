@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { act } from 'react'
+import { act, type PropsWithChildren } from 'react'
+import { NavigationProvider, useNavigationController } from './navigation'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { CURRENT_CATALOG } from '../catalog/bundled'
@@ -31,8 +32,13 @@ afterEach(async () => {
   container.remove()
 })
 
+function NavigationFixture({ children }: PropsWithChildren) {
+  const controller = useNavigationController()
+  return <NavigationProvider controller={controller}>{children}</NavigationProvider>
+}
+
 async function render(draft = content, selection: DefinitionOption | undefined = cleric, showClassPermissions = false, snapshots = catalogs) {
-  await act(async () => root.render(<LoadoutSheet catalogs={snapshots} content={draft} equipmentFields={null} localData={localData} onViewChange={() => undefined} passiveFields={null} primaryClassField={<p>Primary class selection</p>} selection={selection} showChecks={false} showClassPermissions={showClassPermissions} showStats={false} slots={[]} subCommandField={<p>Sub-command selection</p>} view="loadout" viewLabel="Loadout view"/>))
+  await act(async () => root.render(<NavigationFixture><LoadoutSheet catalogs={snapshots} content={draft} equipmentFields={null} localData={localData} onViewChange={() => undefined} passiveFields={null} primaryClassField={<p>Primary class selection</p>} selection={selection} showChecks={false} showClassPermissions={showClassPermissions} showStats={false} slots={[]} subCommandField={<p>Sub-command selection</p>} view="loadout" viewLabel="Loadout view"/></NavigationFixture>))
 }
 
 const growth = () => container.querySelector<HTMLElement>('.primary-class-growth')!

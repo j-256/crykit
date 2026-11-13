@@ -482,7 +482,7 @@ it.each([false, true])('installs with an exact packaged catalog staged: %s while
   } finally { database.close() }
   const reopened = new CryKitDatabase(database.name)
   try {
-    expect(await reopened.catalogs.get(row.key)).toEqual(staged ? row : undefined)
+    expect(await reopened.catalogs.get(row.key)).toEqual(row)
     expect(await reopened.catalogs.get(unrelatedRow.key)).toEqual(unrelatedRow)
     const rows = await installedRows(reopened)
     const root = (await reopened.localDatas.get('local-data-record'))!
@@ -490,7 +490,6 @@ it.each([false, true])('installs with an exact packaged catalog staged: %s while
     expect(validateGuestPlannerRecord(root, declaration, rows.history, 'journaled')).toMatchObject({ format: 'journaled', journal: { undoable: false, checkpoints: [] } })
   } finally { reopened.close() }
 })
-
 
 const INVALID_JOURNAL = 'The journaled planner data is missing or invalid. Keep your draft and reopen the workspace'
 const journalError = (message = INVALID_JOURNAL) => ({ code: 'schema-mismatch', userMessage: message, recoverable: true })
@@ -1401,7 +1400,8 @@ async function modExportJournal(historical: boolean) {
   await database.sources.bulkPut([...mods.first.proposed.sources, ...mods.second.proposed.sources])
   await database.evidence.bulkPut([...mods.first.proposed.evidence, ...mods.second.proposed.evidence])
   const baseline = addGameSetupRevision(record.localData, { label: 'Native baseline', catalogLock: { [CURRENT_CATALOG.id]: CURRENT_CATALOG.revisionId }, expectedRevision: record.revision })
-  const draft = updateGameSetupRevision(baseline, { sourceRevisionId: baseline.planningGameSetupRevisionId!, modComposition: mods.composition })
+  const imported = { ...baseline, importReceipts: { ...baseline.importReceipts, ...mods.first.proposed.localData.importReceipts, ...mods.second.proposed.localData.importReceipts } }
+  const draft = updateGameSetupRevision(imported, { sourceRevisionId: baseline.planningGameSetupRevisionId!, modComposition: mods.composition })
   const effective = (await prepareModCatalogs(draft, mods.catalogs)).map(compactModCatalog).find(catalog => !mods.catalogs.some(original => original.id === catalog.id && original.revisionId === catalog.revisionId))!
   if (historical) {
     // Historical admission requires the exact stored effective; only a draft after-snapshot may derive one

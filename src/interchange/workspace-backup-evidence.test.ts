@@ -2,7 +2,7 @@ import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { WORKSPACE_BACKUP_EVIDENCE_VERSION } from './workspace-backup-schema'
 import 'fake-indexeddb/auto'
 import { expect, it, vi } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { launchBackupFixtures } from './workspace-backup.test-helpers'
 import { editorClosureFixture, multiPageMetadataText } from '../workspace/test-helpers'
 import * as backup from './workspace-backup'
 import { exportWorkspaceBackup, readWorkspaceBackup } from './workspace-backup'
@@ -20,7 +20,6 @@ async function original(order = false): Promise<WorkspaceSnapshotV1> {
   const file = { ...fixture.file, unfinished: { ...fixture.file.unfinished, fieldState: order ? { alpha: 'a', zeta: '\ud800' } : { zeta: '\ud800', alpha: 'a' } } }
   return { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'synthetic-original', capturedAt: '2026-10-12', revisionVector: { committed: 'original' }, state: { ...fixture.state, editorDocuments: [file] } }
 }
-const fixturePath = new URL('./workspace-backup-v1.fixtures.json', import.meta.url)
 it('batches encrypted writes while staging complete inherited sources', async () => {
   const a = await original(), chunkBytes = 2048
   const bytes = Uint8Array.from({ length: 2 * 1024 * 1024 + 37 }, (_, index) => index % 251)
@@ -52,8 +51,8 @@ it('batches encrypted writes while staging complete inherited sources', async ()
   } finally { if (inherited) await disposeWorkspaceSnapshot(inherited); vi.restoreAllMocks() }
 })
 
-it('captures and preserves the accepted guest and account v1 metadata boundary', async () => {
-  const fixtures = JSON.parse(readFileSync(fixturePath, 'utf8'))
+it('captures and preserves the launch guest and account metadata boundary', async () => {
+  const fixtures = (await launchBackupFixtures())
   for (const fixture of fixtures) {
     const restored = await readWorkspaceBackup(memoryBlob(Buffer.from(fixture.archive, 'base64')).open())
     try {
@@ -87,8 +86,8 @@ it('retains flat A-to-B-to-C history and deduplicates exact re-imports', async (
       } finally { await disposeWorkspaceSnapshot(historical) }
     }
     const encoded = await collect(exportWorkspaceBackup(abc))
-    expect(encoded.includes(Buffer.from('"version":"1.1.0"'))).toBe(true)
-    expect(encoded.includes(Buffer.from('CRYKIT-WORKSPACE/1\n'), 1)).toBe(false)
+    expect(encoded.includes(Buffer.from('"version":"2.1.0"'))).toBe(true)
+    expect(encoded.includes(Buffer.from('CRYKIT-WORKSPACE/2\n'), 1)).toBe(false)
   } finally { for (const snapshot of [ab, reopened, abc, repeated]) await disposeWorkspaceSnapshot(snapshot) }
 })
 it('retains both insertion orders and revokes open historical and blob readers', async () => {
@@ -120,7 +119,7 @@ it('retains both insertion orders and revokes open historical and blob readers',
 })
 it('preserves original account source annex through historical storage', async () => {
   expect(typeof backup.inheritWorkspaceSnapshot).toBe('function')
-  const fixture = JSON.parse(readFileSync(fixturePath, 'utf8'))[1]
+  const fixture = (await launchBackupFixtures())[1]
   const account = await readWorkspaceBackup(memoryBlob(Buffer.from(fixture.archive, 'base64')).open())
   const inherited = await backup.inheritWorkspaceSnapshot(await original(), [account])
   const restored = await readWorkspaceBackup(exportWorkspaceBackup(inherited))
@@ -160,7 +159,7 @@ type WireDocument = { key: string; encoding: 'deflate-json-tokens-v1' | 'bytes';
 async function unpack(snapshot: WorkspaceSnapshot): Promise<WireDocument[]> {
   const bytes = await collect(exportWorkspaceBackup(snapshot))
   const documents: WireDocument[] = []
-  let offset = Buffer.byteLength('CRYKIT-WORKSPACE/1\n')
+  let offset = Buffer.byteLength('CRYKIT-WORKSPACE/2\n')
   while (offset < bytes.length) {
     const length = bytes.readUInt32LE(offset)
     const frame = JSON.parse(bytes.subarray(offset + 4, offset + 4 + length).toString())
@@ -198,11 +197,11 @@ async function reidentifyHistorical(documents: WireDocument[], value: unknown) {
   current.historicalEvidence.snapshots[0].id = id
   await replaceMetadata(documents[0], current)
 }
-async function* reframe(documents: WireDocument[], version = '1.1.0', reachedEnd?: () => void, terminalVector?: string) {
+async function* reframe(documents: WireDocument[], version = '2.1.0', reachedEnd?: () => void, terminalVector?: string) {
   const { createHash } = await import('node:crypto')
   const hash = (value: Uint8Array) => createHash('sha256').update(value).digest('hex')
   const word = (value: number) => { const output = Buffer.alloc(4); output.writeUInt32LE(value); return output }
-  const magic = Buffer.from('CRYKIT-WORKSPACE/1\n')
+  const magic = Buffer.from('CRYKIT-WORKSPACE/2\n')
   let chain = '0'.repeat(64), count = 0, size = magic.length
   yield magic
   for (const [document, value] of documents.entries()) for (const [index, payload] of value.pages.entries()) {
@@ -213,7 +212,7 @@ async function* reframe(documents: WireDocument[], version = '1.1.0', reachedEnd
   }
   const current = await decoded(documents[0]) as unknown as { revisionVector: Readonly<Record<string, string>> }
   const vector = terminalVector ?? hash(Buffer.from(JSON.stringify(Object.entries(current.revisionVector).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0))))
-  const metadata = Buffer.from(JSON.stringify({ kind: 'manifest', format: 'crykit-workspace-backup', version, frames: count, bytes: size, documents: documents.length, chain, vector }))
+  const metadata = Buffer.from(JSON.stringify({ kind: 'manifest', dataGeneration: LAUNCH_DATA_GENERATION, format: 'crykit-workspace-backup', version, frames: count, bytes: size, documents: documents.length, chain, vector }))
   yield Buffer.concat([word(metadata.length), metadata, word(0)])
   reachedEnd?.()
 }
@@ -223,14 +222,14 @@ it('rejects a terminal vector that differs from the fully staged metadata and cl
   const before = (await Dexie.getDatabaseNames()).sort()
   let ended = false
   try {
-    await expect(readWorkspaceBackup(reframe(await unpack(inherited), '1.1.0', () => { ended = true }, '0'.repeat(64)))).rejects.toThrow('Backup revision vector mismatch')
+    await expect(readWorkspaceBackup(reframe(await unpack(inherited), '2.1.0', () => { ended = true }, '0'.repeat(64)))).rejects.toThrow('Backup revision vector mismatch')
     expect(ended).toBe(true)
     expect((await Dexie.getDatabaseNames()).sort()).toEqual(before)
   } finally { await disposeWorkspaceSnapshot(inherited) }
 })
 it('rejects historical body and annex failures only after complete terminal framing and cleans staging', async () => {
   const { default: Dexie } = await import('dexie')
-  const fixture = JSON.parse(readFileSync(fixturePath, 'utf8'))[1]
+  const fixture = (await launchBackupFixtures())[1]
   const account = await readWorkspaceBackup(memoryBlob(Buffer.from(fixture.archive, 'base64')).open())
   const a = await original()
   const empty = { ...a, state: { ...a.state, editorDocuments: [], retainedContent: [], blobs: [] } }
@@ -252,7 +251,7 @@ it('rejects historical body and annex failures only after complete terminal fram
         await reidentifyHistorical(documents, historical)
       }
       let ended = false
-      await expect(readWorkspaceBackup(reframe(documents, '1.1.0', () => { ended = true }))).rejects.toThrow()
+      await expect(readWorkspaceBackup(reframe(documents, '2.1.0', () => { ended = true }))).rejects.toThrow()
       expect(ended).toBe(true)
       expect((await Dexie.getDatabaseNames()).sort()).toEqual(before)
     }
@@ -281,7 +280,7 @@ it('rejects wrong historical identities and missing duplicate orphaned or reorde
         current.version = 1
         await replaceMetadata(documents[0], current)
       }
-      const result = readWorkspaceBackup(reframe(documents, fault === 'v1' ? '1.0.0' : fault === 'future' ? '2.0.0' : '1.1.0'))
+      const result = readWorkspaceBackup(reframe(documents, fault === 'v1' ? '2.0.0' : fault === 'future' ? '99.0.0' : '2.1.0'))
       if (fault === 'future') await expect(result).rejects.toMatchObject({ code: 'UNSUPPORTED_VERSION' })
       else await expect(result).rejects.toThrow()
     }
@@ -300,7 +299,7 @@ it('keeps strict v1 negatives identical when embedded as historical entries', as
       else if (fault === 'native') Object.assign(raw.state.planner.localData, { schemaVersion: '99.0.0' })
       else raw.state.blobs[0] = { ...raw.state.blobs[0], sha256: '0'.repeat(64) }
       await replaceMetadata(legacy[0], raw)
-      await expect(readWorkspaceBackup(reframe(legacy, '1.0.0'))).rejects.toThrow()
+      await expect(readWorkspaceBackup(reframe(legacy, '2.0.0'))).rejects.toThrow()
       const history = await unpack(inherited)
       await reidentifyHistorical(history, raw)
       await expect(readWorkspaceBackup(reframe(history))).rejects.toThrow()
@@ -309,11 +308,11 @@ it('keeps strict v1 negatives identical when embedded as historical entries', as
 })
 
 it('defaults to exact v1 output without inherited evidence and supports an explicit empty v2 archive', async () => {
-  const original = await readWorkspaceBackup(memoryBlob(Buffer.from(JSON.parse(readFileSync(fixturePath, 'utf8'))[0].archive, 'base64')).open())
+  const original = await readWorkspaceBackup(memoryBlob(Buffer.from((await launchBackupFixtures())[0].archive, 'base64')).open())
   const inherited = await backup.inheritWorkspaceSnapshot(original, [])
   try {
     const legacy = await collect(exportWorkspaceBackup(original))
-    expect(legacy.toString('base64')).toBe(JSON.parse(readFileSync(fixturePath, 'utf8'))[0].archive)
+    expect(legacy.toString('base64')).toBe((await launchBackupFixtures())[0].archive)
     expect(await collect(exportWorkspaceBackup(inherited))).toEqual(legacy)
     const explicit = await readWorkspaceBackup(exportWorkspaceBackup(inherited, { version: WORKSPACE_BACKUP_EVIDENCE_VERSION }))
     try {
@@ -324,7 +323,7 @@ it('defaults to exact v1 output without inherited evidence and supports an expli
   } finally { await disposeWorkspaceSnapshot(original); await disposeWorkspaceSnapshot(inherited) }
 })
 it('preserves exact historical token streams and binary UTF-16 after releasing all inputs', async () => {
-  const fixture = JSON.parse(readFileSync(fixturePath, 'utf8'))[1]
+  const fixture = (await launchBackupFixtures())[1]
   const original = await readWorkspaceBackup(memoryBlob(Buffer.from(fixture.archive, 'base64')).open())
   const originalDocuments = await unpack(original)
   const inherited = await backup.inheritWorkspaceSnapshot(original, [original])
@@ -411,8 +410,8 @@ it('retains multi-page historical metadata without truncating long lone-surrogat
   } finally { await disposeWorkspaceSnapshot(inherited) }
 })
 
-it('reopens full v1 fixture categories as independently valid historical snapshots', async () => {
-  for (const fixture of JSON.parse(readFileSync(fixturePath, 'utf8'))) {
+it('reopens launch guest and account fixtures as independently valid historical snapshots', async () => {
+  for (const fixture of (await launchBackupFixtures())) {
     const original = await readWorkspaceBackup(memoryBlob(Buffer.from(fixture.archive, 'base64')).open())
     const inherited = await backup.inheritWorkspaceSnapshot(original, [original])
     await disposeWorkspaceSnapshot(original)

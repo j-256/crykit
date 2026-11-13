@@ -1,3 +1,4 @@
+import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 // Native equality checks exact bytes and table metadata without enumerating typed-array keys
@@ -61,21 +62,19 @@ it('maps real disjoint domain edits without a shared bookkeeping head', async ()
 })
 
 it('maps activates and reopens more exact per-record retaining edges than a descriptor can hold', async () => {
-  const { BUNDLED_CATALOGS } = await import('../catalog/bundled')
   const { validateWorkspaceClosure, inspectWorkspaceClosure } = await import('../workspace/closure')
   const { archiveWorkspaceUnit } = await import('../workspace/pending-content')
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   const database = new AccountDatabase(token.accountId)
   try {
     const localData = createBlankLocalData()
-    // Width is the subject; copied native lookup tables add payload work unrelated to synthetic catalog edges
-    const { legacy: _legacy, ...catalogTemplate } = BUNDLED_CATALOGS[0]!
-    const catalogs = Array.from({ length: 257 }, (_, i) => ({ ...catalogTemplate, id: `crystal-edit:wide-${i}` as typeof BUNDLED_CATALOGS[0]['id'], revisionId: `sha256:${i.toString(16).padStart(64, '0')}:rules-v1:library-v1` as typeof BUNDLED_CATALOGS[0]['revisionId'], entities: {}, claims: [], checksum: `sha256:${i.toString(16).padStart(64, '0')}` }))
+    // Width is the subject; small complete sources isolate retaining-edge pagination
+    const catalogs = await Promise.all(Array.from({ length: 257 }, async (_, i) => (await previewCrystalEdit(new TextEncoder().encode(JSON.stringify({ ID: `wide-${i}`, EditorVersion: 34, Items: [] })), 'wide.json')).proposed.catalogs[0]!))
     const state: WorkspaceState = { planner: { localData, lineage: { rootLocalDataId: localData.id }, catalogs, evidence: [], sources: [], history: [] }, editorDocuments: [], saveDocuments: [], assets: [], conflicts: [], retainedContent: [], blobs: [], libraryDefaults: { version: 1, layers: catalogs.map(c => ({ catalogId: c.id, catalogRevisionId: c.revisionId, enabled: true })) } }
     const { memoryBlob, hashBlob, readBlob } = await import('../workspace/blobs')
     const content = memoryBlob(new Uint8Array([0, 255, 17]))
     const body = { documentId: 'wide-save-original', revisionId: 'wide-save-original:1', encoding: 'bytes' as const, byteLength: content.byteLength, sha256: await hashBlob(content) }
-    const complete: WorkspaceState = { ...state, blobs: [{ ref: body, content }], saveDocuments: [{ version: 1, id: 'wide-save', revision: 0, filename: 'wide.sav', original: body, working: body, pendingForm: { inert: 'typed' }, requirements: catalogs.map(c => ({ catalogId: c.id, catalogRevisionId: c.revisionId, checksum: c.checksum, title: c.id })), coverage: { status: 'unsupported', diagnostics: ['Exact required catalogs retained'] }, createdAt: '2026-01-01', updatedAt: '2026-01-01', exportedRevision: null }] }
+    const complete: WorkspaceState = { ...state, blobs: [{ ref: body, content }], saveDocuments: [{ version: 1, id: 'wide-save', revision: 0, filename: 'wide.sav', original: body, working: body, pendingForm: { inert: 'typed' }, requirements: catalogs.map(c => ({ catalogId: c.id, catalogRevisionId: c.revisionId, checksum: c.checksum, contentFingerprint: (c.legacy as Record<string, string>).contentFingerprint!, title: c.id })), coverage: { status: 'unsupported', diagnostics: ['Exact required catalogs retained'] }, createdAt: '2026-01-01', updatedAt: '2026-01-01', exportedRevision: null }] }
     await validateWorkspaceClosure(complete)
     const prepared = await prepareAccountWorkspace(database, token, complete)
     await activateLocalAccountCommit(database, token, { version: 1, id: accountLocalId(), expected: undefined, head: prepared.head, records: prepared.records })

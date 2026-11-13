@@ -6,13 +6,13 @@ import { loadLocalData, saveLocalDataWithStatus } from './local-data'
 import { InspectorStorage } from '../mod-inspector/storage'
 import { acquireParticipantBarrier, releaseParticipantBarrier } from '../workspace/guest-barrier'
 
-it('fences actual planner mutations including automatic catalog cleanup inside their transactions', async () => {
+it('fences actual planner mutations inside their transactions while preserving read-only access', async () => {
   const database = new CryKitDatabase(`barrier-planner-${crypto.randomUUID()}`)
   try {
     const loaded = await loadLocalData(database)
     await acquireParticipantBarrier(database, 'operation')
     await expect(saveLocalDataWithStatus(loaded.localData, loaded.revision, database)).rejects.toThrow('retired')
-    await expect(loadLocalData(database)).rejects.toThrow('retired')
+    expect((await loadLocalData(database)).localData).toEqual(loaded.localData)
     await expect(database.catalogs.clear()).rejects.toThrow('retired')
     await expect(releaseParticipantBarrier(database, 'other')).rejects.toThrow()
     await releaseParticipantBarrier(database, 'operation')

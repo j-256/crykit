@@ -6,7 +6,7 @@ import { accountLocalId } from '../workspace/account-cache'
 import { prepareAccountWorkspace } from '../workspace/account-graph'
 import { createPersonalDefinition, revisePersonalDefinition } from '../domain/local-data'
 import { createTestLocalData } from '../domain/test-helpers'
-import { editorClosureFixture } from '../workspace/test-helpers'
+import { editorClosureFixture, syntheticCatalog } from '../workspace/test-helpers'
 import { personalLineageChains } from '../account/sync/lineage'
 import { stagePersonalLineage } from '../account/sync/lineage-publication'
 import { readOriginalPublication } from '../account/sync/conflict-authority'
@@ -84,12 +84,12 @@ it.each(['legacy', 'standalone', 'catalog', 'stale'] as const)('actualPersonalLi
   const { openRemoteProjection } = await import('../account/sync/projection')
   const { resolveConflict } = await import('../workspace/conflicts')
   const { savedCatalogVersion } = await import('../domain/legacy-definition.test-helpers')
-  const { testCatalogRef } = await import('../domain/catalog.test-helpers')
   const { readBlob, blobIdentity } = await import('../workspace/blobs')
   const service = await conflictService()
   try {
-    const fixture = await editorClosureFixture(), catalogRef = testCatalogRef('item')
-    const catalog: import('../domain/types').CatalogSnapshot = { id: catalogRef.catalogId, revisionId: catalogRef.catalogRevisionId, schemaVersion: 'synthetic', checksum: 'synthetic-checksum', importedAt: '2026-01-01T00:00:00Z' as import('../domain/types').Timestamp, applicability: { state: 'known', value: 'synthetic', sources: [] }, rights: { state: 'known', value: 'synthetic', sources: [] }, entities: { item: { id: catalogRef.entityId, kind: 'item', name: 'Catalog root', aliases: [], fields: {}, sources: [] } }, claims: [] }
+    const fixture = await editorClosureFixture()
+    const catalog = syntheticCatalog('lineage-root', undefined, { item: { id: 'item' as import('../domain/types').EntityId, kind: 'item', name: 'Catalog root', aliases: [], fields: {}, sources: [] } })
+    const catalogRef = { kind: 'catalog' as const, catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: catalog.entities.item!.id }
     const data = scenario === 'catalog' ? fixture.state.planner.localData : createPersonalDefinition(fixture.state.planner.localData, { id: 'root' as PersonalDefinitionId, kind: 'item', name: 'Root' })
     const initial = { ...fixture.state, retainedContent: [], blobs: [], planner: { ...fixture.state.planner, localData: data, catalogs: scenario === 'catalog' ? [catalog] : [], lineage: { rootLocalDataId: data.id } } }
     let a = await service.device(0, initial)

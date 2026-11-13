@@ -39,7 +39,8 @@ it('can undo a reference addition without replacing Playthrough records', async 
   await undoLocalDataWithStatus(added.revision)
   const undone = await loadLocalData()
   expect(undone.localData.importReceipts).toEqual({})
-  expect(undone.catalogs.some(catalog => catalog.id === syntheticCatalogId)).toBe(false)
+  expect(undone.localData.referenceLibrary).toEqual(first.localData.referenceLibrary)
+  expect(undone.catalogs.filter(catalog => catalog.id === syntheticCatalogId)).toEqual(added.catalogs.filter(catalog => catalog.id === syntheticCatalogId))
 })
 
 it('rolls back every write on storage failure and rejects stale localData revisions', async () => {

@@ -2,7 +2,7 @@ import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { CryKitDatabase } from './database'
-import { createGuestRepository, guestRepositoryBindings } from '../workspace/guest-repository'
+import { createDetachedGuestGraph, detachedGuestBindings } from '../workspace/detached-guest.test-helpers'
 import { guestParticipants } from '../workspace/guest-workspace'
 import { importGuestInheritedEvidence } from '../workspace/guest-evidence-import'
 import { readGuestEvidence, databaseEvidenceRows, guestEvidenceSources } from '../workspace/guest-evidence'
@@ -12,22 +12,18 @@ import { exportWorkspaceBackup, readWorkspaceBackup } from '../interchange/works
 import { historicalEvidenceId, capturedBackupEvidence, readBackupMetadata } from '../interchange/workspace-backup-evidence'
 import { assertOwnedWorkspaceSnapshot, disposeWorkspaceSnapshot, openHistoricalSnapshot, snapshotMetadata, type WorkspaceSnapshot } from '../workspace/snapshot'
 
-// Exercise native v1/v2 compatibility directly before public startup migrates these stores to managed storage
-vi.mock('../workspace/guest-managed-startup', async importOriginal => {
-  const actual = await importOriginal<typeof import('../workspace/guest-managed-startup')>()
-  const { openGuestBindings } = await import('../workspace/guest-workspace')
-  return { ...actual, prepareGuestStartup: async (original: CryKitDatabase) => ({ kind: 'legacy-recovery', binding: await openGuestBindings(original) }) }
-})
+// These storage graphs use closed blank planners; packaged source retention has dedicated coverage
+vi.mock('../catalog/bundled', async importOriginal => ({ ...await importOriginal<typeof import('../catalog/bundled')>(), BUNDLED_CATALOGS: [] }))
 
 it.each([true, false])('validates staged inert and operative same-ID changes before publication, conflicting=%s', async conflicting => {
-  const database = new CryKitDatabase(`guest-evidence-admission-${crypto.randomUUID()}`), repository = createGuestRepository(database)
+  const database = new CryKitDatabase(`guest-evidence-admission-${crypto.randomUUID()}`), repository = createDetachedGuestGraph(database)
   let source: Awaited<ReturnType<typeof readWorkspaceBackup>> | undefined
   try {
     const initial = await repository.readWorkspace()
     const saved = await repository.save(createPersonalDefinition(initial.planner.localData, { name: 'Destination command', kind: 'item' }), initial.planner.localData.revision)
     const change = saved.localData.changes[0]
     expect(change).toBeDefined()
-    const binding = await guestRepositoryBindings(repository), participants = await guestParticipants(binding)
+    const binding = await detachedGuestBindings(repository), participants = await guestParticipants(binding)
     const rows = () => Promise.all(participants.map(async participant => ({ kind: participant.kind, tables: await Promise.all(participant.database.tables.map(async table => ({ name: table.name, rows: await table.toArray() }))) })))
     const originalRows = await rows(), originalPointer = await binding.coordinator.active.get('active'), before = await repository.readWorkspace()
     const { state } = await editorClosureFixture()
@@ -41,7 +37,7 @@ it.each([true, false])('validates staged inert and operative same-ID changes bef
       expect((await repository.readWorkspace()).planner).toEqual(before.planner)
     } else {
       await importGuestInheritedEvidence(binding, source)
-      const successor = createGuestRepository(database), after = await successor.readWorkspace(), selected = await guestRepositoryBindings(successor)
+      const successor = createDetachedGuestGraph(database), after = await successor.readWorkspace(), selected = await detachedGuestBindings(successor)
       expect(after.planner.localData).toEqual(before.planner.localData)
       expect(after.planner.history).toEqual(before.planner.history)
       expect(after.planner.savedChanges).toEqual([change])
@@ -68,25 +64,25 @@ async function portableOriginal(changes: readonly import('../domain/types').Chan
 
 describe('portable inert saved changes beyond the operative list bound', () => {
   const changes = inertChanges(501, 'single-original')
-  let database: CryKitDatabase, binding: Awaited<ReturnType<typeof guestRepositoryBindings>>
+  let database: CryKitDatabase, binding: Awaited<ReturnType<typeof detachedGuestBindings>>
   let captured: WorkspaceSnapshot | undefined, originalMetadata: string
   const prepareOriginal = async () => {
     database = new CryKitDatabase(`guest-evidence-large-changes-${crypto.randomUUID()}`)
     const source = await portableOriginal(changes, 'large-inert-sequence')
     try {
       originalMetadata = JSON.stringify(snapshotMetadata(source))
-      const repository = createGuestRepository(database)
+      const repository = createDetachedGuestGraph(database)
       await repository.readWorkspace()
-      await importGuestInheritedEvidence(await guestRepositoryBindings(repository), source)
+      await importGuestInheritedEvidence(await detachedGuestBindings(repository), source)
     } finally { await disposeWorkspaceSnapshot(source) }
-    const selected = createGuestRepository(database), state = await selected.readWorkspace()
+    const selected = createDetachedGuestGraph(database), state = await selected.readWorkspace()
     expect(state.planner.savedChanges).toEqual(changes)
     expect(state.planner.localData.changes).toEqual([])
     await selected.commitWorkspace(state, state.planner.localData.revision)
-    const successor = createGuestRepository(database), reopened = await successor.readWorkspace()
+    const successor = createDetachedGuestGraph(database), reopened = await successor.readWorkspace()
     expect(reopened.planner.savedChanges?.slice(0, changes.length)).toEqual(changes)
     expect(reopened.planner.savedChanges?.slice(changes.length)).toEqual(reopened.planner.localData.changes)
-    binding = await guestRepositoryBindings(successor)
+    binding = await detachedGuestBindings(successor)
     captured = await (await import('../workspace/guest-snapshot')).captureGuestSnapshot(binding)
   }
   // Both assertions use this same persisted successor and capture after the original reader is disposed
@@ -122,13 +118,13 @@ it('retains an accumulated inert sequence across two imports beyond the operativ
         const raw = snapshotMetadata(source)
         // Historical identity covers the stored original pages, including their legacy packing
         originals.set(await historicalEvidenceId(capturedBackupEvidence(source).current), JSON.stringify(raw))
-        const repository = createGuestRepository(database)
+        const repository = createDetachedGuestGraph(database)
         await repository.readWorkspace()
-        await importGuestInheritedEvidence(await guestRepositoryBindings(repository), source)
+        await importGuestInheritedEvidence(await detachedGuestBindings(repository), source)
         expected.push(...changes)
       } finally { await disposeWorkspaceSnapshot(source) }
     }
-    const selected = createGuestRepository(database), state = await selected.readWorkspace(), binding = await guestRepositoryBindings(selected)
+    const selected = createDetachedGuestGraph(database), state = await selected.readWorkspace(), binding = await detachedGuestBindings(selected)
     expect(state.planner.savedChanges).toEqual(expected)
     expect(state.planner.localData.changes).toEqual([])
     const evidence = await readGuestEvidence(databaseEvidenceRows(binding.files), async () => {})
