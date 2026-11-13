@@ -558,14 +558,14 @@ const workspacePath = '/__accounts-proof/account-workspace#/settings/account'
 interface WorkspaceProof {
   savedPlanner(): Promise<import('../../src/domain/types').LocalData>
   readBackupPlanner(file: File): Promise<import('../../src/domain/types').LocalData>
-  inspect(): Promise<{ playthroughs: { label: string; characters: number; inventory: number; progress: number; scenarios: number }[]; kind: string; token?: { accountId: string; generation: number }; principal?: string; digest?: string; access?: string; titles: string[]; backupTitles: string[]; definitions: string[]; backupDefinitions: string[] }>
+  inspect(includeBackup?: boolean): Promise<{ playthroughs: { label: string; characters: number; inventory: number; progress: number; scenarios: number }[]; kind: string; token?: { accountId: string; generation: number }; principal?: string; digest?: string; access?: string; titles: string[]; backupTitles?: string[]; definitions: string[]; backupDefinitions?: string[] }>
   pending(accountId: string): Promise<string[]>
   saveDefinition(name: string): Promise<{ localData: import('../../src/domain/types').LocalData }>
   queueDefinition(name: string): Promise<void>
   releaseQueued(): Promise<string>
   crash(): void
 }
-const workspaceProof = (page: import('@playwright/test').Page) => page.evaluate(() => (window as unknown as { workspaceProof: WorkspaceProof }).workspaceProof.inspect())
+const workspaceProof = (page: import('@playwright/test').Page, includeBackup = true) => page.evaluate(includeBackup => (window as unknown as { workspaceProof: WorkspaceProof }).workspaceProof.inspect(includeBackup), includeBackup)
 async function openWorkspaceAccount(page: import('@playwright/test').Page, account: { email: string; username: string }, remember = false) {
   await page.getByLabel('Email', { exact: true }).fill(account.email)
   await page.getByLabel('Password', { exact: true }).fill(uiPassword)
@@ -594,7 +594,7 @@ test.describe('actualWorkspaceSwitchesDistinctAccountsAndRecoveryWithoutCrossing
     const first = await uiSignup(page, workspacePath)
     second = await uiSignup(other, workspacePath)
     await openWorkspaceAccount(page, first)
-    before = await workspaceProof(page)
+    before = await workspaceProof(page, false)
     expect(before.kind).toBe('account')
     expect(before.token?.accountId).toBe(before.principal)
     expect(before.titles).toEqual([])
@@ -609,7 +609,7 @@ test.describe('actualWorkspaceSwitchesDistinctAccountsAndRecoveryWithoutCrossing
     expect(firstSaved.backupTitles).toEqual(firstSaved.titles)
     await page.evaluate(() => (window as unknown as { workspaceProof: WorkspaceProof }).workspaceProof.queueDefinition('Obsolete account A draft'))
     await openWorkspaceAccount(other, second)
-    otherOpened = await workspaceProof(other)
+    otherOpened = await workspaceProof(other, false)
     expect(otherOpened.token?.accountId).toBe(otherOpened.principal)
     expect(otherOpened.digest).not.toBe(before.digest)
     const mismatch = await workspaceProof(page)

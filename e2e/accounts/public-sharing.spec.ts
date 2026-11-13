@@ -52,7 +52,7 @@ for (const account of [false, true]) test(`${account ? 'account' : 'guest'} port
   const dialog = page.getByRole('dialog', { name: 'Share team', exact: true })
   await expect(dialog.getByRole('checkbox', { name: 'Include written notes' })).not.toBeChecked()
   const url = await dialog.getByLabel('Share URL', { exact: true }).inputValue()
-  expect(new URL(url).hash).toMatch(/^#\/share\/v5\//)
+  expect(new URL(url).hash).toMatch(/^#\/share\/v6\//)
   const snapshot = decodePublicSnapshot(new URL(url).hash.split('/')[3]!)
   expect(snapshot.slots.map(slot => slot !== null)).toEqual([true, false, true, false])
   expect(snapshot.slots[0]!.equipmentGroups).toEqual([['hand', 'second-hand']])

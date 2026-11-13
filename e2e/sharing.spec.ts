@@ -375,7 +375,7 @@ test('survives a v6 link near the URL budget on reload without leaking the fragm
   const payload = await snapshotFor(page, original, { kind: 'build', revisionId: revision.id })
   const baseUrl = `${baseURL}/`
   const emptyNotes: PublicSnapshot = { ...payload, notes: { checkpoint: '', slots: [{ rotationNotes: '', contextAssumptions: ['', ''] }] } }
-  // Raw v5 UTF-8 grows by four base64url characters per three bytes, including JSON escaping
+  // Raw snapshot UTF-8 grows by four base64url characters per three bytes, including JSON escaping
   const notesBudget = Math.floor((MAX_SHARE_URL_LENGTH * .95 - createPublicShareUrl(emptyNotes, baseUrl).length) * 3 / 4)
   const chunkLength = Math.floor(notesBudget / 4)
   const chunks = Array.from({ length: 4 }, (_, index) => `Synthetic note ${index}: ` + 'x'.repeat(chunkLength - 18))
