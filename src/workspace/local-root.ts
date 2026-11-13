@@ -200,7 +200,7 @@ export async function prepareLocalWorkspace(adapter: LocalStoreAdapter, operatio
   else for (const content of state.retainedContent) if (!previous.state.retainedContent.includes(content)) {
     for (const closure of content.kind === 'file-history' ? [content.content] : [...(content.base.kind === 'present' ? [content.base.closure] : []), content.target]) await inspectWorkspaceClosure(state, closure)
   }
-  // Existing catalog codecs keep exact packaged pins and compact effective changes in storage
+  // Catalog storage retains complete compressed source bodies and compact effective changes
   // Captured views and portable archives stay expanded; older full frames remain readable
   const documents = capture(state, prior?.documents), oldEntries = new Map(previous?.entries.map(entry => [entry.key, entry]))
   const entries: LocalWorkspaceEntry[] = []
@@ -289,7 +289,7 @@ export async function admitLocalRoot(adapter: LocalStoreAdapter, head: LocalReco
       const stored = await decodeWorkspaceDocument(verifiedBlob(source, entry.digest), progress && (() => progress(WORKSPACE_STARTUP_PHASE.rootDocumentVerified)))
       progress?.(WORKSPACE_STARTUP_PHASE.rootDocumentParsed)
       if (stored.key !== entry.key || stored.kind !== entry.kind) throw new Error('Local frame key mismatch')
-      // Exact bundled identity is required; missing packages cannot silently substitute another catalog
+      // Decode the retained body; package availability never determines whether this saved source exists
       const document = stored.kind === 'catalog' ? { ...stored, value: decodeCatalogPayload(stored.value) as WorkspaceDocument['value'] } : stored
       lifetime.check(); return document
     })()
