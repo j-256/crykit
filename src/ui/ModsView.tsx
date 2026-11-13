@@ -1,6 +1,4 @@
-import { guestInspectorFor, usesManagedGuestStorage } from '../workspace/guest-repository'
 import { readLibrarySource } from '../workspace/mod-repository'
-import { INSPECTOR_REFERENCE_ID } from '../mod-inspector/reference'
 import { useWorkspace } from './WorkspaceProvider'
 import { bundledModEditableSource } from '../catalog/mod-library'
 import { ModLibrary, type SetModReference } from './ModLibrary'
@@ -33,26 +31,12 @@ export function ModsView({ onDraftChange, onSaveToLibrary, onConfirmFolder, onSe
     <ScreenHeader eyebrow="Buildcrafting" title="Mods" description="Browse mod content, author map placements, and choose which mods your Game Setup uses." actions={<Button icon="layers" onClick={onChooseMods}>Choose mods</Button>}/>
     <ModWorkspaceNavigation id={navigationId} view={workspaceView} disabled={disabledViews} onChange={next => navigate(next)}/>
     {view === 'library' ? <section role="tabpanel" id={`${navigationId}-library-panel`} aria-labelledby={`${navigationId}-library-tab`} tabIndex={0}><ModLibrary onSetReference={onSetReference} onOpenEditor={() => navigate('document')} onImport={onSaveToLibrary} onConfirmFolder={onConfirmFolder} onEditBundled={async mod => {
-      if (repository.kind === 'account' || await usesManagedGuestStorage(repository)) {
-        const source = await bundledModEditableSource(mod)
-        setOpeningSource({ ...source, bytes: new TextEncoder().encode(source.text) })
-        navigation.navigate(modWorkspaceRoute('document', {}))
-        return
-      }
-      const storage = guestInspectorFor(repository)
       const source = await bundledModEditableSource(mod)
-      const draft = await (await storage).import(source.filename, source.text, INSPECTOR_REFERENCE_ID)
-      navigate('document', draft.id)
+      setOpeningSource({ ...source, bytes: new TextEncoder().encode(source.text) })
+      navigation.navigate(modWorkspaceRoute('document', {}))
     }} onEdit={async revision => {
-      if (repository.kind === 'account' || await usesManagedGuestStorage(repository)) {
-        setOpeningSource(await readLibrarySource(repository, revision))
-        navigation.navigate(modWorkspaceRoute('document', {}))
-        return
-      }
-      const storage = guestInspectorFor(repository)
-      const source = await repository.readModSource(revision)
-      const draft = await (await storage).import(source.filename, source.text, INSPECTOR_REFERENCE_ID)
-      navigate('document', draft.id)
+      setOpeningSource(await readLibrarySource(repository, revision))
+      navigation.navigate(modWorkspaceRoute('document', {}))
     }}/></section> : <ModInspectorView embedded navigationId={navigationId} view={modEditorView(navigation.route.query)} onViewChange={next => navigate(next)} initialDraftId={navigation.route.query.draft?.[0]} onDraftChange={trackDraft} onSaveToLibrary={onSaveToLibrary} openSource={openingSource} onOpenSourceFinished={() => setOpeningSource(undefined)}/>}
     {creating && <DefinitionEditor open allowedKinds={[]} initialSourceMod={navigation.route.query.mod?.[0]} initialSourceModProjectId={navigation.route.query['mod-project']?.[0]} routeIndex={0} onClose={() => navigation.close()} onSaved={ref => navigation.navigate({ page: { page: 'reference', view: 'detail', ref }, overlays: [], query: {} })}/>}
   </div>
