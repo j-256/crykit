@@ -100,7 +100,7 @@ export function modLibrary(catalogs: readonly CatalogSnapshot[]): readonly Mod[]
     if (revision) projects.set(catalog.id, [...projects.get(catalog.id) ?? [], revision])
   }
   return [...projects.entries()].map(([id, values]) => {
-    const revisions = values.sort((left, right) => right.catalog.importedAt.localeCompare(left.catalog.importedAt) || left.catalogRevisionId.localeCompare(right.catalogRevisionId))
+    const revisions = values.sort((left, right) => left.catalogRevisionId.localeCompare(right.catalogRevisionId))
     return { id, title: revisions[0]!.title, revisions }
   }).sort((left, right) => left.title.localeCompare(right.title) || left.id.localeCompare(right.id))
 }

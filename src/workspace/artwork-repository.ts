@@ -1,3 +1,5 @@
+import { artifactSuppliesCatalog } from '../domain/source-artifacts'
+import { jsonEqual } from '../persistence/local-data'
 import { assertActiveProfile, trackProfileUrl, type ProfileToken } from '../account/profile'
 import { MOD_PROJECT_FIELD } from '../domain/mod-library'
 import { modArtworkReference } from '../domain/mod-artwork'
@@ -32,15 +34,14 @@ function texturePaths(family: string, record: Readonly<Record<string, unknown>>)
 
 function bindingForEntity(state: WorkspaceState, pin: ModCatalogPin, entity: ArtworkEntity, texturePath: string, sourcePath?: string): Binding | undefined {
   const catalog = state.planner.catalogs.find(value => value.id === pin.catalogId && value.revisionId === pin.catalogRevisionId)
-  const digest = catalog?.checksum.replace(/^sha256:/, '')
-  const source = state.planner.sources.find(value => value.digest === digest && value.original.sha256 === digest)
+  const source = catalog && state.planner.sources.find(value => artifactSuppliesCatalog(value, catalog) && value.original.sha256 === value.digest)
   const recordField = entity.fields['Crystal Edit source record']
   const projectField = entity.fields[MOD_PROJECT_FIELD]
   const familyField = entity.fields['Crystal Edit model type']
   const family = familyField?.state === 'known' && typeof familyField.value === 'string' ? familyField.value : undefined
   const record = recordField?.state === 'known' && jsonRecord(recordField.value) ? recordField.value : undefined
   const reference = family && record ? modArtworkReference(family, record) : undefined
-  if (!catalog || !source || !family || !record || !reference || typeof record.ID !== 'number' || !Number.isSafeInteger(record.ID) || !texturePaths(family, record).includes(texturePath) || projectField?.state !== 'known' || projectField.value !== catalog.id || recordField?.state !== 'known' || !recordField.sources?.some(value => value.sourceId === source.id)) return undefined
+  if (!catalog || !source || !family || !record || !reference || typeof record.ID !== 'number' || !Number.isSafeInteger(record.ID) || !texturePaths(family, record).includes(texturePath) || projectField?.state !== 'known' || projectField.value !== catalog.id || recordField?.state !== 'known') return undefined
   // Keep original archive identity distinct from the semantic json-content-v1 fingerprint
   return { source: pin, archiveId: source.id, digest: source.digest, family, modelId: record.ID, kind: entity.kind, reference, texturePath, ...(sourcePath === undefined ? {} : { sourcePath }) }
 }
@@ -62,8 +63,7 @@ function artworkBindingForPath(state: WorkspaceState, pin: ModCatalogPin, relati
   const safeRelativePath = normalizeProjectPath(relativePath)
   const catalog = state.planner.catalogs.find(value => value.id === pin.catalogId && value.revisionId === pin.catalogRevisionId)
   if (!catalog) throw new Error('The exact mod revision is unavailable for artwork')
-  const digest = catalog.checksum.replace(/^sha256:/, '')
-  const source = state.planner.sources.find(value => value.digest === digest && value.original.sha256 === digest)
+  const source = state.planner.sources.find(value => artifactSuppliesCatalog(value, catalog) && value.original.sha256 === value.digest)
   if (!source) throw new Error('The exact mod source is unavailable for artwork')
   const sourcePath = legacy ? undefined : normalizeProjectPath(selectedSourcePath ?? source.filename)
   if (sourcePath && (selectedSourcePath && sourcePath !== selectedSourcePath || !/\.json$/i.test(sourcePath))) throw new Error('Artwork source path must be the chosen JSON path')
@@ -123,9 +123,10 @@ export function findPrivateArtwork(state: WorkspaceState, pin: ModCatalogPin, en
 
 export function findPrivateArtworkForEntity(state: WorkspaceState, catalogId: string, entity: ArtworkEntity, catalogRevisionId?: string): WorkspaceAsset | undefined {
   const recordField = entity.fields['Crystal Edit source record']
-  const sourceId = recordField?.state === 'known' ? recordField.sources?.find(value => /^source:sha256:[a-f0-9]{64}$/.test(value.sourceId))?.sourceId : undefined
-  if (!sourceId) return undefined
-  const candidates = state.planner.catalogs.filter(value => value.id === catalogId && (!catalogRevisionId || value.revisionId === catalogRevisionId) && value.checksum === `sha256:${sourceId.slice('source:sha256:'.length)}` && value.entities[entity.id])
+  if (recordField?.state !== 'known') return undefined
+  // A content citation identifies definitions, never ownership of an original file
+  // Match the complete source record and its citations before looking up private artwork
+  const candidates = state.planner.catalogs.filter(value => value.id === catalogId && (!catalogRevisionId || value.revisionId === catalogRevisionId) && value.entities[entity.id] && jsonEqual(value.entities[entity.id]!.fields['Crystal Edit source record'], recordField))
   if (candidates.length !== 1) return undefined
   return findPrivateArtwork(state, { catalogId: candidates[0]!.id, catalogRevisionId: candidates[0]!.revisionId }, entity)
 }

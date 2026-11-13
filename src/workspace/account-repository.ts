@@ -1,3 +1,4 @@
+import { artifactSuppliesCatalog } from '../domain/source-artifacts'
 import { registerWorkspaceCapture } from './snapshot'
 import { WorkspaceBackupError } from '../interchange/workspace-backup-schema'
 import { reconcilableFileOutcome, registerOwnedFileCommitter, ownedFileReceipt, assertFileCommandResult, type OwnedFileCommand, type OwnedFileReceipt } from './owned-file-command'
@@ -274,7 +275,7 @@ async function accountRepository(token: ProfileToken, initialize: boolean): Prom
       const { state } = (await capture()).workspace
       const catalog = state.planner.catalogs.find(value => value.id === pin.catalogId && value.revisionId === pin.catalogRevisionId)
       if (!catalog || catalog.schemaVersion !== CRYSTAL_EDIT_CATALOG_SCHEMA) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'The exact saved mod revision is unavailable.')
-      const source = state.planner.sources.find(value => value.digest === catalog.checksum.replace(/^sha256:/, ''))
+      const source = state.planner.sources.find(value => artifactSuppliesCatalog(value, catalog))
       const body = source && state.blobs.find(blob => blobIdentity(blob.ref) === blobIdentity(source.original))
       if (!source || !body) throw new Error('The exact original mod source is unavailable')
       const bytes = await readBlob(body.content, source.original.byteLength)

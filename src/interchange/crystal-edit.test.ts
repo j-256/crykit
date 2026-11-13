@@ -1,5 +1,4 @@
 import { modModelEntity } from '../domain/mod-layers'
-import { IMPORTED_RULES_REVISION } from '../domain/game-rules'
 import { describe, expect, it } from 'vitest'
 import { CRYSTAL_EDIT_FIELDS, exportedTree, growthRatings } from '../domain/crystal-edit'
 import { previewImport } from './import'
@@ -69,8 +68,8 @@ describe('Crystal Edit reference import', () => {
     expect(preview.detectedFormat).toBe('crystal-edit-json-1')
     expect(preview.counts).toMatchObject({ reference: 2, personal: 0, mixed: 0 })
     const catalog = preview.proposed.catalogs[0]!
-    expect(Object.keys(catalog.entities).every(id => id.startsWith(`mod:${encodeURIComponent(input.ID)}:`))).toBe(true)
-    expect(catalog.revisionId).toBe(`sha256:${preview.sourceDigest}:${IMPORTED_RULES_REVISION}:${MOD_LIBRARY_IMPORT_REVISION}`)
+    expect(Object.keys(catalog.entities).every(id => id.startsWith(`mod:${catalog.id.split('/').at(-1)}:`))).toBe(true)
+    expect(catalog.revisionId).toMatch(new RegExp(`^j1-[a-f0-9]{64}-${MOD_LIBRARY_IMPORT_REVISION}$`))
     expect(NativeCatalogSnapshotSchema.safeParse(catalog).success).toBe(true)
     const job = modModelEntity(catalog, 'crystal-edit:Jobs:40')!
     expect(growthRatings(job)).toEqual({ HP: 70, MP: 20 })
@@ -121,7 +120,7 @@ describe('Crystal Edit reference import', () => {
   })
 
   it.each([
-    { ID: '\u3042'.repeat(512), EditorVersion: 34, Jobs: [{ ID: 0, Name: 'Oversized encoded identity' }] },
+    { ID: '\u3042'.repeat(513), EditorVersion: 34, Jobs: [{ ID: 0, Name: 'Oversized encoded identity' }] },
     { ID: 'invalid\u0000project', EditorVersion: 34, Jobs: [{ ID: 0, Name: 'Invalid identity' }] },
     { ID: 'bad', EditorVersion: 34, Jobs: [{ ID: 0, Name: 'Broken', HPRating: -1 }] },
     { ID: 'bad', EditorVersion: 34, Jobs: [{ ID: 0, Name: 'Broken', AbilityIDs: [1.5] }] },

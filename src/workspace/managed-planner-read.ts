@@ -1,3 +1,4 @@
+import { artifactSuppliesCatalog } from '../domain/source-artifacts'
 import type { ModCatalogPin } from '../domain/types'
 import type { SourceArchiveRecord } from '../interchange/types'
 import { NATIVE_BACKUP_ARCHIVE_LIMITS } from '../interchange/zip'
@@ -25,7 +26,7 @@ export async function readManagedModSource(state: WorkspaceState, pin: ModCatalo
   await check()
   const catalog = state.planner.catalogs.find(value => value.id === pin.catalogId && value.revisionId === pin.catalogRevisionId)
   if (!catalog || catalog.schemaVersion !== CRYSTAL_EDIT_CATALOG_SCHEMA) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'The exact saved mod revision is unavailable.')
-  const source = state.planner.sources.find(value => value.digest === catalog.checksum.replace(/^sha256:/, ''))
+  const source = state.planner.sources.find(value => artifactSuppliesCatalog(value, catalog))
   const body = source && state.blobs.find(value => blobIdentity(value.ref) === blobIdentity(source.original))
   if (!source || !body) throw new Error('The exact original mod source is unavailable')
   const bytes = await readBlob(body.content, source.original.byteLength)

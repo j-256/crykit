@@ -1,3 +1,5 @@
+import { IMPORT_INTERPRETATION } from './import-interpretations'
+import { sealImportedCatalog } from './source-identity'
 import type {
   CatalogClaim,
   CatalogEntity,
@@ -343,8 +345,8 @@ function buildCatalog(
   }
 
   return {
-    id: asCatalogId('crystal-project:reference'),
-    revisionId: asCatalogRevisionId(`sha256:${digest}`),
+    id: asCatalogId(`crystal-project/imported/xlsx1-${digest}`),
+    revisionId: asCatalogRevisionId(`b1-${digest}-${IMPORT_INTERPRETATION}`),
     schemaVersion: 'xlsx-v2',
     checksum: `sha256:${digest}`,
     importedAt,
@@ -566,12 +568,12 @@ export async function previewXlsx(bytes: Uint8Array, filename: string): Promise<
     })
   }
   const ambiguousEntityIds = new Set<string>()
-  const catalog = buildCatalog(workbook, digest, importedAt, warnings, ambiguousEntityIds)
+  const catalog = await sealImportedCatalog(buildCatalog(workbook, digest, importedAt, warnings, ambiguousEntityIds))
   const localData = createBlankLocalData('Imported playthrough', importedAt)
   const gameSetup = gameSetupFromWorkbook(workbook, catalog, digest, importedAt)
   const progress = progressFromWorkbook(workbook, catalog, digest, importedAt, warnings, ambiguousEntityIds)
   const inventoryEvents = inventoryEventsFromWorkbook(workbook, catalog, digest, importedAt, warnings, ambiguousEntityIds)
-  const receiptId = asImportReceiptId(`import:${digest}`)
+  const receiptId = asImportReceiptId(`import:${digest}:${IMPORT_INTERPRETATION}`)
   const playthroughId = localData.selectedPlaythroughId!
   const playthrough = localData.playthroughs[playthroughId]!
   const proposedLocalData: LocalData = {
@@ -591,6 +593,7 @@ export async function previewXlsx(bytes: Uint8Array, filename: string): Promise<
         id: receiptId,
         sourceFormat: 'xlsx-v2',
         sourceIdentity: `sha256:${digest}`,
+        catalogs: [{ catalogId: catalog.id, catalogRevisionId: catalog.revisionId }],
         importedAt,
         localDataRevision: localData.revision,
       },
@@ -616,6 +619,7 @@ export async function previewXlsx(bytes: Uint8Array, filename: string): Promise<
     format: 'xlsx-v2',
     importedAt,
     bytes: Uint8Array.from(bytes),
+    catalogs: [{ id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum }],
   }
   return {
     id: randomId('import-preview'),

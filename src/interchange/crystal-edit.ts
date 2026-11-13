@@ -1,4 +1,5 @@
-import { importedGameRules, IMPORTED_RULES_REVISION } from '../domain/game-rules'
+import { IMPORT_INTERPRETATION } from './import-interpretations'
+import { importedGameRules } from '../domain/game-rules'
 import { z } from 'zod'
 import { CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
 import { MOD_PROJECT_FIELD } from '../domain/mod-library'
@@ -7,20 +8,21 @@ import { bundledModEntityId } from '../domain/bundled-mods'
 import { gameRecordFacts } from '../domain/game-record-facts'
 import { NATIVE_GAME_DATA } from '../catalog/native-game'
 import { CRYSTAL_EDIT_LOCALIZATION_FIELD, CRYSTAL_EDIT_VERSION_FIELD, CURRENT_CRYSTAL_EDIT_VERSION, interpretCrystalEditRecord, supportsCrystalEditVersion } from '../domain/crystal-edit-compatibility'
-import { MAX_ID_LENGTH } from '../domain/limits'
+import { formatCatalogSourceId, importedJsonRevision, validDeclaredProjectId } from '../domain/source-identity'
+import { crystalEditSourceKey, sealImportedCatalog } from './source-identity'
 import { classFields, jsonRecord, LAST_VANILLA_JOB_ID, LEARN_NODE_TYPES, MAX_GROWTH_RATING, MAX_TREE_COLUMNS, MAX_TREE_ROWS, RATING_FIELDS } from '../domain/crystal-edit'
-import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, JsonValue, LocalData, SourceRef } from '../domain/types'
+import type { CatalogEntity, CatalogEntityKind, JsonValue, LocalData, SourceRef } from '../domain/types'
 import { AppDataError } from './errors'
 import { CRYSTAL_EDIT_JSON_LIMITS } from './crystal-edit-limits'
 import { modContentFingerprint } from './mod-content'
 import { parseBoundedJson } from './json'
 import type { ImportPreview, ImportProblem } from './types'
-import { asCatalogId, asCatalogRevisionId, asImportReceiptId, createBlankLocalData, nowTimestamp, randomId, sha256, stableSourceId } from './util'
+import { asImportReceiptId, createBlankLocalData, nowTimestamp, randomId, sha256, stableSourceId } from './util'
 
 export const CRYSTAL_EDIT_FORMAT = CRYSTAL_EDIT_CATALOG_SCHEMA
 export { CRYSTAL_EDIT_JSON_LIMITS } from './crystal-edit-limits'
-// Fingerprint metadata gets a new catalog revision; existing snapshots remain immutable
-export const MOD_LIBRARY_IMPORT_REVISION = 'library-v4'
+// Interpretation revisions pin projection semantics independently of original file bytes
+export const MOD_LIBRARY_IMPORT_REVISION = IMPORT_INTERPRETATION
 const MAX_MODELS = 20_000
 const modelId = z.number().int().min(0).max(0xffffffff)
 const ids = z.array(modelId).max(MAX_MODELS)
@@ -45,7 +47,7 @@ export function isCrystalEdit(value: JsonValue): boolean {
 
 export async function previewCrystalEdit(bytes: Uint8Array, filename: string, at?: import('../domain/types').Timestamp): Promise<ImportPreview> {
   const root = parseBoundedJson(bytes, filename, CRYSTAL_EDIT_JSON_LIMITS)
-  if (!isCrystalEdit(root) || !jsonRecord(root) || typeof root.ID !== 'string' || !root.ID.trim() || root.ID.length > 512 || root.EditorVersion !== undefined && (!Number.isSafeInteger(root.EditorVersion) || (root.EditorVersion as number) < 0 || (root.EditorVersion as number) > 0x7fffffff)) {
+  if (!isCrystalEdit(root) || !jsonRecord(root) || typeof root.ID !== 'string' || !validDeclaredProjectId(root.ID) || root.EditorVersion !== undefined && (!Number.isSafeInteger(root.EditorVersion) || (root.EditorVersion as number) < 0 || (root.EditorVersion as number) > 0x7fffffff)) {
     throw new AppDataError('schema-mismatch', 'Crystal Edit JSON requires a valid project ID, an optional non-negative editor version, and model arrays or calculation settings', { recoverable: true })
   }
   const editorVersion = typeof root.EditorVersion === 'number' ? root.EditorVersion : 0
@@ -59,9 +61,9 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string, at
   if (archived.length) warnings.push({ severity: 'warning', code: 'archived-models', message: `These models are retained in the original source but are not searchable reference records: ${archived.join(', ')}` })
   const entities: Record<string, CatalogEntity> = {}
   let total = 0
-  const sourceId = stableSourceId(digest)
-  const projectKey = encodeURIComponent(root.ID)
-  if (bundledModEntityId(projectKey, 'Equipment', 0xffffffff).length > MAX_ID_LENGTH || /[\u0000-\u001f\u007f]/.test(root.ID)) throw new AppDataError('schema-mismatch', 'The Crystal Edit project ID cannot produce a bounded portable entity identity', { recoverable: true })
+  const sourceId = `source:${contentFingerprint}`
+  const projectKey = await crystalEditSourceKey(root.ID)
+  const catalogId = formatCatalogSourceId({ game: 'crystal-project', origin: 'imported', key: projectKey })
   const identities: Record<string, string> = {}
   for (const [family, kind] of Object.entries(FAMILIES)) {
     const records = root[family]
@@ -80,7 +82,7 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string, at
       const source: SourceRef = { sourceId, locator: `/${family}/${index}`, snapshot: `Crystal Edit ${editorVersion}; project version ${typeof root.Version === 'string' ? root.Version.slice(0, 100) : 'unspecified'}`, applicability: 'Values from this project export; references may point to base-game definitions absent from the file' }
       // Project supported facts without rewriting the archived record or executing descriptions and formulas
       const fields = {
-        [MOD_PROJECT_FIELD]: { state: 'known' as const, value: `crystal-edit:${root.ID}`, sources: [source] },
+        [MOD_PROJECT_FIELD]: { state: 'known' as const, value: catalogId, sources: [source] },
         ...gameRecordFacts(root.IsLocalization === true ? record : interpretCrystalEditRecord(record, family, editorVersion), effectiveKind, source, NATIVE_GAME_DATA.enums),
         'Crystal Edit model ID': { state: 'known' as const, value: record.ID!, sources: [source] },
         'Crystal Edit model type': { state: 'known' as const, value: family, sources: [source] },
@@ -120,20 +122,20 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string, at
     }
   }
   if (missing.size) warnings.push({ severity: 'warning', code: 'external-model-references', message: `${missing.size} referenced ability or passive definitions are absent. Their IDs and tree positions are retained; names, costs, and effects remain unresolved.` })
-  const catalog: CatalogSnapshot = {
-    // Identical bytes interpreted by a changed parser need a new revision, preserving saved snapshot meanings
-    id: asCatalogId(`crystal-edit:${root.ID}`), revisionId: asCatalogRevisionId(`sha256:${digest}:${IMPORTED_RULES_REVISION}:${MOD_LIBRARY_IMPORT_REVISION}`), schemaVersion: CRYSTAL_EDIT_FORMAT,
-    checksum: `sha256:${digest}`, importedAt, entities, claims: [],
+  const catalog = await sealImportedCatalog({
+    // Content and interpretation identify definitions; the archive below owns acquisition metadata
+    id: catalogId, revisionId: importedJsonRevision(contentFingerprint, MOD_LIBRARY_IMPORT_REVISION), schemaVersion: CRYSTAL_EDIT_FORMAT,
+    checksum: '', entities, claims: [],
     applicability: { state: 'known', value: 'Crystal Edit project data; game platform and enabled-mod applicability are unverified' },
     rights: { state: 'unknown', reason: 'No content license is established by the project file' },
-    legacy: { gameRules: importedGameRules(root), projectTitle: typeof root.Title === 'string' && root.Title.trim() ? root.Title.slice(0, 512) : root.ID, editorVersion, projectVersion: root.Version ?? null, unresolvedReferences: [...missing], crystalEditIdentities: identities, contentFingerprint, ...(steamWorkshopFileId(root.SteamWorkshopFileID) ? { steamWorkshopFileId: steamWorkshopFileId(root.SteamWorkshopFileID)! } : {}) },
-  }
+    legacy: { projectId: root.ID, interpretation: MOD_LIBRARY_IMPORT_REVISION, gameRules: importedGameRules(root), projectTitle: typeof root.Title === 'string' && root.Title.trim() ? root.Title.slice(0, 512) : root.ID, editorVersion, projectVersion: root.Version ?? null, unresolvedReferences: [...missing], crystalEditIdentities: identities, contentFingerprint, ...(steamWorkshopFileId(root.SteamWorkshopFileID) ? { steamWorkshopFileId: steamWorkshopFileId(root.SteamWorkshopFileID)! } : {}) },
+  })
   const base = createBlankLocalData('Imported Crystal Edit references', importedAt)
-  const receiptId = asImportReceiptId(`import:${digest}:${IMPORTED_RULES_REVISION}:${MOD_LIBRARY_IMPORT_REVISION}`)
-  const localData: LocalData = { ...base, importReceipts: { [receiptId]: { id: receiptId, sourceFormat: CRYSTAL_EDIT_FORMAT, sourceIdentity: `sha256:${digest}`, importedAt, localDataRevision: 0 } } }
+  const receiptId = asImportReceiptId(`import:${digest}:${MOD_LIBRARY_IMPORT_REVISION}`)
+  const localData: LocalData = { ...base, importReceipts: { [receiptId]: { id: receiptId, sourceFormat: CRYSTAL_EDIT_FORMAT, sourceIdentity: `sha256:${digest}`, catalogs: [{ catalogId: catalog.id, catalogRevisionId: catalog.revisionId }], importedAt, localDataRevision: 0 } } }
   return {
     id: randomId('import-preview'), filename, detectedFormat: CRYSTAL_EDIT_FORMAT, detectedSchema: `Crystal Edit ${editorVersion}`, sourceDigest: digest,
     counts: { reference: total, personal: 0, mixed: 0, ignored }, warnings, errors: [], localData: { label: base.playthroughs[base.selectedPlaythroughId!]!.label },
-    proposed: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: [catalog], evidence: [], history: [], sources: [{ id: sourceId, digest, filename, mediaType: 'application/json', format: CRYSTAL_EDIT_FORMAT, importedAt, bytes: Uint8Array.from(bytes) }] },
+    proposed: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: [catalog], evidence: [], history: [], sources: [{ id: stableSourceId(digest), digest, filename, mediaType: 'application/json', format: CRYSTAL_EDIT_FORMAT, importedAt, bytes: Uint8Array.from(bytes), catalogs: [{ id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum }] }] },
   }
 }

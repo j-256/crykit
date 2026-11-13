@@ -145,7 +145,7 @@ export const NativeCatalogSnapshotSchema = z.object({
   revisionId: id,
   schemaVersion: nonemptyText,
   checksum: nonemptyText,
-  importedAt: timestamp,
+  importedAt: timestamp.optional(),
   applicability: knowledge(shortText),
   rights: knowledge(shortText),
   entities: z.record(id, catalogEntity),
@@ -194,7 +194,7 @@ const gameSetupRevision = z.object({
   modSourceReceipts: z.array(z.object({
     catalogId: id,
     catalogRevisionId: id,
-    checksum: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+    checksum: z.string().regex(/^(?:payload:)?sha256:[0-9a-f]{64}$/),
     title: nonemptyText,
     contentFingerprint: z.string().regex(/^json-content-v1:sha256:[0-9a-f]{64}$/).optional(),
   }).strict()).max(MAX_MOD_LAYERS).optional(),
@@ -437,6 +437,7 @@ const importReceipt = z.object({
   id,
   sourceFormat: nonemptyText,
   sourceIdentity: nonemptyText,
+  catalogs: z.array(z.object({ catalogId: id, catalogRevisionId: id }).strict()).optional(),
   importedAt: timestamp,
   localDataRevision: nonnegativeInteger,
 }).strict()
@@ -583,6 +584,7 @@ export const NativeSourceManifestSchema = z.object({
   mediaType: nonemptyText,
   format: ImportFormatSchema,
   importedAt: timestamp,
+  catalogs: z.array(z.object({ id, revisionId: id, checksum: nonemptyText }).strict()).optional(),
   path: z.string().regex(/^sources\/[0-9]{4}\.bin$/),
   size: nonnegativeInteger,
 }).strict()

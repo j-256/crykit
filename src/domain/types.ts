@@ -146,7 +146,7 @@ export interface CatalogSnapshot {
   readonly revisionId: CatalogRevisionId
   readonly schemaVersion: string
   readonly checksum: string
-  readonly importedAt: Timestamp
+  readonly importedAt?: Timestamp
   readonly applicability: Knowledge<string>
   readonly rights: Knowledge<string>
   readonly entities: Readonly<Record<string, CatalogEntity>>
@@ -591,6 +591,7 @@ export interface ImportReceipt {
   readonly id: ImportReceiptId
   readonly sourceFormat: string
   readonly sourceIdentity: string
+  readonly catalogs?: readonly ModCatalogPin[]
   readonly importedAt: Timestamp
   readonly localDataRevision: number
 }

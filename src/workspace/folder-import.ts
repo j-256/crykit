@@ -79,7 +79,8 @@ export async function previewModFolder(files: readonly FolderFile[]): Promise<Fo
         const source = await previewLibrarySource(importPreview)
         const catalog = importPreview.proposed.catalogs[0]!
         const legacy = jsonRecord(catalog.legacy) ? catalog.legacy : undefined
-        projects.push({ projectId: String(catalog.id).slice('crystal-edit:'.length), sourceId: source.sourceArchiveId, relativePath, originalRelativePath: entry.relativePath, title: modCatalogTitle(catalog), ...(typeof legacy?.projectVersion === 'string' ? { declaredVersion: legacy.projectVersion } : {}), byteLength: entry.file.size, importPreview })
+        if (typeof legacy?.projectId !== 'string') throw new Error('The source has no declared project identity')
+        projects.push({ projectId: legacy.projectId, sourceId: source.sourceArchiveId, relativePath, originalRelativePath: entry.relativePath, title: modCatalogTitle(catalog), ...(typeof legacy.projectVersion === 'string' ? { declaredVersion: legacy.projectVersion } : {}), byteLength: entry.file.size, importPreview })
       } catch (error) { excludedFiles.push({ relativePath, reason: error instanceof Error ? error.message : 'Unsupported Crystal Edit JSON' }) }
     } else if (/\.(png|jpe?g|webp)$/i.test(relativePath)) {
       if (entry.file.size <= MAX_IMAGE_BYTES) previewBytes += entry.file.size

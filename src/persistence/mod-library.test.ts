@@ -5,10 +5,11 @@ import { commitImport, exportBackup, loadLocalData, previewImport, saveLocalData
 import { setModInReference } from '../domain/reference-library'
 import { readModSource } from './mod-library'
 import { modLibrary } from '../domain/mod-library'
-import { MOD_LIBRARY_IMPORT_REVISION } from '../interchange/crystal-edit'
+import { crystalEditSourceKey, sealImportedCatalog } from '../interchange/source-identity'
 import type { CatalogRevisionId, ImportReceiptId } from '../domain/types'
 import { jsonRecord } from '../domain/crystal-edit'
 
+const syntheticCatalogId = `crystal-project/imported/${await crystalEditSourceKey('synthetic-library')}`
 let database: CryKitDatabase
 const original = '\ufeff{\r\n"ID":"synthetic-library","Title":"Synthetic mod","EditorVersion":34,"Passives":[{"ID":91000,"Name":"Synthetic passive","PP":1}]\r\n}'
 beforeEach(() => { database = new CryKitDatabase(`mods-library-${crypto.randomUUID()}`); setDatabaseForTests(database) })
@@ -19,7 +20,7 @@ it.each([4, 34])('keeps format %s source bytes and both revisions through a back
   const before = await loadLocalData()
   const save = async (text: string) => commitImport(await previewImport(new TextEncoder().encode(text), 'synthetic.json'), { mode: 'add-reference' })
   const first = await save(versioned)
-  const firstPin = modLibrary(first.catalogs).find(mod => mod.id === 'crystal-edit:synthetic-library')!.revisions[0]!
+  const firstPin = modLibrary(first.catalogs).find(mod => mod.id === syntheticCatalogId)!.revisions[0]!
   expect(await readModSource(firstPin)).toEqual({ filename: 'synthetic.json', text: versioned })
   const changed = versioned.replace('"PP":1', '"PP":2')
   const second = await save(changed)
@@ -52,7 +53,7 @@ it('rejects missing or damaged source bytes instead of manufacturing an editable
 it('persists reversible membership in backups, retains original sources, and rolls back failed removals', async () => {
   await loadLocalData()
   const imported = await commitImport(await previewImport(new TextEncoder().encode(original), 'synthetic.json'), { mode: 'add-reference' })
-  const pin = modLibrary(imported.catalogs).find(mod => mod.id === 'crystal-edit:synthetic-library')!.revisions[0]!
+  const pin = modLibrary(imported.catalogs).find(mod => mod.id === syntheticCatalogId)!.revisions[0]!
   const excluded = setModInReference(imported.localData, pin.catalogId, false)
   vi.spyOn(database.history, 'add').mockRejectedValueOnce(new DOMException('Synthetic membership failure', 'QuotaExceededError'))
   await expect(saveLocalData(excluded, imported.revision)).rejects.toMatchObject({ code: 'storage-failure' })
@@ -95,26 +96,24 @@ it('imports and re-includes a removed source atomically without duplicating an u
   expect(await database.sources.count()).toBe(initialSources + 2)
 })
 
-it('retains older parser revisions when enriching identical source bytes and restoring a backup', async () => {
+it('retains both interpretations of identical original bytes through a backup', async () => {
   const before = await loadLocalData()
-  const text = original.replace('"EditorVersion":34', '"EditorVersion":34,"SteamWorkshopFileID":123456')
-  const preview = await previewImport(new TextEncoder().encode(text), 'synthetic.json')
+  const preview = await previewImport(new TextEncoder().encode(original), 'synthetic.json')
   const catalog = preview.proposed.catalogs[0]!
-  const suffix = `:${MOD_LIBRARY_IMPORT_REVISION}`
-  const oldRevisionId = catalog.revisionId.replace(suffix, '') as CatalogRevisionId
-  const legacy = jsonRecord(catalog.legacy) ? { ...catalog.legacy } : {}
-  delete legacy.steamWorkshopFileId
+  const first = await commitImport(preview, { mode: 'add-reference' })
+  const firstPin = modLibrary(first.catalogs).find(mod => mod.id === catalog.id)!.revisions[0]!
+  const interpreted = await sealImportedCatalog({ ...catalog, revisionId: catalog.revisionId.replace(/-p1$/, '-p2') as CatalogRevisionId, legacy: { ...(jsonRecord(catalog.legacy) ? catalog.legacy : {}), interpretation: 'p2', steamWorkshopFileId: '123456' } })
   const receipt = Object.values(preview.proposed.localData.importReceipts)[0]!
-  const oldReceiptId = receipt.id.replace(suffix, '') as ImportReceiptId
-  const older = await commitImport({ ...preview, proposed: { ...preview.proposed, catalogs: [{ ...catalog, revisionId: oldRevisionId, legacy }], localData: { ...preview.proposed.localData, importReceipts: { [oldReceiptId]: { ...receipt, id: oldReceiptId } } } } }, { mode: 'add-reference' })
-  const oldPin = modLibrary(older.catalogs).find(mod => mod.id === catalog.id)!.revisions[0]!
-  const updated = await commitImport(preview, { mode: 'add-reference' })
+  const receiptId = receipt.id.replace(/:p1$/, ':p2') as ImportReceiptId
+  const nextPreview = { ...preview, id: receiptId, proposed: { ...preview.proposed, catalogs: [interpreted], sources: preview.proposed.sources.map(source => ({ ...source, catalogs: [{ id: interpreted.id, revisionId: interpreted.revisionId, checksum: interpreted.checksum }] })), localData: { ...preview.proposed.localData, importReceipts: { [receiptId]: { ...receipt, id: receiptId, catalogs: [{ catalogId: interpreted.id, catalogRevisionId: interpreted.revisionId }] } } } } }
+  const updated = await commitImport(nextPreview, { mode: 'add-reference' })
   expect(updated.localData.gameSetups).toEqual(before.localData.gameSetups)
   expect(updated.localData.buildRevisions).toEqual(before.localData.buildRevisions)
   const restored = await commitImport(await previewImport(await exportBackup(), 'synthetic-upgrade.zip'))
   const revisions = modLibrary(restored.catalogs).find(mod => mod.id === catalog.id)!.revisions
-  expect(revisions.map(revision => revision.catalogRevisionId)).toEqual(expect.arrayContaining([oldRevisionId, catalog.revisionId]))
-  expect(revisions.find(revision => revision.catalogRevisionId === oldRevisionId)?.steamWorkshopFileId).toBeUndefined()
-  expect(revisions.find(revision => revision.catalogRevisionId === catalog.revisionId)?.steamWorkshopFileId).toBe('123456')
-  expect(await readModSource(oldPin)).toEqual({ filename: 'synthetic.json', text })
+  expect(revisions.map(revision => revision.catalogRevisionId)).toEqual(expect.arrayContaining([catalog.revisionId, interpreted.revisionId]))
+  expect(revisions.find(revision => revision.catalogRevisionId === catalog.revisionId)?.steamWorkshopFileId).toBeUndefined()
+  expect(revisions.find(revision => revision.catalogRevisionId === interpreted.revisionId)?.steamWorkshopFileId).toBe('123456')
+  expect(await readModSource(firstPin)).toEqual({ filename: 'synthetic.json', text: original })
+  expect(await readModSource(revisions.find(revision => revision.catalogRevisionId === interpreted.revisionId)!)).toEqual({ filename: 'synthetic.json', text: original })
 })

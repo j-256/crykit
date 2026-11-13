@@ -3,6 +3,7 @@ import { entityDefinitionKey } from './core'
 import { jsonRecord } from './crystal-edit'
 import { catalogEntity } from './entity-identities'
 import { CRYSTAL_EDIT_CATALOG_SCHEMA } from './mod-layers'
+import { parseCatalogSourceId, parseSourceRevision } from './source-identity'
 import type { BuildReferenceName, BuildRevisionContent, CatalogSnapshot, EntityRef, GameSetupRevision, ModSourceReceipt } from './types'
 
 export function buildReferenceName(content: BuildRevisionContent, ref: EntityRef | null | undefined): string | undefined {
@@ -55,7 +56,11 @@ export function assertModSourceReceipts(setup: Pick<GameSetupRevision, 'modCompo
   const seen = new Set<string>()
   for (const receipt of setup.modSourceReceipts ?? []) {
     const key = JSON.stringify([receipt.catalogId, receipt.catalogRevisionId])
-    if (seen.has(key) || !receipt.catalogId.startsWith('crystal-edit:') || !receipt.catalogRevisionId.startsWith(`${receipt.checksum}:`) || !/^sha256:[0-9a-f]{64}:rules-v\d+:library-v\d+$/.test(receipt.catalogRevisionId) || !setup.modComposition?.layers.some(pin => pin.catalogId === receipt.catalogId && pin.catalogRevisionId === receipt.catalogRevisionId)) throw new Error('A mod source receipt does not match a pinned source layer')
+    const source = parseCatalogSourceId(receipt.catalogId)
+    const revision = source && parseSourceRevision(source.origin, receipt.catalogRevisionId)
+    const imported = source?.origin === 'imported' && revision?.kind === 'imported' && revision.encoding === 'j1' && /^payload:sha256:[a-f0-9]{64}$/.test(receipt.checksum) && receipt.contentFingerprint === `json-content-v1:sha256:${revision.digest}`
+    const prelaunch = receipt.catalogId.startsWith('crystal-edit:') && receipt.catalogRevisionId.startsWith(`${receipt.checksum}:`) && /^sha256:[0-9a-f]{64}:rules-v\d+:library-v\d+$/.test(receipt.catalogRevisionId)
+    if (seen.has(key) || !imported && !prelaunch || !setup.modComposition?.layers.some(pin => pin.catalogId === receipt.catalogId && pin.catalogRevisionId === receipt.catalogRevisionId)) throw new Error('A mod source receipt does not match a pinned source layer')
     seen.add(key)
   }
 }

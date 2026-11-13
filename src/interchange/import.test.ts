@@ -1,3 +1,4 @@
+import { researchSourceKey } from './source-identity'
 import { zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { previewImport } from './import'
@@ -59,7 +60,7 @@ describe('import format detection', () => {
       planner_rules: [{ rule_id: 'fixture:rule', rule: 'Fixture rule', scope: 'unknown' }],
     }), 'research.json')
     const catalog = preview.proposed.catalogs[0]
-    expect(catalog?.id).toBe('fixture:catalog')
+    expect(catalog?.id).toBe(`crystal-project/imported/${await researchSourceKey('fixture:catalog', '')}`)
     expect(Object.values(catalog?.entities ?? {}).some((entity) => entity.kind === 'location')).toBe(true)
     expect(catalog?.entities['fixture:rule']?.kind).toBe('other')
     expect(catalog?.claims).toEqual(expect.arrayContaining([

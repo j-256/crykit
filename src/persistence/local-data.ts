@@ -1,3 +1,4 @@
+import { mergeArtifactCatalogs } from '../domain/source-artifacts'
 import type { WorkspacePlannerState } from '../workspace/documents'
 import { publicContextContainers, publicUnavailableCatalogKeys } from '../domain/public-source-context'
 import { GUEST_PLANNER_LAYOUT_KEY, guestPlannerValuesEqual, validateGuestPlannerRecord, type ValidatedGuestPlanner } from './guest-planner-record'
@@ -292,6 +293,7 @@ export function catalogReferences(localData: LocalData, previous?: LocalData): S
     for (const [key, nested] of Object.entries(record)) if (key !== 'publicSourceContext' || !inert.has(record)) visit(nested, prior?.[key])
   }
   visit(localData, previous)
+  for (const receipt of Object.values(localData.importReceipts)) for (const pin of receipt.catalogs ?? []) keys.add(catalogSnapshotKey(pin.catalogId, pin.catalogRevisionId))
   for (const gameSetup of Object.values(localData.gameSetups)) {
     if (gameSetup.modComposition) for (const pin of [gameSetup.modComposition.baseline, ...gameSetup.modComposition.layers]) keys.add(catalogSnapshotKey(pin.catalogId, pin.catalogRevisionId))
     for (const [catalogId, revisionId] of Object.entries(gameSetup.catalogLock)) {
@@ -674,9 +676,8 @@ async function putCandidateData(database: CryKitDatabase, candidate: ImportCandi
   }
   for (const source of candidate.sources) {
     const existingSource = await database.sources.get(source.id)
-    const sourceMetadata = ({ bytes: _bytes, ...metadata }: typeof source): Omit<typeof source, 'bytes'> => metadata
     if (existingSource && (
-      !jsonEqual(sourceMetadata(existingSource), sourceMetadata(source)) ||
+      existingSource.digest !== source.digest || existingSource.format !== source.format || existingSource.mediaType !== source.mediaType ||
       !bytesEqual(existingSource.bytes, source.bytes)
     )) {
       throw new AppDataError('import-conflict', 'A source archive conflicts with existing local data', {
@@ -685,6 +686,10 @@ async function putCandidateData(database: CryKitDatabase, candidate: ImportCandi
       })
     }
     if (!existingSource) await database.sources.add(cloneJson(source))
+    else if (existingSource.catalogs || source.catalogs) {
+      // One byte archive can back several interpretations; first-acquisition metadata stays immutable
+      await database.sources.put({ ...existingSource, catalogs: mergeArtifactCatalogs(existingSource.catalogs, source.catalogs) })
+    }
   }
 }
 
@@ -742,7 +747,7 @@ export async function commitImport(
           }
           const catalogs = await Promise.all(preview.proposed.catalogs.map(async catalog => {
             const existing = await database.catalogs.get(catalogKey(catalog))
-            return existing ? { ...catalog, importedAt: existing.snapshot.importedAt } : catalog
+            return existing && catalog.importedAt !== undefined ? { ...catalog, importedAt: existing.snapshot.importedAt } : catalog
           }))
           const sources = await Promise.all(preview.proposed.sources.map(async source => {
             const existing = await database.sources.get(source.id)
@@ -1114,6 +1119,7 @@ async function encodeCapturedPlannerBackup(captured: PlannerBackupCapture): Prom
       mediaType: source.mediaType,
       format: source.format,
       importedAt: source.importedAt,
+      ...(source.catalogs ? { catalogs: source.catalogs } : {}),
       path,
       size: source.bytes.byteLength,
     }

@@ -1,4 +1,5 @@
 import type { CatalogSnapshot } from '../domain/types'
+import { mergeArtifactCatalogs } from '../domain/source-artifacts'
 import { configureModSetup } from '../domain/mod-setup'
 import { referenceLibraryWithMod } from '../domain/reference-library'
 import { CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
@@ -29,6 +30,7 @@ async function mergeCandidate(state: WorkspaceState, candidate: ImportCandidate)
       const { original: _original, ...metadata } = existing
       // Byte identity retains the first imported filename/time; later names cannot rewrite provenance
       if (metadata.digest !== source.digest || metadata.format !== source.format || metadata.mediaType !== source.mediaType) throw new Error('An original source identity conflicts')
+      if (existing.catalogs || source.catalogs) sources.set(source.id, { ...existing, catalogs: mergeArtifactCatalogs(existing.catalogs, source.catalogs) })
       continue
     }
     const ref = { documentId: `source:${source.id}`, revisionId: source.digest, byteLength: bytes.length, sha256: source.digest, encoding: 'bytes' as const }
@@ -36,7 +38,7 @@ async function mergeCandidate(state: WorkspaceState, candidate: ImportCandidate)
   }
   const catalogKey = (value: CatalogSnapshot) => JSON.stringify([value.id, value.revisionId])
   const known = new Map(state.planner.catalogs.map(value => [catalogKey(value), value]))
-  const catalogs = candidate.catalogs.map(value => known.has(catalogKey(value)) ? { ...value, importedAt: known.get(catalogKey(value))!.importedAt } : value)
+  const catalogs = candidate.catalogs.map(value => value.importedAt !== undefined && known.has(catalogKey(value)) ? { ...value, importedAt: known.get(catalogKey(value))!.importedAt } : value)
   return { ...state, blobs: [...blobs.values()], planner: { ...state.planner, catalogs: mergeImmutable(state.planner.catalogs, catalogs, catalogKey), sources: [...sources.values()], evidence: mergeImmutable(state.planner.evidence, candidate.evidence, value => value.id), history: mergeImmutable(state.planner.history, candidate.history, value => value.id) } }
 }
 export async function prepareWorkspaceImport(state: WorkspaceState, preview: ImportPreview, options: CommitImportOptions = {}): Promise<{ state: WorkspaceState; mode: 'additive' | 'replace' }> {
