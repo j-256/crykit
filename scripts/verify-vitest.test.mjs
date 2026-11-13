@@ -24,17 +24,23 @@ function blob(args) {
   if (path) { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, 'synthetic blob') }
 }
 
-test('prepared Node and native lanes overlap and merging waits for both', async t => {
-  const f = fixture(t), node = Promise.withResolvers(), native = Promise.withResolvers()
+test('prepared Node work finishes before native pairs and merging waits for every shard', async t => {
+  const f = fixture(t), node = Promise.withResolvers(), native = Array.from({ length: 4 }, () => Promise.withResolvers())
   f.env.CRYKIT_NATIVE_TEST_LOOPBACK = 'invalid-inherited-value'
   const calls = []
   const pending = verifyVitest({ ...f, run: async (args, options) => {
     const name = lane(args); calls.push({ name, args, env: options.env }); blob(args)
     if (name === 'node') await node.promise
-    if (name === 'native') await native.promise
+    if (name === 'native') await native[Number(args.find(arg => arg.startsWith('--shard=')).split('=')[1].split('/')[0]) - 1].promise
   } })
   try {
     await turn()
+    assert.deepEqual(calls.map(call => call.name), ['node'])
+    node.resolve(); await turn()
+    assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native'])
+    native[0].resolve(); await turn()
+    assert.equal(calls.length, 3)
+    native[1].resolve(); await turn()
     assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native', 'native', 'native'])
     assert.deepEqual(calls.slice(1).map(call => call.args.find(arg => arg.startsWith('--shard='))), ['--shard=1/4', '--shard=2/4', '--shard=3/4', '--shard=4/4'])
     assert.ok(calls.slice(1).every(call => call.args.includes('--maxWorkers=1') && call.args.includes('--bail=1')))
@@ -44,9 +50,9 @@ test('prepared Node and native lanes overlap and merging waits for both', async 
     assert.equal(calls[0].env.CRYKIT_NATIVE_TEST_PARTITION, '')
     assert.equal(calls[0].args.some(arg => arg.startsWith('--bail=')), false)
     assert.deepEqual([...new Set(calls.flatMap(call => call.args.filter(arg => arg.startsWith('--project=')).map(arg => arg.slice('--project='.length))))].sort(), [...PROJECTS].sort())
-    node.resolve(); await turn()
+    native[2].resolve(); await turn()
     assert.equal(calls.length, 5)
-  } finally { node.resolve(); native.resolve(); await pending }
+  } finally { node.resolve(); for (const release of native) release.resolve(); await pending }
   assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native', 'native', 'native', 'merge'])
 })
 
@@ -74,19 +80,19 @@ test('a native failure drains every remaining native peer before merging reports
   assert.equal(calls.at(-1), 'merge')
 })
 
-test('a failed lane drains its active sibling and cannot report success', async t => {
-  const f = fixture(t), release = Promise.withResolvers()
+test('a failed Node lane finishes cleanup without starting native processes', async t => {
+  const f = fixture(t), release = Promise.withResolvers(), calls = []
   let settled = false, cleaned = false
   const pending = verifyVitest({ ...f, run: async args => {
-    blob(args)
-    if (lane(args) === 'native') throw new Error('Synthetic native failure')
-    if (lane(args) === 'node') { await release.promise; cleaned = true }
+    calls.push(lane(args)); blob(args)
+    if (lane(args) === 'node') { await release.promise; cleaned = true; throw new Error('Synthetic Node failure') }
   } })
   const outcome = pending.then(() => { settled = true; return undefined }, error => { settled = true; return error })
-  try { await turn(); assert.equal(settled, false); assert.equal(cleaned, false) }
+  try { await turn(); assert.equal(settled, false); assert.equal(cleaned, false); assert.deepEqual(calls, ['node']) }
   finally { release.resolve() }
-  assert.match((await outcome)?.message ?? '', /Synthetic native failure/)
+  assert.match((await outcome)?.message ?? '', /Synthetic Node failure/)
   assert.equal(cleaned, true)
+  assert.deepEqual(calls, ['node'])
 })
 
 test('an unassigned configured project fails before any tests can be omitted', async t => {
@@ -175,10 +181,11 @@ test('later native case must not start', () => { writeFileSync('unexpected', 'ye
   assert.equal(report.numPassedTests, 1)
 })
 
-test('a real failed lane waits for its sibling transaction commit and cleanup', async t => {
+test('a real failed native shard waits for its peer transaction commit and cleanup', async t => {
   const f = realFixture(t, {
-    node: `import { existsSync } from 'node:fs'; test('fails after the sibling enters its transaction', async () => { while (!existsSync('entered')) await new Promise(resolve => setTimeout(resolve, 2)); expect('actual').toBe('expected') })`,
-    native: `import { DatabaseSync } from 'node:sqlite'; import { existsSync, writeFileSync } from 'node:fs';
+    node: `test('node case', () => expect(1).toBe(1))`,
+    native: `import { existsSync } from 'node:fs'; test('fails after the sibling enters its transaction', async () => { while (!existsSync('entered')) await new Promise(resolve => setTimeout(resolve, 2)); expect('actual').toBe('expected') })`,
+    'native-peer': `import { DatabaseSync } from 'node:sqlite'; import { existsSync, writeFileSync } from 'node:fs';
 const db = new DatabaseSync('retained.sqlite'); db.exec('CREATE TABLE records (value TEXT)');
 afterEach(() => { db.close(); writeFileSync('cleaned', String(existsSync('committed'))) });
 test('commits the active database transaction before cleanup', async () => {
@@ -191,12 +198,12 @@ test('commits the active database transaction before cleanup', async () => {
   const sqliteFlags = process.allowedNodeEnvironmentFlags.has('--experimental-sqlite') ? ['--experimental-sqlite'] : []
   f.env.NODE_OPTIONS = [f.env.NODE_OPTIONS, ...sqliteFlags].filter(Boolean).join(' ')
   const pending = verifyVitest({ ...f, report: message => {
-    if (message.includes('node lane failed')) {
+    if (/native-\d+ lane failed/.test(message)) {
       assert.equal(existsSync(join(f.cwd, 'cleaned')), false)
       writeFileSync(join(f.cwd, 'release'), 'yes')
     }
   } })
-  await assert.rejects(pending, /node lane failed/)
+  await assert.rejects(pending, /native-\d+ lane failed/)
   assert.equal(readFileSync(join(f.cwd, 'cleaned'), 'utf8'), 'true')
   const count = execFileSync(process.execPath, [...sqliteFlags, '--input-type=module', '-e', "import { DatabaseSync } from 'node:sqlite'; const db = new DatabaseSync('retained.sqlite'); console.log(db.prepare('SELECT COUNT(*) AS count FROM records').get().count); db.close()"], { cwd: f.cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
   assert.equal(count, '1')
