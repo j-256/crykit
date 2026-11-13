@@ -4,7 +4,8 @@ import { verifyVitest } from './vitest-verification.mjs'
 
 const USAGE = `Usage: npm run test:vitest:prepared -- [-h|--help]
 Run all prepared Vitest projects from the repository root without test filters.
-Local Node projects overlap independent serial native Worker/persistence shards.
+Local Node projects finish before native Worker/persistence shards run in pairs.
+Node failure prevents native startup; every native shard retains a serial worker.
 Each native shard stops after its first failure and that case's cleanup.
 All children drain before results merge; every child and report merge must pass.
 CI retains its configured single-process scheduling and worker limits.

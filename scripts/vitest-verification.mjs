@@ -8,6 +8,7 @@ const VITEST_CLI = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', im
 // Miniflare closes dispatched connections; separate loopback families reduce source-address allocation contention
 // Keep rejection-path transport behavior and a bounded number of isolated native processes
 const NATIVE_SHARDS = 4
+const NATIVE_CONCURRENCY = 2
 const NATIVE_LOOPBACK_FAMILIES = Object.freeze(['ipv4', 'ipv6'])
 const LANES = Object.freeze([
   { name: 'node', projects: ['unit', 'dom', 'persistence'] },
@@ -57,7 +58,7 @@ export async function verifyVitest({ cwd = process.cwd(), env = process.env, run
   if (projects.length !== assigned.length || new Set(projects).size !== projects.length || assigned.some(name => !projects.includes(name))) throw new VerificationError('The configured Vitest projects do not match the prepared lane assignments')
   const blobs = join(attempt, 'blobs')
   mkdirSync(blobs)
-  const results = await Promise.allSettled(LANES.map(lane => (async () => {
+  const runLane = async lane => {
     const args = ['run', `--config=${configFile}`, ...lane.projects.map(name => `--project=${name}`)]
     if (lane.workers) args.push(`--maxWorkers=${lane.workers}`)
     if (lane.shard) args.push(`--shard=${lane.shard}`)
@@ -65,7 +66,16 @@ export async function verifyVitest({ cwd = process.cwd(), env = process.env, run
     if (lane.bail) args.push(`--bail=${lane.bail}`)
     args.push('--reporter=default', '--reporter=blob', `--outputFile.blob=${join(blobs, `${lane.name}.json`)}`)
     await execute(args, `${lane.name} lane`, { ...env, CRYKIT_NATIVE_TEST_PARTITION: lane.shard ? 'balanced' : '', CRYKIT_NATIVE_TEST_LOOPBACK: lane.loopback ?? '' })
-  })()))
+  }
+  // Complete source snapshots make Node validation expensive enough to compete with native sync deadlines
+  // Preserve every case and deadline while separating Node work and bounding simultaneous native backends
+  await runLane(LANES[0])
+  const results = []
+  const nativeLanes = LANES.slice(1)
+  for (let index = 0; index < nativeLanes.length; index += NATIVE_CONCURRENCY) {
+    // Drain the whole pair after a failure before starting another backend or merging its evidence
+    results.push(...await Promise.allSettled(nativeLanes.slice(index, index + NATIVE_CONCURRENCY).map(runLane)))
+  }
   // A failure never cancels its sibling's active case or releases ownership before database cleanup
   // Merge failing reports too when available, retaining every result without authorizing publication
   const failed = results.find(result => result.status === 'rejected')
