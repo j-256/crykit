@@ -1,6 +1,5 @@
 import { definitionOrigins } from './definition-origins'
 import { fulfillSource } from './source-fulfillment'
-import { parseCatalogSourceId } from './source-identity'
 import { buildModReferences } from './build-references'
 import { retainedSelectionRefs } from './retained-selections'
 import { withBuildReferenceNames } from './build-reference-names'
@@ -44,8 +43,10 @@ export function buildModRequirements(content: BuildRevisionContent, localData: L
     const source = bundled && BUNDLED_MOD_LIBRARY.find(mod => mod.key === bundled.key)
     const originEntity = catalog && root.kind === 'catalog' ? catalogEntity(catalog, root.entityId) : undefined
     const origin = catalog && originEntity ? definitionOrigins(catalog, originEntity)?.mechanical : undefined
-    const originType = origin && parseCatalogSourceId(origin.catalogId)?.origin
-    const projectId = catalog?.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA ? catalog.id : origin && (originType === 'mod' || originType === 'imported') ? origin.catalogId : project?.state === 'known' && typeof project.value === 'string' ? project.value as CatalogId : source?.id
+    const originSource = origin && fulfillSource(origin, catalogs)?.catalog
+    // Research observations can name a required mod without providing an enableable project
+    // Only a complete Crystal Edit contributor establishes a source layer for the selection
+    const projectId = catalog?.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA ? catalog.id : originSource?.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA ? origin!.catalogId : project?.state === 'known' && typeof project.value === 'string' ? project.value as CatalogId : source?.id
     const reviewed = BUNDLED_MOD_LIBRARY.find(mod => mod.id === projectId)
     const key = projectId ?? `name:${normalizeModName(availability.requiredMod)}`
     const previous = requirements.get(key)

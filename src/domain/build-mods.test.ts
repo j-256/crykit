@@ -15,6 +15,7 @@ import type { BuildRevisionContent, CatalogRef, GameSetupRevision } from './type
 import { calculatePCStats } from './pc-stats'
 import { SUGGESTED_BUILD_SLOTS } from './build-planning'
 import { resolveCalculationEntity } from '../ui/model'
+import { syntheticCatalog } from '../workspace/test-helpers'
 
 vi.mock('../catalog/mod-library-metadata', async () => {
   const { SYNTHETIC_BUNDLED_MOD } = await import('../catalog/mod.test-helpers')
@@ -31,6 +32,15 @@ it('finds the source project for selections and growth without duplicate require
   expect(requirements).toEqual([{ name: 'Synthetic Library', projectId: BUNDLED_MOD_LIBRARY.find(mod => mod.key === 'synthetic-library')!.id, state: 'unknown', selections: ['Synthetic Class'] }])
   expect(buildModRequirements({ ...content, primaryClass: null, calculation: content.calculation }, data, [DEFAULT_CATALOG], setup)).toEqual(requirements)
   expect(data.gameSetups[setup.id]).toEqual(setup)
+})
+
+it('keeps imported mod observations separate from executable source layers', () => {
+  const entity = { id: 'observed-class' as CatalogRef['entityId'], kind: 'class' as const, name: 'Observed class', aliases: [], fields: { 'Source mod': { state: 'known' as const, value: 'Observed mod' } }, sources: [] }
+  const source = syntheticCatalog('mod-observations', undefined, { [entity.id]: entity })
+  const data = createTestLocalData()
+  const setup = { ...data.gameSetups[TEST_GAME_SETUP_REVISION_ID]!, mods: { state: 'known' as const, value: ['Observed mod'] } }
+  const ref: CatalogRef = { kind: 'catalog', catalogId: source.id, catalogRevisionId: source.revisionId, entityId: entity.id }
+  expect(buildModRequirements({ primaryClass: ref, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [] }, data, [source], setup)).toEqual([{ name: 'Observed mod', state: 'enabled', selections: ['Observed class'] }])
 })
 
 it('enables an exact synthetic source without rewriting named observations or older setups', async () => {
