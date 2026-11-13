@@ -32,6 +32,7 @@ const CI_PERSISTENCE_TEST_WORKERS = 1
 const persistenceTestWorkers = process.env.CI ? CI_PERSISTENCE_TEST_WORKERS : undefined
 const DOM_TEST_FILES = [
   'src/ui/account/service-availability.test.tsx',
+  'src/ui/PrelaunchWorkspaceNotice.test.tsx',
   'src/ui/WorldMapCanvas.test.tsx',
   'src/ui/mod-inspector/useVoxelBrush.test.tsx',
   'src/ui/admin/admin.test.tsx',

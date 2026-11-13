@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import type { AdmittedLocalSnapshot, LocalStoreAdapter } from './local-root'
 import type { WorkspaceState } from './documents'
 import { readUnselectedGuestRecoveryCapture } from './guest-snapshot'
@@ -95,7 +96,7 @@ export async function prepareManagedRecoveryCopy(captured: ManagedRecoveryCaptur
   const inherited = await readCapturedGuestEvidence(captured.database, captured.capture, captured.check, true, assertOwned)
   // Both complete pre-copy graphs remain portable evidence, including files removed by the chosen copy
   // Snapshot IDs are operation-owned; no captured native frame or historical selector is rewritten
-  const frozen = async (source: WorkspaceState, role: string) => guestEvidenceFromFrozenCurrent(ownWorkspaceSnapshot({ version: 1, snapshotId: `${operationId}-${role}`, capturedAt: new Date().toISOString(), revisionVector: { guest: captured.expected.id, capture: role === 'selected' ? JSON.stringify(captured.expected.root) : captured.capture.id }, state: source }, { check: captured.check, dispose: async () => {} }))
+  const frozen = async (source: WorkspaceState, role: string) => guestEvidenceFromFrozenCurrent(ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: `${operationId}-${role}`, capturedAt: new Date().toISOString(), revisionVector: { guest: captured.expected.id, capture: role === 'selected' ? JSON.stringify(captured.expected.root) : captured.capture.id }, state: source }, { check: captured.check, dispose: async () => {} }))
   const selected = await frozen(before.state, 'selected'), original = await frozen(recovered.state, 'retained')
   const plannerEvidence = { ...emptyPlannerEvidence(), savedChanges: projection.planner.savedChanges ?? projection.planner.localData.changes }
   let evidence = await mergeGuestEvidence(retained ?? selected, inherited, plannerEvidence)

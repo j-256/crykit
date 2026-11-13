@@ -1,4 +1,4 @@
-import { migrateLocalData250 } from '../domain/team-checkpoints'
+import { admitLaunchLocalData } from '../domain/team-checkpoints'
 import type { CatalogSnapshot, ChangeEntry, LocalData } from '../domain/types'
 import type { LocalDataRecord, MetaRecord } from '../persistence/database'
 import type { PersistedHistoryEntry } from '../interchange/types'
@@ -61,16 +61,7 @@ function validatePlanner(planner: WorkspacePlannerState): void {
   for (const change of planner.savedChanges ?? planner.localData.changes) NativeLocalDataSchema.shape.changes.element.parse(change)
   const history = mergeGuestPlannerEvidence([planner.history], value => value.id)
   const checkpoints = mergeGuestPlannerEvidence([planner.journal?.checkpoints ?? []], value => value.id)
-  const checkpointById = new Map(checkpoints.map(entry => [entry.id, entry]))
-  // Account migration retains frozen originals and separately projects operative endpoints with the same IDs
-  // Compare that exact schema transition without rewriting either collection or admitting arbitrary ID conflicts
-  const comparisonHistory = history.map(entry => {
-    const checkpoint = checkpointById.get(entry.id)
-    if (!checkpoint || String(entry.before.schemaVersion) !== '2.4.0' || String(entry.after.schemaVersion) !== '2.4.0'
-      || String(checkpoint.before.schemaVersion) !== '2.5.0' || String(checkpoint.after.schemaVersion) !== '2.5.0') return entry
-    return { ...entry, before: migrateLocalData250(entry.before, planner.catalogs), after: migrateLocalData250(entry.after, planner.catalogs) }
-  })
-  mergeGuestPlannerEvidence([comparisonHistory, checkpoints], value => value.id)
+  mergeGuestPlannerEvidence([history, checkpoints], value => value.id)
   mergeGuestPlannerEvidence([planner.savedChanges ?? [], planner.localData.changes], value => value.id)
 }
 function playthroughClocks(current: LocalData, resolved: LocalData, timestamp: LocalData['updatedAt']): LocalData {
@@ -109,7 +100,7 @@ export function prepareGuestRestorePlanner(current: WorkspacePlannerState, resol
   }
   if (!Number.isSafeInteger(current.localData.revision + 1)) throw new Error('Guest restore planner revision overflow')
   const timestamp = nowTimestamp()
-  const resolvedLocalData = migrateLocalData250(resolved.localData, resolved.catalogs)
+  const resolvedLocalData = admitLaunchLocalData(resolved.localData, resolved.catalogs)
   const target = ordinary ? resolvedLocalData : preserveLocalSelections(playthroughClocks(current.localData, resolvedLocalData, timestamp), current.localData)
   const saved = ordinary && command === 'save-localData' ? journaledLocalDataForSave(current.localData, target, destinationChanges, timestamp) : undefined
   const localData = saved?.localData ?? changedLocalData(current.localData, target, command, timestamp)
@@ -143,24 +134,4 @@ export function requirePreparedGuestPlanner(value: PreparedGuestPlanner): Prepar
   const projection = prepared.get(value)
   if (!projection) throw new Error('Unregistered guest planner preparation')
   return projection
-}
-
-// A format migration has no user command and cannot create an undo edge back to an obsolete schema
-export function prepareGuestDomainMigration250(current: WorkspacePlannerState, tuple: GuestPlannerCurrentTuple): PreparedGuestPlanner {
-  const admitted = validateGuestPlannerRecord(tuple.record, tuple.declaration, tuple.history, 'journaled', true)
-  if (admitted.format !== 'journaled' || !guestPlannerValuesEqual(tuple.record.localData, current.localData) || !guestPlannerValuesEqual(tuple.record.lineage, current.lineage) || !guestPlannerValuesEqual(admitted.journal, current.journal)) throw new Error('Frozen migration tuple does not match its source')
-  const ordered = (values: readonly PersistedHistoryEntry[]) => [...values].sort((a, b) => a.id.localeCompare(b.id))
-  if (!guestPlannerValuesEqual(ordered(tuple.history), ordered(current.history))) throw new Error('Frozen migration history differs from its source')
-  validatePlanner(current)
-  const migrate = (entry: PersistedHistoryEntry): PersistedHistoryEntry => ({ ...entry, before: migrateLocalData250(entry.before, current.catalogs), after: migrateLocalData250(entry.after, current.catalogs) })
-  const checkpoints = admitted.journal.checkpoints.map(migrate)
-  const byId = new Map(checkpoints.map(entry => [entry.id, entry]))
-  const localData = migrateLocalData250(current.localData, current.catalogs)
-  const planner: WorkspacePlannerState = { ...current, localData, history: current.history.map(entry => byId.get(entry.id) ?? entry), journal: { ...admitted.journal, checkpoints } }
-  const record = { ...tuple.record, localData, operativePlanner: admitted.descriptor }
-  validatePlanner(planner)
-  validateGuestPlannerRecord(record, tuple.declaration, planner.history, 'journaled')
-  const token = Object.freeze({}) as PreparedGuestPlanner
-  prepared.set(token, captureProjection({ current, resolved: planner, mode: 'additive', planner, record, declaration: tuple.declaration }))
-  return token
 }

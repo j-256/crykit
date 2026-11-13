@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { expect, it } from 'vitest'
 import { editorClosureFixture } from './test-helpers'
 import { ownWorkspaceSnapshot } from './snapshot'
@@ -8,7 +9,7 @@ import type { LocalStoreAdapter } from './local-root'
 
 it('retains exact native evidence metadata and invalid original bytes through managed storage', async () => {
   const fixture = await editorClosureFixture()
-  const snapshot = ownWorkspaceSnapshot({ version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: {}, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
+  const snapshot = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: {}, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
   const original = await guestEvidenceFromFrozenCurrent(snapshot)
   const evidence = await mergeGuestEvidence(original, original, emptyPlannerEvidence())
   const rows = new Map<string, Uint8Array>()

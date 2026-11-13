@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import './guest-managed-monitor.test-helpers'
 import { expect, it } from 'vitest'
 import { createBlankLocalData } from '../domain/local-data'
@@ -23,7 +24,7 @@ async function fixture(label: string): Promise<WorkspaceState> {
 it('stages complete managed restore without selecting it, then preserves both exact original graphs through restart', async () => {
   const database = new GuestCoordinatorDatabase(`synthetic-managed-restore-${crypto.randomUUID()}`), store = createGuestLocalStore(database, () => {})
   const current = await fixture('destination'), incoming = await fixture('incoming')
-  const input = ownWorkspaceSnapshot({ version: 1, snapshotId: 'synthetic-input', capturedAt: new Date().toISOString(), revisionVector: { synthetic: 'incoming' }, state: incoming }, { check: async () => {}, dispose: async () => {} })
+  const input = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'synthetic-input', capturedAt: new Date().toISOString(), revisionVector: { synthetic: 'incoming' }, state: incoming }, { check: async () => {}, dispose: async () => {} })
   let preview: Awaited<ReturnType<typeof previewGuestWorkspaceRestore>> | undefined
   let exported: Awaited<ReturnType<typeof captureWorkspaceSnapshot>> | undefined
   try {
@@ -81,7 +82,7 @@ it('stages complete managed restore without selecting it, then preserves both ex
 it('rejects a preview after a local edit and cannot activate a released or old-profile stage', async () => {
   const database = new GuestCoordinatorDatabase(`synthetic-restore-fences-${crypto.randomUUID()}`), store = createGuestLocalStore(database, () => {})
   const state = await fixture('captured'), incoming = await fixture('replacement')
-  const input = ownWorkspaceSnapshot({ version: 1, snapshotId: 'fenced-input', capturedAt: new Date().toISOString(), revisionVector: { synthetic: 'fenced' }, state: incoming }, { check: async () => {}, dispose: async () => {} })
+  const input = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'fenced-input', capturedAt: new Date().toISOString(), revisionVector: { synthetic: 'fenced' }, state: incoming }, { check: async () => {}, dispose: async () => {} })
   const previews: Awaited<ReturnType<typeof previewGuestWorkspaceRestore>>[] = []
   try {
     const prepared = await prepareLocalWorkspace(store.adapter, 'initial', state, { check: () => {}, assertCurrent: async () => {} })

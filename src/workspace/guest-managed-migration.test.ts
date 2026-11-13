@@ -1,9 +1,9 @@
+import { createBlankLocalData } from '../domain/local-data'
 import './guest-managed-monitor.test-helpers'
 import 'fake-indexeddb/auto'
 import Dexie from 'dexie'
 import { expect, it, vi } from 'vitest'
 import { CryKitDatabase } from '../persistence/database'
-import { loadLocalData } from '../persistence/local-data'
 import { openGuestBindings, readGuestWorkspace } from './guest-workspace'
 import { migrateGuestWorkspace, reconcileGuestManagedMigration } from './guest-managed-migration'
 import { openGuestManagedRepository, managedGuestRecoveryNotices } from './guest-managed-repository'
@@ -14,9 +14,13 @@ import { createGuestLocalStore } from './guest-local-store'
 import { admitLocalRoot } from './local-root'
 import { acquireParticipantBarrier, GUEST_BARRIER_KEY } from './guest-barrier'
 
-it('prepares a legacy guest once and atomically retains its exact managed head and original databases', async () => {
+// These detached graph fixtures have no source references; full source retention has its own cross-device test
+vi.mock('../catalog/bundled', async importOriginal => ({ ...await importOriginal<typeof import('../catalog/bundled')>(), BUNDLED_CATALOGS: [] }))
+
+it('prepares a supported detached guest graph once and atomically retains its exact managed head and original databases', async () => {
   const original = new CryKitDatabase(`synthetic-managed-migration-${crypto.randomUUID()}`)
-  await loadLocalData(original)
+  const localData = createBlankLocalData()
+  await original.localDatas.add({ id: 'local-data-record', revision: localData.revision, updatedAt: localData.updatedAt, localData, lineage: { rootLocalDataId: localData.id } })
   const binding = await openGuestBindings(original)
   await binding.files.open(); await binding.inspector.openDatabase()
   const before = await readGuestWorkspace(binding)
@@ -59,7 +63,8 @@ it('prepares a legacy guest once and atomically retains its exact managed head a
 
 it('retains the old head after a source race and reconciles interrupted barriers without deleting preparation', async () => {
   const original = new CryKitDatabase(`synthetic-managed-race-${crypto.randomUUID()}`)
-  await loadLocalData(original)
+  const localData = createBlankLocalData()
+  await original.localDatas.add({ id: 'local-data-record', revision: localData.revision, updatedAt: localData.updatedAt, localData, lineage: { rootLocalDataId: localData.id } })
   const binding = await openGuestBindings(original)
   await binding.files.open(); await binding.inspector.openDatabase()
   const rows = binding.coordinator.table('managedMigrations'), add = rows.add.bind(rows)
@@ -95,7 +100,8 @@ it('migrates an actually published v2 restore with exact inherited history and l
   const { openHistoricalSnapshot } = await import('./snapshot')
   const { createEditorRepository } = await import('./editor-repository')
   const original = new CryKitDatabase(`synthetic-managed-v2-${crypto.randomUUID()}`)
-  await loadLocalData(original)
+  const localData = createBlankLocalData()
+  await original.localDatas.add({ id: 'local-data-record', revision: localData.revision, updatedAt: localData.updatedAt, localData, lineage: { rootLocalDataId: localData.id } })
   const binding = await openGuestBindings(original)
   await guestParticipants(binding)
   const text = '\ufeff{\r\n"Unknown":900719925474099312345,"Text":"\\ud800"\r\n}'

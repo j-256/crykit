@@ -1,6 +1,7 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import type { WorkspaceRepository } from './repository'
 import { splitWorkspace, type WorkspaceState } from './documents'
-import { validateWorkspaceClosure, inspectWorkspaceClosure, ARCHIVAL_DOCUMENT_KINDS, type WorkspaceBodyValidation } from './closure'
+import { validateWorkspaceClosure, inspectWorkspaceClosures, ARCHIVAL_DOCUMENT_KINDS, type WorkspaceBodyValidation } from './closure'
 import { blobIdentity, hashBlob, memoryBlob } from './blobs'
 import { SnapshotHeaderSchema, SnapshotHeaderV2Schema, WorkspaceBackupError, type HistoricalEvidenceSchema, type SourceEvidenceSchema } from '../interchange/workspace-backup-schema'
 import { encodeBackupJson } from '../interchange/workspace-backup-json'
@@ -11,6 +12,7 @@ import { isImmutableCatalogSnapshot } from '../interchange/native'
 
 export interface WorkspaceSnapshotV1 {
   readonly version: 1
+  readonly dataGeneration: typeof LAUNCH_DATA_GENERATION
   readonly snapshotId: string
   readonly capturedAt: string
   readonly revisionVector: Readonly<Record<string, string>>
@@ -104,12 +106,13 @@ export async function validateWorkspaceSnapshotV1(snapshot: WorkspaceSnapshotV1,
   const annex = snapshot.sourceEvidence
   const keys = new Set<string>(), used = new Set<string>()
   const current = new Map(splitWorkspace(snapshot.state).map(document => [document.key, document]))
-  for (const unit of annex.units) {
+  const inspectedUnits = await inspectWorkspaceClosures(snapshot.state, annex.units.map(unit => unit.closure))
+  for (const [index, unit] of annex.units.entries()) {
     if (keys.has(unit.key)) throw new Error('Duplicate current-unit evidence')
     keys.add(unit.key)
     const projected = current.get(unit.key)
     if (!projected || await backupMetadataDigest(projected) !== unit.projectedDigest) throw new Error('Current-unit evidence has a foreign projected association')
-    const inspected = await inspectWorkspaceClosure(snapshot.state, unit.closure)
+    const inspected = inspectedUnits[index]!
     if (inspected.root.key !== unit.key) throw new Error('Current-unit evidence key mismatch')
     const semantic = (value: unknown) => {
       if (projected.kind !== 'playthrough') return value

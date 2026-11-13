@@ -1,7 +1,8 @@
+import { LOCAL_DATA_SCHEMA_VERSION } from '../domain/types'
 import { assertActiveProfile, type ProfileToken } from '../account/profile'
 import type { AccountDatabase, AccountFence } from '../persistence/account-database'
 import { accountLocalId } from './account-cache'
-import { openOrMapAccountWorkspace } from './account-intents'
+import { openExactAccountWorkspace } from './account-intents'
 import { createAccountLocalStore } from './account-local-store'
 import { captureAccountSnapshot } from './account-snapshot'
 import { disposeWorkspaceSnapshot } from './snapshot'
@@ -15,7 +16,7 @@ import { guestPlannerValuesEqual } from '../persistence/guest-planner-equality'
 // Staging cannot select itself after restart; only the existing encrypted head CAS publishes it
 export async function prepareAccountManagedMigration(database: AccountDatabase, token: ProfileToken, input: AccountFence) {
   assertActiveProfile(token)
-  const selected = await openOrMapAccountWorkspace(database, token, structuredClone(input))
+  const selected = await openExactAccountWorkspace(database, token, structuredClone(input))
   const expected = selected.fence, store = createAccountLocalStore(database, token), operationId = accountLocalId()
   const check = async () => {
     assertActiveProfile(token)
@@ -26,8 +27,8 @@ export async function prepareAccountManagedMigration(database: AccountDatabase, 
   let inherited: Awaited<ReturnType<typeof inheritWorkspaceSnapshot>> | undefined
   try {
     await check()
-    // Earlier domain migration owns normalization and its mapped intent; do not reinterpret its old endpoints here
-    if (selected.workspace.state.planner.localData.schemaVersion !== '2.5.0') throw new Error('The account needs its native domain migration before managed preparation')
+    // Detached graph conversion accepts only launch endpoints and never normalizes saved domain values
+    if (selected.workspace.state.planner.localData.schemaVersion !== LOCAL_DATA_SCHEMA_VERSION) throw new Error('Unsupported prelaunch account data')
     source = await captureAccountSnapshot(selected.workspace, expected, check, { database, token })
     inherited = await inheritWorkspaceSnapshot(source, [source])
     const evidence = await guestEvidenceFromSnapshot(inherited, emptyPlannerEvidence())

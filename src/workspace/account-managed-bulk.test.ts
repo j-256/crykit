@@ -6,26 +6,25 @@ import { accountLocalId, readAccountBytes } from './account-cache'
 import { createAccountLocalStore } from './account-local-store'
 import { prepareLocalWorkspace } from './local-root'
 import { openAccountManagedRepository, IncrementalWorkspaceIntentSchema } from './account-managed-repository'
-import { editorClosureFixture } from './test-helpers'
+import { editorClosureFixture, syntheticCatalog } from './test-helpers'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { blobIdentity } from './blobs'
 import { immutableCatalogSnapshot } from '../interchange/native'
-import type { CatalogSnapshot } from '../domain/types'
 
 it('captures mutable catalogs before yielding while retaining admitted immutable catalog identities', async () => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   const database = new AccountDatabase(token.accountId), store = createAccountLocalStore(database, token)
   try {
     const fixture = await editorClosureFixture(), operation = accountLocalId()
-    const catalog = immutableCatalogSnapshot({ id: 'synthetic-catalog', revisionId: 'original', schemaVersion: '1', checksum: 'synthetic-original', importedAt: '2026-01-01T00:00:00.000Z', applicability: { state: 'unknown' }, rights: { state: 'unknown' }, entities: {}, claims: [] } as unknown as CatalogSnapshot)
+    const catalog = immutableCatalogSnapshot(syntheticCatalog('admitted'))
     const initial = { ...fixture.state, planner: { ...fixture.state.planner, catalogs: [catalog] } }
     const prepared = await prepareLocalWorkspace(store.adapter, operation, initial, store.lifetime)
     await activateLocalAccountCommit(database, token, await store.prepareActivation(operation, prepared, undefined)); store.committed(operation)
     const repository = await openAccountManagedRepository(database, token, (await database.profileMeta.get('active'))!)
     const before = await repository.readWorkspace(), admitted = before.planner.catalogs[0]!
-    const mutable = structuredClone({ ...catalog, id: 'synthetic-new-catalog' as CatalogSnapshot['id'], checksum: 'synthetic-new' })
+    const mutable = syntheticCatalog('mutable')
     const importing = repository.commitWorkspace({ ...before, planner: { ...before.planner, catalogs: [admitted, mutable] } }, before.planner.localData.revision)
-    mutable.importedAt = 'late mutation' as CatalogSnapshot['importedAt']
+    Object.assign(mutable, { importedAt: 'late mutation' })
     await importing
     const after = await repository.readWorkspace()
     expect(after.planner.catalogs[0]).toBe(admitted)

@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { expect, it } from 'vitest'
 import type { CatalogSnapshot } from '../domain/types'
 import { immutableCatalogSnapshot } from '../interchange/native'
@@ -12,7 +13,7 @@ it('retains admitted immutable catalogs while isolating mutable captured data', 
   Object.freeze(unowned)
   const state = { ...fixture.state, planner: { ...fixture.state.planner, catalogs: [admitted, unowned] } }
   const id = state.planner.localData.id
-  const snapshot = ownWorkspaceSnapshot({ version: 1, snapshotId: 'catalog-ownership', capturedAt: '2026-10-17', revisionVector: {}, state }, { async check() {}, async dispose() {} })
+  const snapshot = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'catalog-ownership', capturedAt: '2026-10-17', revisionVector: {}, state }, { async check() {}, async dispose() {} })
   expect(snapshot.state.planner.catalogs[0]).toBe(admitted)
   Object.assign(unowned.legacy!, { marker: 'Later caller edit' })
   Object.assign(state.planner.localData, { id: 'changed-after-capture' })

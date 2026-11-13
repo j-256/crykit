@@ -1,4 +1,4 @@
-import { isRequiredPlannerNativeVersionError, assertRequiredPlannerDatabaseOpen, captureRequiredPlannerOpeningError, CryKitDatabase } from '../persistence/database'
+import { assertRequiredPlannerDatabaseOpen, captureRequiredPlannerOpeningError, CryKitDatabase } from '../persistence/database'
 
 interface RequiredPlannerOpeningOwner {
   readonly signal: AbortSignal
@@ -14,7 +14,7 @@ function cancellationReason(signal: AbortSignal): unknown {
   return signal.reason === undefined ? new DOMException('Required planner opening cancelled', 'AbortError') : signal.reason
 }
 
-export async function openRequiredGuestPlanner(name: string, owner: RequiredPlannerOpeningOwner, frozenSource240 = false): Promise<CryKitDatabase> {
+export async function openRequiredGuestPlanner(name: string, owner: RequiredPlannerOpeningOwner): Promise<CryKitDatabase> {
   const signal = owner.signal
   const assertCurrent = owner.assertCurrent.bind(owner)
   const assertOwner = () => {
@@ -30,7 +30,7 @@ export async function openRequiredGuestPlanner(name: string, owner: RequiredPlan
   assertOwner()
 
   // Keep this fresh handle private until open, owner currentness and native admission all succeed
-  const candidate = new CryKitDatabase(name, { plannerFormatRequirement: 'journaled', ...(frozenSource240 ? { frozenSource240: true } : {}) })
+  const candidate = new CryKitDatabase(name, { plannerFormatRequirement: 'journaled' })
   const normalizeOpeningError = captureRequiredPlannerOpeningError(candidate)
   const cleanupFailures: unknown[] = []
   let resolveAbort!: (outcome: OpeningOutcome) => void
@@ -71,17 +71,9 @@ export async function openRequiredGuestPlanner(name: string, owner: RequiredPlan
     // A failed required handle is terminal; retries need a newly constructed candidate
     try { candidate.close() } catch (error) { cleanupFailures.push(error) }
     if (cleanupFailures.length) throw new AggregateError([primary, ...cleanupFailures], 'Required planner opening cleanup failed', { cause: primary })
-    if (isRequiredPlannerNativeVersionError(candidate, primary) && primary !== null && typeof primary === 'object') nativeVersionErrors.add(primary)
     throw primary
   }
 }
 
-const nativeVersionErrors = new WeakSet<object>()
-export async function openSelectedGuestPlanner(name: string, owner: RequiredPlannerOpeningOwner): Promise<CryKitDatabase> {
-  try { return await openRequiredGuestPlanner(name, owner, true) }
-  catch (error) {
-    // Only the actual native VersionError permits trying the other closed supported layout
-    if (error === null || typeof error !== 'object' || !nativeVersionErrors.has(error)) throw error
-    return openRequiredGuestPlanner(name, owner)
-  }
-}
+// The launch format has one selected native layout; old layouts never get a trial opening
+export const openSelectedGuestPlanner = openRequiredGuestPlanner

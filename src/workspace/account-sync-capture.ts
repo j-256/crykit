@@ -3,7 +3,7 @@ import { assertActiveProfile, type ProfileToken } from '../account/profile'
 import type { AccountDatabase, AccountFence } from '../persistence/account-database'
 import { openAccountJson } from './account-cache'
 import { z } from 'zod'
-import { openOrMapAccountWorkspace } from './account-intents'
+import { openExactAccountWorkspace } from './account-intents'
 import { AccountWorkspaceRootV1Schema, AccountWorkspaceRootV2Schema, openAccountWorkspace } from './account-graph'
 import { openAccountInheritedEvidence, type AccountInheritedEvidence } from './account-evidence-snapshots'
 import { createAccountLocalStore } from './account-local-store'
@@ -25,7 +25,7 @@ export async function isManagedAccountHead(database: AccountDatabase, token: Pro
 export async function captureAccountSyncWorkspace(database: AccountDatabase, token: ProfileToken, input: AccountFence, signal?: AbortSignal) {
   const fence = structuredClone(input)
   if (!await isManagedAccountHead(database, token, fence)) {
-    const captured = await openOrMapAccountWorkspace(database, token, fence)
+    const captured = await openExactAccountWorkspace(database, token, fence)
     return { ...captured, managed: false as const, inheritedEvidence: captured.workspace.inheritedEvidence, validatedEvidence: undefined, operativePlanner: captured.workspace.state.planner, dispose: async () => {} }
   }
   const store = createAccountLocalStore(database, token)

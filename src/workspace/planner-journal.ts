@@ -1,4 +1,4 @@
-import { migrateLocalData250 } from '../domain/team-checkpoints'
+import { admitLaunchLocalData } from '../domain/team-checkpoints'
 import { z } from 'zod'
 import type { ChangeEntry, LocalData } from '../domain/types'
 import type { PersistedHistoryEntry } from '../interchange/types'
@@ -66,9 +66,11 @@ export function projectPlanner(current: WorkspacePlannerState, accepted: Workspa
   return { ...accepted, localData, history, savedChanges: originals, journal: { version: 1, changes: localData.changes, checkpoints: [...connectedHistory(current), checkpoint], undoable: false } }
 }
 
-// Original history stays inert; only the separately owned undo endpoints acquire the live domain shape
-export function migratePlanner250(planner: WorkspacePlannerState): WorkspacePlannerState {
-  if (String(planner.localData.schemaVersion) === '2.5.0') return planner
-  const checkpoints = connectedHistory(planner).map(entry => ({ ...entry, before: migrateLocalData250(entry.before, planner.catalogs), after: migrateLocalData250(entry.after, planner.catalogs) }))
-  return { ...planner, localData: migrateLocalData250(planner.localData, planner.catalogs), journal: { version: 1, changes: planner.localData.changes, checkpoints, undoable: planner.journal?.undoable ?? checkpoints.length > 0 } }
+export function admitLaunchPlanner(planner: WorkspacePlannerState): WorkspacePlannerState {
+  admitLaunchLocalData(planner.localData, planner.catalogs)
+  for (const entry of [...planner.history, ...(planner.journal?.checkpoints ?? [])]) {
+    admitLaunchLocalData(entry.before, planner.catalogs)
+    admitLaunchLocalData(entry.after, planner.catalogs)
+  }
+  return planner
 }

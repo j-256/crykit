@@ -1,3 +1,5 @@
+import { checkpointContentDigest } from '../domain/checkpoint-identity'
+import type { CatalogSnapshot } from '../domain/types'
 import { sha256 } from '../interchange/util'
 import { createBlankLocalData } from '../domain/local-data'
 import { memoryBlob } from './blobs'
@@ -26,4 +28,11 @@ export async function editorClosureFixture() {
   const index = await add({ version: 1, kind: 'conflict-closure-page', entries, children: [] }, 'index')
   const closure = { version: 1 as const, root, index }
   return { state: { ...state, blobs, retainedContent: [{ version: 1 as const, kind: 'pending-content' as const, id: 'pending-1', groupId: 'portable-group', unit: { kind: 'record' as const, privateKey: '["editor","editor-1"]' }, base: { kind: 'absent' as const }, target: closure }] }, blobs, add, closure, file, entries }
+}
+
+// Small complete sources keep storage contract fixtures independent of the packaged collection
+export function syntheticCatalog(label: string, legacy?: Record<string, string>): CatalogSnapshot {
+  const digest = checkpointContentDigest(label)
+  const content = { id: `crystal-project/imported/research1-${digest}` as CatalogSnapshot['id'], revisionId: `j1-${digest}-p1` as CatalogSnapshot['revisionId'], schemaVersion: 'synthetic', importedAt: '2026-01-01T00:00:00.000Z' as CatalogSnapshot['importedAt'], applicability: { state: 'unknown' as const }, rights: { state: 'unknown' as const }, entities: {}, claims: [], ...(legacy ? { legacy } : {}) }
+  return { ...content, checksum: `payload:sha256:${checkpointContentDigest(content)}` }
 }

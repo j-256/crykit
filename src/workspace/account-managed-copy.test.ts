@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { expect, it, vi } from 'vitest'
 import { installProfile, invalidateProfile } from '../account/profile'
@@ -22,7 +23,7 @@ it('resumes an exact saved guest copy into managed selection without recapturing
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
   const fixture = await editorClosureFixture(), store = createAccountLocalStore(database, token), id = accountLocalId()
   const copiedState = { ...fixture.state, editorDocuments: [fixture.file] }
-  const source = ownWorkspaceSnapshot({ version: 1, snapshotId: 'managed-copy-original', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: {}, state: copiedState }, { check: async () => {}, dispose: async () => {} })
+  const source = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'managed-copy-original', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: {}, state: copiedState }, { check: async () => {}, dispose: async () => {} })
   let service = createGuestCopyService(async () => source)
   try {
     const beforeState = { ...fixture.state, editorDocuments: [] }
@@ -86,7 +87,7 @@ it('resumes a first managed copy after profile restart using only its exact save
   const id = accountLocalId(), key = crypto.getRandomValues(new Uint8Array(32))
   let token = installProfile(id, key.slice()), database = new AccountDatabase(id)
   const fixture = await editorClosureFixture(), state = { ...fixture.state, editorDocuments: [fixture.file] }
-  const source = ownWorkspaceSnapshot({ version: 1, snapshotId: 'fresh-copy-restart', capturedAt: fixture.file.updatedAt, revisionVector: {}, state }, { check: async () => {}, dispose: async () => {} })
+  const source = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'fresh-copy-restart', capturedAt: fixture.file.updatedAt, revisionVector: {}, state }, { check: async () => {}, dispose: async () => {} })
   let service = createGuestCopyService(async () => source)
   try {
     const preview = await service.previewGuestCopy(token, ['["editor","editor-1"]'])
@@ -121,7 +122,7 @@ it('resumes a first managed copy after profile restart using only its exact save
 it('rejects changed staged ciphertext at the final managed-copy CAS and retains the exact resumable group', async () => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
   const fixture = await editorClosureFixture(), state = { ...fixture.state, editorDocuments: [fixture.file] }
-  const source = ownWorkspaceSnapshot({ version: 1, snapshotId: 'managed-copy-ciphertext-fence', capturedAt: fixture.file.updatedAt, revisionVector: {}, state }, { check: async () => {}, dispose: async () => {} })
+  const source = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'managed-copy-ciphertext-fence', capturedAt: fixture.file.updatedAt, revisionVector: {}, state }, { check: async () => {}, dispose: async () => {} })
   let service = createGuestCopyService(async () => source)
   try {
     const preview = await service.previewGuestCopy(token, ['["editor","editor-1"]']), before = await database.profileMeta.get('active')
@@ -154,7 +155,7 @@ it('rejects changed staged ciphertext at the final managed-copy CAS and retains 
 it('keeps a stale managed copy downloadable and adds a fresh copy without mapping pending local edits', async () => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
   const fixture = await editorClosureFixture(), state = { ...fixture.state, editorDocuments: [fixture.file] }
-  const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ version: 1, snapshotId: 'stale-managed-copy', capturedAt: fixture.file.updatedAt, revisionVector: {}, state }, { check: async () => {}, dispose: async () => {} }))
+  const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'stale-managed-copy', capturedAt: fixture.file.updatedAt, revisionVector: {}, state }, { check: async () => {}, dispose: async () => {} }))
   try {
     const preview = await service.previewGuestCopy(token, ['["editor","editor-1"]'])
     const fail = vi.spyOn(activation, 'activateLocalAccountCommit').mockRejectedValueOnce(new Error('Copy activation interrupted'))
@@ -189,8 +190,8 @@ it('retains an unselected historical original through direct copy and the real c
   const fixture = await editorClosureFixture(), originalBytes = new Uint8Array([0xff, 0x00, 0x42, 0x80])
   const archivedRef = await fixture.add(originalBytes, 'historical-only-original', 'utf16le')
   const archivedFile = { ...fixture.file, filename: 'Historical only.json', original: archivedRef, lastApplied: archivedRef, unfinished: { ...fixture.file.unfinished, text: archivedRef } }
-  const original = ownWorkspaceSnapshot({ version: 1, snapshotId: 'unselected-historical-original', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: { ...fixture.state, editorDocuments: [archivedFile], retainedContent: [], blobs: fixture.blobs.filter(body => body.ref === archivedRef) } }, { check: async () => {}, dispose: async () => {} })
-  const current = ownWorkspaceSnapshot({ version: 1, snapshotId: 'selected-current-draft', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: { ...fixture.state, editorDocuments: [fixture.file], blobs: fixture.blobs.filter(body => body.ref !== archivedRef) } }, { check: async () => {}, dispose: async () => {} })
+  const original = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'unselected-historical-original', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: { ...fixture.state, editorDocuments: [archivedFile], retainedContent: [], blobs: fixture.blobs.filter(body => body.ref === archivedRef) } }, { check: async () => {}, dispose: async () => {} })
+  const current = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'selected-current-draft', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: { ...fixture.state, editorDocuments: [fixture.file], blobs: fixture.blobs.filter(body => body.ref !== archivedRef) } }, { check: async () => {}, dispose: async () => {} })
   const source = await inheritWorkspaceSnapshot(current, [original])
   const service = createGuestCopyService(async () => source)
   let mappedSnapshot: WorkspaceSnapshot | undefined

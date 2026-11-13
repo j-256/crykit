@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { assertActiveProfile, profileSignal, type ProfileToken } from '../account/profile'
 import type { AccountDatabase, AccountFence } from '../persistence/account-database'
 import { joinWorkspaceSnapshotEvidence } from '../interchange/workspace-backup-evidence'
@@ -42,7 +43,7 @@ export async function captureRetainedManagedAccountSnapshot(database: AccountDat
       for await (const bytes of body.content.open()) { await check(); yield bytes }
       await check()
     } } })) }
-    const value: WorkspaceSnapshotV1 = { version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { committed: JSON.stringify([fence.headRevision, fence.head.documentId, fence.head.revisionId]) }, state }
+    const value: WorkspaceSnapshotV1 = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { committed: JSON.stringify([fence.headRevision, fence.head.documentId, fence.head.revisionId]) }, state }
     await validateWorkspaceSnapshot(value); await check()
     const current = ownWorkspaceSnapshot(value, { check, dispose })
     return inherited ? await joinWorkspaceSnapshotEvidence(current, guestEvidenceSources(inherited), { signal: profileSignal(token) }) : current

@@ -1,11 +1,7 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import Dexie from 'dexie'
-import { StoredNativeLocalDataSchema, NativeHistorySchema } from '../interchange/native-schema'
-import { BUNDLED_SOURCE_ENTITY_IDS } from '../catalog/bundled'
-import { HISTORICAL_BUNDLED_CATALOG } from '../domain/withdrawn-catalogs'
-import { upgradeBundledReferences } from '../domain/bundled-reference-upgrade'
-import type { LocalData } from '../domain/types'
 import type { WorkspaceState } from './documents'
-import { connectedHistory, migratePlanner250 } from './planner-journal'
+import { connectedHistory, admitLaunchPlanner } from './planner-journal'
 import { ownWorkspaceSnapshot, type WorkspaceSnapshot } from './snapshot'
 import { guestEvidenceFromFrozenCurrent, guestEvidenceSources, mergeGuestEvidence, type CapturedGuestEvidence } from './guest-evidence'
 import { joinWorkspaceSnapshotEvidence } from '../interchange/workspace-backup-evidence'
@@ -55,14 +51,14 @@ async function migrationParticipants(binding: GuestBindings) {
       await assertGuestCurrent(binding)
       const database = new Dexie(name); opened.push(database)
       await database.open()
-      const schema: Readonly<Record<string, string>> | undefined = kind === 'planner' && Number.isInteger(database.verno) && database.verno >= 1 && database.verno <= 7
+      const schema: Readonly<Record<string, string>> | undefined = kind === 'planner' && database.verno === 7
         ? Object.fromEntries(binding.planner.tables.map(table => [table.name, tableSchema(table)]))
         : kind === 'inspector' ? inspectorSchemas[database.verno]
         : kind === 'files' && database.verno === 1 ? GUEST_FILES_V1_STORES
         : kind === 'files' && database.verno === 2 ? { ...GUEST_FILES_V1_STORES, ...GUEST_EVIDENCE_STORES } : undefined
       if (!schema || Object.keys(schema).sort().join(',') !== database.tables.map(table => table.name).sort().join(',')
         || database.tables.some(table => tableSchema(table) !== normalizedSchema(schema[table.name] ?? ''))) throw new Error('The selected guest schema is unsupported')
-      if (binding.manifest.version === 2 && (kind === 'planner' ? ![6, 7].includes(database.verno) : kind === 'inspector' ? database.verno !== 3 : database.verno !== 2)) throw new Error('The selected restored guest schema is unsupported')
+      if (binding.manifest.version === 2 && (kind === 'planner' ? database.verno !== 7 : kind === 'inspector' ? database.verno !== 3 : database.verno !== 2)) throw new Error('The selected restored guest schema is unsupported')
       participants.push({ kind, database })
     }
     await assertGuestCurrent(binding)
@@ -70,18 +66,12 @@ async function migrationParticipants(binding: GuestBindings) {
   } catch (error) { for (const database of opened) database.close(); throw error }
 }
 
-// Use the same native normalization and pin migration as the legacy versionchange producer
-// Only the new managed projection changes; the held source capture and original databases stay exact
+// Detached launch graphs can be captured without altering their exact original records
+// Prelaunch layouts are rejected before opening participants or projecting a managed workspace
 function projectLegacyPlanner(state: WorkspaceState, version: number) {
-  if (state.planner.journal) return { state, original: state }
-  const normalize = (value: LocalData): LocalData => version < 6
-    ? upgradeBundledReferences(StoredNativeLocalDataSchema.parse(value) as unknown as LocalData, HISTORICAL_BUNDLED_CATALOG, BUNDLED_SOURCE_ENTITY_IDS)
-    : value
-  const original = { ...state, planner: { ...state.planner, localData: normalize(state.planner.localData), history: state.planner.history.map(entry => {
-    const parsed = version < 6 ? NativeHistorySchema.parse(entry) as unknown as typeof entry : entry
-    return { ...parsed, before: normalize(parsed.before), after: normalize(parsed.after) }
-  }) } }
-  const migrated = migratePlanner250(original.planner)
+  if (version !== 7) throw new Error('Unsupported prelaunch planner storage')
+  const original = state
+  const migrated = admitLaunchPlanner(original.planner)
   const checkpoints = migrated.journal?.checkpoints ?? connectedHistory(migrated)
   if (migrated === original.planner && !checkpoints.length) return { state: original, original }
   const byId = new Map(checkpoints.map(entry => [entry.id, entry]))
@@ -98,7 +88,7 @@ export async function captureGuestNativeForCopy(binding: GuestBindings): Promise
   const alive = () => { profile.assertCurrent(); if (disposed) throw new Error('Local copy capture was released') }
   try {
     // Use the migration's non-upgrading readers and pure projection, without publishing a successor
-    // Opening an old planner through its typed writer would upgrade the very original being copied
+    // Capture original native records through read-only participants before preparing any managed projection
     const capture = await captureLegacyBranch(frozen, opened.participants, profile.signal)
     const check = async () => {
       alive(); await assertGuestCurrent(binding)
@@ -109,7 +99,7 @@ export async function captureGuestNativeForCopy(binding: GuestBindings): Promise
     const source = await readUnselectedGuestRecoveryCapture(frozen, capture, alive, { omitUnreferencedBundledCatalogs: true })
     const projection = projectLegacyPlanner(source.state, opened.participants[0].database.verno)
     const inherited = await readCapturedGuestEvidence(frozen, capture, check, true, alive)
-    const header = { version: 1 as const, snapshotId: capture.id, capturedAt: projection.original.planner.localData.updatedAt, revisionVector: { guest: binding.manifest.id, capture: capture.id } }
+    const header = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1 as const, snapshotId: capture.id, capturedAt: projection.original.planner.localData.updatedAt, revisionVector: { guest: binding.manifest.id, capture: capture.id } }
     const original = ownWorkspaceSnapshot({ ...header, state: projection.original }, { check, dispose })
     const evidence = await mergeGuestEvidence(inherited, await guestEvidenceFromFrozenCurrent(original), inherited.planner)
     const current = equalLegacyValue(projection.state, projection.original) ? original : ownWorkspaceSnapshot({ ...header, state: projection.state }, { check, dispose })
@@ -174,7 +164,7 @@ export async function migrateGuestWorkspace(binding: GuestBindings): Promise<Gue
     let evidence = await readCapturedGuestEvidence(binding.coordinator, capture, async () => check(), true, check)
     const projection = projectLegacyPlanner(frozen.state, participants[0].database.verno)
     if (!equalLegacyValue(projection.state.planner, projection.original.planner)) {
-      const original = ownWorkspaceSnapshot({ version: 1, snapshotId: capture.id, capturedAt: projection.original.planner.localData.updatedAt, revisionVector: { guest: binding.manifest.id, capture: capture.id }, state: projection.original }, { check: async () => check(), dispose: async () => {} })
+      const original = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: capture.id, capturedAt: projection.original.planner.localData.updatedAt, revisionVector: { guest: binding.manifest.id, capture: capture.id }, state: projection.original }, { check: async () => check(), dispose: async () => {} })
       evidence = await mergeGuestEvidence(evidence, await guestEvidenceFromFrozenCurrent(original), evidence.planner)
     }
     const id = crypto.randomUUID(), store = createGuestLocalStore(binding.coordinator, check)

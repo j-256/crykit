@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { guestEvidenceForCopy, type CapturedGuestEvidence } from './guest-evidence'
 import { GuestCopyJournalSchema as JournalSchema, PENDING_COPY, PreviewSchema, SAVED_COPY_PREFIX, type GuestCopyJournal as Journal, type GuestCopyPreview } from './guest-copy-journal'
 import { activateManagedGuestCopy, managedGuestCopyMappings, stageManagedGuestCopy } from './managed-guest-copy'
@@ -189,7 +190,7 @@ async function selectSnapshot(snapshot: WorkspaceSnapshot, selection: readonly s
   // Imported accepted dependencies are also live candidates and must pass the same sample consent gate
   for (const key of included) if (samples.has(key) && offered.has(key) && !selected.has(key) && !sampleConsents.some(consent => consent.document.key === key && selected.has(consent.key) && jsonEqual(consent.document.value, base.get(key)?.value))) problems.push(`Explicitly select the required sample record: ${records.find(record => record.key === key)!.label}`)
   const state = assembleWorkspace([...base.values()], 0)
-  const selectedSnapshot = ownWorkspaceSnapshot({ version: 1, snapshotId: `${snapshot.snapshotId}:selection`, capturedAt: snapshot.capturedAt, revisionVector: snapshot.revisionVector, state }, { check: () => assertOwnedWorkspaceSnapshot(snapshot), async dispose() {} })
+  const selectedSnapshot = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: `${snapshot.snapshotId}:selection`, capturedAt: snapshot.capturedAt, revisionVector: snapshot.revisionVector, state }, { check: () => assertOwnedWorkspaceSnapshot(snapshot), async dispose() {} })
   await validateWorkspaceSnapshot(selectedSnapshot)
   const closure = [...included].flatMap(key => { const document = documents.get(key); return document && !['blob', 'blob-reference'].includes(document.kind) ? [describe(document, samples.has(key))] : [] })
   return { records, selectedSnapshot, closure, problems: [...new Set(problems)], inherited: selected.has(HISTORY_KEY) }

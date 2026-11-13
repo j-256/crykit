@@ -1,12 +1,11 @@
+import { syntheticCatalog as catalog } from './test-helpers'
 import { expect, it, vi } from 'vitest'
-import { modCatalogRevision } from '../domain/mod-layers'
 import { createTestLocalData } from '../domain/test-helpers'
 import { createBlankLocalData } from '../domain/local-data'
 import { historyEntry } from '../persistence/local-data'
 import * as localValidation from '../persistence/local-data'
 import { NativeHistorySchema } from '../interchange/native-schema'
 import { immutableCatalogSnapshot } from '../interchange/native'
-import type { CatalogSnapshot } from '../domain/types'
 import { immutableHistory, immutableHistoryEndpoint, parseImmutableHistory, validateHistoryEndpoint } from './history-admission'
 import { domainClosureKeys, resolvedDomainClosureKeys } from './domain-closure'
 import { privateRecordKey, type WorkspaceDocument } from './documents'
@@ -14,9 +13,6 @@ import { privateRecordKey, type WorkspaceDocument } from './documents'
 function checkpoint() {
   const before = createBlankLocalData()
   return historyEntry(before, { ...before, revision: 1 }, 'history-admission', before.updatedAt)
-}
-function catalog(id: string): CatalogSnapshot {
-  return { id, revisionId: 'exact', schemaVersion: 'synthetic', checksum: id, importedAt: '2026-01-01T00:00:00.000Z', applicability: { state: 'unknown' }, rights: { state: 'unknown' }, entities: {}, claims: [] } as unknown as CatalogSnapshot
 }
 
 it('admits complete raw shapes and retains exact compact endpoint identity without another full history parse', () => {
@@ -44,7 +40,7 @@ it('admits complete raw shapes and retains exact compact endpoint identity witho
     const stored = root as unknown as Record<string, unknown>
     stored.schemaVersion = '2.3.0'; delete stored.teamRevisions
   }
-  expect(parseImmutableHistory(legacy)).toEqual(NativeHistorySchema.parse(legacy))
+  expect(() => parseImmutableHistory(legacy)).toThrow()
   expect(legacy.before.schemaVersion).toBe('2.3.0')
 })
 
@@ -76,7 +72,7 @@ it('revalidates changed ordered catalog contexts and never trusts mutable or sha
     validateHistoryEndpoint(pinned, ordered); validateHistoryEndpoint(pinned, ordered)
     expect(validate.mock.calls.length - beforePin).toBe(1)
     expect(() => validateHistoryEndpoint(pinned, Object.freeze([second]))).toThrow()
-    const wrongPin = immutableCatalogSnapshot({ ...catalog('first'), revisionId: 'another' as CatalogSnapshot['revisionId'] })
+    const wrongPin = immutableCatalogSnapshot(catalog('another'))
     expect(() => validateHistoryEndpoint(pinned, Object.freeze([wrongPin, second]))).toThrow()
   } finally { validate.mockRestore() }
 })
@@ -84,19 +80,17 @@ it('revalidates changed ordered catalog contexts and never trusts mutable or sha
 it('reuses only intrinsic history edge keys and checks changed actual dependency maps', () => {
   const input = checkpoint()
   const base = Object.values(createTestLocalData().gameSetups)[0]!
-  const setupId = base.id, sourceId = 'baseline'
-  const checksum = `sha256:${'a'.repeat(64)}`
-  const receipt = { catalogId: 'crystal-edit:missing', catalogRevisionId: `${checksum}:rules-v1:library-v1`, checksum, title: 'Recorded source' }
-  const setup = { ...base, catalogLock: { [sourceId]: modCatalogRevision(base.id) }, modComposition: { baseline: { catalogId: sourceId, catalogRevisionId: 'one' }, layers: [{ catalogId: receipt.catalogId, catalogRevisionId: receipt.catalogRevisionId, enabled: true }], links: [] }, modSourceReceipts: [receipt] }
-  const value = immutableHistory({ ...input, before: { ...input.before, gameSetups: { [setupId]: setup } }, after: { ...input.after, gameSetups: { [setupId]: setup } } } as unknown as typeof input)
+  const source = catalog('historical-source')
+  const setup = { ...base, catalogLock: { [source.id]: source.revisionId } }
+  const value = immutableHistory({ ...input, before: { ...input.before, gameSetups: { [base.id]: setup } }, after: { ...input.after, gameSetups: { [base.id]: setup } } })
   const key = privateRecordKey('history', value.id), document = { version: 1, kind: 'history', key, value } as unknown as WorkspaceDocument
   const keys = domainClosureKeys('history', value)
   expect(domainClosureKeys('history', value)).toBe(keys)
-  const required = privateRecordKey('catalog', sourceId, 'one')
-  const baseline = { version: 1, kind: 'catalog', key: required, value: { ...catalog(sourceId), revisionId: 'one' } } as unknown as WorkspaceDocument
-  const documents = new Map([[key, document], [baseline.key, baseline]])
-  expect(resolvedDomainClosureKeys(document, documents)).toContain(required)
-  const wrong = { version: 1, kind: 'catalog', key: privateRecordKey('catalog', receipt.catalogId, receipt.catalogRevisionId), value: { ...catalog(receipt.catalogId), revisionId: receipt.catalogRevisionId, checksum: 'wrong' } } as unknown as WorkspaceDocument
-  expect(() => resolvedDomainClosureKeys(document, new Map(documents).set(wrong.key, wrong))).toThrow('checksum')
+  const required = privateRecordKey('catalog', source.id, source.revisionId)
+  const body = { version: 1, kind: 'catalog', key: required, value: source } as unknown as WorkspaceDocument
+  const documents = new Map([[key, document], [body.key, body]])
+  expect(resolvedDomainClosureKeys(document, documents)).toEqual([required])
+  // Missing bodies stay required; cached intrinsic keys cannot erase a dependency from another capture
+  expect(resolvedDomainClosureKeys(document, new Map([[key, document]]))).toEqual([required])
   expect(() => resolvedDomainClosureKeys({ ...document, key: privateRecordKey('history', 'another') }, documents)).toThrow()
 })

@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { readIncrementalMappedRoot } from './account-mapping-origin'
 // Proof consumers must share their issuer's private registry through a static module edge
 import { openAccountInheritedEvidence, assertAccountInheritedEvidenceOwner } from './account-evidence-snapshots'
@@ -23,13 +24,13 @@ import { openAccountSource, stageAccountSource } from './account-streams'
 import { resolvedDomainClosureKeys } from './domain-closure'
 import { blobIdentity, hashBlob, verifiedBlob } from './blobs'
 import { buildIndexPages, INDEX_PAGE_ENTRIES, INDEX_PAGE_BYTES } from './directory'
-import { encodeCatalogPayload, decodeCatalogPayload } from './catalog-codec'
+import { decodeCatalogPayload } from './catalog-codec'
 import { archiveTypedReferences, validatedWorkspaceRetentionEdges, validatedLegacyLocalWorkspaceRetentionEdges } from './closure'
 
 const entrySchema = z.object({ key: z.string(), kind: z.enum(WORKSPACE_DOCUMENT_KINDS), ref: CipherRefSchema, digest: z.string().regex(/^[a-f0-9]{64}$/), retainingIndex: CipherRefSchema.optional(), sourceBookkeeping: SourceBookkeepingSchema.optional(), semanticDigest: z.string().regex(/^[a-f0-9]{64}$/).optional() }).strict()
 export type AccountWorkspaceEntry = z.infer<typeof entrySchema>
 const pageSchema = z.object({ version: z.literal(1), entries: z.array(entrySchema), children: z.array(CipherRefSchema) }).strict().refine(value => value.entries.length + value.children.length <= INDEX_PAGE_ENTRIES)
-export const AccountWorkspaceRootV1Schema = z.object({ version: z.literal(1), kind: z.literal('local-workspace-graph'), sourceEvidenceVersion: z.literal(1).optional(), lineageId: z.string(), localRevision: z.number().int().nonnegative().safe(), localUpdatedAt: z.string(), plannerJournal: z.strictObject({ version: z.literal(1), index: CipherRefSchema, undoable: z.boolean() }).optional(), playthroughBookkeeping: z.object({ version: z.literal(1), index: CipherRefSchema }).strict().optional(), index: CipherRefSchema, allocations: CipherRefSchema, selections: z.object({ selectedPlaythroughId: z.string().optional(), planningGameSetupRevisionId: z.string().optional(), scenarios: z.record(z.string(), z.string()) }).strict() }).strict()
+export const AccountWorkspaceRootV1Schema = z.object({ dataGeneration: z.literal(LAUNCH_DATA_GENERATION), version: z.literal(1), kind: z.literal('local-workspace-graph'), sourceEvidenceVersion: z.literal(1).optional(), lineageId: z.string(), localRevision: z.number().int().nonnegative().safe(), localUpdatedAt: z.string(), plannerJournal: z.strictObject({ version: z.literal(1), index: CipherRefSchema, undoable: z.boolean() }).optional(), playthroughBookkeeping: z.object({ version: z.literal(1), index: CipherRefSchema }).strict().optional(), index: CipherRefSchema, allocations: CipherRefSchema, selections: z.object({ selectedPlaythroughId: z.string().optional(), planningGameSetupRevisionId: z.string().optional(), scenarios: z.record(z.string(), z.string()) }).strict() }).strict()
 export const AccountWorkspaceRootSchema = AccountWorkspaceRootV1Schema
 export const AccountWorkspaceRootV2Schema = AccountWorkspaceRootV1Schema.extend({ version: z.literal(2), inheritedEvidence: CipherRefSchema }).strict()
 type WorkspaceRoot = z.infer<typeof AccountWorkspaceRootV1Schema> | z.infer<typeof AccountWorkspaceRootV2Schema>
@@ -418,8 +419,7 @@ async function prepareWorkspace(database: AccountDatabase, token: ProfileToken, 
   }
   for (const document of documents) order(document)
   for (const original of ordered) {
-    const live = original.kind === 'workspace-identity' ? { ...original, value: { ...original.value as object, localData: Object.fromEntries(Object.entries((original.value as unknown as { localData: object }).localData).filter(([key]) => key !== 'updatedAt')) } as WorkspaceDocument['value'] } : original
-    const document = live.kind === 'catalog' ? { ...original, value: encodeCatalogPayload(live.value as unknown as import('../domain/types').CatalogSnapshot) as WorkspaceDocument['value'] } : live
+    const document = original.kind === 'workspace-identity' ? { ...original, value: { ...original.value as object, localData: Object.fromEntries(Object.entries((original.value as unknown as { localData: object }).localData).filter(([key]) => key !== 'updatedAt')) } as WorkspaceDocument['value'] } : original
     const retainedHistory = history.entries.get(document.key)
     let source = retainedHistory?.source ?? workspaceDocumentSource(document), digest = retainedHistory?.entry.digest ?? await hashBlob(source)
     const old = retainedHistory?.entry ?? prior.get(document.key), semanticDigest = await playthroughSemanticDigest(original)
@@ -488,7 +488,7 @@ async function prepareWorkspace(database: AccountDatabase, token: ProfileToken, 
     const journalIndex = await buildIndexPages(journalEntries, async page => { const record = await stageAccountJson(database, token, page, [...page.children, ...page.entries.flatMap(entry => entry.kind === 'checkpoint' ? [entry.ref] : [])], undefined, owner); records.push(record); return cipherRef(record) })
     plannerJournal = { version: 1, index: journalIndex, undoable: state.planner.journal.undoable }
   }
-  const root = (rootFormat.version === 2 ? AccountWorkspaceRootV2Schema : AccountWorkspaceRootV1Schema).parse({ ...rootFormat, kind: 'local-workspace-graph', sourceEvidenceVersion: 1, lineageId: previous?.lineageId ?? accountLocalId(), localRevision: state.planner.localData.revision, localUpdatedAt: state.planner.localData.updatedAt, ...(plannerJournal ? { plannerJournal } : {}), playthroughBookkeeping: { version: 1, index: bookkeepingIndex }, index, allocations: allocationIndex, selections: { selectedPlaythroughId: state.planner.localData.selectedPlaythroughId, planningGameSetupRevisionId: state.planner.localData.planningGameSetupRevisionId, scenarios: Object.fromEntries(Object.entries(state.planner.localData.playthroughs).flatMap(([id, value]) => value.activeScenarioId ? [[id, value.activeScenarioId]] : [])) } })
+  const root = (rootFormat.version === 2 ? AccountWorkspaceRootV2Schema : AccountWorkspaceRootV1Schema).parse({ ...rootFormat, dataGeneration: LAUNCH_DATA_GENERATION, kind: 'local-workspace-graph', sourceEvidenceVersion: 1, lineageId: previous?.lineageId ?? accountLocalId(), localRevision: state.planner.localData.revision, localUpdatedAt: state.planner.localData.updatedAt, ...(plannerJournal ? { plannerJournal } : {}), playthroughBookkeeping: { version: 1, index: bookkeepingIndex }, index, allocations: allocationIndex, selections: { selectedPlaythroughId: state.planner.localData.selectedPlaythroughId, planningGameSetupRevisionId: state.planner.localData.planningGameSetupRevisionId, scenarios: Object.fromEntries(Object.entries(state.planner.localData.playthroughs).flatMap(([id, value]) => value.activeScenarioId ? [[id, value.activeScenarioId]] : [])) } })
   const record = await stageAccountJson(database, token, root, [index, allocationIndex, bookkeepingIndex, ...(plannerJournal ? [plannerJournal.index] : []), ...(root.version === 2 ? [root.inheritedEvidence] : [])], previous?.head, owner)
   records.push(record)
   assertActiveProfile(token)

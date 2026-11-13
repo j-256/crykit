@@ -3,7 +3,7 @@ export { guestPlannerValuesEqual } from './guest-planner-equality'
 import { z } from 'zod'
 import type { ChangeEntry, LocalData, LocalDataId } from '../domain/types'
 import type { PersistedHistoryEntry } from '../interchange/types'
-import { NativeHistorySchema, NativeLineageSchema, NativeLocalDataSchema, NativeLocalData240Schema } from '../interchange/native-schema'
+import { NativeHistorySchema, NativeLineageSchema, NativeLocalDataSchema } from '../interchange/native-schema'
 import type { PlannerJournal } from '../workspace/planner-journal'
 import type { LocalDataRecord, MetaRecord } from './database'
 
@@ -66,9 +66,9 @@ export type ValidatedGuestPlanner = { readonly format: 'legacy' } | {
 }
 
 /** Validates format and exact operative association; catalog/body graph validation remains the caller's separate obligation */
-export function validateGuestPlannerRecord(record: LocalDataRecord, declaration: MetaRecord | undefined, history: readonly PersistedHistoryEntry[], required: 'legacy-or-journaled' | 'journaled', frozen240 = false): ValidatedGuestPlanner {
-  const rootReader = frozen240 ? rootSchema.extend({ localData: NativeLocalData240Schema }) : rootSchema
-  const checkpointReader = frozen240 ? checkpointSchema.extend({ before: NativeLocalData240Schema, after: NativeLocalData240Schema }) : checkpointSchema
+export function validateGuestPlannerRecord(record: LocalDataRecord, declaration: MetaRecord | undefined, history: readonly PersistedHistoryEntry[], required: 'legacy-or-journaled' | 'journaled'): ValidatedGuestPlanner {
+  const rootReader = rootSchema
+  const checkpointReader = checkpointSchema
   const hasDescriptor = Object.hasOwn(record, 'operativePlanner')
   if (!hasDescriptor && declaration === undefined && required === 'legacy-or-journaled') {
     rootReader.omit({ operativePlanner: true }).parse(record)

@@ -7,7 +7,7 @@ import { checkpointContentDigest } from './checkpoint-identity'
 import { sha256 } from '../interchange/util'
 import { asId } from './core'
 import { addTestBuild, createTestLocalData, TEST_NOW } from './test-helpers'
-import { saveSharedTeam, resolveCheckpoint, migrateLocalData250 } from './team-checkpoints'
+import { saveSharedTeam, resolveCheckpoint, admitLaunchLocalData } from './team-checkpoints'
 import type { BuildRevisionId, TeamId } from './types'
 
 const build = asId<BuildRevisionId>('build-revision')
@@ -42,28 +42,16 @@ describe('Team-owned checkpoint graph', () => {
     expect(revision.slots[0]!.id).not.toBe(revision.slots[2]!.id)
   })
 
-  it('migratesEquivalentButRetainsMixedSetups', () => {
-    const before = legacy()
-    const next = migrateLocalData250(before, [])
-    expect(next.teams[teamId]!.kind).toBe('shared')
-    expect(next.builds).toEqual(before.builds)
-    expect(next.buildRevisions).toEqual(before.buildRevisions)
-    const second = { ...before.buildRevisions[build]!, id: asId<BuildRevisionId>('other'), catalogLock: { unavailable: 'different-pin' } }
-    const mixed = { ...before, buildRevisions: { ...before.buildRevisions, other: second }, teams: { [teamId]: { ...before.teams[teamId]!, slots: [build, second.id, null, null] } } }
-    expect(() => migrateLocalData250(mixed, [])).toThrow()
-    const setup = before.gameSetups[second.gameSetupRevisionId]!
-    const different = { ...setup, id: 'different-setup', label: setup.label, ppLimit: { state: 'known', value: 99 } }
-    const validMixed = { ...mixed, gameSetups: { ...before.gameSetups, 'different-setup': different }, buildRevisions: { ...before.buildRevisions, other: { ...second, catalogLock: {}, gameSetupRevisionId: different.id } } }
-    const result = migrateLocalData250(validMixed, [])
-    expect(result.teams[teamId]!.kind).toBe('legacy-mixed')
-    expect(result.teams[teamId]).toEqual({ ...validMixed.teams[teamId], kind: 'legacy-mixed' })
+  it('rejects prelaunch Teams without rewriting their checkpoints', () => {
+    const before = legacy(), unchanged = structuredClone(before)
+    expect(() => admitLaunchLocalData(before, [])).toThrow()
+    expect(before).toEqual(unchanged)
   })
 
-  it('retains all-null legacy Teams exactly and requires a setup for a new empty Team', () => {
-    const before = legacy()
-    const empty = { ...before, teams: { [teamId]: { ...before.teams[teamId]!, slots: [null, null, null, null] } } }
-    expect(migrateLocalData250(empty, []).teams[teamId]).toEqual({ ...empty.teams[teamId], kind: 'legacy-mixed' })
-    expect(() => saveSharedTeam(fixture(), { id: teamId, title: 'Empty', gameSetupRevisionId: 'missing' as never, slots: [null, null, null, null], now: TEST_NOW })).toThrow()
+  it('admits supported Teams exactly and requires a setup for an empty Team', () => {
+    const before = fixture()
+    expect(admitLaunchLocalData(before, [])).toEqual(before)
+    expect(() => saveSharedTeam(before, { id: teamId, title: 'Empty', gameSetupRevisionId: 'missing' as never, slots: [null, null, null, null], now: TEST_NOW })).toThrow()
   })
 
   it('scenarioAssignmentResolvesTeamOwnedContext', () => {
@@ -76,17 +64,6 @@ describe('Team-owned checkpoint graph', () => {
     expect(resolved.setup.id).toBe(revision.gameSetupRevisionId)
     expect(resolved.catalogLock).toEqual(revision.catalogLock)
     expect(() => resolveCheckpoint(next, { kind: 'team-slot', teamRevisionId: revision.id, slot: 0 })).toThrow()
-  })
-
-  it('gives distinct historical contents stable bounded checkpoint identities', () => {
-    const before = legacy()
-    const changed = { ...before, teams: { [teamId]: { ...before.teams[teamId]!, revision: 4, slots: [null, build, null, null] } } }
-    const one = migrateLocalData250(before, [])
-    const two = migrateLocalData250(changed, [])
-    expect(Object.keys(one.teamRevisions)).not.toEqual(Object.keys(two.teamRevisions))
-    expect(migrateLocalData250(before, []).teamRevisions).toEqual(one.teamRevisions)
-    const longId = 't'.repeat(1024)
-    expect(() => migrateLocalData250({ ...before, teams: { [longId]: { ...before.teams[teamId]!, id: longId } } }, [])).not.toThrow()
   })
 
   it('retains unavailable personal refs only as bounded inert receipts across workspace mapping', async () => {
@@ -114,18 +91,9 @@ describe('Team-owned checkpoint graph', () => {
     expect(docs.some(document => document.kind === 'personal-definition')).toBe(false)
   })
 
-  it('does not merge equal behavior with different exact Build catalog pins', () => {
-    const before = legacy()
-    const catalog = (revisionId: string) => ({ id: 'catalog' as never, revisionId: revisionId as never, schemaVersion: 'synthetic', checksum: revisionId, importedAt: TEST_NOW, applicability: { state: 'unknown' as const }, rights: { state: 'unknown' as const }, entities: {}, claims: [] })
-    const one = { ...before.buildRevisions[build]!, catalogLock: { catalog: 'one' as never } }
-    const two = { ...one, id: 'other' as never, catalogLock: { catalog: 'two' as never } }
-    const mixed = { ...before, buildRevisions: { [build]: one, other: two }, teams: { [teamId]: { ...before.teams[teamId]!, slots: [one.id, two.id, null, null] } } }
-    expect(migrateLocalData250(mixed, [catalog('one'), catalog('two')]).teams[teamId]).toEqual({ ...mixed.teams[teamId], kind: 'legacy-mixed' })
-  })
-
   it('rejects newer roots and malformed source lineage', () => {
-    expect(() => migrateLocalData250({ ...legacy(), schemaVersion: '2.6.0' }, [])).toThrow()
-    const before = legacy()
-    expect(() => migrateLocalData250({ ...before, buildRevisions: { [build]: { ...before.buildRevisions[build], parentRevisionId: 'missing' } } }, [])).toThrow()
+    expect(() => admitLaunchLocalData({ ...fixture(), schemaVersion: '4.0.0' }, [])).toThrow()
+    const before = fixture()
+    expect(() => admitLaunchLocalData({ ...before, buildRevisions: { [build]: { ...before.buildRevisions[build], parentRevisionId: 'missing' } } }, [])).toThrow()
   })
 })

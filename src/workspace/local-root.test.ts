@@ -1,3 +1,4 @@
+import { decodeCatalogPayload } from './catalog-codec'
 import { expect, it, vi } from 'vitest'
 import * as timestamps from '../interchange/util'
 import { asTimestamp } from '../domain/core'
@@ -7,7 +8,7 @@ import type { WorkspaceState, BlobSource } from './documents'
 import { admitLocalRoot, prepareLocalWorkspace, localJournalCoveredByHistory, type LocalStoreAdapter } from './local-root'
 import { memoryBlob, readBlob, blobIdentity, hashBlob } from './blobs'
 import { createBlankLocalData, addGameSetupRevision } from '../domain/local-data'
-import { STARTER_CATALOG } from '../catalog/starter'
+import { CURRENT_CATALOG as STARTER_CATALOG } from '../catalog/bundled'
 import { previewImport } from '../interchange/import'
 import { prepareModCatalogs } from '../persistence/local-data'
 import { prepareManagedPlannerSave } from './managed-planner'
@@ -20,8 +21,6 @@ import { prepareGuestRestorePlanner, requirePreparedGuestPlanner } from './guest
 import { maxDocumentBytes } from '../account/protocol'
 import { splitWorkspace } from './documents'
 import { projectPlanner } from './planner-journal'
-
-const MAX_PACKAGED_CATALOG_FRAME_BYTES = 1024
 
 function setup() {
   const rows = new Map<string, Uint8Array>()
@@ -95,24 +94,26 @@ it('reads one exact historical frame once for semantic history and the operative
   await expect(admitLocalRoot(observed, prepared.head, s.lifetime)).rejects.toThrow()
 })
 
-it('uses exact packaged catalog pins locally while keeping portable and older expanded catalogs complete', async () => {
+it('stores complete source bodies and rejects prelaunch package-only pins', async () => {
   const s = setup()
   const first = await prepareLocalWorkspace(s.adapter, 'packaged', s.state, s.lifetime)
   const catalog = BUNDLED_CATALOGS[0]!
   const entry = first.snapshot.entries.find(value => value.kind === 'catalog' && value.key === JSON.stringify(['catalog', catalog.id, catalog.revisionId]))!
   const source = await s.adapter.read(entry.ref)
   if (process.env.R16_BULK_TRACE) console.log(JSON.stringify({ phase: 'packaged-local-frame', bytes: source.byteLength }))
-  expect(source.byteLength).toBeLessThan(MAX_PACKAGED_CATALOG_FRAME_BYTES)
   const document = await decodeWorkspaceDocument(source)
-  expect(document.value).toEqual({ version: 1, kind: 'packaged-catalog-pin', id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum })
+  expect(decodeCatalogPayload(document.value)).toEqual(catalog)
   const reopened = await admitLocalRoot(s.adapter, first.head, s.lifetime)
   expect(reopened.state.planner.catalogs).toEqual(s.state.planner.catalogs)
-  expect(reopened.state.planner.catalogs).toBe(BUNDLED_CATALOGS)
   expect(splitWorkspace(reopened.state).find(value => value.key === entry.key)!.value).toEqual(catalog)
 
-  // Seed durable framing independently so the new producer cannot hide a backward-reading defect
+  // Seed unsupported durable framing independently so producer checks cannot hide reader defects
   const replace = async (value: unknown) => {
-    const body = workspaceDocumentSource({ ...document, value: value as typeof document.value })
+    const bytes = new TextEncoder().encode(JSON.stringify(value))
+    const metadata = new TextEncoder().encode(JSON.stringify({ version: 1, kind: 'catalog', key: document.key, encoding: 'json', byteLength: bytes.length }))
+    const magic = new TextEncoder().encode('CRYKIT-DOC/1\n')
+    const length = new Uint8Array(4); new DataView(length.buffer).setUint32(0, metadata.length, true)
+    const body = { byteLength: magic.length + length.length + metadata.length + bytes.length, async *open() { yield magic; yield length; yield metadata; yield bytes } }
     const ref = await s.adapter.stage('independent-catalog', body, [], entry.ref)
     const rewritten = { ...entry, ref, digest: await hashBlob(body) }
     const stage = (value: unknown, dependencies: readonly import('./local-root').LocalRecordRef[]) => s.adapter.stage('independent-catalog', memoryBlob(new TextEncoder().encode(JSON.stringify(value))), dependencies)
@@ -121,10 +122,10 @@ it('uses exact packaged catalog pins locally while keeping portable and older ex
   }
   const legacy = await replace(catalog)
   expect((await admitLocalRoot(s.adapter, legacy, s.lifetime)).state).toEqual(reopened.state)
-  const unavailable = await replace({ ...document.value as object, checksum: 'sha256:unavailable-synthetic' })
-  await expect(admitLocalRoot(s.adapter, unavailable, s.lifetime)).rejects.toThrow('The exact packaged catalog is unavailable')
+  const unavailable = await replace({ version: 1, kind: 'packaged-catalog-pin', id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum })
+  await expect(admitLocalRoot(s.adapter, unavailable, s.lifetime)).rejects.toThrow('Prelaunch package-only catalog records are unsupported')
   const conflicting = { ...s.state, planner: { ...s.state.planner, catalogs: s.state.planner.catalogs.map(value => value === catalog ? { ...value, importedAt: '2000-01-01T00:00:00.000Z' as typeof value.importedAt } : value) } }
-  await expect(prepareLocalWorkspace(s.adapter, 'conflicting-catalog', conflicting, s.lifetime)).rejects.toThrow('Packaged catalog identity has conflicting contents')
+  await expect(prepareLocalWorkspace(s.adapter, 'conflicting-catalog', conflicting, s.lifetime)).rejects.toThrow('A catalog source payload has invalid identity, revision, or contents')
 }, 15_000)
 
 it('corroborates packaged catalog contents independently of JSON property order', async () => {
@@ -134,7 +135,7 @@ it('corroborates packaged catalog contents independently of JSON property order'
   const state = { ...s.state, planner: { ...s.state.planner, catalogs: s.state.planner.catalogs.map(value => value === catalog ? reordered : value) } }
   const prepared = await prepareLocalWorkspace(s.adapter, 'reordered-package', state, s.lifetime)
   const entry = prepared.snapshot.entries.find(value => value.key === JSON.stringify(['catalog', catalog.id, catalog.revisionId]))!
-  expect((await decodeWorkspaceDocument(await s.adapter.read(entry.ref))).value).toEqual({ version: 1, kind: 'packaged-catalog-pin', id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum })
+  expect(decodeCatalogPayload((await decodeWorkspaceDocument(await s.adapter.read(entry.ref))).value)).toEqual(catalog)
   expect((await admitLocalRoot(s.adapter, prepared.head, s.lifetime)).state).toEqual(state)
 }, 15_000)
 
@@ -246,7 +247,7 @@ it('stores only effective mod changes and preserves the complete view after dura
   const next = await prepareLocalWorkspace(s.adapter, 'with-mod', { ...first.snapshot.state, planner }, s.lifetime, first.snapshot)
   const entry = next.snapshot.entries.find(entry => entry.kind === 'catalog' && entry.key.includes(effective.revisionId))!
   const stored = await decodeWorkspaceDocument(await s.adapter.read(entry.ref))
-  const compact = stored.value as unknown as import('../domain/types').CatalogSnapshot
+  const compact = decodeCatalogPayload(stored.value) as import('../domain/types').CatalogSnapshot
   expect(Object.keys(compact.entities)).toEqual([changedId])
   expect(compact.entities[changedId]).toEqual(effective.entities[changedId])
   expect(compact.entities[inheritedId]).toBeUndefined()

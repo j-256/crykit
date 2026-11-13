@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import Dexie from 'dexie'
 import { afterAll, describe, expect, it, vi } from 'vitest'
@@ -89,7 +90,7 @@ describe('inert originals across exact persisted successor and archive reread', 
     expect(imports).toHaveProperty('importGuestInheritedEvidence')
     const db = new CryKitDatabase(`guest-evidence-import-${crypto.randomUUID()}`), repository = createGuestRepository(db)
     const { state } = await editorClosureFixture()
-    const source = await readWorkspaceBackup(exportWorkspaceBackup({ version: 1, snapshotId: 'inert-import', capturedAt: '2026-10-12', revisionVector: { original: 'source' }, state }))
+    const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'inert-import', capturedAt: '2026-10-12', revisionVector: { original: 'source' }, state }))
     const expected = JSON.stringify(snapshotMetadata(source))
     cleanup = async () => { if (captured) await disposeWorkspaceSnapshot(captured); await disposeWorkspaceSnapshot(source); await db.delete() }
     originalMetadata = expected
@@ -146,7 +147,7 @@ it('owned file receipts reject an independently valid but changed successor side
     const { editorClosureFixture } = await import('../workspace/test-helpers')
     const { importGuestInheritedEvidence } = await import('../workspace/guest-evidence-import')
     const { disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
-    const source = await readWorkspaceBackup(exportWorkspaceBackup({ version: 1, snapshotId: 'receipt-source', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
+    const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'receipt-source', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
     await repository.readWorkspace()
     try { await importGuestInheritedEvidence(await guestRepositoryBindings(repository), source) } finally { await disposeWorkspaceSnapshot(source) }
     const current = createGuestRepository(db)
@@ -223,7 +224,7 @@ it('retains property-order originals and account annex streams exactly after ind
     const { editorClosureFixture } = await import('../workspace/test-helpers')
     const { state, file } = await editorClosureFixture()
     for (const fields of [{ zeta: 'z', alpha: 'a' }, { alpha: 'a', zeta: 'z' }]) {
-      const source = await readWorkspaceBackup(exportWorkspaceBackup({ version: 1, snapshotId: raw.snapshotId, capturedAt: raw.capturedAt, revisionVector: raw.revisionVector, state: { ...state, editorDocuments: [{ ...file, unfinished: { ...file.unfinished, fieldState: fields } }] } }))
+      const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: raw.snapshotId, capturedAt: raw.capturedAt, revisionVector: raw.revisionVector, state: { ...state, editorDocuments: [{ ...file, unfinished: { ...file.unfinished, fieldState: fields } }] } }))
       try {
         const metadata = metadataSource(structuredClone(snapshotMetadata(source)))
         expected.set(await historicalEvidenceId(metadata), metadata)
@@ -272,7 +273,7 @@ it('preserves accepted large token pages without splitting their JSON token boun
   const { importGuestInheritedEvidence } = await import('../workspace/guest-evidence-import')
   const { state, file } = await editorClosureFixture()
   const largeKey = 'x'.repeat(90_000)
-  const source = await readWorkspaceBackup(exportWorkspaceBackup({ version: 1, snapshotId: 'large-key', capturedAt: '2026-10-12', revisionVector: {}, state: { ...state, editorDocuments: [{ ...file, unfinished: { ...file.unfinished, fieldState: { [largeKey]: 'inert' } } }] } }))
+  const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'large-key', capturedAt: '2026-10-12', revisionVector: {}, state: { ...state, editorDocuments: [{ ...file, unfinished: { ...file.unfinished, fieldState: { [largeKey]: 'inert' } } }] } }))
   const db = new CryKitDatabase(`guest-evidence-token-${crypto.randomUUID()}`), repository = createGuestRepository(db)
   try { await repository.readWorkspace(); await importGuestInheritedEvidence(await guestRepositoryBindings(repository), source) } finally { await disposeWorkspaceSnapshot(source); await db.delete() }
 })
@@ -291,7 +292,7 @@ describe('strict inherited storage graph and frozen identity', () => {
     db = new CryKitDatabase(`guest-evidence-corruption-${crypto.randomUUID()}`)
     const repository = createGuestRepository(db)
     await repository.readWorkspace()
-    const source = await readWorkspaceBackup(exportWorkspaceBackup({ version: 1, snapshotId: 'graph-original', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
+    const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'graph-original', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
     try { await importGuestInheritedEvidence(await guestRepositoryBindings(repository), source) } finally { await disposeWorkspaceSnapshot(source) }
     binding = await guestRepositoryBindings(createGuestRepository(db))
     const { captureGuestSnapshot } = await import('../workspace/guest-snapshot')
@@ -345,7 +346,7 @@ it('awaits quota and cancellation cleanup while retaining the selected empty mig
   const { assertWorkspaceSnapshotCurrent, disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
   const { importGuestInheritedEvidence } = await import('../workspace/guest-evidence-import')
   const db = new CryKitDatabase(`guest-evidence-failure-${crypto.randomUUID()}`), repository = createGuestRepository(db)
-  const source = await readWorkspaceBackup(exportWorkspaceBackup({ version: 1, snapshotId: 'quota-source', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
+  const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'quota-source', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
   try {
     await repository.readWorkspace()
     const binding = await guestRepositoryBindings(repository)
@@ -379,7 +380,7 @@ it.each([1, 2])('recovery copies the captured v%s evidence without changing sele
   const { copyGuestRecovery } = await import('../workspace/guest-recovery')
   const db = new CryKitDatabase(`guest-recovery-evidence-${crypto.randomUUID()}`), oldFiles = new Dexie(`guest-recovery-v1-${crypto.randomUUID()}`)
   oldFiles.version(1).stores({ documents: 'key', blobs: 'key', chunks: '[key+index], key', meta: 'key' })
-  const source = await readWorkspaceBackup(exportWorkspaceBackup({ version: 1, snapshotId: 'recovery-original', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
+  const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'recovery-original', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
   try {
     let repository = createGuestRepository(db)
     await repository.readWorkspace()
@@ -425,7 +426,7 @@ it('rejects a changed destination planner copy before publishing inert evidence'
   const { disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
   const { importGuestInheritedEvidence } = await import('../workspace/guest-evidence-import')
   const db = new CryKitDatabase(`guest-evidence-copy-${crypto.randomUUID()}`), repository = createGuestRepository(db)
-  const source = await readWorkspaceBackup(exportWorkspaceBackup({ version: 1, snapshotId: 'copy-source', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
+  const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'copy-source', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
   try {
     await repository.readWorkspace()
     const binding = await guestRepositoryBindings(repository), manifest = await binding.coordinator.active.get('active')

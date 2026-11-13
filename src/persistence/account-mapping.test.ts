@@ -7,7 +7,7 @@ import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { AccountDatabase, activateLocalAccountCommit } from './account-database'
 import { accountLocalId, stageAccountJson, cipherRef, openAccountJson, AccountProjectionSchema, AccountIntentSchema } from '../workspace/account-cache'
 import { openAccountRepository } from '../workspace/account-repository'
-import { MappedWorkspaceIntentSchema, openOrMapAccountWorkspace, readMappedWorkspaceChanges } from '../workspace/account-intents'
+import { MappedWorkspaceIntentSchema, openExactAccountWorkspace, readMappedWorkspaceChanges } from '../workspace/account-intents'
 
 it('maps pending legacy edits from their original bases and preserves operation identity atomically', async () => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
@@ -24,7 +24,7 @@ it('maps pending legacy edits from their original bases and preserves operation 
     await activateLocalAccountCommit(database, token, { version: 1, id, expected: fence, head: cipherRef(target), intent: cipherRef(intent), records: [target, intent] })
     // Exercise the native pending-intent mapper directly, before the public opener's managed migration
     // Complete native-to-managed startup is covered separately without changing this native fixture
-    const selected = await openOrMapAccountWorkspace(database, token, (await database.profileMeta.get('active'))!)
+    const selected = await openExactAccountWorkspace(database, token, (await database.profileMeta.get('active'))!)
     const row = (await database.outbox.toArray())[0]!
     expect(row.id).toBe(id)
     expect(row.status).toBe('mapped-local')

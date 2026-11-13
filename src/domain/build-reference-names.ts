@@ -1,3 +1,4 @@
+import { SOURCE_REVISION_RECEIPTS } from '../catalog/source-revisions'
 import { definitionOrigins } from './definition-origins'
 import { fulfillSource } from './source-fulfillment'
 import { buildModReferences } from './build-references'
@@ -51,10 +52,14 @@ export function assertModSourceReceipts(setup: Pick<GameSetupRevision, 'modCompo
   for (const receipt of setup.modSourceReceipts ?? []) {
     const key = JSON.stringify([receipt.catalogId, receipt.catalogRevisionId])
     const source = parseCatalogSourceId(receipt.catalogId)
-    const revision = source && parseSourceRevision(source.origin, receipt.catalogRevisionId)
-    const imported = source?.origin === 'imported' && revision?.kind === 'imported' && revision.encoding === 'j1' && /^payload:sha256:[a-f0-9]{64}$/.test(receipt.checksum) && receipt.contentFingerprint === `json-content-v1:sha256:${revision.digest}`
-    const prelaunch = receipt.catalogId.startsWith('crystal-edit:') && receipt.catalogRevisionId.startsWith(`${receipt.checksum}:`) && /^sha256:[0-9a-f]{64}:rules-v\d+:library-v\d+$/.test(receipt.catalogRevisionId)
-    if (seen.has(key) || !imported && !prelaunch || !setup.modComposition?.layers.some(pin => pin.catalogId === receipt.catalogId && pin.catalogRevisionId === receipt.catalogRevisionId)) throw new Error('A mod source receipt does not match a pinned source layer')
+    const bundled = source?.origin === 'mod' && SOURCE_REVISION_RECEIPTS.find(value => value.id === receipt.catalogId && value.revisionId === receipt.catalogRevisionId && value.checksum === receipt.checksum)
+    const payload = source?.origin === 'imported' ? receipt : bundled ? bundled.payloadSource : undefined
+    const identity = payload && parseCatalogSourceId(payload.catalogId)
+    const revision = payload && parseSourceRevision('imported', payload.catalogRevisionId)
+    // Bundled distribution receipts must resolve to the same canonical imported payload
+    // A display title or raw file digest cannot authorize a source or its interpretation
+    const exact = identity?.origin === 'imported' && identity.key.startsWith('ce1-') && revision?.kind === 'imported' && revision.encoding === 'j1' && /^payload:sha256:[a-f0-9]{64}$/.test(receipt.checksum) && receipt.contentFingerprint === `json-content-v1:sha256:${revision.digest}`
+    if (seen.has(key) || !exact || !setup.modComposition?.layers.some(pin => pin.catalogId === receipt.catalogId && pin.catalogRevisionId === receipt.catalogRevisionId)) throw new Error('A mod source receipt does not match a pinned source layer')
     seen.add(key)
   }
 }

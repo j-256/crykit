@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { createAccountInheritedEvidencePreparation } from './account-evidence-snapshots'
 import { inheritWorkspaceSnapshot } from '../interchange/workspace-backup-evidence'
@@ -54,7 +55,7 @@ it('migrates a native encrypted graph without changing originals and keeps its e
 it('preserves inherited native graphs and rejects competing publication without selecting staged data', async () => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
   const fixture = await editorClosureFixture(), owner = createAccountInheritedEvidencePreparation(database, token)
-  const original = ownWorkspaceSnapshot({ version: 1, snapshotId: 'older-account-native', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: { original: 'one' }, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
+  const original = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'older-account-native', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: { original: 'one' }, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
   const inherited = await inheritWorkspaceSnapshot(original, [original])
   let migration: Awaited<ReturnType<typeof prepareAccountManagedMigration>> | undefined, backup: Awaited<ReturnType<typeof captureWorkspaceSnapshot>> | undefined
   try {

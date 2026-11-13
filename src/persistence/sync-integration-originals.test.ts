@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { IDBFactory } from 'fake-indexeddb'
 import Dexie from 'dexie'
@@ -65,7 +66,7 @@ it('unionsDisjointHistoricalOriginalsAndReexportsThemOnBothDevices', async () =>
     const fence = (await selected.db.profileMeta.get('active'))!, mapped = (await readIncrementalMappedRoot(selected.db, selected.token, fence))!
     const source = await openAccountWorkspace(selected.db, selected.token, mapped)
     const fixture = await editorClosureFixture()
-    const current = { version: 1 as const, snapshotId: `current-${label}`, capturedAt: '2026-10-13', revisionVector: {}, state: fixture.state }
+    const current = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1 as const, snapshotId: `current-${label}`, capturedAt: '2026-10-13', revisionVector: {}, state: fixture.state }
     const historical = { ...current, snapshotId: `historical-${label}`, state: { ...fixture.state, editorDocuments: [{ ...fixture.file, unfinished: { ...fixture.file.unfinished, fieldState: { original: `\ud800${label}` } } }] } }
     const inherited = await inheritWorkspaceSnapshot(current, [historical])
     const operation = createAccountInheritedEvidencePreparation(selected.db, selected.token)
@@ -158,7 +159,7 @@ it('publishesRestoredHistoricalOriginalsForExactReexportOnAnotherDevice', async 
     const a = await device(0)
     await a.settle()
     const fixture = await editorClosureFixture()
-    const source = { version: 1 as const, snapshotId: 'restored-on-a', capturedAt: '2026-10-13', revisionVector: {}, state: { ...fixture.state, editorDocuments: [{ ...fixture.file, unfinished: { ...fixture.file.unfinished, fieldState: { original: '\ud800restored' } } }] } }
+    const source = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1 as const, snapshotId: 'restored-on-a', capturedAt: '2026-10-13', revisionVector: {}, state: { ...fixture.state, editorDocuments: [{ ...fixture.file, unfinished: { ...fixture.file.unfinished, fieldState: { original: '\ud800restored' } } }] } }
     const backup = await readWorkspaceBackup(exportWorkspaceBackup(source))
     try {
       const preview = await previewAccountWorkspaceRestore(a.db, a.token, backup)
@@ -207,7 +208,7 @@ it('publishes the first pending copy once and preserves every original on a fres
     return response
   })
   const fixture = await editorClosureFixture(), blank = { ...fixture.state, blobs: [], retainedContent: [] }
-  const source = ownWorkspaceSnapshot({ version: 1, snapshotId: 'first-copy-original', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: { ...fixture.state, editorDocuments: [fixture.file] } }, { check: async () => {}, dispose: async () => {} })
+  const source = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'first-copy-original', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: { ...fixture.state, editorDocuments: [fixture.file] } }, { check: async () => {}, dispose: async () => {} })
   const copy = createGuestCopyService(async () => source)
   const openDevice = async () => {
     invalidateProfile(); Dexie.dependencies.indexedDB = new IDBFactory()

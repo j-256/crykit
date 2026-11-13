@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import type {
   CatalogId,
   CatalogSnapshot,
@@ -8,7 +9,7 @@ import type {
   Timestamp,
 } from '../domain/types'
 
-export type ImportFormat = 'research-json-1.1.0' | 'research-zip-1.1.0' | 'xlsx-v2' | 'native-backup-2.0.0' | 'native-backup-2.1.0' | 'crystal-edit-json-1'
+export type ImportFormat = 'research-json-1.1.0' | 'research-zip-1.1.0' | 'xlsx-v2' | 'native-backup-3.0.0' | 'crystal-edit-json-1'
 export type ImportGroup = 'reference' | 'personal' | 'mixed' | 'ignored'
 
 export interface ImportProblem {
@@ -130,7 +131,8 @@ export interface NativeBackupSourceManifest {
 
 export interface NativeBackupManifest {
   readonly format: 'crykit-backup'
-  readonly formatVersion: '2.0.0' | '2.1.0'
+  readonly formatVersion: '3.0.0'
+  readonly dataGeneration: typeof LAUNCH_DATA_GENERATION
   readonly exportedAt: Timestamp
   readonly payload: 'bundle.json'
   readonly sources: readonly NativeBackupSourceManifest[]
@@ -145,7 +147,6 @@ export interface NativeBackupPayload {
   readonly localData: LocalData
   readonly lineage: LocalDataLineage
   readonly catalogs: readonly CatalogSnapshot[]
-  readonly bundledCatalogs?: readonly Pick<CatalogSnapshot, 'id' | 'revisionId' | 'checksum'>[]
   readonly evidence: readonly EvidenceRecord[]
   readonly history: readonly PersistedHistoryEntry[]
 }

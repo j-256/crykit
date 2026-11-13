@@ -1,14 +1,9 @@
-import { migrateLocalData250 } from '../domain/team-checkpoints'
+import { GUEST_PLANNER_DATABASE } from './storage-names'
 import Dexie, { type EntityTable, type PromiseExtended } from 'dexie'
 import { AppDataError } from '../interchange/errors'
 import type { OperativePlannerDescriptorV1 } from './guest-planner-record'
 import { installGuestWriteBarrier } from '../workspace/guest-barrier'
 import { prepareFreshGuestTargetOpening } from '../workspace/fresh-guest-target'
-import { NativeHistorySchema, StoredNativeLocalDataSchema } from '../interchange/native-schema'
-import { validateNativeLocalDataGraph } from '../interchange/native'
-import { BUNDLED_CATALOGS, BUNDLED_SOURCE_ENTITY_IDS } from '../catalog/bundled'
-import { HISTORICAL_BUNDLED_CATALOG } from '../domain/withdrawn-catalogs'
-import { upgradeBundledReferences } from '../domain/bundled-reference-upgrade'
 import type { CatalogSnapshot, LocalData, LocalDataId, Timestamp } from '../domain/types'
 import type {
   EvidenceRecord,
@@ -50,11 +45,9 @@ export type PlannerFormatRequirement = 'legacy-or-journaled' | 'journaled'
 export interface CryKitDatabaseOptions {
   readonly plannerFormatRequirement?: PlannerFormatRequirement
   readonly freshGuestTarget?: true
-  readonly frozenSource240?: true
 }
 
 const REQUIRED_NATIVE_VERSION = 70
-const FROZEN_NATIVE_VERSION = 60
 const REQUIRED_DELETE_MESSAGE = 'Required planner handles cannot delete databases'
 const REQUIRED_OPEN_MESSAGE = 'The journaled planner database cannot be opened safely. Keep your draft and reopen the workspace'
 
@@ -105,8 +98,6 @@ function createRequiredOpeningAdapter(name: string, nativeFactory: IDBFactory | 
   const adapter: RequiredOpeningAdapter = {
     open(requestedName, version) {
       if (state.terminal) throw new Dexie.DatabaseClosedError()
-      // Dexie retries VersionError without a version; preserve native provenance without issuing that broader request
-      if (state.nativeVersion === FROZEN_NATIVE_VERSION && requestedName === name && version === undefined && state.nativeVersionFailure) throw state.nativeVersionFailure
       if (requestedName !== name || version !== state.nativeVersion) throw openingDenial(state)
       if (!nativeOpen) throw new Dexie.MissingAPIError()
       const request = nativeOpen(name, state.nativeVersion)
@@ -203,7 +194,6 @@ export function assertRequiredPlannerDatabaseOpen(database: CryKitDatabase): voi
 
 export class CryKitDatabase extends Dexie {
   readonly plannerFormatRequirement!: PlannerFormatRequirement
-  readonly frozenSource240!: boolean
   localDatas!: EntityTable<LocalDataRecord, 'id'>
   catalogs!: EntityTable<CatalogRecord, 'key'>
   evidence!: EntityTable<EvidenceRecord, 'id'>
@@ -212,13 +202,12 @@ export class CryKitDatabase extends Dexie {
   imports!: EntityTable<ImportRecord, 'id'>
   meta!: EntityTable<MetaRecord, 'key'>
 
-  constructor(name = 'crykit', options: CryKitDatabaseOptions = {}) {
+  constructor(name = GUEST_PLANNER_DATABASE, options: CryKitDatabaseOptions = {}) {
     const suppliedRequirement = options.plannerFormatRequirement
     const requirement = suppliedRequirement === undefined ? 'legacy-or-journaled' : suppliedRequirement
     if (requirement !== 'legacy-or-journaled' && requirement !== 'journaled') throw new TypeError('Invalid planner format requirement')
     if (options.freshGuestTarget && requirement !== 'journaled') throw new TypeError('Fresh restore planners require the journaled format')
-    if (options.frozenSource240 && (requirement !== 'journaled' || options.freshGuestTarget)) throw new TypeError('A frozen source requires a noncreating journaled handle')
-    const nativeVersion = options.frozenSource240 ? FROZEN_NATIVE_VERSION : REQUIRED_NATIVE_VERSION
+    const nativeVersion = REQUIRED_NATIVE_VERSION
     const fresh = options.freshGuestTarget ? prepareFreshGuestTargetOpening(name, REQUIRED_NATIVE_VERSION) : undefined
     const state = requirement === 'journaled' && !fresh ? createRequiredOpeningState(nativeVersion) : undefined
     super(name, fresh?.dependencies ?? (state ? { indexedDB: createRequiredOpeningAdapter(name, Dexie.dependencies.indexedDB, state), IDBKeyRange: Dexie.dependencies.IDBKeyRange, addons: [] } : undefined))
@@ -232,10 +221,8 @@ export class CryKitDatabase extends Dexie {
       this.on('ready', () => admitRequiredPlannerSchema(this.backendDB(), state), true)
     }
     // The immutable requirement also governs transaction admission; opening alone grants no row or workspace authority
-    Object.defineProperty(this, 'frozenSource240', { value: options.frozenSource240 === true, enumerable: true, writable: false, configurable: false })
-    if (options.frozenSource240) this.use({ stack: 'dbcore', name: 'frozen-domain-source', level: 1, create: core => ({ ...core, transaction: (stores, mode, options) => { if (mode !== 'readonly') throw new TypeError('Frozen planner sources are read-only'); return core.transaction(stores, mode, options) } }) })
     Object.defineProperty(this, 'plannerFormatRequirement', { value: requirement, enumerable: true, writable: false, configurable: false })
-    this.version(1).stores({
+    this.version(7).stores({
       localDatas: 'id, revision, updatedAt',
       catalogs: 'key, id, revisionId, checksum',
       evidence: 'id, sourceDigest, group',
@@ -244,48 +231,9 @@ export class CryKitDatabase extends Dexie {
       imports: 'id, sourceDigest, localDataId',
       meta: 'key',
     })
-    // Roots and undo snapshots must migrate in the same upgrade transaction
-    // A bad history entry must roll back roots and the database version rather than leave undo incompatible
-    const migrate = async (transaction: import('dexie').Transaction) => {
-      const storedCatalogs = (await transaction.table<CatalogRecord>('catalogs').toArray()).map(record => record.snapshot)
-      const catalogs = [...new Map([...storedCatalogs, ...BUNDLED_CATALOGS].map(catalog => [JSON.stringify([catalog.id, catalog.revisionId]), catalog])).values()]
-      const localDatas = transaction.table<LocalDataRecord>('localDatas')
-      for (const record of await localDatas.toArray()) {
-        const localData = upgradeBundledReferences(StoredNativeLocalDataSchema.parse(record.localData) as unknown as LocalData, HISTORICAL_BUNDLED_CATALOG, BUNDLED_SOURCE_ENTITY_IDS)
-        validateNativeLocalDataGraph(localData, catalogs)
-        await localDatas.put({ ...record, localData })
-      }
-      const history = transaction.table<PersistedHistoryEntry>('history')
-      for (const entry of await history.toArray()) {
-        const parsed = NativeHistorySchema.parse(entry) as unknown as PersistedHistoryEntry
-        const migrated = { ...parsed, before: upgradeBundledReferences(parsed.before, HISTORICAL_BUNDLED_CATALOG, BUNDLED_SOURCE_ENTITY_IDS), after: upgradeBundledReferences(parsed.after, HISTORICAL_BUNDLED_CATALOG, BUNDLED_SOURCE_ENTITY_IDS) }
-        validateNativeLocalDataGraph(migrated.before, catalogs)
-        validateNativeLocalDataGraph(migrated.after, catalogs)
-        await history.put(migrated)
-      }
-    }
-    this.version(2).stores({}).upgrade(migrate)
-    this.version(3).stores({}).upgrade(migrate)
-    this.version(4).stores({}).upgrade(migrate)
-    this.version(5).stores({}).upgrade(migrate)
-    this.version(6).stores({}).upgrade(migrate)
-    if (!options.frozenSource240) this.version(7).stores({}).upgrade(async transaction => {
-      const catalogs = [...new Map([...BUNDLED_CATALOGS, ...(await transaction.table<CatalogRecord>('catalogs').toArray()).map(row => row.snapshot)].map(catalog => [JSON.stringify([catalog.id, catalog.revisionId]), catalog])).values()]
-      const roots = await transaction.table<LocalDataRecord>('localDatas').toArray()
-      const history = await transaction.table<PersistedHistoryEntry>('history').toArray()
-      const operative = new Set(roots.flatMap(root => root.operativePlanner ? root.operativePlanner.checkpointIds : history.filter(entry => entry.localDataId === root.localData.id).map(entry => entry.id)))
-      const meta = transaction.table<MetaRecord>('meta')
-      // The recovery copy and every operative endpoint share the versionchange rollback boundary
-      if (await meta.get('domain-2.5.0-rollback')) throw new Error('The domain migration recovery key is already occupied')
-      await meta.add({ key: 'domain-2.5.0-rollback', value: JSON.stringify({ version: 1, roots, history }) })
-      for (const root of roots) await transaction.table('localDatas').put({ ...root, localData: migrateLocalData250(root.localData, catalogs) })
-      for (const entry of history) {
-        NativeHistorySchema.parse(entry)
-        if (!operative.has(entry.id)) continue
-        await transaction.table('history').put({ ...entry, before: migrateLocalData250(entry.before, catalogs), after: migrateLocalData250(entry.after, catalogs) })
-      }
-    })
-    // Selected frozen sources never run versionchange; successors stage current endpoints in a fresh target
+    // The launch namespace starts with its final layout and never upgrades prelaunch planner rows
+    // An old database passed explicitly must fail its versionchange transaction without rewriting data
+    this.version(7).upgrade(() => { throw new Error('Unsupported prelaunch planner storage') })
     installGuestWriteBarrier(this)
   }
 

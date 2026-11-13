@@ -1,29 +1,23 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
-import { requirePlaythrough, updateScenario } from '../domain'
-import { addTestBuild, addTestCharacter, addTestScenario, createTestLocalData, TEST_NOW } from '../domain/test-helpers'
-import { previewNativeBackup, resolveBundledCatalogPins } from './native'
-import { STARTER_CATALOG } from '../catalog/starter'
+import { requirePlaythrough } from '../domain'
+import { addTestCharacter, createTestLocalData } from '../domain/test-helpers'
+import { previewNativeBackup } from './native'
+import { GUIDE_CATALOG } from '../catalog/bundled'
 import { catalogSnapshotKey } from './identity'
 import { NativeLocalDataSchema, StoredNativeLocalDataSchema } from './native-schema'
 
 const encode = (value: unknown): Uint8Array => new TextEncoder().encode(JSON.stringify(value))
 
-describe('exact bundled catalog backup pins', () => {
-  const pin = { id: STARTER_CATALOG.id, revisionId: STARTER_CATALOG.revisionId, checksum: STARTER_CATALOG.checksum }
-  it('resolves the complete offline revision and rejects unavailable, mismatched, or duplicate pins', () => {
-    expect(resolveBundledCatalogPins([pin], [STARTER_CATALOG])).toEqual([STARTER_CATALOG])
-    expect(() => resolveBundledCatalogPins([pin], [])).toThrow(/exact bundled catalog revision/)
-    expect(() => resolveBundledCatalogPins([{ ...pin, checksum: 'synthetic-mismatch' }], [STARTER_CATALOG])).toThrow(/different checksum/)
-    expect(() => resolveBundledCatalogPins([pin, pin], [STARTER_CATALOG])).toThrow(/duplicate bundled catalog pin/)
-  })
-  it('requires the explicit new format and validates pins before proposing a restore', async () => {
-    const mutatePayload = (payload: Record<string, unknown>) => { payload.bundledCatalogs = [pin] }
-    await expect(previewNativeBackup(nativeFixture({ mutatePayload }), 'old-format.zip', [STARTER_CATALOG])).rejects.toThrow(/require backup format 2.1.0/)
-    await expect(previewNativeBackup(nativeFixture({ version: '2.1.0', mutatePayload }), 'missing-revision.zip')).rejects.toThrow(/exact bundled catalog revision/)
-    const preview = await previewNativeBackup(nativeFixture({ version: '2.1.0', mutatePayload }), 'new-format.zip', [STARTER_CATALOG])
-    expect(preview.detectedFormat).toBe('native-backup-2.1.0')
-    expect(preview.proposed.catalogs).toEqual([STARTER_CATALOG])
+describe('complete source backup payloads', () => {
+  it('rejects prelaunch package-only manifests and requires complete source bodies', async () => {
+    const pin = { id: GUIDE_CATALOG.id, revisionId: GUIDE_CATALOG.revisionId, checksum: GUIDE_CATALOG.checksum }
+    for (const version of ['2.0.0', '2.1.0']) await expect(previewNativeBackup(nativeFixture({ version }), 'prelaunch.zip')).rejects.toThrow(/unsupported version/)
+    await expect(previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.bundledCatalogs = [pin] } }), 'pins.zip')).rejects.toThrow()
+    const preview = await previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [GUIDE_CATALOG] } }), 'complete.zip')
+    expect(preview.detectedFormat).toBe('native-backup-3.0.0')
+    expect(preview.proposed.catalogs).toEqual([GUIDE_CATALOG])
   })
 })
 
@@ -62,7 +56,8 @@ function nativeFixture(options: {
     : []
   const manifest = {
     format: 'crykit-backup',
-    formatVersion: options.version ?? '2.0.0',
+    formatVersion: options.version ?? '3.0.0',
+    dataGeneration: LAUNCH_DATA_GENERATION,
     exportedAt: '2026-01-02T03:04:05.000Z',
     payload: 'bundle.json',
     sources,
@@ -83,10 +78,8 @@ function nativeFixture(options: {
 }
 
 describe('native backup validation', () => {
-  it.each([undefined, { version: 1, selection: { state: 'unknown', reason: 'Synthetic missing difficulty' } }])('preserves unrecorded difficulty when importing a legacy backup: %j', async difficulty => {
+  it.each([undefined, { version: 1, selection: { state: 'unknown', reason: 'Synthetic missing difficulty' } }])('preserves unrecorded difficulty in a supported backup: %j', async difficulty => {
     const preview = await previewNativeBackup(nativeFixture({ mutateLocalData: data => {
-      data.schemaVersion = '2.0.0'
-      delete data.teams; delete data.teamRevisions
       for (const setup of Object.values(data.gameSetups as Record<string, Record<string, unknown>>)) {
         if (difficulty === undefined) delete setup.difficulty
         else setup.difficulty = difficulty
@@ -95,25 +88,11 @@ describe('native backup validation', () => {
     for (const setup of Object.values(preview.proposed.localData.gameSetups)) expect(setup.difficulty).toEqual(difficulty)
   })
 
-  it('normalizes old Build labels without changing party-plan contexts or checkpoint pins', () => {
-    const initial = addTestScenario(addTestBuild(createTestLocalData(), 'build', '', {}), {})
-    const data = updateScenario(initial, { scenarioId: requirePlaythrough(initial).scenarios.scenario!.id, kind: 'hypothetical', now: TEST_NOW })
-    const { archived: _archived, ...build } = data.builds.build!
-    const { teamRevisions: _teamRevisions, ...frozen } = data
-    const old = { ...frozen, schemaVersion: '2.2.0', builds: { build: { ...build, kind: 'template', state: 'hypothetical' } } }
-    expect(StoredNativeLocalDataSchema.parse(old)).toEqual({ ...frozen, schemaVersion: '2.4.0' })
-    const archived = StoredNativeLocalDataSchema.parse({ ...old, builds: { build: { ...old.builds.build, state: 'archived' } } })
-    expect(archived.builds.build).toEqual({ ...data.builds.build, archived: true })
-    expect(archived.playthroughs).toEqual(data.playthroughs)
-    expect(archived.buildRevisions).toEqual(data.buildRevisions)
-    expect(NativeLocalDataSchema.safeParse({ ...old, schemaVersion: data.schemaVersion }).success).toBe(false)
-  })
-
-  it('migrates legacy planner payloads without changing pinned records', async () => {
-    const preview = await previewNativeBackup(nativeFixture({ mutateLocalData: data => { data.schemaVersion = '2.0.0'; delete data.teams; delete data.teamRevisions } }), 'legacy.zip')
-    expect(preview.proposed.localData.schemaVersion).toBe(createTestLocalData().schemaVersion)
-    expect(preview.proposed.localData.gameSetups).toEqual(createTestLocalData().gameSetups)
-    expect(preview.proposed.localData.playthroughs).toEqual(createTestLocalData().playthroughs)
+  it.each(['2.0.0', '2.1.0', '2.2.0', '2.3.0', '2.4.0', '2.5.0'])('rejects prelaunch planner schema %s without conversion', async schemaVersion => {
+    const old = { ...createTestLocalData(), schemaVersion }
+    expect(StoredNativeLocalDataSchema.safeParse(old).success).toBe(false)
+    expect(NativeLocalDataSchema.safeParse(old).success).toBe(false)
+    await expect(previewNativeBackup(nativeFixture({ mutateLocalData: data => { data.schemaVersion = schemaVersion } }), 'prelaunch.zip')).rejects.toThrow()
   })
 
   it('accepts legacy snapshot context and retains pinned context while rejecting dangling gameSetups', async () => {
@@ -138,7 +117,7 @@ describe('native backup validation', () => {
   })
 
   it('rejects unknown backup format versions before applying data', async () => {
-    await expect(previewNativeBackup(nativeFixture({ version: '3.0.0' }), 'future.zip')).rejects.toMatchObject({
+    await expect(previewNativeBackup(nativeFixture({ version: '4.0.0' }), 'future.zip')).rejects.toMatchObject({
       code: 'schema-mismatch',
     })
   })

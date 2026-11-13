@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import type { LocalData } from '../domain/types'
 import type { SourceArchiveRecord } from '../interchange/types'
 import type { WorkspacePlannerState } from './documents'
@@ -8,7 +9,6 @@ import { previewImport } from '../interchange/import'
 import { nowTimestamp } from '../interchange/util'
 import { NATIVE_BACKUP_FORMAT_VERSION } from '../interchange/native-schema'
 import { inspectZip, NATIVE_BACKUP_ARCHIVE_LIMITS } from '../interchange/zip'
-import { encodeCatalogPayload, PackagedCatalogPinSchema } from './catalog-codec'
 
 const MAX_PLANNER_BACKUP_HISTORY = 500
 
@@ -29,13 +29,8 @@ export async function exportAccountPlannerSnapshot(planner: WorkspacePlannerStat
   const retained = savedHistory.slice(-MAX_PLANNER_BACKUP_HISTORY)
   const entries: Record<string, Uint8Array> = {}
   const manifestSources = originals.map(({ bytes, ...metadata }, index) => { const path = `sources/${String(index).padStart(4, '0')}.bin`; entries[path] = bytes; return { ...metadata, path, size: bytes.byteLength } })
-  const bundled = planner.catalogs.flatMap(catalog => {
-    const payload = encodeCatalogPayload(catalog)
-    return PackagedCatalogPinSchema.safeParse(payload).success ? [catalog] : []
-  })
-  const bundledKeys = new Set(bundled.map(value => JSON.stringify([value.id, value.revisionId])))
-  entries['bundle.json'] = new TextEncoder().encode(JSON.stringify({ localData, lineage: planner.lineage, catalogs: planner.catalogs.filter(value => !bundledKeys.has(JSON.stringify([value.id, value.revisionId]))), bundledCatalogs: bundled.map(({ id, revisionId, checksum }) => ({ id, revisionId, checksum })), evidence: planner.evidence, history: retained }))
-  entries['manifest.json'] = new TextEncoder().encode(JSON.stringify({ format: 'crykit-backup', formatVersion: NATIVE_BACKUP_FORMAT_VERSION, exportedAt: nowTimestamp(), payload: 'bundle.json', sources: manifestSources, history: { stored: Math.max(completeHistoryCount, savedHistory.length), exported: retained.length, truncated: Math.max(completeHistoryCount, savedHistory.length) !== retained.length } }))
+  entries['bundle.json'] = new TextEncoder().encode(JSON.stringify({ localData, lineage: planner.lineage, catalogs: planner.catalogs, evidence: planner.evidence, history: retained }))
+  entries['manifest.json'] = new TextEncoder().encode(JSON.stringify({ format: 'crykit-backup', dataGeneration: LAUNCH_DATA_GENERATION, formatVersion: NATIVE_BACKUP_FORMAT_VERSION, exportedAt: nowTimestamp(), payload: 'bundle.json', sources: manifestSources, history: { stored: Math.max(completeHistoryCount, savedHistory.length), exported: retained.length, truncated: Math.max(completeHistoryCount, savedHistory.length) !== retained.length } }))
   try { const bytes = zipReadableByImporter(entries); inspectZip(bytes, NATIVE_BACKUP_ARCHIVE_LIMITS); await previewImport(bytes, 'account-planner-backup.zip'); return bytes }
   finally { for (const bytes of Object.values(entries)) bytes.fill(0) }
 }

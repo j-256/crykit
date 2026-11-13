@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from './data-generation'
 import {
   asTimestamp,
   assertExpectedRevision,
@@ -53,6 +54,7 @@ export interface CreateBlankLocalDataInput {
 export function createBlankLocalData(input: CreateBlankLocalDataInput = {}): LocalData {
   const at = input.now === undefined ? nowTimestamp() : asTimestamp(input.now)
   return {
+    dataGeneration: LAUNCH_DATA_GENERATION,
     schemaVersion: LOCAL_DATA_SCHEMA_VERSION,
     id: input.id ?? createId<LocalDataId>('localData'),
     revision: 0,

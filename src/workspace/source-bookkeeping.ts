@@ -1,13 +1,13 @@
 import { z } from 'zod'
 import { TEAM_SIZE } from '../domain/scenarios'
-import { NativeLocalDataSchema, NativeLocalData240Schema } from '../interchange/native-schema'
+import { NativeLocalDataSchema } from '../interchange/native-schema'
 import { CipherRefSchema } from './account-cache'
 import type { CipherRef } from '../persistence/account-database'
 import type { WorkspaceDocument } from './documents'
 
 export const SourceBookkeepingSchema = z.strictObject({ version: z.literal(1), kind: z.literal('recorded-party-source'), origin: z.enum(['local-capture', 'legacy-local-migration']), scenarioDependencies: z.enum(['complete-v1', 'legacy-s02']), baselineCheckpoints: z.array(z.strictObject({ key: z.string(), ref: CipherRefSchema })).max(TEAM_SIZE), scenarioKey: z.string(), scenario: CipherRefSchema, ownerKey: z.string(), owner: CipherRefSchema, revision: z.number().int().nonnegative().safe(), updatedAt: NativeLocalDataSchema.shape.updatedAt })
 export type SourceBookkeeping = z.infer<typeof SourceBookkeepingSchema>
-const scenarioReader = z.union([NativeLocalDataSchema.shape.playthroughs.valueType.shape.scenarios.valueType, NativeLocalData240Schema.shape.playthroughs.valueType.shape.scenarios.valueType])
+const scenarioReader = NativeLocalDataSchema.shape.playthroughs.valueType.shape.scenarios.valueType
 export function checkpointRecordKey(ref: string | import('../domain/types').CheckpointRef): string { return typeof ref === 'string' ? JSON.stringify(['build-checkpoint', ref]) : ref.kind === 'build' ? JSON.stringify(['build-checkpoint', ref.revisionId]) : JSON.stringify(['team-checkpoint', ref.teamRevisionId]) }
 type RecordBody = { readonly ref: CipherRef; readonly document: WorkspaceDocument }
 const same = (a: CipherRef, b: CipherRef) => a.documentId === b.documentId && a.revisionId === b.revisionId

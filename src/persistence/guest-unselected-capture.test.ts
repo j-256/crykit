@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { deepStrictEqual } from 'node:assert'
 import 'fake-indexeddb/auto'
 import Dexie from 'dexie'
@@ -175,7 +176,7 @@ it('keeps older genuine destination changes beyond the live window through a com
     const { state, inherited } = await setup.read(capture)
     expect(state.planner.savedChanges?.[0]).toEqual(oldest)
     expect(splitWorkspace(state).find(document => document.kind === 'change' && document.key === JSON.stringify(['change', oldest.id]))?.value).toEqual(oldest)
-    const current: WorkspaceSnapshotV1 = { version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { guest: setup.target.id, capture: capture.id }, state }
+    const current: WorkspaceSnapshotV1 = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { guest: setup.target.id, capture: capture.id }, state }
     await validateWorkspaceSnapshot(current)
     joined = await joinWorkspaceSnapshotEvidence(ownWorkspaceSnapshot(current, { check: async () => {}, dispose: async () => {} }), inherited)
     imported = await readWorkspaceBackup(exportWorkspaceBackup(joined))
@@ -199,7 +200,7 @@ it('keeps historical bytes in the same freeze and retires lazy historical reader
     const bytes = new Uint8Array(BLOB_CHUNK_BYTES * 2 + 9).map((_, index) => index % 251)
     const ref = await original.add(bytes, 'large-historical-body', 'bytes')
     const state = { ...original.state, assets: [{ version: 1 as const, id: 'historical-asset', sourceKey: 'synthetic-source', relativePath: 'art.png', original: ref, mediaType: 'image/png' as const, width: 1, height: 1 }] }
-    source = await readWorkspaceBackup(exportWorkspaceBackup({ version: 1, snapshotId: 'historical-source', capturedAt: '2026-10-13', revisionVector: { source: 'synthetic' }, state }))
+    source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'historical-source', capturedAt: '2026-10-13', revisionVector: { source: 'synthetic' }, state }))
     inheritedSource = await inheritWorkspaceSnapshot(source, [source])
     await writeGuestEvidence(setup.files, await guestEvidenceFromSnapshot(inheritedSource, emptyPlannerEvidence()))
     const capture = await setup.capture(), before = await nativeVector(setup)
@@ -210,7 +211,7 @@ it('keeps historical bytes in the same freeze and retires lazy historical reader
     expect(projected.inherited.members).toHaveLength(1)
     const historical = projected.inherited.bodies.find(body => body.ref.documentId === ref.documentId)!
     deepStrictEqual(await readBlob(historical.content, ref.byteLength), bytes)
-    const currentSnapshot: WorkspaceSnapshotV1 = { version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { guest: setup.target.id, capture: capture.id }, state: projected.state }
+    const currentSnapshot: WorkspaceSnapshotV1 = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { guest: setup.target.id, capture: capture.id }, state: projected.state }
     joined = await joinWorkspaceSnapshotEvidence(ownWorkspaceSnapshot(currentSnapshot, { check: async () => { if (!current) throw new Error('retired captured owner') }, dispose: async () => {} }), projected.inherited)
     imported = await readWorkspaceBackup(exportWorkspaceBackup(joined))
     if (imported.version !== 2) throw new Error('Historical backup did not retain its evidence')
@@ -263,7 +264,7 @@ it('deduplicates exact inherited saved changes and rejects changed same-ID origi
   let inheritedSource: Awaited<ReturnType<typeof inheritWorkspaceSnapshot>> | undefined
   try {
     const original = await editorClosureFixture()
-    source = await readWorkspaceBackup(exportWorkspaceBackup({ version: 1, snapshotId: 'saved-change-sidecar', capturedAt: '2026-10-13', revisionVector: { source: 'synthetic' }, state: original.state }))
+    source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'saved-change-sidecar', capturedAt: '2026-10-13', revisionVector: { source: 'synthetic' }, state: original.state }))
     inheritedSource = await inheritWorkspaceSnapshot(source, [])
     const root = (await setup.required.localDatas.get('local-data-record'))!
     const change = root.operativePlanner!.savedDestinationChanges[0]!

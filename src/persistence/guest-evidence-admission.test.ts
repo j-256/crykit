@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { CryKitDatabase } from './database'
@@ -30,7 +31,7 @@ it.each([true, false])('validates staged inert and operative same-ID changes bef
     const rows = () => Promise.all(participants.map(async participant => ({ kind: participant.kind, tables: await Promise.all(participant.database.tables.map(async table => ({ name: table.name, rows: await table.toArray() }))) })))
     const originalRows = await rows(), originalPointer = await binding.coordinator.active.get('active'), before = await repository.readWorkspace()
     const { state } = await editorClosureFixture()
-    source = await readWorkspaceBackup(exportWorkspaceBackup({ version: 1, snapshotId: 'same-change-id', capturedAt: '2026-10-12', revisionVector: {}, state: { ...state, planner: { ...state.planner, savedChanges: [{ ...change, command: conflicting ? 'different-source-command' : change.command }] } } }))
+    source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'same-change-id', capturedAt: '2026-10-12', revisionVector: {}, state: { ...state, planner: { ...state.planner, savedChanges: [{ ...change, command: conflicting ? 'different-source-command' : change.command }] } } }))
     const originalMetadata = JSON.stringify(snapshotMetadata(source))
     if (conflicting) {
       await expect(importGuestInheritedEvidence(binding, source)).rejects.toThrow('Saved planner change identity collision')
@@ -59,7 +60,7 @@ function inertChanges(count: number, prefix: string): readonly import('../domain
 }
 async function portableOriginal(changes: readonly import('../domain/types').ChangeEntry[], id: string) {
   const { state } = await editorClosureFixture()
-  const source = await readWorkspaceBackup(exportWorkspaceBackup({ version: 1, snapshotId: id, capturedAt: '2026-10-12', revisionVector: {}, state: { ...state, planner: { ...state.planner, savedChanges: changes } } }))
+  const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: id, capturedAt: '2026-10-12', revisionVector: {}, state: { ...state, planner: { ...state.planner, savedChanges: changes } } }))
   expect(source.state.planner.localData.changes).toEqual([])
   expect(source.state.planner.savedChanges).toEqual(changes)
   return source

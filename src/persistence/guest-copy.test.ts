@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import type { ModSourceReceipt } from '../domain/types'
 import { preparePublicationAttempt } from '../account/sync/publication'
@@ -26,7 +27,7 @@ async function setup() {
   const database = new AccountDatabase(token.accountId); databases.push(database)
   const fixture = await editorClosureFixture()
   const state = { ...fixture.state, editorDocuments: [fixture.file] }
-  const capture = async () => ownWorkspaceSnapshot({ version: 1, snapshotId: 'synthetic-copy', capturedAt: '2026-10-13', revisionVector: {}, state }, { async check() {}, async dispose() {} })
+  const capture = async () => ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'synthetic-copy', capturedAt: '2026-10-13', revisionVector: {}, state }, { async check() {}, async dispose() {} })
   return { token, database, state, capture }
 }
 // Native journal recovery keeps its original persisted codec; fresh managed targets have separate startup coverage
@@ -103,7 +104,7 @@ it('resumesTheEncryptedStagedGroupAfterActivationFailureWithoutGuestRecapture', 
 })
 it('copiesUnsupportedSavesAndExactInertBytesWithUnavailableSourceReceipts', async () => {
   const { token, database, capture, state } = await nativeCopySetup()
-  const save = { version: 1 as const, id: 'unsupported-save', revision: 0, filename: 'opaque.dat', original: state.blobs[0].ref, working: state.blobs[0].ref, pendingForm: { version: 999, text: 'inert private saved form' }, requirements: [{ catalogId: 'crystal-edit:missing' as ModSourceReceipt['catalogId'], catalogRevisionId: `sha256:${'a'.repeat(64)}:rules-v1:library-v1` as ModSourceReceipt['catalogRevisionId'], checksum: `sha256:${'a'.repeat(64)}`, title: 'Unavailable original' }], coverage: { status: 'unsupported' as const, diagnostics: ['Unknown version'] }, createdAt: '2026-10-13', updatedAt: '2026-10-13', exportedRevision: null }
+  const save = { version: 1 as const, id: 'unsupported-save', revision: 0, filename: 'opaque.dat', original: state.blobs[0].ref, working: state.blobs[0].ref, pendingForm: { version: 999, text: 'inert private saved form' }, requirements: [{ catalogId: `crystal-project/imported/ce1-${'a'.repeat(64)}` as ModSourceReceipt['catalogId'], catalogRevisionId: `j1-${'a'.repeat(64)}-p1` as ModSourceReceipt['catalogRevisionId'], checksum: `payload:sha256:${'a'.repeat(64)}`, contentFingerprint: `json-content-v1:sha256:${'a'.repeat(64)}`, title: 'Unavailable original' }], coverage: { status: 'unsupported' as const, diagnostics: ['Unknown version'] }, createdAt: '2026-10-13', updatedAt: '2026-10-13', exportedRevision: null }
   const snapshot = await capture()
   const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ ...snapshot, state: { ...state, saveDocuments: [save] } }, { async check() {}, async dispose() {} }))
   const preview = await service.previewGuestCopy(token, ['["save","unsupported-save"]'])
@@ -255,7 +256,7 @@ it.each(['compatible', 'absent', 'occupied'] as const)('copiesAnImportedEditorCo
   const initial = await preparePublicationAttempt(target.database, target.token, base.opened, null, new Map(), 0)
   const heads = new Map(initial.final.heads.map(ref => [ref.documentId, ref.revisionId]))
   let remote = (await openRemoteProjection(target.database, target.token, heads, base.head, 0))!
-  const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ version: 1, snapshotId: 'foreign-original', capturedAt: '2026-10-13', revisionVector: {}, state: portable }, { async check() {}, async dispose() {} }))
+  const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'foreign-original', capturedAt: '2026-10-13', revisionVector: {}, state: portable }, { async check() {}, async dispose() {} }))
   const preview = await service.previewGuestCopy(target.token, [JSON.stringify(['conflict', captured.conflict.id])])
   expect(preview.problems).toEqual([])
   await service.commitGuestCopy(target.token, preview)
@@ -366,7 +367,7 @@ it.each(['lineage', 'mapping', 'delete', 'accepted-delete', 'accepted-delete-abs
     remote = (await openRemoteProjection(target.database, target.token, heads, base.head, 1))!
     expect(remote.units.get(key)!.body.kind).toBe('tombstone')
   }
-  const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ version: 1, snapshotId: 'semantic-source', capturedAt: '2026-10-13', revisionVector: {}, state: portable }, { async check() {}, async dispose() {} }))
+  const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'semantic-source', capturedAt: '2026-10-13', revisionVector: {}, state: portable }, { async check() {}, async dispose() {} }))
   const preview = await service.previewGuestCopy(target.token, [JSON.stringify(['conflict', portable.conflicts[0].id])])
   expect(preview.problems).toEqual([])
   await service.commitGuestCopy(target.token, preview)
@@ -463,7 +464,7 @@ it('restoresAPendingBackupWithoutItsOperationJournalAndExplicitlyPreviewsTheReta
   const accepted = await prepareAccountWorkspace(source.database, source.token, { ...source.state, editorDocuments: [{ ...source.state.editorDocuments[0], filename: 'Portable accepted.json' }] }, base.opened)
   const captured = await createWorkspaceConflict({ base: base.opened, local: pending.opened, remote: accepted.opened, privateKey: '["editor","editor-1"]' })
   const originals = { ...accepted.opened.state, conflicts: [captured.conflict], blobs: captured.blobs }
-  const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ version: 1, snapshotId: 'pending-originals', capturedAt: '2026-10-13', revisionVector: {}, state: originals }, { async check() {}, async dispose() {} }))
+  const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'pending-originals', capturedAt: '2026-10-13', revisionVector: {}, state: originals }, { async check() {}, async dispose() {} }))
   const preview = await service.previewGuestCopy(source.token, [JSON.stringify(['conflict', captured.conflict.id])])
   await service.commitGuestCopy(source.token, preview)
   const fence = (await source.database.profileMeta.get('active'))!
@@ -522,7 +523,7 @@ it('retainsAClosedSourcePredecessorGroupWithoutClaimingDestinationSupersession',
   const target = await setup()
   const current = await prepareAccountWorkspace(target.database, target.token, { ...accepted.opened.state, blobs: source.state.blobs })
   await activation.activateLocalAccountCommit(target.database, target.token, { version: 1, id: accountLocalId(), expected: undefined, head: current.head, records: current.records })
-  const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ version: 1, snapshotId: 'closed-source-group', capturedAt: '2026-10-13', revisionVector: {}, state: portable }, { async check() {}, async dispose() {} }))
+  const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'closed-source-group', capturedAt: '2026-10-13', revisionVector: {}, state: portable }, { async check() {}, async dispose() {} }))
   const preview = await service.previewGuestCopy(target.token, [JSON.stringify(['conflict', id])])
   expect(preview.closure.some(value => value.key === JSON.stringify(['conflict', captured.conflict.id]))).toBe(true)
   await service.commitGuestCopy(target.token, preview)
@@ -549,7 +550,7 @@ it.each(['live', 'archived-only', 'different-live'] as const)('doesNotActivateAn
   const captured = await createWorkspaceConflict({ base: base.opened, local: pending.opened, remote: base.opened, privateKey: JSON.stringify(['build', build.id]) })
   const portable = { ...(location === 'archived-only' ? source.state : location === 'different-live' ? pending.opened.state : state), conflicts: [captured.conflict], blobs: captured.blobs }
   const target = await nativeCopySetup()
-  const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ version: 1, snapshotId: 'sample-comparison', capturedAt: '2026-10-13', revisionVector: {}, state: portable }, { async check() {}, async dispose() {} }))
+  const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'sample-comparison', capturedAt: '2026-10-13', revisionVector: {}, state: portable }, { async check() {}, async dispose() {} }))
   const key = JSON.stringify(['conflict', captured.conflict.id]), sample = JSON.stringify(['build', build.id])
   const blocked = await service.previewGuestCopy(target.token, [key])
   expect(blocked.problems.some(problem => problem.includes('Explicitly select the required sample'))).toBe(true)
@@ -583,7 +584,7 @@ it('requiresSelectedCompleteOwnerForAnImportedChildComparison', async () => {
   const original = await inspectWorkspaceClosure(portable, captured.conflict.branches[0].closure)
   expect([...original.documents.values()].some(document => document.kind === 'inventory')).toBe(false)
   const conflictKey = JSON.stringify(['conflict', captured.conflict.id])
-  const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ version: 1, snapshotId: 'child-source', capturedAt: '2026-10-13', revisionVector: {}, state: portable }, { async check() {}, async dispose() {} }))
+  const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'child-source', capturedAt: '2026-10-13', revisionVector: {}, state: portable }, { async check() {}, async dispose() {} }))
   await expect(service.previewGuestCopy(source.token, [conflictKey])).rejects.toThrow('complete owning Playthrough')
   const preview = await service.previewGuestCopy(source.token, [conflictKey, JSON.stringify(['playthrough', TEST_PLAYTHROUGH_ID])])
   expect(preview.problems).toEqual([])

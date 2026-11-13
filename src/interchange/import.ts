@@ -7,7 +7,6 @@ import { CRYSTAL_EDIT_JSON_LIMITS, isCrystalEdit, previewCrystalEdit } from './c
 import { MAX_MOD_SOURCE_BYTES } from '../domain/mod-library'
 import type { ImportPreview } from './types'
 import { inspectZip, NATIVE_BACKUP_ARCHIVE_LIMITS, safeUnzip } from './zip'
-import { BUNDLED_CATALOGS } from '../catalog/bundled'
 
 export const MAX_IMPORT_BYTES = 32 * 1024 * 1024
 
@@ -51,7 +50,7 @@ export async function previewImport(bytes: Uint8Array, filename: string): Promis
   const directory = inspectZip(bytes, NATIVE_BACKUP_ARCHIVE_LIMITS)
   const names = new Set(directory.entries.map((entry) => entry.name))
   if (names.has('[Content_Types].xml') && names.has('_rels/.rels')) return previewXlsx(bytes, filename)
-  if (names.has('manifest.json') && names.has('bundle.json')) return previewNativeBackup(bytes, filename, BUNDLED_CATALOGS)
+  if (names.has('manifest.json') && names.has('bundle.json')) return previewNativeBackup(bytes, filename)
   inspectZip(bytes)
 
   const jsonEntries = directory.entries.filter(

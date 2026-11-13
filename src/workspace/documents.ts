@@ -4,7 +4,7 @@ import type { BlobSource, EditorWorkspaceDocument, LibraryDefaults, SaveWorkspac
 import type { WorkspaceConflict } from './conflict-types'
 import type { WorkspaceRetainedContent } from './retained-content-types'
 import { z } from 'zod'
-import { NativeLocalDataSchema, NativeLocalData240Schema, NativeLineageSchema } from '../interchange/native-schema'
+import { NativeLocalDataSchema, NativeLineageSchema } from '../interchange/native-schema'
 import { blobIdentity } from './blobs'
 import { immutableCatalogSnapshot } from '../interchange/native'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
@@ -31,7 +31,7 @@ export const WORKSPACE_DOCUMENT_KINDS = [
 export type WorkspaceDocumentKind = typeof WORKSPACE_DOCUMENT_KINDS[number]
 export interface WorkspaceDocument { readonly version: 1; readonly kind: WorkspaceDocumentKind; readonly key: string; readonly value: JsonValue | BlobSource }
 
-const identitySchema = z.object({ localData: z.union([NativeLocalDataSchema.pick({ schemaVersion: true, id: true, createdAt: true, updatedAt: true }).partial({ updatedAt: true }).strict(), NativeLocalData240Schema.pick({ schemaVersion: true, id: true, createdAt: true, updatedAt: true }).partial({ updatedAt: true }).strict()]), lineage: NativeLineageSchema }).strict()
+const identitySchema = z.object({ localData: NativeLocalDataSchema.pick({ dataGeneration: true, schemaVersion: true, id: true, createdAt: true, updatedAt: true }).partial({ updatedAt: true }).strict(), lineage: NativeLineageSchema }).strict()
 const preferencesSchema = z.object({ modSetup: NativeLocalDataSchema.shape.modSetup, unavailableDefinitions: NativeLocalDataSchema.shape.unavailableDefinitions, optional: z.object({ skillTreeLayouts: z.boolean() }).strict() }).strict()
 const playthroughSchema = z.object({ metadata: NativeLocalDataSchema.shape.playthroughs.valueType.omit({ activeScenarioId: true, characters: true, progress: true, goals: true, scenarios: true, inventory: true, inventoryEvents: true, quintarBreeding: true, skillTreeCaptures: true }).strict(), optional: z.object({ skillTreeCaptures: z.boolean(), quintarBreeding: z.boolean() }).strict() }).strict()
 const rootMaps = { personalDefinitions: 'personal-definition', gameSetups: 'setup', builds: 'build', buildRevisions: 'build-checkpoint', teams: 'team', teamRevisions: 'team-checkpoint', importReceipts: 'import-receipt', skillTreeLayouts: 'skill-layout' } as const
@@ -102,7 +102,7 @@ export function assembleWorkspace(documents: readonly WorkspaceDocument[], local
   }
   const identity = identitySchema.parse(take('workspace-identity')) as unknown as { localData: LocalData; lineage: WorkspacePlannerState['lineage'] }
   const preferences = preferencesSchema.parse(take('workspace-preferences')) as unknown as { modSetup?: LocalData['modSetup']; unavailableDefinitions?: LocalData['unavailableDefinitions']; optional: { skillTreeLayouts: boolean } }
-  const local = { ...identity.localData, ...(preferences.unavailableDefinitions ? { unavailableDefinitions: preferences.unavailableDefinitions } : {}), ...(String(identity.localData.schemaVersion) === '2.5.0' ? { teamRevisions: {} } : {}), ...(preferences.modSetup ? { modSetup: preferences.modSetup } : {}), updatedAt: identity.localData.updatedAt ?? identity.localData.createdAt, revision: localRevision, personalDefinitions: {}, gameSetups: {}, builds: {}, buildRevisions: {}, teams: {}, importReceipts: {}, playthroughs: {}, changes: [], ...(preferences.optional.skillTreeLayouts ? { skillTreeLayouts: {} } : {}) } as unknown as Record<string, unknown>
+  const local = { ...identity.localData, ...(preferences.unavailableDefinitions ? { unavailableDefinitions: preferences.unavailableDefinitions } : {}), teamRevisions: {}, ...(preferences.modSetup ? { modSetup: preferences.modSetup } : {}), updatedAt: identity.localData.updatedAt ?? identity.localData.createdAt, revision: localRevision, personalDefinitions: {}, gameSetups: {}, builds: {}, buildRevisions: {}, teams: {}, importReceipts: {}, playthroughs: {}, changes: [], ...(preferences.optional.skillTreeLayouts ? { skillTreeLayouts: {} } : {}) } as unknown as Record<string, unknown>
   const planner = { localData: local, lineage: identity.lineage, catalogs: [], sources: [], evidence: [], history: [] } as unknown as Record<string, unknown>
   const state = { planner, editorDocuments: [], saveDocuments: [], assets: [], conflicts: [], retainedContent: [], blobs: [], libraryDefaults: take('library-defaults') } as unknown as Record<string, unknown>
   const playthroughs = local.playthroughs as Record<string, Record<string, unknown>>

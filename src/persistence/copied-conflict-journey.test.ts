@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { appendFileSync } from 'node:fs'
 import 'fake-indexeddb/auto'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -36,7 +37,7 @@ async function* copiedConflictJourney(mode: 'copy' | 'restore') {
   const portable = { ...accepted.opened.state, conflicts: [captured.conflict], blobs: captured.blobs }
   const { exportWorkspaceBackup, readWorkspaceBackup } = await import('../interchange/workspace-backup')
   const { disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
-  const backup = await readWorkspaceBackup(exportWorkspaceBackup({ version: 1, snapshotId: 'source-account-comparison', capturedAt: '2026-10-13', revisionVector: {}, state: portable }))
+  const backup = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'source-account-comparison', capturedAt: '2026-10-13', revisionVector: {}, state: portable }))
   // The strict portable archive has no executable intent or receipt; destination registration is new work
   invalidateProfile(); await sourceDb.delete()
   mark('portable-backup-key-removed')
@@ -45,7 +46,7 @@ async function* copiedConflictJourney(mode: 'copy' | 'restore') {
     const first = await server.device(0, { ...original, editorDocuments: [{ ...fixture.file, filename: 'Destination.json' }] })
     expect((await first.settle()).state).toBe('synced')
     mark('destination-initial-published')
-    const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ version: 1, snapshotId: 'foreign-original', capturedAt: '2026-10-13', revisionVector: {}, state: backup.state }, { async check() {}, async dispose() {} }))
+    const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'foreign-original', capturedAt: '2026-10-13', revisionVector: {}, state: backup.state }, { async check() {}, async dispose() {} }))
     let operationId: string
     if (mode === 'copy') {
       const preview = await service.previewGuestCopy(first.token, [JSON.stringify(['conflict', captured.conflict.id])])

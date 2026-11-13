@@ -1,3 +1,5 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
+import { WORKSPACE_BACKUP_EVIDENCE_VERSION } from './workspace-backup-schema'
 import 'fake-indexeddb/auto'
 import { expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -16,7 +18,7 @@ async function collect(stream: AsyncIterable<Uint8Array>) {
 async function original(order = false): Promise<WorkspaceSnapshotV1> {
   const fixture = await editorClosureFixture()
   const file = { ...fixture.file, unfinished: { ...fixture.file.unfinished, fieldState: order ? { alpha: 'a', zeta: '\ud800' } : { zeta: '\ud800', alpha: 'a' } } }
-  return { version: 1, snapshotId: 'synthetic-original', capturedAt: '2026-10-12', revisionVector: { committed: 'original' }, state: { ...fixture.state, editorDocuments: [file] } }
+  return { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'synthetic-original', capturedAt: '2026-10-12', revisionVector: { committed: 'original' }, state: { ...fixture.state, editorDocuments: [file] } }
 }
 const fixturePath = new URL('./workspace-backup-v1.fixtures.json', import.meta.url)
 it('batches encrypted writes while staging complete inherited sources', async () => {
@@ -313,7 +315,7 @@ it('defaults to exact v1 output without inherited evidence and supports an expli
     const legacy = await collect(exportWorkspaceBackup(original))
     expect(legacy.toString('base64')).toBe(JSON.parse(readFileSync(fixturePath, 'utf8'))[0].archive)
     expect(await collect(exportWorkspaceBackup(inherited))).toEqual(legacy)
-    const explicit = await readWorkspaceBackup(exportWorkspaceBackup(inherited, { version: '1.1.0' }))
+    const explicit = await readWorkspaceBackup(exportWorkspaceBackup(inherited, { version: WORKSPACE_BACKUP_EVIDENCE_VERSION }))
     try {
       expect(explicit.version).toBe(2)
       if (explicit.version !== 2) throw new Error('Wrong version')

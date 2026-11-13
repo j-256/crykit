@@ -1,8 +1,6 @@
 import { entityDefinitionKey, entityRefKey } from './core'
 import { fulfillSource } from './source-fulfillment'
 import { catalogEntity } from './entity-identities'
-import { preservedNativeDefinition } from './preserved-native-definitions'
-import { MOD_CATALOG_SCHEMA } from './mod-layers'
 import type {
   CatalogEntity,
   CatalogSnapshot,
@@ -29,8 +27,7 @@ export function resolveDefinition(
   // Receipt-only public selections never acquire native mechanics through a missing-source fallback
   if (!entity && localData.unavailableDefinitions?.some(receipt => entityDefinitionKey(receipt.ref) === entityDefinitionKey(ref))) return undefined
   // A complete available snapshot remains authoritative, including a genuinely missing entity
-  // Compact compositions can retain unchanged native entries when their old baseline is withdrawn
-  return entity ?? (!catalog || catalog.schemaVersion === MOD_CATALOG_SCHEMA ? preservedNativeDefinition(localData, catalogs, ref) : undefined)
+  return entity
 }
 
 export function definitionLineageRootRef(localData: LocalData, ref: EntityRef): EntityRef {

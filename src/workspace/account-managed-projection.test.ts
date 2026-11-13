@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { expect, it } from 'vitest'
 import { installProfile, invalidateProfile } from '../account/profile'
@@ -53,9 +54,9 @@ it('selects a managed pull successor and its exact mapped base in the existing r
 it('restores into managed selection while retaining destination and imported originals and the settled-sync guard', async () => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
   const fixture = await editorClosureFixture(), store = createAccountLocalStore(database, token), operation = accountLocalId()
-  const original = ownWorkspaceSnapshot({ version: 1, snapshotId: 'destination-original', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: { original: 'one' }, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
+  const original = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'destination-original', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: { original: 'one' }, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
   const state = { ...fixture.state, planner: { ...fixture.state.planner, localData: createPersonalDefinition(fixture.state.planner.localData, { kind: 'item', name: 'Imported managed restore' }) } }
-  const incoming = ownWorkspaceSnapshot({ version: 1, snapshotId: 'incoming-original', capturedAt: state.planner.localData.updatedAt, revisionVector: { imported: 'two' }, state }, { check: async () => {}, dispose: async () => {} })
+  const incoming = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'incoming-original', capturedAt: state.planner.localData.updatedAt, revisionVector: { imported: 'two' }, state }, { check: async () => {}, dispose: async () => {} })
   let stage: Awaited<ReturnType<typeof stageAccountWorkspaceRestore>> | undefined, backup: Awaited<ReturnType<typeof captureWorkspaceSnapshot>> | undefined
   try {
     const evidence = await prepareLocalEvidence(store.adapter, operation, await guestEvidenceFromFrozenCurrent(original))
@@ -93,7 +94,7 @@ it('restores into managed selection while retaining destination and imported ori
 it('reuses an authenticated unchanged archive on pull and rejects damaged retained archive control', async () => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
   const fixture = await editorClosureFixture(), store = createAccountLocalStore(database, token), operation = accountLocalId()
-  const original = ownWorkspaceSnapshot({ version: 1, snapshotId: 'unchanged-pull-history', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: {}, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
+  const original = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'unchanged-pull-history', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: {}, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
   let projection: Awaited<ReturnType<typeof prepareManagedAccountProjection>> | undefined
   let backup: Awaited<ReturnType<typeof captureWorkspaceSnapshot>> | undefined
   try {

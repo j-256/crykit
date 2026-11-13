@@ -1,3 +1,4 @@
+import { GUEST_COORDINATOR_DATABASE } from '../persistence/storage-names'
 import { z } from 'zod'
 import type { Table } from 'dexie'
 import { LegacyCaptureDatabase, compareHeldLegacyBranch, compareLegacyBranch, holdLegacyReaders, type LegacyCapture, type LegacyParticipant, type HeldLegacyReaders, type LegacyComparison } from './legacy-capture'
@@ -130,7 +131,7 @@ export function requireV1GuestJournal(value: unknown): GuestActivationJournal {
 export class GuestCoordinatorDatabase extends LegacyCaptureDatabase {
   active!: Table<{ key: 'active'; manifest: GuestManifest }, string>
   journal!: Table<GuestActivationJournal, string>
-  constructor(name = 'crykit-guest-coordinator-v1') { super(name); this.version(2).stores({ active: 'key', journal: 'id' }); this.version(3).stores({ managedRecords: 'revisionId,operationId', managedChunks: '[revisionId+index],revisionId', managedOperations: 'id', managedMigrations: 'id' }) }
+  constructor(name = GUEST_COORDINATOR_DATABASE) { super(name); this.version(2).stores({ active: 'key', journal: 'id' }); this.version(3).stores({ managedRecords: 'revisionId,operationId', managedChunks: '[revisionId+index],revisionId', managedOperations: 'id', managedMigrations: 'id' }) }
 }
 function ordered(participants: readonly LegacyParticipant[]): readonly LegacyParticipant[] {
   const order = ['planner', 'inspector', 'files']

@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import Dexie from 'dexie'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { catalogSnapshotKey } from '../interchange/identity'
@@ -117,7 +118,7 @@ async function projectCapturedGuestState(
   if (mode === 'journaled') {
     const declarations = metaRows.filter(row => row.key === GUEST_PLANNER_LAYOUT_KEY)
     if (declarations.length !== 1) throw new Error('Missing guest planner format declaration')
-    const parsed = validateGuestPlannerRecord(local, declarations[0], history, 'journaled', String(local.localData.schemaVersion) === '2.4.0')
+    const parsed = validateGuestPlannerRecord(local, declarations[0], history, 'journaled')
     if (parsed.format !== 'journaled') throw new Error('Guest planner must be journaled')
     admitted = parsed
     const bundledKeys = new Set(BUNDLED_CATALOGS.map(row => catalogSnapshotKey(row.id, row.revisionId)))
@@ -211,7 +212,7 @@ export async function captureGuestSnapshot(binding: GuestBindings): Promise<Work
       if (comparison.status !== 'equal') throw new WorkspaceBackupError('SNAPSHOT_CHANGED', 'The workspace changed during backup. Retry the export.')
     }
     const { state, sidecar } = await projectCapturedGuestState(frozen, capture, alive, check, binding.manifest.version === 2 ? 'journaled' : 'legacy', { omitUnreferencedBundledCatalogs: true })
-    const snapshot: WorkspaceSnapshot = { version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { guest: binding.manifest.id, capture: capture.id, metadata: await backupMetadataDigest({ ...state, blobs: state.blobs.map(({ ref }) => ref) }) }, state }
+    const snapshot: WorkspaceSnapshot = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { guest: binding.manifest.id, capture: capture.id, metadata: await backupMetadataDigest({ ...state, blobs: state.blobs.map(({ ref }) => ref) }) }, state }
     await validateWorkspaceSnapshot(snapshot)
     await check()
     return await joinWorkspaceSnapshotEvidence(ownWorkspaceSnapshot(snapshot, { check, dispose }), guestEvidenceSources(sidecar), { signal: epoch.signal })

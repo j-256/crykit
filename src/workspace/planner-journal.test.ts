@@ -7,7 +7,7 @@ import { changedLocalData, historyEntry } from '../persistence/local-data'
 import { nowTimestamp } from '../interchange/util'
 import type { WorkspacePlannerState } from './documents'
 import { prepareGuestRestorePlanner, requirePreparedGuestPlanner } from './guest-planner'
-import { afterLocalCommand, connectedHistory, migratePlanner250, projectPlanner, undoCheckpoint } from './planner-journal'
+import { afterLocalCommand, connectedHistory, admitLaunchPlanner, projectPlanner, undoCheckpoint } from './planner-journal'
 
 const blank = (): WorkspacePlannerState => { const localData = createBlankLocalData(); return { localData, lineage: { rootLocalDataId: localData.id }, catalogs: BUNDLED_CATALOGS, sources: [], evidence: [], history: [] } }
 function command(before: WorkspacePlannerState, name: string): WorkspacePlannerState {
@@ -186,17 +186,18 @@ it('rejects a second restore when its current tuple omitted the first live desti
   expect(first.record.operativePlanner.savedDestinationChanges).toEqual(first.planner.localData.changes)
 })
 
-function frozenPlanner240(): WorkspacePlannerState {
-  const planner = command(emptyPlanner(createTestLocalData()), 'Before Team migration')
-  const frozen = (data: typeof planner.localData) => {
-    const { teamRevisions: _revisions, ...rest } = data
-    return { ...rest, schemaVersion: '2.4.0' } as unknown as typeof data
-  }
-  const history = planner.history.map(entry => ({ ...entry, before: frozen(entry.before), after: frozen(entry.after) }))
-  return { ...planner, localData: frozen(planner.localData), history, journal: { version: 1, changes: planner.localData.changes, checkpoints: history, undoable: true } }
+function sourcePlanner(): WorkspacePlannerState {
+  const planner = command(emptyPlanner(), 'Source')
+  return { ...planner, journal: { version: 1, changes: planner.localData.changes, checkpoints: structuredClone(planner.history), undoable: true } }
 }
-it('admits only the exact migrated source/live checkpoint pair without rewriting originals or importing undo', () => {
-  const original = frozenPlanner240(), source = migratePlanner250(original)
+it('rejects prelaunch planner roots and retained history endpoints', () => {
+  const source = sourcePlanner()
+  expect(() => admitLaunchPlanner({ ...source, localData: { ...source.localData, schemaVersion: '2.4.0' as never } })).toThrow()
+  const history = source.history.map(entry => ({ ...entry, before: { ...entry.before, schemaVersion: '2.4.0' as never } }))
+  expect(() => admitLaunchPlanner({ ...source, history })).toThrow()
+})
+it('admits only the exact source/live checkpoint pair without rewriting originals or importing undo', () => {
+  const original = sourcePlanner(), source = admitLaunchPlanner(original)
   const before = structuredClone(source)
   expect(connectedHistory(source).map(entry => entry.id)).toEqual(original.history.map(entry => entry.id))
   const restored = requirePreparedGuestPlanner(prepareGuestRestorePlanner(emptyPlanner(), source, 'replace'))
@@ -206,7 +207,7 @@ it('admits only the exact migrated source/live checkpoint pair without rewriting
   expect(source).toEqual(before)
 })
 it.each(['before endpoint', 'after endpoint', 'command', 'previous counter', 'next counter', 'duplicate original', 'duplicate checkpoint', 'same-version conflict', 'malformed original'] as const)('rejects a conflicting source/live checkpoint: %s', corruption => {
-  const source = structuredClone(migratePlanner250(frozenPlanner240()))
+  const source = structuredClone(admitLaunchPlanner(sourcePlanner()))
   const checkpoint = source.journal!.checkpoints[0]
   if (corruption === 'before endpoint') Object.assign(checkpoint.before, { updatedAt: '2025-01-01T00:00:00.000Z' })
   if (corruption === 'after endpoint') Object.assign(checkpoint.after, { updatedAt: '2025-01-01T00:00:00.000Z' })

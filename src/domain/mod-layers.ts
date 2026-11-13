@@ -1,4 +1,3 @@
-import { withdrawnCatalog } from './withdrawn-catalogs'
 import { fulfillSource } from './source-fulfillment'
 import { sourceCompositionDigest } from './source-composition'
 import { deeplyImmutable as immutableCatalogValue } from './immutable-value'
@@ -123,11 +122,11 @@ export function assertModComposition(composition: ModComposition): void {
 }
 
 // A saved composition cannot be rebuilt from different revisions without changing its meaning
-// Historical gaps and explicitly declared source receipts stay unknown; unrelated missing imports still fail
-export function hasWithdrawnModDependencies(composition: ModComposition, catalogs: readonly CatalogSnapshot[], receipts: readonly import('./types').ModSourceReceipt[] = []): boolean {
+// Explicit public source receipts stay unknown; ordinary saved dependencies must be complete
+export function hasMissingModDependencies(composition: ModComposition, catalogs: readonly CatalogSnapshot[], receipts: readonly import('./types').ModSourceReceipt[] = []): boolean {
   assertModComposition(composition)
   const missing = [composition.baseline, ...composition.layers].filter(pin => !modCatalogForPin(catalogs, pin))
-  if (missing.some(pin => !withdrawnCatalog(pin) && !receipts.some(receipt => receipt.catalogId === pin.catalogId && receipt.catalogRevisionId === pin.catalogRevisionId))) throw new DomainError('INVALID_INPUT', 'A mod composition references an unavailable catalog revision')
+  if (missing.some(pin => !receipts.some(receipt => receipt.catalogId === pin.catalogId && receipt.catalogRevisionId === pin.catalogRevisionId))) throw new DomainError('INVALID_INPUT', 'A mod composition references an unavailable catalog revision')
   return missing.length > 0
 }
 
@@ -269,8 +268,6 @@ export function expandModCatalogs(catalogs: readonly CatalogSnapshot[]): readonl
     const pin = metadata?.modBaseline
     if (!jsonRecord(pin) || typeof pin.catalogId !== 'string' || typeof pin.catalogRevisionId !== 'string') throw new DomainError('INVALID_INPUT', 'An effective mod catalog requires an exact baseline pin')
     const baseline = modCatalogForPin(catalogs, pin as unknown as ModCatalogPin)
-    // Keep private imported changes available when the exact withdrawn baseline cannot be supplied
-    if (!baseline && withdrawnCatalog(pin as unknown as ModCatalogPin)) return compactModCatalog(catalog)
     if (!baseline || baseline.schemaVersion === MOD_CATALOG_SCHEMA) throw new DomainError('INVALID_INPUT', 'An effective mod baseline is unavailable or cyclic')
     // Unchanged effective catalogs must retain identity across saves, including after their first expansion
     // Both exact inputs must be deeply immutable; labels, digests and a frozen shell cannot authorize reuse
