@@ -1,8 +1,8 @@
+import { STARTER_CATALOG_ID } from '../catalog/catalog-ids'
 import { memo, useCallback, useMemo, useState, type FormEvent } from 'react'
 import { nativeUiArtwork } from '../catalog/sprites'
-import { LEGACY_CATALOG_REVISION_ID } from '../catalog/legacy-version'
+import { preferredStarterCatalog } from '../catalog/bundled'
 import { VANILLA_CLASS_SEAL_PAIRS } from '../catalog/class-seals'
-import { STARTER_CATALOG_ID } from '../catalog/catalog-ids'
 import { classSealStage, classSealStageFacts, CLASS_SEAL_STAGES, entityDefinitionKey, logicalEntityKey, nextClassSealStage, preferredDefinitionRef, requirePlaythrough, type ClassSealProgressSelection } from '../domain'
 import type { CatalogEntity, CatalogSnapshot, EntityRef, Knowledge, LocalData, PartyProgressRecord, ProgressRecordId, ProgressStage } from '../domain/types'
 import { Badge, Button, Field, InlineNotice } from './components'
@@ -113,8 +113,7 @@ function ProgressForm({ initial, onCancel, onSubmit }: {
 }
 
 function findTrackerCatalog(catalogs: readonly CatalogSnapshot[]): CatalogSnapshot | undefined {
-  return catalogs.find(catalog => catalog.id === STARTER_CATALOG_ID && catalog.revisionId === LEGACY_CATALOG_REVISION_ID)
-    ?? catalogs.findLast(catalog => catalog.id === STARTER_CATALOG_ID)
+  return preferredStarterCatalog(catalogs)
 }
 
 function boardEntries(localData: LocalData, catalogs: readonly CatalogSnapshot[]): readonly ClassSealEntry[] {

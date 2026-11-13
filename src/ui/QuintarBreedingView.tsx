@@ -1,10 +1,9 @@
 import { memo, useCallback, useEffect, useState } from 'react'
-import { LEGACY_CATALOG_REVISION_ID } from '../catalog/legacy-version'
+import { preferredStarterCatalog } from '../catalog/bundled'
 import { QUINTAR_BREEDING_STEPS, QUINTAR_GUIDE_SOURCE, QUINTAR_NURSERY_CAPACITY, QUINTAR_PHASES, QUINTAR_STEP, quintarParentsAfterStep, quintarRaceRequirements, type QuintarBreedingStep, type QuintarBreedingStepId } from '../catalog/quintar-breeding'
 import { QUINTAR_NATIVE_EVIDENCE } from '../catalog/quintar-native-rules'
 import { QUINTAR_STEP_REFERENCES, quintarOcarinaPrice } from '../catalog/quintar-references'
 import { quintarGuideArtwork, type QuintarGuideArtworkKey } from '../catalog/sprites'
-import { STARTER_CATALOG_ID } from '../catalog/catalog-ids'
 import { requirePlaythrough } from '../domain/core'
 import type { CatalogSnapshot, EntityId, LocalData } from '../domain/types'
 import { Button, InlineNotice } from './components'
@@ -88,8 +87,7 @@ export function QuintarBreedingView({ localData, catalogs, onToggle }: {
   readonly onToggle: (stepId: QuintarBreedingStepId) => Promise<void>
 }) {
   const playthrough = requirePlaythrough(localData)
-  const referenceCatalog = catalogs.find(catalog => catalog.id === STARTER_CATALOG_ID && catalog.revisionId === LEGACY_CATALOG_REVISION_ID)
-    ?? catalogs.findLast(catalog => catalog.id === STARTER_CATALOG_ID)
+  const referenceCatalog = preferredStarterCatalog(catalogs)
   const completed = playthrough.quintarBreeding
   const { queuedUpdates, enqueue } = useQueuedTileUpdates<QuintarBreedingStepId, boolean>()
   const [failure, setFailure] = useState<{ readonly stepId: QuintarBreedingStepId; readonly message: string }>()

@@ -66,13 +66,13 @@ export interface ModLibraryCard {
 }
 
 export function modCardIncludesEntry(card: ModLibraryCard, entry: ModCatalogEntry): boolean {
-  if (entry.projectId) return entry.projectId === card.project?.id && (!entry.projectRevisionId || entry.projectRevisionId === card.project?.revisions[0]?.catalogRevisionId)
+  if (entry.projectId) return entry.projectId === card.project?.id && (!entry.projectRevisionId || card.project?.revisions.some(revision => entry.projectRevisionId === revision.catalogRevisionId))
   if (entry.sourceIds.some(id => card.sourceIds.includes(id))) return true
   return Boolean(entry.name && card.catalogNames.some(name => normalizeModName(name) === normalizeModName(entry.name!)))
 }
 
 export function modLibraryCards(projects: readonly LibraryMod[], names: readonly string[], entries: readonly ModCatalogEntry[]): readonly ModLibraryCard[] {
-  let cards: ModLibraryCard[] = projects.map(project => ({ id: project.id, title: project.title, project, catalogNames: [...new Set(project.bundled.flatMap(source => source.catalogNames ?? []))], sourceIds: [...new Set(project.revisions.slice(0, 1).flatMap(revision => Object.values(revision.catalog.entities).flatMap(entity => entity.sources.map(source => source.sourceId))))], entryCount: 0 }))
+  let cards: ModLibraryCard[] = projects.map(project => ({ id: project.id, title: project.title, project, catalogNames: [...new Set(project.bundled.flatMap(source => source.catalogNames ?? []))], sourceIds: [...new Set(project.revisions.flatMap(revision => Object.values(revision.catalog.entities).flatMap(entity => entity.sources.map(source => source.sourceId))))], entryCount: 0 }))
   const owners = new Map<string, ModLibraryCard[]>()
   for (const card of cards) for (const name of card.catalogNames) {
     const key = normalizeModName(name)

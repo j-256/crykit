@@ -82,12 +82,12 @@ describe('navigation controller history', () => {
   })
 
   it('normalizes descriptive slugs without adding history and refreshes imported names after loading', async () => {
-    const hash = '#/reference/catalog/synthetic/r1/id/foreign%3A1/incorrect-name'
+    const hash = '#/reference/local/catalog/synthetic/r1/entries/foreign%3A1/incorrect-name'
     window.history.replaceState({ retained: true }, '', hash)
     const length = window.history.length
     const root = createRoot(container)
     await act(async () => { root.render(<Harness resolveEntityName={() => undefined}/>); await tick() })
-    expect(window.location.hash).toBe(hash.replace('incorrect-name', 'definition'))
+    expect(window.location.hash).toBe(hash)
     const exact = controller.route
     await act(async () => { root.render(<Harness resolveEntityName={() => 'Synthetic imported name'}/>); await tick() })
     expect(window.location.hash).toBe(hash.replace('incorrect-name', 'synthetic-imported-name'))

@@ -1,3 +1,4 @@
+import { GUIDE_CATALOG, GUIDE_SOURCE_ENTITY_IDS, CURRENT_CATALOG } from '../catalog/bundled'
 import type { CatalogClaim, CatalogEntity, CatalogEntityKind, JsonValue, Knowledge, QueryValue } from '../domain/types'
 import { normalizeImportedFieldName } from '../interchange/field-names'
 import { nativeIdentity, nativeSourceRecord } from '../domain/native-game'
@@ -26,23 +27,24 @@ export const OPTIONAL_REFERENCE_AUDIENCES = [
 export type OptionalReferenceAudience = typeof OPTIONAL_REFERENCE_AUDIENCES[number]['value']
 export type ReferenceAudience = 'default' | OptionalReferenceAudience
 
-const TECHNICAL_REFERENCE_PREFIXES = ['base:mechanic:stat:', 'base:mechanic:ability:'] as const
+const TECHNICAL_REFERENCE_IDS = new Set([...GUIDE_SOURCE_ENTITY_IDS].filter(([source]) => source.startsWith('base:mechanic:stat:') || source.startsWith('base:mechanic:ability:')).map(([, id]) => id as string))
 const DIAGNOSTIC_REFERENCE_IDS = new Set(['base:other:ref-913'])
 const ABOUT_REFERENCE_IDS = new Set(['base:other:ref-910', 'base:other:ref-918', 'base:other:ref-919', 'base:other:ref-928', 'base:other:ref-930'])
 const TOOLING_REFERENCE_IDS = new Set(['base:other:ref-915'])
 const REFERENCE_ARTIFACT_IDS = new Set(['base:other:ref-911', 'base:other:ref-920'])
 
-export function referenceAudience(entity: Pick<CatalogEntity, 'id'>): ReferenceAudience {
+export function referenceAudience(entity: Pick<CatalogEntity, 'id'>, catalogId?: string): ReferenceAudience {
   const id = String(entity.id)
-  if (TECHNICAL_REFERENCE_PREFIXES.some(prefix => id.startsWith(prefix))) return 'technical'
+  if (catalogId === GUIDE_CATALOG.id && TECHNICAL_REFERENCE_IDS.has(id)) return 'technical'
+  if (catalogId !== CURRENT_CATALOG.id) return 'default'
   if (DIAGNOSTIC_REFERENCE_IDS.has(id)) return 'diagnostic'
   if (ABOUT_REFERENCE_IDS.has(id)) return 'about'
   if (TOOLING_REFERENCE_IDS.has(id)) return 'tooling'
   return 'default'
 }
 
-export function isReferenceArtifact(entity: Pick<CatalogEntity, 'id'>): boolean {
-  return REFERENCE_ARTIFACT_IDS.has(String(entity.id))
+export function isReferenceArtifact(entity: Pick<CatalogEntity, 'id'>, catalogId?: string): boolean {
+  return catalogId === CURRENT_CATALOG.id && REFERENCE_ARTIFACT_IDS.has(String(entity.id))
 }
 
 const CATEGORY_FIELDS = new Set(['category', 'categories', 'class category', 'equipment type', 'item type', 'type'])

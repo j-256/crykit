@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { DEFAULT_CATALOG, GUIDE_CATALOG } from '../catalog/bundled'
 import type { EntityId } from '../domain/types'
 import { isReferenceArtifact, referenceAudience, referenceCategoryGroup, referenceCategoryKnowledge, referenceFieldFacets } from './reference-facets'
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_KEY, referenceCategoryKey } from './reference-categories'
@@ -44,11 +44,11 @@ describe('reference facet organization', () => {
 
   it('classifies bundled supplemental records by stable identity without guessing imported content', () => {
     const entities = Object.values(DEFAULT_CATALOG.entities)
-    expect(entities.filter(entity => referenceAudience(entity) === 'technical')).toHaveLength(300)
-    expect(entities.filter(entity => referenceAudience(entity) === 'diagnostic')).toHaveLength(1)
-    expect(entities.filter(entity => referenceAudience(entity) === 'about')).toHaveLength(5)
-    expect(entities.filter(entity => referenceAudience(entity) === 'tooling')).toHaveLength(1)
-    expect(entities.filter(isReferenceArtifact).map(entity => entity.name).sort()).toEqual(['Bgtest', 'Defender'])
+    expect(Object.values(GUIDE_CATALOG.entities).filter(entity => referenceAudience(entity, GUIDE_CATALOG.id) === 'technical')).toHaveLength(300)
+    expect(entities.filter(entity => referenceAudience(entity, DEFAULT_CATALOG.id) === 'diagnostic')).toHaveLength(0)
+    expect(entities.filter(entity => referenceAudience(entity, DEFAULT_CATALOG.id) === 'about')).toHaveLength(5)
+    expect(entities.filter(entity => referenceAudience(entity, DEFAULT_CATALOG.id) === 'tooling')).toHaveLength(1)
+    expect(entities.filter(entity => isReferenceArtifact(entity, DEFAULT_CATALOG.id)).map(entity => entity.name).sort()).toEqual(['Bgtest', 'Defender'])
     expect(referenceAudience({ id: 'imported:other:AbilityItemConsumptionDown' as EntityId })).toBe('default')
   })
 })
