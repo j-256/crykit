@@ -192,10 +192,16 @@ function WorkspaceProof() {
       localDefinitions: async () => Object.values((await workspace.repository.load()).localData.personalDefinitions).map(value => value.name),
       async probeGuestRestoreCollisions(bytes: number[]) {
         if (workspace.repository.kind !== 'guest') throw new Error('Guest restore proof requires the selected local workspace')
-        const { guestRepositoryBindings } = await import('../../src/workspace/guest-repository')
+        const { openGuestBindings } = await import('../../src/workspace/guest-workspace')
+        const { CryKitDatabase } = await import('../../src/persistence/database')
+        const { createBlankLocalData } = await import('../../src/domain/local-data')
         const { readWorkspaceBackup } = await import('../../src/interchange/workspace-backup')
         const { previewGuestWorkspaceRestore, beginGuestWorkspaceRestore, stageGuestWorkspaceRestore, releaseGuestWorkspaceRestorePreview } = await import('../../src/workspace/restore')
-        const binding = await guestRepositoryBindings(workspace.repository)
+        // Collision proofs exercise the detached native restore engine without reopening unsupported public storage
+        const detached = new CryKitDatabase(`restore-collision-proof-${crypto.randomUUID()}`)
+        const localData = createBlankLocalData()
+        await detached.localDatas.put({ id: 'local-data-record', revision: localData.revision, updatedAt: localData.updatedAt, localData, lineage: { rootLocalDataId: localData.id } })
+        const binding = await openGuestBindings(detached)
         const snapshot = await readWorkspaceBackup(memoryBlob(new Uint8Array(bytes)).open())
         let preview: Awaited<ReturnType<typeof previewGuestWorkspaceRestore>> | undefined
         try {
@@ -245,6 +251,7 @@ function WorkspaceProof() {
         } finally {
           if (preview) await releaseGuestWorkspaceRestorePreview(preview)
           await disposeWorkspaceSnapshot(snapshot)
+          binding.planner.close(); binding.inspector.close(); binding.files.close(); binding.coordinator.close()
         }
       },
       teamState: async () => (await workspace.repository.load()).localData,

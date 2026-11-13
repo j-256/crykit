@@ -1,4 +1,3 @@
-import { guestInspectorFor, usesManagedGuestStorage } from '../../workspace/guest-repository'
 import { useMemo } from 'react'
 import { createEditorRepository, type EditorInitialTab } from '../../workspace/editor-repository'
 import { useWorkspace } from '../WorkspaceProvider'
@@ -40,11 +39,8 @@ export function useEditorStorage() {
       pending: workspace.fileCommandPending,
       list: async () => {
         const state = await repository.readWorkspace()
-        // Listing uses admitted encrypted metadata rather than opening every private file body
-        const modern = state.editorDocuments.map(file => ({ schemaVersion: 1 as const, ...file, fileInfo: inspectorInputFileInfo(file.unfinished.fieldState) }))
-        if (repository.kind !== 'guest' || await usesManagedGuestStorage(repository)) return modern
-        const legacy = await (await guestInspectorFor(repository)).list()
-        return [...modern, ...legacy.filter(row => !modern.some(file => file.id === row.id) && !state.retainedContent.some(item => item.kind === 'file-history' && item.documentId === row.id && item.fileKind === 'editor'))]
+        // Listing uses admitted file metadata rather than opening every private file body
+        return state.editorDocuments.map(file => ({ schemaVersion: 1 as const, ...file, fileInfo: inspectorInputFileInfo(file.unfinished.fieldState) }))
       },
       get: async (id: string) => {
         const value = await editor.read(id)

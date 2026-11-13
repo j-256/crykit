@@ -1,5 +1,5 @@
 import type { WorkspaceRepository } from './repository'
-import { capturedManagedGuestRepository, guestRepositoryBindings } from './guest-repository'
+import { capturedManagedGuestRepository } from './guest-repository'
 import { managedGuestSelection, managedGuestRecoveryNotices, stageManagedGuestWorkspaceRestore } from './guest-managed-repository'
 import type { GuestManagedManifest } from './guest-managed-contract'
 import { guestPlannerValuesEqual } from '../persistence/guest-planner-equality'
@@ -7,7 +7,7 @@ import { assertOwnedWorkspaceSnapshot, backupMetadataDigest, disposeWorkspaceSna
 import { inheritWorkspaceSnapshot } from '../interchange/workspace-backup-evidence'
 import { guestEvidenceFromSnapshot, guestEvidenceSources, emptyPlannerEvidence } from './guest-evidence'
 import { hashBlob } from './blobs'
-import * as legacy from './restore'
+import type { GuestRestorePreview } from './restore'
 export type { GuestRestorePreview } from './restore'
 
 interface ManagedPreview {
@@ -20,9 +20,9 @@ interface ManagedPreview {
   id?: string
   stage?: Awaited<ReturnType<typeof stageManagedGuestWorkspaceRestore>>
 }
-const previews = new WeakMap<legacy.GuestRestorePreview, ManagedPreview>()
+const previews = new WeakMap<GuestRestorePreview, ManagedPreview>()
 
-async function check(preview: legacy.GuestRestorePreview, authority: ManagedPreview) {
+async function check(preview: GuestRestorePreview, authority: ManagedPreview) {
   authority.selected.assertProfile()
   if (previews.get(preview) !== authority) throw new Error('The restore preview was released')
   const active = await authority.selected.coordinator.active.get('active')
@@ -33,9 +33,9 @@ async function check(preview: legacy.GuestRestorePreview, authority: ManagedPrev
   if (previews.get(preview) !== authority) throw new Error('The restore preview was released')
 }
 
-export async function previewGuestWorkspaceRestore(repository: WorkspaceRepository, input: WorkspaceSnapshot): Promise<legacy.GuestRestorePreview> {
+export async function previewGuestWorkspaceRestore(repository: WorkspaceRepository, input: WorkspaceSnapshot): Promise<GuestRestorePreview> {
   const managed = await capturedManagedGuestRepository(repository)
-  if (!managed) return legacy.previewGuestWorkspaceRestore(await guestRepositoryBindings(repository), input)
+  if (!managed) throw new Error('A captured managed guest is required')
   const selected = managedGuestSelection(managed)!
   const snapshot = input.version === 2 ? input : await inheritWorkspaceSnapshot(input, [])
   try {
@@ -46,7 +46,7 @@ export async function previewGuestWorkspaceRestore(repository: WorkspaceReposito
     for (const body of inherited.bodies) if (await hashBlob(body.content) !== body.ref.sha256) throw new Error('Historical restore body changed')
     if ((await managedGuestRecoveryNotices(managed))!.length) throw new Error('Retained local data needs recovery before restore')
     const state = snapshot.state
-    const preview: legacy.GuestRestorePreview = Object.freeze({ target: 'guest', selectedProfileId: selected.manifest.id, effect: 'replace-selected-profile', categories: Object.freeze({ planner: 1, editor: state.editorDocuments.length, save: state.saveDocuments.length, asset: state.assets.length, history: state.planner.history.length + snapshot.historicalEvidence.snapshots.length }), privateBytes: snapshot.historicalEvidence.blobs.reduce((sum, ref) => sum + ref.byteLength, 0) })
+    const preview: GuestRestorePreview = Object.freeze({ target: 'guest', selectedProfileId: selected.manifest.id, effect: 'replace-selected-profile', categories: Object.freeze({ planner: 1, editor: state.editorDocuments.length, save: state.saveDocuments.length, asset: state.assets.length, history: state.planner.history.length + snapshot.historicalEvidence.snapshots.length }), privateBytes: snapshot.historicalEvidence.blobs.reduce((sum, ref) => sum + ref.byteLength, 0) })
     const authority: ManagedPreview = { repository: managed, selected, expected: selected.manifest, input, snapshot, digest: await backupMetadataDigest(snapshotMetadata(snapshot)) }
     previews.set(preview, authority)
     try { await check(preview, authority); return preview }
@@ -54,26 +54,26 @@ export async function previewGuestWorkspaceRestore(repository: WorkspaceReposito
   } catch (error) { if (snapshot !== input) await disposeWorkspaceSnapshot(snapshot); throw error }
 }
 
-export async function releaseGuestWorkspaceRestorePreview(preview: legacy.GuestRestorePreview): Promise<void> {
+export async function releaseGuestWorkspaceRestorePreview(preview: GuestRestorePreview): Promise<void> {
   const authority = previews.get(preview)
-  if (!authority) return legacy.releaseGuestWorkspaceRestorePreview(preview)
+  if (!authority) return
   // Only this private preview may use its prepared target; release never removes durable original/staged rows
   previews.delete(preview)
   if (authority.snapshot !== authority.input) await disposeWorkspaceSnapshot(authority.snapshot)
 }
 
-export async function beginGuestWorkspaceRestore(preview: legacy.GuestRestorePreview): Promise<{ readonly id: string }> {
+export async function beginGuestWorkspaceRestore(preview: GuestRestorePreview): Promise<{ readonly id: string }> {
   const authority = previews.get(preview)
-  if (!authority) return legacy.beginGuestWorkspaceRestore(preview)
+  if (!authority) throw new Error('The restore preview was released')
   await check(preview, authority)
   if (authority.id) throw new Error('The restore preview is already registered')
   authority.id = crypto.randomUUID()
   return { id: authority.id }
 }
 
-export async function stageGuestWorkspaceRestore(preview: legacy.GuestRestorePreview, id: string): Promise<{ readonly id: string }> {
+export async function stageGuestWorkspaceRestore(preview: GuestRestorePreview, id: string): Promise<{ readonly id: string }> {
   const authority = previews.get(preview)
-  if (!authority) return legacy.stageGuestWorkspaceRestore(preview, id)
+  if (!authority) throw new Error('The restore preview was released')
   await check(preview, authority)
   if (authority.id !== id || authority.stage) throw new Error('A fresh registered restore operation is required')
   if (await backupMetadataDigest(snapshotMetadata(authority.snapshot)) !== authority.digest) throw new Error('The restore input changed')
@@ -82,9 +82,9 @@ export async function stageGuestWorkspaceRestore(preview: legacy.GuestRestorePre
   return { id }
 }
 
-export async function activateGuestWorkspaceRestore(preview: legacy.GuestRestorePreview, id: string, assertMayActivate: () => void = () => {}) {
+export async function activateGuestWorkspaceRestore(preview: GuestRestorePreview, id: string, assertMayActivate: () => void = () => {}) {
   const authority = previews.get(preview)
-  if (!authority) return legacy.activateGuestWorkspaceRestore(preview, id, assertMayActivate)
+  if (!authority) throw new Error('The restore preview was released')
   await check(preview, authority)
   if (authority.id !== id || !authority.stage) throw new Error('A completely staged restore is required')
   // The existing coordinator activation inserts complete immutable rows, the exact receipt and head atomically
