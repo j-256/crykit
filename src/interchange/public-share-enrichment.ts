@@ -1,3 +1,4 @@
+import { artifactSuppliesCatalog } from '../domain/source-artifacts'
 import { buildModReferences } from '../domain/build-references'
 import { buildContentForModSetup } from '../domain/build-mods'
 import { checkpointContentDigest } from '../domain/checkpoint-identity'
@@ -34,8 +35,7 @@ export interface PublicEnrichment {
 }
 
 function ownsSource(viewer: WorkspaceState, catalog: CatalogSnapshot): boolean {
-  const digest = catalog.checksum.replace(/^sha256:/, '')
-  return viewer.planner.sources.some(source => source.digest === digest && source.original.sha256 === digest && viewer.blobs.some(blob => blobIdentity(blob.ref) === blobIdentity(source.original)))
+  return viewer.planner.sources.some(source => artifactSuppliesCatalog(source, catalog) && source.original.sha256 === source.digest && viewer.blobs.some(blob => blobIdentity(blob.ref) === blobIdentity(source.original)))
 }
 function sourceReceipt(snapshot: PublicSnapshot, receipt: PublicEntityReceipt): ModSourceReceipt | undefined {
   const origin = receipt.origin

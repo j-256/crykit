@@ -8,9 +8,10 @@ it.each([4, 34])('archives the original synthetic format %i', async editorVersio
   const bytes = new TextEncoder().encode(JSON.stringify({ ID: 'synthetic-version', Title: 'Synthetic Version', EditorVersion: editorVersion, Passives: [{ ID: 9000, Name: 'Synthetic passive', PP: 1 }] }))
   const preview = await previewCrystalEdit(bytes, 'synthetic.json')
   const catalog = preview.proposed.catalogs[0]!
-  expect(catalog.id).toBe('crystal-edit:synthetic-version')
+  expect(catalog.id).toMatch(/^crystal-project\/imported\/ce1-[a-f0-9]{64}$/)
   expect(modRevision(catalog)?.editorVersion).toBe(editorVersion)
-  expect(catalog.checksum).toBe(`sha256:${await sha256(bytes)}`)
+  expect(preview.proposed.sources[0]!.digest).toBe(await sha256(bytes))
+  expect(preview.proposed.sources[0]!.catalogs).toContainEqual({ id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum })
   expect(preview.proposed.sources[0]!.bytes).toEqual(bytes)
 })
 

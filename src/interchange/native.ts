@@ -1001,6 +1001,7 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string, a
       mediaType: source.mediaType,
       format: source.format,
       importedAt: source.importedAt,
+      ...(source.catalogs ? { catalogs: source.catalogs } : {}),
       bytes: Uint8Array.from(sourceBytes),
     })
   }

@@ -1,3 +1,7 @@
+import { IMPORT_INTERPRETATION } from './import-interpretations'
+import { modContentFingerprint } from './mod-content'
+import { researchSourceKey, sealImportedCatalog } from './source-identity'
+import { formatCatalogSourceId, importedJsonRevision, validDeclaredProjectId } from '../domain/source-identity'
 import type {
   CatalogClaim,
   CatalogEntity,
@@ -141,8 +145,8 @@ function firstString(record: { readonly [key: string]: JsonValue }, keys: readon
   return undefined
 }
 
-function sourceRef(digest: string, pointer: string): SourceRef {
-  return { sourceId: stableSourceId(digest), locator: pointer, snapshot: `sha256:${digest}` }
+function sourceRef(digest: string, pointer: string, normalized = false): SourceRef {
+  return { sourceId: normalized ? `source:json-content-v1:sha256:${digest}` : stableSourceId(digest), locator: pointer, snapshot: normalized ? `json-content-v1:sha256:${digest}` : `sha256:${digest}` }
 }
 
 function knowledge(value: JsonValue | undefined, source: SourceRef, key: string): Knowledge<JsonValue> {
@@ -184,7 +188,6 @@ function collectAmbiguousEntityIds(root: { readonly [key: string]: JsonValue }, 
 function buildCatalog(
   root: { readonly [key: string]: JsonValue },
   digest: string,
-  importedAt: Timestamp,
   warnings: ImportProblem[],
   ambiguousEntityIds: Set<string>,
 ): CatalogSnapshot {
@@ -195,7 +198,7 @@ function buildCatalog(
     if (!config.kind || !config.nameKeys || !config.idKeys) continue
     for (const [index, record] of objectArray(root, arrayName).entries()) {
       const pointer = `/${arrayName}/${index}`
-      const source = sourceRef(digest, pointer)
+      const source = sourceRef(digest, pointer, true)
       const name = firstString(record, config.nameKeys)
       if (!name) {
         warnings.push({
@@ -269,7 +272,7 @@ function buildCatalog(
         })
         continue
       }
-      const source = sourceRef(digest, `/${config.array}/${index}`)
+      const source = sourceRef(digest, `/${config.array}/${index}`, true)
       for (const [field, value] of Object.entries(record)) {
         if (config.names.includes(field) || config.ids.includes(field)) continue
         claims.push({
@@ -283,7 +286,7 @@ function buildCatalog(
   }
   for (const [index, record] of objectArray(root, 'expansion_locations').entries()) {
     const pointer = `/expansion_locations/${index}`
-    const source = sourceRef(digest, pointer)
+    const source = sourceRef(digest, pointer, true)
     const name = firstString(record, ['location', 'location_name', 'source', 'item', 'item_group', 'name']) ?? `Location row ${index + 1}`
     const suppliedId = firstString(record, ['location_id', 'id'])
     const fallbackId = `research:${digest.slice(0, 16)}:expansion_locations:${index}`
@@ -335,7 +338,7 @@ function buildCatalog(
   ]) {
     for (const [index, record] of objectArray(root, config.array).entries()) {
       const pointer = `/${config.array}/${index}`
-      const source = sourceRef(digest, pointer)
+      const source = sourceRef(digest, pointer, true)
       const name = firstString(record, config.nameKeys) ?? `${config.prefix} row ${index + 1}`
       const fallbackId = `research:${digest.slice(0, 16)}:${config.array}:${index}`
       const preferredId = importedId(firstString(record, config.idKeys) ?? fallbackId, `${pointer} identity`)
@@ -370,7 +373,6 @@ function buildCatalog(
     revisionId: asCatalogRevisionId(`sha256:${digest}`),
     schemaVersion: '1.1.0',
     checksum: `sha256:${digest}`,
-    importedAt,
     applicability: { state: 'unknown', reason: 'Exact game and mod version remain unspecified' },
     rights: { state: 'unknown', reason: 'Redistribution rights require source-by-source review' },
     entities,
@@ -623,10 +625,15 @@ export async function previewResearchJson(
     },
   ]
   const ambiguousEntityIds = new Set<string>()
-  const catalog = buildCatalog(rootValue, digest, importedAt, warnings, ambiguousEntityIds)
+  const contentFingerprint = await modContentFingerprint(jsonBytes)
+  const contentDigest = contentFingerprint.split(':').at(-1)!
+  const declaredProjectId = typeof rootValue.catalog_id === 'string' ? rootValue.catalog_id : typeof rootValue.source_namespace === 'string' ? rootValue.source_namespace : undefined
+  if (declaredProjectId !== undefined && !validDeclaredProjectId(declaredProjectId)) throw new AppDataError('schema-mismatch', 'Research project identity must be nonempty, bounded, and free of control characters', { recoverable: true })
+  const key = await researchSourceKey(declaredProjectId, contentDigest)
+  const catalog = await sealImportedCatalog({ ...buildCatalog(rootValue, contentDigest, warnings, ambiguousEntityIds), id: formatCatalogSourceId({ game: 'crystal-project', origin: 'imported', key }), revisionId: importedJsonRevision(contentFingerprint, IMPORT_INTERPRETATION) })
   const localData = createBlankLocalData('Imported playthrough', importedAt)
   const importedGameSetup = gameSetup(rootValue, catalog, digest, importedAt)
-  const receiptId = asImportReceiptId(`import:${digest}`)
+  const receiptId = asImportReceiptId(`import:${digest}:${IMPORT_INTERPRETATION}`)
   const playthroughId = localData.selectedPlaythroughId!
   const playthrough = localData.playthroughs[playthroughId]!
   const proposedLocalData: LocalData = {
@@ -646,6 +653,7 @@ export async function previewResearchJson(
         id: receiptId,
         sourceFormat: format,
         sourceIdentity: `sha256:${digest}`,
+        catalogs: [{ catalogId: catalog.id, catalogRevisionId: catalog.revisionId }],
         importedAt,
         localDataRevision: localData.revision,
       },
@@ -669,6 +677,7 @@ export async function previewResearchJson(
     format,
     importedAt,
     bytes: Uint8Array.from(sourceBytes),
+    catalogs: [{ id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum }],
   }
   return {
     id: randomId('import-preview'),

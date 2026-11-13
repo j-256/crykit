@@ -44,6 +44,7 @@ export interface SourceArchiveRecord {
   readonly format: ImportFormat
   readonly importedAt: Timestamp
   readonly bytes: Uint8Array
+  readonly catalogs?: readonly { readonly id: string; readonly revisionId: string; readonly checksum: string }[]
 }
 
 export interface LocalDataLineage {
@@ -122,6 +123,7 @@ export interface NativeBackupSourceManifest {
   readonly mediaType: string
   readonly format: ImportFormat
   readonly importedAt: Timestamp
+  readonly catalogs?: readonly { readonly id: string; readonly revisionId: string; readonly checksum: string }[]
   readonly path: string
   readonly size: number
 }

@@ -1,3 +1,4 @@
+import { artifactSuppliesCatalog } from '../domain/source-artifacts'
 import { commitOwnedFile, type OwnedFileCommand, type OwnedFileOutcome } from './owned-file-command'
 import { jsonRecord } from '../domain/crystal-edit'
 import { chooseLibraryDefault, chooseLibraryVisibility, enableLibrarySourceForBuild, type LibraryImportChoices } from '../domain/mod-library-actions'
@@ -6,6 +7,8 @@ import type { CatalogId, CatalogRevisionId, ModCatalogPin, Timestamp } from '../
 import type { ImportFormat, ImportPreview } from '../interchange/types'
 import { sha256 } from '../interchange/util'
 import { modContentFingerprint } from '../interchange/mod-content'
+import { previewCrystalEdit } from '../interchange/crystal-edit'
+import { catalogContentForChecksum } from '../interchange/catalog-checksum'
 import { prepareWorkspaceImport } from './import-commands'
 import { blobIdentity, readBlob } from './blobs'
 import type { WorkspaceRepository } from './repository'
@@ -34,13 +37,12 @@ export async function readLibrarySource(repository: WorkspaceRepository, pin: Mo
   const state = await repository.readWorkspace()
   const catalog = state.planner.catalogs.find(value => value.id === pin.catalogId && value.revisionId === pin.catalogRevisionId && value.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA)
   if (!catalog) throw new Error('The saved mod revision is unavailable')
-  // Semantic matches cannot authorize a different original archive for this exact catalog pin
-  const digest = catalog.checksum.replace(/^sha256:/, '')
-  const source = state.planner.sources.find(value => value.digest === digest && value.original.sha256 === digest)
+  // Availability of equivalent definitions does not establish ownership of an original archive
+  const source = state.planner.sources.find(value => artifactSuppliesCatalog(value, catalog) && value.original.sha256 === value.digest)
   const body = source && state.blobs.find(value => blobIdentity(value.ref) === blobIdentity(source.original))
   if (!source || !body) throw new Error('The original mod source is unavailable')
   const bytes = await readBlob(body.content, source.original.byteLength)
-  if (await sha256(bytes) !== digest) throw new Error('The original mod source changed')
+  if (await sha256(bytes) !== source.digest) throw new Error('The original mod source changed')
   const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
   await repository.load()
   return { filename: source.filename, bytes, text }
@@ -49,11 +51,14 @@ export async function readLibrarySource(repository: WorkspaceRepository, pin: Mo
 export async function previewLibrarySource(preview: ImportPreview): Promise<LibrarySource> {
   const catalog = preview.proposed.catalogs[0]
   const source = preview.proposed.sources[0]
-  if (preview.detectedFormat !== CRYSTAL_EDIT_CATALOG_SCHEMA || preview.errors.length || preview.proposed.catalogs.length !== 1 || preview.proposed.sources.length !== 1 || !catalog || !source || catalog.schemaVersion !== CRYSTAL_EDIT_CATALOG_SCHEMA || catalog.checksum !== `sha256:${source.digest}` || preview.sourceDigest !== source.digest || source.id !== `source:sha256:${source.digest}` || await sha256(source.bytes) !== source.digest) throw new Error('A verified single-project Crystal Edit source is required')
+  if (preview.detectedFormat !== CRYSTAL_EDIT_CATALOG_SCHEMA || preview.errors.length || preview.proposed.catalogs.length !== 1 || preview.proposed.sources.length !== 1 || !catalog || !source || catalog.schemaVersion !== CRYSTAL_EDIT_CATALOG_SCHEMA || !artifactSuppliesCatalog(source, catalog) || preview.sourceDigest !== source.digest || source.id !== `source:sha256:${source.digest}` || await sha256(source.bytes) !== source.digest) throw new Error('A verified single-project Crystal Edit source is required')
   const legacy = jsonRecord(catalog.legacy) ? catalog.legacy : undefined
   const fingerprint = legacy?.contentFingerprint
   if (typeof fingerprint !== 'string' || !/^json-content-v1:sha256:[0-9a-f]{64}$/.test(fingerprint)) throw new Error('The mod source has no verified content fingerprint')
   if (await modContentFingerprint(source.bytes) !== fingerprint) throw new Error('The mod source fingerprint does not match its original bytes')
+  // A caller can mutate a preview and its claimed checksum together; reproduce the projection from verified bytes
+  const verified = (await previewCrystalEdit(source.bytes, source.filename, source.importedAt)).proposed.catalogs[0]!
+  if (catalogContentForChecksum(verified) !== catalogContentForChecksum(catalog)) throw new Error('The mod source projection does not match its original bytes')
   return { sourceArchiveId: source.id, originalDigest: source.digest, semanticFingerprint: fingerprint, catalogId: catalog.id, catalogRevisionId: catalog.revisionId, filename: source.filename, importedAt: source.importedAt, format: source.format, mediaType: source.mediaType, ...(typeof legacy?.steamWorkshopFileId === 'string' ? { declaredWorkshopId: legacy.steamWorkshopFileId } : {}) }
 }
 
