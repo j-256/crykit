@@ -457,7 +457,8 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
         const state = await repository.readWorkspace()
         ticket.command.assertMayActivate()
         if (state.planner.localData.id !== expected.id || state.planner.localData.revision !== expected.revision) throw new Error('The workspace changed before importing the Editor source')
-        if (state.planner.catalogs.some(catalog => catalog.id === incoming.catalogId && catalog.revisionId === incoming.catalogRevisionId && catalog.checksum === `sha256:${incoming.originalDigest}`)) {
+        // Normalized source integrity and exact original-byte ownership are separate identities
+        if (state.planner.catalogs.some(catalog => catalog.id === incoming.catalogId && catalog.revisionId === incoming.catalogRevisionId && catalog.checksum === preview.proposed.catalogs[0]?.checksum)) {
           const stored = await readLibrarySource(repository, incoming)
           ticket.command.assertMayActivate()
           // An identical original needs no new command or ownership transfer; pin equality alone is insufficient
