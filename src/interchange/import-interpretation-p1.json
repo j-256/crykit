@@ -21,7 +21,7 @@
     "src/domain/calculation-genders.ts": "898ff44fcc0d2dbefe0ce262314ef183cc6b2d753c324eef8ce5014e0887821a",
     "src/domain/calculation-rules.ts": "559314c0297772d91eff0fdd513f61f2c4b28360b1332b3e28312351ff0dc547",
     "src/domain/catalog-schemas.ts": "2b1b6be7f0517ec2f9ad7a493b411a68c382534ee65d28d35321595fc379cc29",
-    "src/domain/checkpoint-identity.ts": "699b79ba6225b59959d543993d6b374a4b91a4337ec291d4e495ddd69c64f5df",
+    "src/domain/checkpoint-identity.ts": "4fa7c885123663f285a4331635b170e0d014b208fe9d12c186453715c4749a27",
     "src/domain/core.ts": "b3b0b337cac3d0eace1f0a67140f1c5d418e11ce5416b9e6345ac032a909bb5f",
     "src/domain/crystal-edit-compatibility.ts": "51d9fa7c44207767d2d23741a7f3a6dfdd3f5d923341938330ac75a2bf2728ad",
     "src/domain/crystal-edit.ts": "fb506632bf07484ba1df2574440aafe09c4debd1da7c0876f9c8dc2d928784ad",

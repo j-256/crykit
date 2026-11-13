@@ -24,6 +24,9 @@ describe('Team-owned checkpoint graph', () => {
       const value = 'x'.repeat(size)
       expect(checkpointContentDigest(value)).toBe(await sha256(new TextEncoder().encode(JSON.stringify(value))))
     }
+    for (const value of ['x'.repeat(1024 * 1024), 'Synthetic \u{1f4a0}\u0000'.repeat(64 * 1024)]) {
+      expect(checkpointContentDigest(value)).toBe(await sha256(new TextEncoder().encode(JSON.stringify(value))))
+    }
     expect(checkpointContentDigest({ z: 1, a: [2, null] })).toBe(checkpointContentDigest({ a: [2, null], z: 1 }))
   })
   it('copiesTeamSlotsWithoutChangingBuildHistory', () => {

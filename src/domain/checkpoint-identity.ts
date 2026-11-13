@@ -31,13 +31,15 @@ export function checkpointContentDigest(value: unknown): string {
       const a = words[index - 15]!, b = words[index - 2]!
       words[index] = words[index - 16]! + (rotate(a, 7) ^ rotate(a, 18) ^ (a >>> 3)) + words[index - 7]! + (rotate(b, 17) ^ rotate(b, 19) ^ (b >>> 10))
     }
-    let [a, b, c, d, e, f, g, h] = Array.from(hash) as [number, number, number, number, number, number, number, number]
+    // Keep block state scalar: per-block arrays add substantial allocation cost for complete source bodies
+    let a = hash[0]!, b = hash[1]!, c = hash[2]!, d = hash[3]!, e = hash[4]!, f = hash[5]!, g = hash[6]!, h = hash[7]!
     for (let index = 0; index < 64; index++) {
       const first = (h + (rotate(e, 6) ^ rotate(e, 11) ^ rotate(e, 25)) + ((e & f) ^ (~e & g)) + ROUND_CONSTANTS[index]! + words[index]!) | 0
       const second = ((rotate(a, 2) ^ rotate(a, 13) ^ rotate(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) | 0
       h = g; g = f; f = e; e = (d + first) | 0; d = c; c = b; b = a; a = (first + second) | 0
     }
-    for (const [index, word] of [a, b, c, d, e, f, g, h].entries()) hash[index] = hash[index]! + word
+    hash[0] = hash[0]! + a; hash[1] = hash[1]! + b; hash[2] = hash[2]! + c; hash[3] = hash[3]! + d
+    hash[4] = hash[4]! + e; hash[5] = hash[5]! + f; hash[6] = hash[6]! + g; hash[7] = hash[7]! + h
   }
   return Array.from(hash, word => word.toString(16).padStart(8, '0')).join('')
 }
