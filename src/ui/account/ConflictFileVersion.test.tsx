@@ -11,6 +11,19 @@ import { ConflictFileVersion } from './ConflictFileVersion'
 let root: Root, container: HTMLDivElement
 beforeEach(() => { Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true }); container = document.createElement('div'); document.body.append(container); root = createRoot(container) })
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); invalidateProfile(); vi.restoreAllMocks() })
+it('retains inspected content across equivalent metadata renders and clears it when the exact reference changes', async () => {
+  const token = installProfile('AAAAAAAAAAAAAAAAAAAAAA', new Uint8Array(32)), fixture = await editorClosureFixture()
+  const document: WorkspaceDocument = { version: 1, kind: 'editor', key: '["editor","editor-1"]', value: fixture.file as unknown as WorkspaceDocument['value'] }
+  const render = (value = document) => act(async () => root.render(<ConflictFileVersion token={token} documents={[value]} blobs={fixture.blobs} version="pending"/>))
+  await render()
+  await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Inspect saved draft')!.click())
+  await vi.waitFor(async () => { await act(async () => {}); expect(container.querySelector('[aria-label="Saved draft content"]')?.textContent).toBe('"\\ud800"') })
+  await render(structuredClone(document))
+  expect(container.querySelector('[aria-label="Saved draft content"]')?.textContent).toBe('"\\ud800"')
+  const next = await fixture.add(new Uint8Array([1, 216]), 'new-draft', 'utf16le')
+  await render({ ...document, value: { ...fixture.file, unfinished: { ...fixture.file.unfinished, text: next } } as unknown as WorkspaceDocument['value'] })
+  expect(container.querySelector('[aria-label="Saved draft content"]')).toBeNull()
+})
 it('downloadsExactBinaryHistoryWithoutMarkingTheWorkingSaveExported', async () => {
   const token = installProfile('AAAAAAAAAAAAAAAAAAAAAA', new Uint8Array(32)), fixture = await editorClosureFixture()
   const bytes = new Uint8Array([0, 255, 3, 128]), ref = await fixture.add(bytes, 'binary', 'bytes')

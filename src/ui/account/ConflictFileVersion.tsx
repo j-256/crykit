@@ -23,7 +23,9 @@ function escapedText(bytes: Uint8Array, encoding: WorkspaceBlobRef['encoding']):
 function Content({ token, role, blobs, filename, version }: { readonly token: ProfileToken; readonly role: ContentRole; readonly blobs: WorkspaceState['blobs']; readonly filename: string; readonly version: string }) {
   const [preview, setPreview] = useState<string>(), [error, setError] = useState('')
   const lifetime = useRef(0)
-  useEffect(() => { lifetime.current++; setPreview(undefined); setError(''); return () => { lifetime.current++ } }, [token, role.ref])
+  // Schema admission rebuilds reference objects on parent renders; only changed content or profile retires an inspection
+  const contentIdentity = JSON.stringify([role.ref.documentId, role.ref.revisionId, role.ref.byteLength, role.ref.sha256, role.ref.encoding])
+  useEffect(() => { lifetime.current++; setPreview(undefined); setError(''); return () => { lifetime.current++ } }, [token, contentIdentity])
   async function inspect(download: boolean) {
     const captured = lifetime.current
     let bytes: Uint8Array | undefined
