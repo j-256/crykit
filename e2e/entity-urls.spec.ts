@@ -8,8 +8,8 @@ const PUN_STORM_PATH = syntheticReferencePath(1, 'Abilities', 9002, 'Synthetic T
 
 test('native and supplemental entries use exact current catalog routes directly', async ({ page }) => {
   for (const [path, name] of [
-    ['/#/reference/catalog/crystal-project-public-starter/catalog-v3/base/item/203/quintar-berries', 'Quintar Berries'],
-    ['/#/reference/catalog/crystal-project-public-starter/catalog-v3/base/other/ref-909/achievements', 'Achievements'],
+    ['/#/reference/crystal-project/vanilla/v1/item/203/quintar-berries', 'Quintar Berries'],
+    ['/#/reference/crystal-project/vanilla/v1/other/ref-909/achievements', 'Achievements'],
   ]) {
     await page.goto(path)
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
@@ -19,19 +19,11 @@ test('native and supplemental entries use exact current catalog routes directly'
   }
 })
 
-test('saved catalog-v2 reference links retain their original definitions', async ({ page }) => {
-  const path = referencePath('mod:barbarian:class:ref-1078', 'crystal-project-public-starter', 'catalog-v2')
-  await page.goto(path)
-  await expect(page.getByRole('heading', { name: 'Barbarian', exact: true })).toBeVisible()
-  await page.reload()
-  await expect(page).toHaveURL(new RegExp(`${path}$`))
-})
-
 test('native monster links carry reviewed variant names and survive new tabs and reloads', async ({ page, context }) => {
   await page.goto('/#/reference?v=1&q=Brutish+Quintar&kind=monster')
   await waitForPlannerReady(page)
-  const desert = page.locator(`a[href^="${referencePath('base:monster:316', 'crystal-project-public-starter', 'catalog-v3').slice(1)}?"]`)
-  const red = page.locator(`a[href^="${referencePath('base:monster:57', 'crystal-project-public-starter', 'catalog-v3').slice(1)}?"]`)
+  const desert = page.locator(`a[href^="${referencePath('base:monster:316').slice(1)}?"]`)
+  const red = page.locator(`a[href^="${referencePath('base:monster:57').slice(1)}?"]`)
   await expect(desert).toBeVisible()
   await expect(red).toBeVisible()
   await expect(desert).toHaveAttribute('href', /\/316\/brutish-quintar-desert\?/)
@@ -70,7 +62,7 @@ test('a wrong slug resolves by ID and normalizes without an extra history entry'
 test('mod names survive nested search routes', async ({ page }) => {
   await importSyntheticLibrary(page)
   await page.goto(PUN_STORM_PATH)
-  await expect(page).toHaveURL(/\/crystal-edit%3Asynthetic-moonlight\/sha256%3A[a-f0-9]{64}%3Arules-v2%3Alibrary-v4\/mod\/synthetic-moonlight\/ability\/9002\/synthetic-technique$/)
+  await expect(page).toHaveURL(/\/crystal-project\/imported\/ce1-[a-f0-9]{64}\/j1-[a-f0-9]{64}-p1\/ability\/9002\/synthetic-technique$/)
   await page.getByRole('button', { name: /^(Search|Search planner)$/ }).filter({ visible: true }).click()
   await expect(page).toHaveURL(/\/9002\/synthetic-technique\/search$/)
   await page.reload()
@@ -97,9 +89,11 @@ test('retired encoded-colon entity URLs show recovery', async ({ page }) => {
   await expect(page.getByRole('heading', { name: '100-Pun Storm', exact: true })).toHaveCount(0)
 })
 
-test('historical bundled routes preserve the pin when definitions are unavailable', async ({ page }) => {
-  await page.goto('/#/reference/catalog/v1/mod/equipment-expansion/equipment/592/heavy-edge')
-  await expect(page.getByText('Reference definition unavailable', { exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Heavy Edge', exact: true })).toHaveCount(0)
-  await expect(page).toHaveURL(/\/catalog\/v1\/mod\/equipment-expansion\/equipment\/592\/definition$/)
+test('missing exact source routes preserve the request and show recovery', async ({ page }) => {
+  const path = '/#/reference/crystal-project/vanilla/v99/equipment/3/dirk'
+  await page.goto(path)
+  await expect(page.getByText('Exact source unavailable', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Import source or backup', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Dirk', exact: true })).toHaveCount(0)
+  await expect(page).toHaveURL(new RegExp(`${path}$`))
 })

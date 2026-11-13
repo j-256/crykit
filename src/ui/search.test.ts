@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { DEFAULT_CATALOG, GUIDE_CATALOG } from '../catalog/bundled'
 import { nativeSourceRecord } from '../domain/native-game'
 import type {
   CatalogClaim,
@@ -150,7 +150,7 @@ describe('reference search projection', () => {
   it('keeps mode audiences and extraction artifact visibility consistent between details and search', () => {
     const mode = DEFAULT_CATALOG.entities['base:monster:201:mode:Chaos']!
     const artifact = entity('base:other:ref-911', { kind: 'other', name: 'Artifact' })
-    const modeCatalog = catalog([spear, mode, artifact])
+    const modeCatalog = { ...catalog([spear, mode, artifact]), id: DEFAULT_CATALOG.id }
     const indexed = buildReferenceSearchItems([modeCatalog])
     for (const item of indexed) expect(findReferenceSearchItem([modeCatalog], item.keyParts)).toEqual(item)
     expect(findReferenceSearchItem([modeCatalog], { catalogId: modeCatalog.id, catalogRevisionId: modeCatalog.revisionId, entityId: mode.id })?.audience).toBe('alternatives')
@@ -159,14 +159,13 @@ describe('reference search projection', () => {
 
   it('projects reference audiences and suppresses explicit extraction artifacts', () => {
     const records = [
-      entity('base:mechanic:stat:Synthetic', { kind: 'other', name: 'Technical' }),
       entity('base:other:ref-913', { kind: 'other', name: 'Diagnostic' }),
       entity('base:other:ref-928', { kind: 'other', name: 'History' }),
       entity('base:other:ref-915', { kind: 'other', name: 'Tooling' }),
       entity('base:other:ref-911', { kind: 'other', name: 'Artifact' }),
       entity('imported:other:technical-looking', { kind: 'other', name: 'Imported technical-looking record' }),
     ]
-    const projected = buildReferenceSearchItems([catalog(records)])
+    const projected = buildReferenceSearchItems([{ ...catalog(records), id: DEFAULT_CATALOG.id }, { ...GUIDE_CATALOG, entities: { 'ref-464': { ...GUIDE_CATALOG.entities['ref-464']!, name: 'Technical' } } }])
     expect(projected.map(item => [item.entity.name, item.audience])).toEqual([
       ['Diagnostic', 'diagnostic'],
       ['History', 'about'],

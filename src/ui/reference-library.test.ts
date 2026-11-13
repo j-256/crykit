@@ -72,6 +72,9 @@ it('keeps all saved source revisions without inferring a latest release or mixin
   const selected = standingReferenceOptions(options, catalogs, createTestLocalData())
   expect(selected.map(option => option.ref)).toEqual(expect.arrayContaining([earlier, latest].map(catalog => ({ kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: Object.values(catalog.entities)[0]!.id }))))
   expect(selected).toHaveLength(2)
+  const hidden = setModInReference(createTestLocalData(), earlier.id, false)
+  expect(standingReferenceOptions(options, catalogs, hidden)).toEqual([])
+  expect(hidden.gameSetups).toEqual(createTestLocalData().gameSetups)
 })
 
 it('keeps unloaded preview records out of Reference even when search options include them', async () => {

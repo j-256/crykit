@@ -1,4 +1,4 @@
-import { type EntityRouteNameResolver } from '../entity-route-names'
+import { bundledEntityRouteName, type EntityRouteNameResolver } from '../entity-route-names'
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { type AppRoute, type Destination, BUILDS_ROUTE } from './types.ts'
 import { parseAppRoute, formatAppRoute } from './routes.ts'
@@ -49,19 +49,26 @@ export function useNavigationController(options: { readonly resolveEntityName?: 
 
   const href = useCallback((value: AppRoute) => formatAppRoute(value, optionsRef.current.resolveEntityName), [])
 
+  const canCanonicalize = useCallback((value: AppRoute) => {
+    const refs = [...('ref' in value.page ? [value.page.ref] : []), ...value.overlays.flatMap(overlay => 'ref' in overlay ? [overlay.ref] : [])]
+    const resolve = optionsRef.current.resolveEntityName ?? bundledEntityRouteName
+    // Missing exact sources keep the incoming descriptive slug until that source resolves
+    return refs.every(ref => ref.kind === 'personal' || resolve(ref) !== undefined)
+  }, [])
+
   const accept = useCallback((next: AppRoute) => {
     const canonical = next.legacy ? { ...next, legacy: undefined } : next
     acceptedRef.current = canonical
     setRoute(canonical)
     const canonicalHash = href(canonical)
     // Canonical slugs replace the current URL without adding a history entry or discarding state
-    if (canonical.page.page !== 'unresolved' && window.location.hash !== canonicalHash) window.history.replaceState(window.history.state, '', canonicalHash)
-  }, [href])
+    if (canonical.page.page !== 'unresolved' && canCanonicalize(canonical) && window.location.hash !== canonicalHash) window.history.replaceState(window.history.state, '', canonicalHash)
+  }, [href, canCanonicalize])
 
   useEffect(() => {
     const canonicalHash = href(acceptedRef.current)
-    if (acceptedRef.current.page.page !== 'unresolved' && window.location.hash !== canonicalHash) window.history.replaceState(window.history.state, '', canonicalHash)
-  }, [href, options.resolveEntityName])
+    if (acceptedRef.current.page.page !== 'unresolved' && canCanonicalize(acceptedRef.current) && window.location.hash !== canonicalHash) window.history.replaceState(window.history.state, '', canonicalHash)
+  }, [href, canCanonicalize, options.resolveEntityName])
 
   useEffect(() => {
     const existing = navigationState(window.history.state)

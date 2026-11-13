@@ -204,7 +204,7 @@ export function projectReferenceEntity(
     ppCost,
     weaponRule: skillWeaponRule(projectedEntity),
     knowledgeCounts: countKnowledge(entityKnowledge(factEntity, claims)),
-    audience: referenceAudience(projectedEntity),
+    audience: referenceAudience(projectedEntity, catalog.id),
     projection: {
       text: { state: 'known', value: [projectedEntity.name, ...projectedEntity.aliases, referenceDescription(projectedEntity) ?? '', projectedEntity.rawDescription ?? ''].join('\n').normalize('NFKC') },
       kind: { state: 'known', value: projectedEntity.kind },
@@ -227,7 +227,7 @@ function catalogReferenceSearchItem(catalog: CatalogSnapshot, entity: CatalogEnt
 export function findReferenceSearchItem(catalogs: readonly CatalogSnapshot[], ref: ReferenceEntityKey): ReferenceSearchItem | undefined {
   const catalog = catalogs.find(snapshot => snapshot.id === ref.catalogId && snapshot.revisionId === ref.catalogRevisionId)
   const entity = catalog && Object.hasOwn(catalog.entities, ref.entityId) ? catalog.entities[ref.entityId] : undefined
-  return catalog && entity && !isReferenceArtifact(entity) ? catalogReferenceSearchItem(catalog, entity) : undefined
+  return catalog && entity && !isReferenceArtifact(entity, catalog.id) ? catalogReferenceSearchItem(catalog, entity) : undefined
 }
 
 const immutableCatalogSearchItems = new WeakMap<CatalogSnapshot, readonly ReferenceSearchItem[]>()
@@ -242,7 +242,7 @@ function catalogSearchItems(catalog: CatalogSnapshot): readonly ReferenceSearchI
     claims.push(claim)
     claimsByEntity.set(claim.entityId, claims)
   }
-  const items = Object.values(catalog.entities).filter(entity => !isReferenceArtifact(entity)).map(entity => catalogReferenceSearchItem(catalog, entity, claimsByEntity.get(entity.id) ?? []))
+  const items = Object.values(catalog.entities).filter(entity => !isReferenceArtifact(entity, catalog.id)).map(entity => catalogReferenceSearchItem(catalog, entity, claimsByEntity.get(entity.id) ?? []))
   if (immutable) {
     // These projections depend only on this exact admitted catalog, not personal records or Game Setup
     // Freeze new projection records, but reuse deep immutability established by catalog admission

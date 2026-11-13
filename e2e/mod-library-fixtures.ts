@@ -1,5 +1,5 @@
-import { IMPORTED_RULES_REVISION } from '../src/domain/game-rules'
-import { MOD_LIBRARY_IMPORT_REVISION } from '../src/interchange/crystal-edit'
+import { canonicalModJson } from '../src/interchange/mod-content'
+import { IMPORT_INTERPRETATION } from '../src/interchange/import-interpretations'
 import { referencePath } from './reference-helpers'
 import { bundledModEntityId } from '../src/domain/bundled-mods'
 import { createHash } from 'node:crypto'
@@ -65,5 +65,7 @@ export const modLibraryTest = base.extend<{}, { importedLibraryState: ImportedLi
 
 export function syntheticReferencePath(projectIndex: number, family: string, id: number, name: string) {
   const source = SYNTHETIC_LIBRARY_SOURCES[projectIndex]!
-  return referencePath(bundledModEntityId(source.projectId, family, id), `crystal-edit:${source.projectId}`, `sha256:${source.sha256}:${IMPORTED_RULES_REVISION}:${MOD_LIBRARY_IMPORT_REVISION}`, name)
+  const key = `ce1-${createHash('sha256').update(JSON.stringify(['crykit-source-key', 1, 'crystal-project', 'crystal-edit', source.projectId])).digest('hex')}`
+  const content = createHash('sha256').update(canonicalModJson(new TextEncoder().encode(JSON.stringify(SYNTHETIC_LIBRARY_ROOTS[projectIndex])))).digest('hex')
+  return referencePath(bundledModEntityId(key, family, id), `crystal-project/imported/${key}`, `j1-${content}-${IMPORT_INTERPRETATION}`, name)
 }

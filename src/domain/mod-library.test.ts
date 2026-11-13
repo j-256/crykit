@@ -48,16 +48,16 @@ it('recognizes effective source references while explicit project bindings take 
   expect(modCardIncludesEntry(card, { key: 'explicit', projectId: 'crystal-edit:other' as CatalogId, sourceIds })).toBe(false)
 })
 
-it('counts the latest source revision and unversioned personal entries without mixing earlier snapshots', async () => {
+it('counts every saved source revision and unversioned personal entries independently', async () => {
   const earlier = { ...await imported('synthetic-versions', { Equipment: [{ ID: 9000, Name: 'Synthetic earlier item' }] }), importedAt: asTimestamp('2026-01-01T00:00:00Z') }
   const latest = { ...await imported('synthetic-versions', { Equipment: [{ ID: 9001, Name: 'Synthetic latest item' }] }), importedAt: asTimestamp('2026-01-02T00:00:00Z') }
   const earlierSourceIds = Object.values(earlier.entities)[0]!.sources.map(source => source.sourceId)
   const entries = [{ key: 'earlier', projectId: earlier.id, projectRevisionId: earlier.revisionId, sourceIds: [] }, { key: 'latest', projectId: latest.id, projectRevisionId: latest.revisionId, sourceIds: [] }, { key: 'manual', projectId: latest.id, sourceIds: [] }, { key: 'earlier-effective', name: 'Synthetic renamed update', sourceIds: earlierSourceIds }]
   const cards = modLibraryCards(completeModLibrary([latest, earlier], []), [], entries)
   expect(cards).toHaveLength(1)
-  expect(cards[0]?.entryCount).toBe(2)
-  expect(modCardIncludesEntry(cards[0]!, entries[0]!)).toBe(false)
-  expect(modCardIncludesEntry(cards[0]!, entries[3]!)).toBe(false)
+  expect(cards[0]?.entryCount).toBe(4)
+  expect(modCardIncludesEntry(cards[0]!, entries[0]!)).toBe(true)
+  expect(modCardIncludesEntry(cards[0]!, entries[3]!)).toBe(true)
 })
 
 it('groups bundled and saved revisions by project ID while retaining all originals', async () => {
