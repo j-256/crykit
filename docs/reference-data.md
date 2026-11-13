@@ -15,3 +15,9 @@ Catalog cloning is also retired. A generic personal copy retained native source 
 A personal definition created from a picker or global search is a standalone entry in the shared local library. It can represent a missing item or other definition without claiming a catalog identity. Editing saves a new immutable revision; it does not rewrite saved Build selections, inventory observations, or learning records. Unsupported mechanics remain unknown. Custom facts alone do not establish native calculation support.
 
 Previously saved catalog-derived personal records remain readable and selectable. Their exact fields, lineage, source references, Game Setup pins, and Build references remain supported in imports, backups, and shares. They are read-only in Reference, pickers, and direct editor routes. Standalone custom records remain editable. The domain mutation enforces this boundary as well as the UI.
+
+## Exact source links
+
+Canonical Reference routes identify the game, source origin, exact revision, record family, and source-relative key. Descriptive slugs are optional labels and cannot select another record. Vanilla mode variants remain explicit; guides, imported sources, personal definitions, and local compositions use distinct routes. Prelaunch aliases are unsupported. A missing source view identifies the required source and revision and offers import recovery without enabling a Game Setup layer.
+
+A composed record can have different mechanical and text contributors. Its source links point to each original contributor, including that contributor's original numeric ID before collision remapping. Logical stock and learning identity stays separate from those source links. Exact receipt matching can fulfill an imported source from a future bundle without changing the requested identity; similarity of names, bodies without matching interpretation, or declared versions is insufficient.

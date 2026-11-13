@@ -4,7 +4,7 @@ For exact enum lookup, annotated JSON editing, browser drafts, and reviewed mod 
 
 The application ships class facts from the installed game's native database baseline. Numeric ratings, equipment categories, class selection flags, command and crystal labels, ability and passive membership, learn-tree coordinates, and prerequisite connectors come from those game records. Native ability and passive definitions resolve their related entries. See [native game data and extraction](catalog-sources.md#native-gameplay-facts-are-the-base) for version coverage and regeneration. Updating the baseline requires a new immutable catalog revision.
 
-Earlier bundled revisions retain the class-copy export dated 2026-09-27 from Crystal Edit editor version 34. Its copied job IDs, export-local references, and source records remain available to saved Builds and backups. Mods can edit vanilla classes, so the base database does not establish the effective values of a modded class.
+The launch vanilla source uses native class records. The class-copy export dated 2026-09-27 from Crystal Edit editor version 34 remains extraction evidence, not a packaged historical planner revision. Mods can edit vanilla classes, so the base database does not establish the effective values of a modded class.
 
 The class-copy export contains ability and passive IDs without their definitions. A separate identity supplement matches every exported tree exactly against the inspected PC 1.6.9.0 job database, then resolves each skill through its native ability or passive ID. Each reference link is matched to an exact name and class in the bundled catalog. The supplement records database and executable hashes in `src/catalog/class-tree-identities.json`; it supplies display names and learning costs without rewriting immutable catalog revisions or saved references. Changed or unrelated trees do not receive this mapping.
 
@@ -25,7 +25,7 @@ Equipment enum meanings and the column-first tree format are documented in the [
 
 ## Bundled mod evidence
 
-The mod library uses the same Crystal Edit importer for packaged and user-supplied sources. Exact project IDs, versions and SHA-256 digests identify each revision. Editing creates a separate browser draft; saving or importing an update preserves earlier revisions.
+No mod definitions or packaged project JSON ship in the launch collection. Private imports populate the mod library. Future reviewed bundles use the same Crystal Edit importer and an immutable receipt binding their public source identity to the exact imported payload, normalized content, and interpretation. Titles and declared versions are descriptive metadata, never identity or proof of an update relationship.
 
 Loaded source revisions, Reference membership and Game Setup enablement are separate states. A compact discovery record supplies search information; complete source definitions are required for calculation and saved layers. Removing Reference membership hides browse results without discarding archived sources or changing saved Builds. Source exports do not establish Nintendo Switch parity or which skills a character has learned. Import notes retain unsupported formats, absent related definitions and unmodeled effects.
 
@@ -38,7 +38,7 @@ npm run mods:index:check
 
 The index supplies search and picker compatibility information; it is never a saved catalog or calculation source. The full normalized revision is loaded before a selection is persisted. Source updates require regenerating the index after [directory packaging](development.md#bundle-a-mod-source-directory). Exact artwork bindings continue to use the source digest and numeric model identity.
 
-Fresh profiles use `catalog-v3`, built from native databases and attributed reference sources. The preceding `catalog-v2` snapshot remains available for exact saved pins. Known unavailable revisions retain checksum receipts and stable source identity mappings. Saved references stay pinned and unresolved until their exact snapshot is available; private snapshots and source archives remain part of local backups.
+Fresh profiles use `crystal-project/vanilla` at `v1` and the independent `crystal-project/guide/modding` at `v1`. Complete saved source snapshots outlive changes to the packaged collection. Missing exact sources remain unavailable until their matching snapshot is provided; Reference never substitutes a newer revision.
 
 ## Importing custom classes and class edits
 
@@ -48,7 +48,7 @@ Jobs are normalized into class facts. Included abilities, passives, equipment, i
 
 Gender-only projects are also supported. Gender records become reference entries with their exact flags and unknown fields preserved. Enabled profiles supply the calculation choices described in [mod calculations](mod-calculations.md); incomplete flag sets remain unresolved. Reimporting a historical source that archived genders creates a new parser revision without changing its previous snapshot or saved pins.
 
-The project ID provides the catalog namespace, the file digest identifies its immutable revision, and model family plus ID identifies each record. Job IDs in the documented vanilla range are labeled as edits to vanilla classes; higher IDs are labeled as custom classes. Names do not determine whether a class is an edit. Controlled exports show complete records for the selected edited classes, including unchanged values and full membership lists and trees. Each imported record is a snapshot, not a field patch or an additive membership list. Other vanilla classes can be absent from a mod export without being deleted. Missing fields stay unknown in the application; they are not filled from similarly named classes. Imports retain separate source catalog identities and do not activate mods by themselves. Enable imported revisions under Game Setup to compose their effective definitions. Without a saved layer configuration, imported definitions remain available for explicit selection. Saved Game Setup revisions retain their exact catalog pins.
+The exact, case-sensitive declared project ID is hashed with a versioned domain prefix to form the `ce1-<sha256>` source key. A revision is `j1-<normalized-content-sha256>-p1`. Normalization covers the complete JSON value, including unknown fields and exact numeric tokens; object key order and insignificant whitespace do not change it. The frozen interpretation receipt covers projection code, data, and parser dependencies. A changed interpretation requires another revision. Copying a project ID with different content creates another coexisting revision; it does not prove lineage, update an enabled layer, or replace an earlier source. Job IDs in the documented vanilla range identify edits to vanilla classes; higher IDs identify added classes. Each exported record is a complete snapshot, not an additive membership list or field patch.
 
 ## Legacy editor formats
 
@@ -88,4 +88,4 @@ The reference entry **Growth estimates and damage formula research** leads with 
 
 Normalized facts and glossary text retain their source attribution. Imported project archives stay in local browser storage and backups. The application makes no runtime game-data requests.
 
-Imports use `mod:<project-id>:<model-family>:<numeric-id>` entity IDs and revision IDs containing the source digest and parser revision. Reimporting with a changed parser creates a separate immutable snapshot; older snapshots and their pins remain readable. Source digests and Crystal Edit provenance remain metadata. Explicit native family and ID mappings connect imported records and composed layers without relying on display-name similarity.
+Imported record keys use `mod:<canonical-source-key>:<model-family>:<numeric-id>`. Original artifact SHA-256, filename, acquisition time, and exact bytes are retained separately from the deterministic source payload. Equivalent JSON can therefore share one source revision while retaining different original artifacts. Missing originals or artwork do not invalidate a complete normalized source. Explicit native family and ID mappings connect composed records without display-name inference. Mechanical and text contributor references remain separate, so localized text never falsely attributes mechanics to the localization source.
