@@ -1,5 +1,6 @@
-import { importSyntheticLibrary, SYNTHETIC_LIBRARY_SOURCES } from './mod-library-fixtures'
+import { importSyntheticLibrary, SYNTHETIC_LIBRARY_ROOTS } from './mod-library-fixtures'
 import { MOBILE_TEST_TAG } from './test-tags'
+import { modContentFingerprint } from '../src/interchange/mod-content'
 import { selectedPlaythrough, createBlankPlaythrough, waitForPlannerReady } from './local-data-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -209,8 +210,8 @@ test('reference source options remain readable, bounded, and exact', { tag: MOBI
   expect(Math.min(...geometry.widths)).toBeGreaterThan(180)
   expect(Math.min(...geometry.gaps)).toBeGreaterThanOrEqual(5.5)
 
-  const source = SYNTHETIC_LIBRARY_SOURCES[0]!
-  const sourceId = `source:sha256:${source.sha256}`
+  // Definition facets use normalized content identity; raw file hashes belong to archive receipts
+  const sourceId = `source:${await modContentFingerprint(new TextEncoder().encode(JSON.stringify(SYNTHETIC_LIBRARY_ROOTS[0]!)))}`
   await sourceSearch.fill(sourceId)
   await expect(sources.getByRole('button', { name: new RegExp(`^${sourceId}\\. Full source: ${sourceId}\\. \\d+ matches$`) })).toBeVisible()
   // This facet searches extraction provenance rather than projected gameplay labels
