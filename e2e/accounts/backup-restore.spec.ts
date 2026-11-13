@@ -7,9 +7,9 @@ import { blobIdentity, memoryBlob, readBlob } from '../../src/workspace/blobs'
 import { disposeWorkspaceSnapshot } from '../../src/workspace/snapshot'
 import { readCompleteBackup } from '../workspace-backup'
 import { waitForPlannerReady } from '../local-data-helpers'
+import { completeWorkspaceFixture, SYNTHETIC_SAVE_ORIGINAL } from './workspace-fixture'
 
-const fixtures = JSON.parse(await readFile(new URL('../../src/interchange/workspace-backup-v1.fixtures.json', import.meta.url), 'utf8')) as { archive: string }[]
-const backup = Buffer.from(fixtures[2].archive, 'base64')
+const { backup, historyId } = await completeWorkspaceFixture()
 const stagingNames = (page: Page) => page.evaluate(async () => (await indexedDB.databases()).map(database => database.name).filter((name): name is string => !!name?.startsWith('crykit-backup-staging-')).sort())
 
 test('guest complete restore preserves saved drafts, original bytes and history after reopening', async ({ page }) => {
@@ -59,14 +59,14 @@ test('guest complete restore preserves saved drafts, original bytes and history 
   const state = await readCompleteBackup(restoredBytes)
   expect(state.editorDocuments[0]).toMatchObject({ filename: 'before.json', unfinished: { validation: 'invalid' } })
   expect(state.saveDocuments[0]).toMatchObject({ filename: 'save.dat', coverage: { status: 'unsupported' } })
-  expect(state.planner.history.map(entry => entry.id)).toContain('history:44d0e238-52c4-4b79-ad3e-804db9afb895')
+  expect(state.planner.history.map(entry => entry.id)).toContain(historyId)
   expect(state.planner.localData.playthroughs).toEqual({})
   const restored = await readWorkspaceBackup(memoryBlob(restoredBytes).open())
   try {
     const original = restored.state.saveDocuments[0].original
     const body = restored.state.blobs.find(blob => blobIdentity(blob.ref) === blobIdentity(original))
     expect(body).toBeDefined()
-    expect(new TextDecoder().decode(await readBlob(body!.content, original.byteLength))).toBe('opaqueCredential password accountKey csrf inert file bytes')
+    expect(new TextDecoder().decode(await readBlob(body!.content, original.byteLength))).toBe(SYNTHETIC_SAVE_ORIGINAL)
   } finally { await disposeWorkspaceSnapshot(restored) }
 })
 
@@ -106,7 +106,7 @@ test('account complete restore replaces the selected workspace and keeps exact o
     expect(restored.state.editorDocuments[0].unfinished.validation).toBe('invalid')
     const original = restored.state.saveDocuments[0].original
     const body = restored.state.blobs.find(blob => blobIdentity(blob.ref) === blobIdentity(original))!
-    expect(new TextDecoder().decode(await readBlob(body.content, original.byteLength))).toBe('opaqueCredential password accountKey csrf inert file bytes')
+    expect(new TextDecoder().decode(await readBlob(body.content, original.byteLength))).toBe(SYNTHETIC_SAVE_ORIGINAL)
   } finally { await disposeWorkspaceSnapshot(restored) }
 })
 

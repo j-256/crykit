@@ -1,3 +1,4 @@
+import { loadAccountUpdate } from './workspace-updates'
 import { openTeamHistory } from '../share-view-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { chooseTeamCheckpoint } from '../team-helpers'
@@ -5,7 +6,19 @@ import type { LocalData, TeamRevision } from '../../src/domain/types'
 import { SYNTHETIC_LIBRARY_ROOTS } from '../mod-library-fixtures'
 
 type Proof = { teamState(): Promise<LocalData>; seedTeamFixture(account?: boolean): Promise<void>; buildInputState(): { dirty: boolean; pending: string; values: Record<string, unknown> } }
-const state = (page: Page) => page.evaluate(() => (window as unknown as { workspaceProof: Proof }).workspaceProof.teamState())
+async function state(page: Page): Promise<LocalData> {
+  let saved: LocalData | undefined
+  // An owned save can retire the previous wrapper before React installs its successor
+  // Retry only that authority handoff; persistent stale roots and other read failures still fail the test
+  await expect.poll(async () => {
+    try { saved = await page.evaluate(() => (window as unknown as { workspaceProof: Proof }).workspaceProof.teamState()); return true }
+    catch (error) {
+      if (error instanceof Error && /page\.evaluate: Error: The managed (?:workspace changed|account changed|account repository is retired)/.test(error.message)) return false
+      throw error
+    }
+  }).toBe(true)
+  return saved!
+}
 const owned = (data: LocalData, title: string): TeamRevision => { const team = Object.values(data.teams).find(value => value.title === title)!; if (team.kind !== 'shared') throw new Error('Expected shared'); return data.teamRevisions[team.latestRevisionId]! }
 const app = '/__accounts-proof/account-workspace.html'
 async function seedGuest(page: Page) {
@@ -56,7 +69,8 @@ async function teamJourney(page: Page) {
   await expect(page.getByRole('region', { name: 'Team checkpoint history' })).toContainText('Verified test Game Setup')
   await page.getByRole('combobox', { name: 'Team checkpoint', exact: true }).selectOption(changedRevision.id)
   await page.getByRole('button', { name: 'Save slot 2 as Build', exact: true }).click()
-  await expect.poll(async () => Object.values((await state(page)).builds).some(build => build.title === 'Owned Team journey - member 2')).toBe(true)
+  await expect(page.locator('.context-status')).toHaveText('Saved locally')
+  await expect.poll(async () => Object.values((await state(page)).builds).some(build => !before.builds[build.id] && build.title === (changedRevision.slots[1]!.name ?? 'Owned Team journey - member 2'))).toBe(true)
   const copied = await state(page), copy = Object.values(copied.builds).find(build => !before.builds[build.id])!
   expect(copied.buildRevisions[copy.latestRevisionId!]!.content).toEqual(changedRevision.slots[1]!.content)
   for (const [id, build] of Object.entries(before.builds)) expect(copied.builds[id]).toEqual(build)
@@ -98,8 +112,12 @@ test('encrypted account uses the same real Team editing and adoption journey', a
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Open account workspace', exact: true })).toBeVisible()
   await page.evaluate(() => (window as unknown as { accountBootstrapProof: Proof }).accountBootstrapProof.seedTeamFixture(true))
+  const published = page.waitForResponse(response => response.url().endsWith('/sync/commits') && response.ok() && response.request().postDataJSON().heads.length > 0)
   await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+  await published
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
+  await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced')
+  await loadAccountUpdate(page)
   await page.getByRole('button', { name: 'Teams', exact: true }).click()
   await teamJourney(page)
 })

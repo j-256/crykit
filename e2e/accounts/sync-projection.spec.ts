@@ -1,3 +1,4 @@
+import { loadAccountUpdate } from './workspace-updates'
 import { expect, test, type Page, type BrowserContext } from '@playwright/test'
 import type * as auth from '../../src/account/auth-client'
 
@@ -13,15 +14,18 @@ async function signIn(page: Page, email: string, seed = false, waitForProjection
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Open account workspace' })).toBeVisible()
   if (seed) await page.evaluate(() => (window as unknown as { accountBootstrapProof: Proof }).accountBootstrapProof.seedSelectionFixture())
-  const applied = waitForProjection ? page.evaluate(() => new Promise<void>(resolve => window.addEventListener('crykit-account-sync-applied', () => resolve(), { once: true }))) : Promise.resolve()
+  const published = seed ? page.waitForResponse(response => response.url().endsWith('/sync/commits') && response.ok() && response.request().postDataJSON().heads.length > 0) : undefined
+  const applied = waitForProjection && !seed ? page.evaluate(() => new Promise<void>(resolve => window.addEventListener('crykit-account-sync-applied', () => resolve(), { once: true }))) : Promise.resolve()
   await page.getByRole('button', { name: 'Open account workspace' }).click()
-  await applied
+  await (published ?? applied)
   await expect(status(page)).toHaveText('Synced')
+  if (waitForProjection) await loadAccountUpdate(page)
 }
 async function flush(page: Page) { await page.evaluate(() => (window as unknown as { workspaceProof: Proof }).workspaceProof.flushSync()) }
 async function publish(page: Page, action: () => Promise<unknown>) {
   const response = page.waitForResponse(response => response.url().endsWith('/sync/commits') && response.ok() && response.request().postDataJSON().heads.length > 0)
   await action(); await flush(page); await response; await expect(status(page)).toHaveText('Synced')
+  await loadAccountUpdate(page)
 }
 test.describe.serial('remote projection respects local interaction', () => {
   let a: Page, b: Page, ca: BrowserContext, cb: BrowserContext, email: string, selectedA: SelectionSnapshot, selectedB: SelectionSnapshot
@@ -46,6 +50,7 @@ test.describe.serial('remote projection respects local interaction', () => {
     expect(selectedB.planningGameSetupRevisionId).not.toBe(selectedA.planningGameSetupRevisionId)
     for (const id of Object.keys(selectedA.scenarios)) expect(selectedB.scenarios[id]).not.toBe(selectedA.scenarios[id])
     await flush(a); await expect(status(a)).toHaveText('Synced')
+    await loadAccountUpdate(a)
     expect(selectors(await proof(a).snapshot())).toEqual(selectors(selectedA))
   })
   test('typedFormSurvivesAnActualRemoteArrivalAndRetainsDeviceSelectors', async () => {
@@ -70,6 +75,7 @@ test.describe.serial('remote projection respects local interaction', () => {
     await expect(b.getByLabel('Character name')).toHaveCount(0)
     await b.getByRole('button', { name: 'Retry', exact: true }).click()
     await expect(status(b)).toHaveText('Synced')
+    await loadAccountUpdate(b)
     await expect.poll(async () => (await proof(b).snapshot()).definitions).toContain('Arrived while typing')
     await expect(b.getByRole('button', { name: 'Playthrough: Second local journey', exact: true })).toBeVisible()
     await expect(b.getByRole('button', { name: 'Party plan: Second local scenario', exact: true })).toBeVisible()

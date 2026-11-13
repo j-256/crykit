@@ -1,8 +1,9 @@
+import 'fake-indexeddb/auto'
+import { completeWorkspaceFixture } from './workspace-fixture'
 import { accountConnectivity, prepareAccountProofCache } from './network-fixture'
 import { WORKSPACE_STARTUP_MARK } from '../../src/diagnostics/workspace-startup'
 import { WORKSPACE_BACKUP_MARK } from '../../src/diagnostics/workspace-backup'
 import { assertAccountStorageRecovery } from './storage-recovery'
-import 'fake-indexeddb/auto'
 import { readFile, writeFile } from 'node:fs/promises'
 import { expect, test, type Page } from './test-fixture'
 
@@ -32,8 +33,8 @@ async function collect(stream: AsyncIterable<Uint8Array>) {
   return Buffer.concat(chunks)
 }
 async function fixture() {
-  const fixtures = JSON.parse(await readFile(new URL('../../src/interchange/workspace-backup-v1.fixtures.json', import.meta.url), 'utf8')) as { archive: string }[]
-  const snapshot = await readWorkspaceBackup(memoryBlob(Buffer.from(fixtures[2].archive, 'base64')).open())
+  const { backup } = await completeWorkspaceFixture()
+  const snapshot = await readWorkspaceBackup(memoryBlob(backup).open())
   try {
     const original = memoryBlob(new TextEncoder().encode(privateOriginal))
     const ref = { documentId: 'historical-original', revisionId: 'historical-original-1', byteLength: original.byteLength, sha256: await hashBlob(original), encoding: 'bytes' as const }
@@ -47,17 +48,17 @@ async function fixture() {
     return await collect(exportWorkspaceBackup({ ...snapshot, state }))
   } finally { await disposeWorkspaceSnapshot(snapshot) }
 }
-async function signIn(page: Page, email: string, password: string, migrateNative = false) {
+async function signIn(page: Page, email: string, password: string, seedLocalWorkspace = false) {
   await page.goto(`${app}#/settings/account`)
   await page.getByLabel('Email', { exact: true }).fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByLabel('Remember this device').first().check()
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  if (migrateNative) {
+  if (seedLocalWorkspace) {
     await expect(page.getByRole('button', { name: 'Open account workspace', exact: true })).toBeVisible()
     const original = await page.evaluate(() => (window as any).accountBootstrapProof.seedSelectionFixture())
-    expect((await page.evaluate(() => (window as any).accountBootstrapProof.accountStorage())).rootVersion).toBe(1)
-    // Inspect native admission before cloud publication can advance the selected root
+    expect((await page.evaluate(() => (window as any).accountBootstrapProof.accountStorage())).rootVersion).toBe(3)
+    // Inspect the supported local root before cloud publication can advance it
     // Release the actual requests afterward; all later cloud and offline recovery proofs still run
     const syncRequests = '**/api/v1/sync/**'
     let releasePublication!: () => void
@@ -118,7 +119,7 @@ async function privateContent(bytes: Uint8Array, authoredDefinition?: PersonalDe
           expect(target.value).toEqual(authoredDefinition)
           authoredPending++
         } else {
-          // The frozen fixture's pending editor target shares original bytes with current content
+          // The synthetic fixture's pending editor target shares original bytes with current content
           // Include them in exact cross-device equality so filtering local-only roots cannot hide byte loss
           expect(retained.unit).toEqual({ kind: 'record', privateKey: '["editor","editor-1"]' })
           await file((await inspectWorkspaceClosure(state, retained.target)).value as EditorWorkspaceDocument)

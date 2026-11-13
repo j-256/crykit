@@ -1,3 +1,4 @@
+import { loadAccountUpdate } from './workspace-updates'
 import { expect, test, type Page, type BrowserContext } from '@playwright/test'
 import type { SaveWorkspaceDocument } from '../../src/workspace/documents'
 import type * as auth from '../../src/account/auth-client'
@@ -23,6 +24,7 @@ async function signIn(page: Page, email: string, seed = false) {
   const ready = seed ? publication(page) : page.evaluate(() => new Promise<void>(resolve => window.addEventListener('crykit-account-sync-applied', () => resolve(), { once: true })))
   await page.getByRole('button', { name: 'Open account workspace' }).click()
   await ready
+  if (!seed) await loadAccountUpdate(page)
 }
 async function downloaded(page: Page, button: import('@playwright/test').Locator) {
   const event = page.waitForEvent('download')
@@ -66,6 +68,7 @@ test.describe.serial('whole binary Save conflicts across browser profiles', () =
     await contexts[1].setOffline(false)
     await b.evaluate(() => (window as unknown as { workspaceProof: Proof }).workspaceProof.flushSync())
     await conflict
+    await loadAccountUpdate(b)
     await expect(b.getByRole('heading', { name: 'Saved versions need review' })).toBeVisible()
   })
   test('third device inspects and downloads exact original and working branches without marking export', async () => {
@@ -95,6 +98,7 @@ test.describe.serial('whole binary Save conflicts across browser profiles', () =
     const published = publication(c)
     await c.getByRole('button', { name: 'Use pending version', exact: true }).click()
     await published; await expect(status(c)).toHaveText('Synced')
+    await loadAccountUpdate(c)
     await expect(c.getByRole('heading', { name: 'Saved version history' })).toBeVisible()
     const selected = await snapshot(c)
     expect(selected.files[0]).toEqual({ file: frozen.versions[0].file, original: frozen.versions[0].original, working: frozen.versions[0].working })

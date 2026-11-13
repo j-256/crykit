@@ -1,3 +1,4 @@
+import { loadAccountUpdate } from './workspace-updates'
 import { expect, test, type Page, type BrowserContext } from '@playwright/test'
 import type * as auth from '../../src/account/auth-client'
 
@@ -25,6 +26,7 @@ async function signIn(page: Page, email: string, seed = false) {
   const ready = seed ? headPublication(page) : page.evaluate(() => new Promise<void>(resolve => window.addEventListener('crykit-account-sync-applied', () => resolve(), { once: true })))
   await page.getByRole('button', { name: 'Open account workspace' }).click()
   await ready
+  if (!seed) await loadAccountUpdate(page)
 }
 test.describe.serial('retained conflict choices across actual browser profiles', () => {
   let a: Page, b: Page, c: Page, contexts: BrowserContext[] = [], email: string, frozen: Snapshot['conflicts'][number], pendingPublication: ReturnType<typeof headPublication>
@@ -51,6 +53,7 @@ test.describe.serial('retained conflict choices across actual browser profiles',
   test.afterAll(async () => { for (const context of contexts) await context.close() })
   test('publishesAnExactInvalidDraftAndPullsItOnASecondDevice', async () => {
     await signIn(a, email, true); await expect(status(a)).toHaveText('Synced')
+    await loadAccountUpdate(a)
     await signIn(b, email); await expect(status(b)).toHaveText('Synced')
     expect((await snapshot(b)).files).toEqual(['before.json'])
   })
@@ -79,6 +82,7 @@ test.describe.serial('retained conflict choices across actual browser profiles',
     const retrying = retryClick()
     await contexts[1].setOffline(false); await flush(b); await retrying; await conflictPublication
     await b.unroute('**/api/v1/sync/commits'); expect(injected && retried).toBe(true)
+    await loadAccountUpdate(b)
     await expect(b.getByRole('heading', { name: 'Saved versions need review' })).toBeVisible()
   })
   test('unrelatedSaveDurablyUploadsAutomaticallyWhileTheComparisonStaysUnresolved', async () => {
@@ -106,7 +110,10 @@ test.describe.serial('retained conflict choices across actual browser profiles',
     await c.setViewportSize({ width: 390, height: 844 })
     const panel = c.getByRole('region', { name: 'Saved version conflicts' })
     const inspect = panel.getByRole('button', { name: 'Inspect saved draft', exact: true })
-    await inspect.nth(0).click(); await inspect.nth(1).click()
+    await inspect.nth(0).click()
+    // The asynchronous preview expands this column; wait before aiming at the next action
+    await expect(panel.getByLabel('Saved draft content')).toHaveText(['"\\ud800"'])
+    await inspect.nth(1).click()
     await expect(panel.getByLabel('Saved draft content')).toHaveText(['"\\ud800"', '"\\ud801"'])
     expect(await c.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
     pendingPublication = headPublication(c)
@@ -116,6 +123,7 @@ test.describe.serial('retained conflict choices across actual browser profiles',
   })
   test('explicitChoiceFinishesAutomaticallyAndKeepsMobileOriginalInspection', async ({}, testInfo) => {
     await pendingPublication; await expect(status(c)).toHaveText('Synced')
+    await loadAccountUpdate(c)
     await expect(c.getByRole('heading', { name: 'Saved version history' })).toBeVisible()
     const selected = await snapshot(c)
     expect(selected.files).toContain('Competing invalid draft.json')
@@ -123,6 +131,7 @@ test.describe.serial('retained conflict choices across actual browser profiles',
     expect(selected.conflicts[0]).toEqual({ ...frozen, disposition: 'resolved' })
     await expect(c.getByRole('button', { name: 'Use pending version' })).toHaveCount(0)
     await c.getByRole('button', { name: 'Inspect saved draft', exact: true }).nth(0).click()
+    await expect(c.getByLabel('Saved draft content')).toHaveText(['"\\ud800"'])
     await c.getByRole('button', { name: 'Inspect saved draft', exact: true }).nth(1).click()
     await expect(c.getByLabel('Saved draft content')).toHaveText(['"\\ud800"', '"\\ud801"'])
     await testInfo.attach('retained-originals', { body: JSON.stringify(selected), contentType: 'application/json' })

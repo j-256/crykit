@@ -10,8 +10,8 @@ import { listCachedProfiles, readDeviceProfile } from '../../src/account/device-
 import { previewImport } from '../../src/interchange/import'
 import { createPersonalDefinition, createCharacter, createScenario } from '../../src/domain'
 import { createPlaythroughWithSetup } from '../../src/domain/game-setups'
-import { AccountDatabase, activateLocalAccountCommit } from '../../src/persistence/account-database'
-import { prepareAccountWorkspace } from '../../src/workspace/account-graph'
+import { AccountDatabase } from '../../src/persistence/account-database'
+import { seedManagedWorkspace } from '../../src/persistence/managed-sync.test-helpers'
 import { memoryBlob } from '../../src/workspace/blobs'
 import { disposeWorkspaceSnapshot } from '../../src/workspace/snapshot'
 import { sha256 } from '../../src/interchange/util'
@@ -47,7 +47,7 @@ async function teamFixtureData(publicSharing?: PublicSharingFixture) {
 }
 
 // Bootstrap proofs touch only synthetic account storage before the planner is mounted
-// Keeping them outside WorkspaceProof preserves the native-root migration boundary
+// Public startup accepts only managed launch roots, so fixture admission must finish before mounting
 const accountBootstrapProof = {
   async accountStorage() {
     const token = currentProfileToken()!
@@ -74,8 +74,7 @@ const accountBootstrapProof = {
     const fixture = await editorClosureFixture(), token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
     try {
       if (await database.profileMeta.get('active')) throw new Error('Save conflict fixture requires fresh account storage')
-      const prepared = await prepareAccountWorkspace(database, token, { ...fixture.state, retainedContent: [], blobs: [] })
-      await activateLocalAccountCommit(database, token, { version: 1, id: accountLocalId(), expected: undefined, head: prepared.head, records: prepared.records })
+      await seedManagedWorkspace(database, token, { ...fixture.state, retainedContent: [], blobs: [] })
       await createSaveRepository(await openAccountRepository(token)).importFile('binary-conflict.sav', encodeCrystalSave(createSaveEditorFixture()))
     } finally { database.close() }
   },
@@ -85,8 +84,7 @@ const accountBootstrapProof = {
     const token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
     try {
       if (await database.profileMeta.get('active')) throw new Error('Conflict fixture requires fresh account storage')
-      const prepared = await prepareAccountWorkspace(database, token, { ...fixture.state, editorDocuments: [fixture.file], retainedContent: [], blobs: fixture.blobs.filter(blob => blob.ref.encoding === 'utf16le') })
-      await activateLocalAccountCommit(database, token, { version: 1, id: accountLocalId(), expected: undefined, head: prepared.head, records: prepared.records })
+      await seedManagedWorkspace(database, token, { ...fixture.state, editorDocuments: [fixture.file], retainedContent: [], blobs: fixture.blobs.filter(blob => blob.ref.encoding === 'utf16le') })
     } finally { database.close() }
   },
   async seedSelectionFixture() {
@@ -103,8 +101,7 @@ const accountBootstrapProof = {
     const token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
     try {
       if (await database.profileMeta.get('active')) throw new Error('Selection fixture requires fresh account storage')
-      const prepared = await prepareAccountWorkspace(database, token, { planner: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: [], sources: [], evidence: [], history: [] }, editorDocuments: [], saveDocuments: [], assets: [], conflicts: [], retainedContent: [], blobs: [], libraryDefaults: { version: 1, layers: [] } })
-      await activateLocalAccountCommit(database, token, { version: 1, id: accountLocalId(), expected: undefined, head: prepared.head, records: prepared.records })
+      await seedManagedWorkspace(database, token, { planner: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: [], sources: [], evidence: [], history: [] }, editorDocuments: [], saveDocuments: [], assets: [], conflicts: [], retainedContent: [], blobs: [], libraryDefaults: { version: 1, layers: [] } })
       return localData
     } finally { database.close() }
   },
@@ -115,8 +112,7 @@ const accountBootstrapProof = {
     try {
       if (await database.profileMeta.get('active')) throw new Error('Team fixture requires fresh account storage')
       const localData = { ...data, revision: 0, changes: [] }
-      const prepared = await prepareAccountWorkspace(database, token, { planner: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: [], sources: [], evidence: [], history: [] }, editorDocuments: [], saveDocuments: [], assets: [], conflicts: [], retainedContent: [], blobs: [], libraryDefaults: { version: 1, layers: [] } })
-      await activateLocalAccountCommit(database, token, { version: 1, id: accountLocalId(), expected: undefined, head: prepared.head, records: prepared.records })
+      await seedManagedWorkspace(database, token, { planner: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: [], sources: [], evidence: [], history: [] }, editorDocuments: [], saveDocuments: [], assets: [], conflicts: [], retainedContent: [], blobs: [], libraryDefaults: { version: 1, layers: [] } })
     } finally { database.close() }
   },
 }
@@ -181,13 +177,14 @@ function WorkspaceProof() {
         try { return snapshot.state.planner.localData }
         finally { await disposeWorkspaceSnapshot(snapshot) }
       },
-      async inspect() {
+      async inspect(includeBackup = true) {
         const token = currentProfileToken()
         const response = await fetch('/api/v1/account')
         const principal = response.ok ? await response.json() : undefined
         const loaded = await workspace.repository.load()
-        const backup = await workspace.repository.previewImport(await workspace.repository.exportPlannerBackup(), 'proof.zip')
-        return { playthroughs: Object.values(loaded.localData.playthroughs).map(value => ({ label: value.label, characters: Object.keys(value.characters).length, inventory: Object.keys(value.inventory).length, progress: Object.keys(value.progress).length, scenarios: Object.keys(value.scenarios).length })), kind: workspace.repository.kind, token, principal: principal?.accountId, access: token ? profileAccess(token) : undefined, digest: token ? await withAccountKey(token, async key => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(key)))).join(',')) : undefined, titles: Object.values(loaded.localData.builds).map(build => build.title), backupTitles: Object.values(backup.proposed.localData.builds).map(build => build.title), definitions: Object.values(loaded.localData.personalDefinitions).map(value => value.name), backupDefinitions: Object.values(backup.proposed.localData.personalDefinitions).map(value => value.name) }
+        // Identity-only observations do not need to serialize and validate every retained catalog
+        const backup = includeBackup ? await workspace.repository.previewImport(await workspace.repository.exportPlannerBackup(), 'proof.zip') : undefined
+        return { playthroughs: Object.values(loaded.localData.playthroughs).map(value => ({ label: value.label, characters: Object.keys(value.characters).length, inventory: Object.keys(value.inventory).length, progress: Object.keys(value.progress).length, scenarios: Object.keys(value.scenarios).length })), kind: workspace.repository.kind, token, principal: principal?.accountId, access: token ? profileAccess(token) : undefined, digest: token ? await withAccountKey(token, async key => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(key)))).join(',')) : undefined, titles: Object.values(loaded.localData.builds).map(build => build.title), backupTitles: backup ? Object.values(backup.proposed.localData.builds).map(build => build.title) : undefined, definitions: Object.values(loaded.localData.personalDefinitions).map(value => value.name), backupDefinitions: backup ? Object.values(backup.proposed.localData.personalDefinitions).map(value => value.name) : undefined }
       },
       localDefinitions: async () => Object.values((await workspace.repository.load()).localData.personalDefinitions).map(value => value.name),
       async probeGuestRestoreCollisions(bytes: number[]) {
