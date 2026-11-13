@@ -1,4 +1,6 @@
-import { renderToStaticMarkup } from 'react-dom/server'
+import type { ReactNode } from 'react'
+import { NavigationProvider, formatAppRoute, type NavigationController } from './navigation'
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server'
 import { expect, it } from 'vitest'
 import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
 import { addGameSetupRevision, createBuild, saveBuildRevision } from '../domain'
@@ -12,7 +14,10 @@ import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { prepareLocalBuildModRecovery } from '../interchange/share-mod-recovery'
 import { SharedModSources } from './SharedModSources'
 
-it.each([false, true])('offers only exact selected local artwork after recovering a saved composed Build (historical=%s)', async historical => {
+const navigation = { href: formatAppRoute } as NavigationController
+const renderToStaticMarkup = (children: ReactNode) => renderMarkup(<NavigationProvider controller={navigation}>{children}</NavigationProvider>)
+
+it('offers only exact selected local artwork after recovering a saved composed Build', async () => {
   const text = '{"ID":"artwork-recovery","Title":"Artwork source","Jobs":[{"ID":24,"Name":"Selected class"},{"ID":25,"Name":"Unselected class"}]}'
   const source = (await previewCrystalEdit(new TextEncoder().encode(text), 'source.json')).proposed.catalogs[0]!
   const catalogs = [...BUNDLED_CATALOGS, source]
@@ -24,7 +29,7 @@ it.each([false, true])('offers only exact selected local artwork after recoverin
   const content = buildContentForModSetup({ primaryClass: { kind: 'catalog', catalogId: source.id, catalogRevisionId: source.revisionId, entityId: entity.id }, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [] }, setup, catalogs)
   data = saveBuildRevision(data, { buildId, gameSetupRevisionId: setup.id, content })
   data = { ...data, gameSetups: { ...data.gameSetups, [setup.id]: { ...setup, modSourceReceipts: modSourceReceipts(setup, catalogs) } } }
-  const saved = historical ? JSON.parse(JSON.stringify(data).replaceAll('library-v4', 'library-v2')) as typeof data : data
+  const saved = structuredClone(data)
   const savedRevision = saved.buildRevisions[saved.builds[buildId]!.latestRevisionId!]!
   const original = JSON.stringify(saved)
   const recovered = prepareLocalBuildModRecovery(savedRevision.content, saved.gameSetups[savedRevision.gameSetupRevisionId]!, catalogs)

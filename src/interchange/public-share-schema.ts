@@ -1,16 +1,29 @@
 import { z } from 'zod'
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
+import { parseCatalogSourceId, parseSourceRevision } from '../domain/source-identity'
 
 // This module is also the Worker admission boundary; never import private graph or game-data modules
 export const PUBLIC_SHARE_LIMITS = Object.freeze({ bytes: 256 * 1024, depth: 32, nodes: 20_000, id: 1024, display: 256, notes: 16_384, receipts: 1024, entries: 64, inputs: 128, url: 64 * 1024 })
-export const PUBLIC_SHARE_ROUTE_PREFIX = '#/share/v5/'
+export const PUBLIC_SHARE_VERSION = 6
+export const PUBLIC_SHARE_ROUTE_PREFIX = `#/share/v${PUBLIC_SHARE_VERSION}/`
+export const PUBLIC_COMPOSITION_REVISION_PREFIX = 'composition-v2:sha256:'
 const id = z.string().min(1).max(PUBLIC_SHARE_LIMITS.id).refine(value => !/[\u0000-\u001f\u007f/\\]/.test(value) && !/\.(json|png|jpe?g|webp|zip|xlsx|sav)(?:$|[?#])/i.test(value), 'Public identities cannot contain paths or filenames')
 const display = z.string().min(1).max(PUBLIC_SHARE_LIMITS.display)
-const digest = z.string().regex(/^sha256:[a-f0-9]{64}$/)
+const digest = z.string().regex(/^(payload|builtin):sha256:[a-f0-9]{64}$/)
 const contentDigest = z.string().regex(/^[a-f0-9]{64}$/)
 const fingerprint = z.object({ kind: z.enum(['json-content-v1', 'personal-definition-v1']), value: contentDigest }).strict()
-const pin = z.object({ catalogId: id, catalogRevisionId: id }).strict()
+const sourceId = z.string().max(PUBLIC_SHARE_LIMITS.id).refine(value => Boolean(parseCatalogSourceId(value)), 'Expected a canonical source identity')
+const exactPin = (pin: { catalogId: string; catalogRevisionId: string }) => {
+  const source = parseCatalogSourceId(pin.catalogId)
+  return Boolean(source && parseSourceRevision(source.origin, pin.catalogRevisionId))
+}
+const selectedPin = (pin: { catalogId: string; catalogRevisionId: string }) => exactPin(pin) || parseCatalogSourceId(pin.catalogId)?.origin === 'vanilla' && /^composition-v2:sha256:[a-f0-9]{64}$/.test(pin.catalogRevisionId)
+const pinShape = { catalogId: sourceId, catalogRevisionId: id }
+const pin = z.object(pinShape).strict().refine(exactPin, 'Expected an exact source revision')
+const catalogRef = z.object({ kind: z.literal('catalog'), ...pinShape, entityId: id }).strict()
+const originRef = catalogRef.refine(exactPin, 'Contributors require exact source revisions')
 export const PublicRefSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('catalog'), catalogId: id, catalogRevisionId: id, entityId: id }).strict(),
+  catalogRef.refine(selectedPin, 'Expected an exact source or composition revision'),
   z.object({ kind: z.literal('personal'), fingerprint: z.object({ kind: z.literal('personal-definition-v1'), value: contentDigest }).strict() }).strict(),
 ])
 const ref = PublicRefSchema
@@ -26,23 +39,25 @@ export const PublicCalculationSchema = z.object({
   level: z.number().int().min(1).max(60).nullable(), growth: z.array(z.object({ classRef: ref.nullable(), levels: z.number().int().min(0).max(60).nullable() }).strict()).max(PUBLIC_SHARE_LIMITS.inputs), bonuses: z.array(z.enum(['HP', 'MP', 'STR', 'VIT', 'DEX', 'AGI', 'MND', 'SPI', 'SPD', 'LUK'])).max(10).refine(values => new Set(values).size === values.length), statuses: refs, ability: ref.nullable().optional(), targetEvasion: z.number().finite().min(0).max(0x7fffffff).nullable().optional(), battle: battle.optional(),
 }).strict().refine(value => value.gender === undefined || value.genderSelection === undefined, 'Choose one gender input')
 const knowledge = <T extends z.ZodType>(value: T) => z.union([z.object({ state: z.literal('known'), value }).strict(), z.object({ state: z.enum(['unknown', 'conflicting', 'notApplicable']) }).strict()])
-const source = pin.extend({ title: display, checksum: digest.optional(), contentFingerprint: z.string().regex(/^json-content-v1:sha256:[a-f0-9]{64}$/).optional() }).strict()
-export const PublicSetupSchema = z.object({ catalogLock: z.record(id, id).refine(value => Object.keys(value).length <= PUBLIC_SHARE_LIMITS.entries).optional(), baseline: pin.nullable(), layers: z.array(source).max(PUBLIC_SHARE_LIMITS.entries), mode: knowledge(display), difficulty: knowledge(nativeInteger).optional(), ppLimit: knowledge(nativeInteger).optional(), ppCostsNonNegative: knowledge(z.boolean()), slots: z.array(z.object({ id, label: display, equipmentRole: z.enum(['mainHand', 'offHand', 'head', 'body', 'accessory']).nullable().optional() }).strict()).max(PUBLIC_SHARE_LIMITS.entries) }).strict()
-// Persisted context v1 retains its original complete shape admission independently of the public v5 projection
-export const PublicEntityReceiptV1Schema = z.object({ ref, kind: z.enum(['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'monster', 'command', 'status', 'recipe', 'location', 'other']), name: display, fingerprint: fingerprint.optional(), origin: z.object({ kind: z.enum(['catalog', 'personal']), projectId: id, sourceRevisionId: id, catalogId: id, catalogRevisionId: id, modelKey: id.optional() }).strict() }).strict()
-// Catalog names and exact identities remain shareable when their kind or provenance cannot be certified
-// Personal references always require complete metadata bound to their semantic fingerprint
-export const PublicEntityReceiptSchema = PublicEntityReceiptV1Schema.extend({ kind: PublicEntityReceiptV1Schema.shape.kind.nullable(), origin: PublicEntityReceiptV1Schema.shape.origin.nullable() }).superRefine((receipt, context) => {
+const source = z.object({ ...pinShape, title: display, enabled: z.boolean().optional(), checksum: digest.optional(), contentFingerprint: z.string().regex(/^json-content-v1:sha256:[a-f0-9]{64}$/).optional() }).strict().refine(exactPin, 'Expected an exact source revision')
+export const PublicSetupSchema = z.object({ catalogLock: z.record(sourceId, id).refine(value => Object.keys(value).length <= PUBLIC_SHARE_LIMITS.entries && Object.entries(value).every(([catalogId, catalogRevisionId]) => selectedPin({ catalogId, catalogRevisionId })), 'Expected exact source or composition pins').optional(), baseline: pin.nullable(), layers: z.array(source).max(PUBLIC_SHARE_LIMITS.entries), mode: knowledge(display), difficulty: knowledge(nativeInteger).optional(), ppLimit: knowledge(nativeInteger).optional(), ppCostsNonNegative: knowledge(z.boolean()), slots: z.array(z.object({ id, label: display, equipmentRole: z.enum(['mainHand', 'offHand', 'head', 'body', 'accessory']).nullable().optional() }).strict()).max(PUBLIC_SHARE_LIMITS.entries) }).strict()
+const origin = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('catalog'), projectId: sourceId, sourceRevisionId: id, ...pinShape, modelKey: id.optional() }).strict().refine(value => exactPin({ catalogId: value.projectId, catalogRevisionId: value.sourceRevisionId }) && selectedPin(value), 'Expected exact contributor and selection identities'),
+  z.object({ kind: z.literal('personal'), projectId: z.literal('personal-definition-v1'), sourceRevisionId: contentDigest, catalogId: z.literal('personal-definition-v1'), catalogRevisionId: contentDigest }).strict(),
+])
+// Unknown metadata remains explicit; a known contributor never certifies a combined localized definition
+export const PublicEntityReceiptSchema = z.object({ ref, kind: z.enum(['item', 'class', 'ability', 'passive', 'innate', 'monsterMagic', 'monster', 'command', 'status', 'recipe', 'location', 'other']).nullable(), name: display, fingerprint: fingerprint.optional(), origin: origin.nullable(), origins: z.object({ mechanical: originRef, text: originRef }).strict().optional() }).strict().superRefine((receipt, context) => {
   const origin = receipt.origin
   if (receipt.ref.kind === 'personal') {
-    if (receipt.kind === null || !origin || origin.kind !== 'personal' || receipt.fingerprint?.kind !== 'personal-definition-v1' || receipt.fingerprint.value !== receipt.ref.fingerprint.value || origin.catalogId !== 'personal-definition-v1' || origin.projectId !== 'personal-definition-v1' || origin.catalogRevisionId !== receipt.ref.fingerprint.value || origin.sourceRevisionId !== receipt.ref.fingerprint.value) context.addIssue({ code: 'custom', message: 'Personal receipts must match their selected content fingerprint' })
+    if (receipt.kind === null || !origin || origin.kind !== 'personal' || receipt.origins || receipt.fingerprint?.kind !== 'personal-definition-v1' || receipt.fingerprint.value !== receipt.ref.fingerprint.value || origin.catalogRevisionId !== receipt.ref.fingerprint.value || origin.sourceRevisionId !== receipt.ref.fingerprint.value) context.addIssue({ code: 'custom', message: 'Personal receipts must match their selected content fingerprint' })
   } else if (origin && (origin.kind !== 'catalog' || origin.catalogId !== receipt.ref.catalogId || origin.catalogRevisionId !== receipt.ref.catalogRevisionId)) context.addIssue({ code: 'custom', message: 'Catalog receipts must match the selected exact catalog identity' })
+  if (receipt.origins && (!origin || origin.kind !== 'catalog' || origin.projectId !== receipt.origins.mechanical.catalogId || origin.sourceRevisionId !== receipt.origins.mechanical.catalogRevisionId)) context.addIssue({ code: 'custom', message: 'Contributor receipts must agree with the mechanical origin' })
 })
 // Member names are explicit public Team metadata; no source Build metadata follows this field
 export const PublicLoadoutSchema = z.object({ name: z.string().min(1).max(PUBLIC_SHARE_LIMITS.id).optional(), primaryClass: ref.nullable(), secondaryClass: ref.nullable(), equipment: z.array(z.object({ slotId: id, ref: ref.nullable() }).strict()).max(PUBLIC_SHARE_LIMITS.entries), equipmentGroups: z.array(z.array(id).min(2).max(PUBLIC_SHARE_LIMITS.entries)).max(PUBLIC_SHARE_LIMITS.entries), passives: z.array(ref).max(PUBLIC_SHARE_LIMITS.entries), calculation: PublicCalculationSchema.optional() }).strict()
 const note = z.string().max(PUBLIC_SHARE_LIMITS.notes)
 export const PublicNotesSchema = z.object({ checkpoint: note.optional(), slots: z.array(z.object({ rotationNotes: note.optional(), contextAssumptions: z.array(note).max(PUBLIC_SHARE_LIMITS.entries), checkpoint: note.optional() }).strict().nullable()).max(4) }).strict()
-export const PublicSnapshotSchema = z.object({ version: z.literal(5), kind: z.enum(['build', 'team']), title: z.string().min(1).max(PUBLIC_SHARE_LIMITS.id), setup: PublicSetupSchema, slots: z.array(PublicLoadoutSchema.nullable()).min(1).max(4), receipts: z.array(PublicEntityReceiptSchema).max(PUBLIC_SHARE_LIMITS.receipts), notes: PublicNotesSchema.optional() }).strict()
+export const PublicSnapshotSchema = z.object({ version: z.literal(PUBLIC_SHARE_VERSION), dataGeneration: z.literal(LAUNCH_DATA_GENERATION), kind: z.enum(['build', 'team']), title: z.string().min(1).max(PUBLIC_SHARE_LIMITS.id), setup: PublicSetupSchema, slots: z.array(PublicLoadoutSchema.nullable()).min(1).max(4), receipts: z.array(PublicEntityReceiptSchema).max(PUBLIC_SHARE_LIMITS.receipts), notes: PublicNotesSchema.optional() }).strict()
 export type PublicSnapshot = z.infer<typeof PublicSnapshotSchema>
 export type PublicSetup = z.infer<typeof PublicSetupSchema>
 export type PublicLoadout = z.infer<typeof PublicLoadoutSchema>
@@ -72,8 +87,12 @@ function bounded(value: unknown): void {
   if (new TextEncoder().encode(JSON.stringify(value)).length > PUBLIC_SHARE_LIMITS.bytes) throw new Error('Public snapshot exceeds 256 KiB; shorten optional notes or share a smaller selection')
 }
 
+export class UnsupportedPublicSnapshotError extends Error {
+  constructor() { super('This share uses an unsupported data format. Ask its owner to create a new link.') }
+}
 export function validatePublicSnapshot(value: unknown): PublicSnapshot {
   bounded(value)
+  if (value && typeof value === 'object' && ('version' in value || 'dataGeneration' in value) && (!('version' in value) || value.version !== PUBLIC_SHARE_VERSION || !('dataGeneration' in value) || value.dataGeneration !== LAUNCH_DATA_GENERATION)) throw new UnsupportedPublicSnapshotError()
   const parsed = PublicSnapshotSchema.safeParse(value)
   if (!parsed.success) throw new Error(`Public snapshot is invalid: ${parsed.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; ')}`)
   const snapshot = parsed.data
@@ -87,6 +106,12 @@ export function validatePublicSnapshot(value: unknown): PublicSnapshot {
     Object.values(entry).forEach(visitRefs)
   }
   visitRefs(snapshot.slots)
+  for (const receipt of snapshot.receipts) {
+    if (!receipt.origins || receipt.ref.kind !== 'catalog') continue
+    const selected = receipt.ref
+    const allows = (pin: { catalogId: string; catalogRevisionId: string }) => [snapshot.setup.baseline, ...snapshot.setup.layers, selected].some(source => source?.catalogId === pin.catalogId && source.catalogRevisionId === pin.catalogRevisionId)
+    if (!allows(receipt.origins.mechanical) || !allows(receipt.origins.text)) throw new Error('Contributor receipts must belong to the selected source or captured setup')
+  }
   const receipts = new Set(snapshot.receipts.map(receipt => publicRefKey(receipt.ref)))
   if (receipts.size !== snapshot.receipts.length || receipts.size !== selected.size || [...selected].some(key => !receipts.has(key))) throw new Error('Each selected entry needs exactly one display and source receipt')
   if (new Set(snapshot.setup.slots.map(slot => slot.id)).size !== snapshot.setup.slots.length) throw new Error('Display slot IDs must be unique')

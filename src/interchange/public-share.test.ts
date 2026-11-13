@@ -19,7 +19,7 @@ describe('public receipt snapshots', () => {
   it('publicProjectionContainsOnlySelectedDisplayReceipts', () => {
     const state = fixture(), original = structuredClone(state)
     const value = createPublicSnapshot(state, target, { includeNotes: false })
-    expect(value.version).toBe(5)
+    expect(value.version).toBe(6)
     expect(value.receipts).toHaveLength(1)
     expect(value.receipts[0]?.name).toBe('Selected sword')
     const json = JSON.stringify(value)
@@ -48,7 +48,7 @@ describe('public receipt snapshots', () => {
       { ...value, receipts: [{ ...value.receipts[0], description: 'secret' }] },
       { ...value, slots: [{ ...slot, calculation: { level: Infinity, growth: [], bonuses: [], statuses: [] } }] },
       { ...value, title: 'x'.repeat(1025) },
-      JSON.parse(JSON.stringify(value).replace('"version":5', '"version":5,"__proto__":{}')),
+      JSON.parse(JSON.stringify(value).replace('"version":6', '"version":6,"__proto__":{}')),
     ]) expect(() => validatePublicSnapshot(invalid)).toThrow()
   })
 
@@ -78,7 +78,7 @@ describe('public receipt snapshots', () => {
     expect(() => validatePublicSnapshot({ ...value, slots: [{ ...value.slots[0], equipmentGroups }] })).toThrow()
   })
 
-  it.each([1, 2, 3, 4])('rejects retired version %s even when passed directly to the public decoder', version => {
+  it.each([0, 1, 2, 3, 4, 5])('rejects retired version %s even when passed directly to the public decoder', version => {
     const retired = { ...snapshot(), version }
     const encoded = btoa(JSON.stringify(retired)).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '')
     expect(() => validatePublicSnapshot(retired)).toThrow()
@@ -247,22 +247,22 @@ async function composedOriginFixture() {
   return { localData, catalogs, composed, sources, target: { kind: 'build' as const, revisionId: 'origin-build-revision' as never } }
 }
 
-it('preserves a saved exact Layer B origin when only the real composed catalog remains', async () => {
-  const { localData, catalogs, composed, sources, target } = await composedOriginFixture()
+it('preserves a saved exact Layer B origin when its effective view is unavailable', async () => {
+  const { localData, catalogs, sources, target } = await composedOriginFixture()
   const before = structuredClone(localData)
   const complete = createPublicSnapshot({ planner: { localData, catalogs } }, target, { includeNotes: false })
-  const reduced = createPublicSnapshot({ planner: { localData, catalogs: [composed] } }, target, { includeNotes: false })
+  const reduced = createPublicSnapshot({ planner: { localData, catalogs: sources } }, target, { includeNotes: false })
   expect(reduced.receipts[0]!.origin).toEqual(complete.receipts[0]!.origin)
   expect(reduced.receipts[0]!.origin).toMatchObject({ projectId: sources[2]!.id, sourceRevisionId: sources[2]!.revisionId, modelKey: 'crystal-edit:Jobs:0' })
   expect(localData).toEqual(before)
 })
 
 it('keeps missing composed source origin unknown instead of substituting baseline', async () => {
-  const { localData, composed, target } = await composedOriginFixture()
+  const { localData, sources, target } = await composedOriginFixture()
   const revision = localData.buildRevisions[target.revisionId]!
-  const changed = { ...localData, buildRevisions: { ...localData.buildRevisions, [revision.id]: { ...revision, content: { ...revision.content, referenceNames: [] } } } }
-  const value = createPublicSnapshot({ planner: { localData: changed, catalogs: [composed] } }, target, { includeNotes: false })
-  expect(value.receipts[0]!.kind).toBe('class')
+  const changed = { ...localData, buildRevisions: { ...localData.buildRevisions, [revision.id]: { ...revision, content: { ...revision.content, referenceNames: revision.content.referenceNames!.map(value => ({ ref: value.ref, name: value.name })) } } } }
+  const value = createPublicSnapshot({ planner: { localData: changed, catalogs: sources } }, target, { includeNotes: false })
+  expect(value.receipts[0]!.kind).toBeNull()
   expect(value.receipts[0]!.origin).toBeNull()
 })
 
@@ -270,7 +270,7 @@ it('rejects ambiguous composed source origin instead of erasing conflicting evid
   const { localData, composed, sources, target } = await composedOriginFixture()
   const revision = localData.buildRevisions[target.revisionId]!, saved = revision.content.referenceNames![0]!
   const changed = { ...localData, buildRevisions: { ...localData.buildRevisions, [revision.id]: { ...revision, content: { ...revision.content, referenceNames: [saved, { ...saved, projectId: sources[1]!.id }] } } } }
-  expect(() => createPublicSnapshot({ planner: { localData: changed, catalogs: [composed] } }, target, { includeNotes: false })).toThrow(/ambiguous source origin/)
+  expect(() => createPublicSnapshot({ planner: { localData: changed, catalogs: [...sources, composed] } }, target, { includeNotes: false })).toThrow(/ambiguous source origin/)
 })
 
 it('publishes a genuine unchanged native entry from a composed catalog only with exact baseline evidence', async () => {
@@ -279,11 +279,9 @@ it('publishes a genuine unchanged native entry from a composed catalog only with
   expect(native).toBeDefined()
   const revision = localData.buildRevisions[target.revisionId]!
   const changed = { ...localData, buildRevisions: { ...localData.buildRevisions, [revision.id]: { ...revision, content: { ...revision.content, referenceNames: [], primaryClass: { kind: 'catalog' as const, catalogId: composed.id, catalogRevisionId: composed.revisionId, entityId: native.id } } } } }
-  const value = createPublicSnapshot({ planner: { localData: changed, catalogs: [composed, sources[0]!] } }, target, { includeNotes: false })
+  const value = createPublicSnapshot({ planner: { localData: changed, catalogs: [...sources, composed] } }, target, { includeNotes: false })
   expect(value.receipts[0]!.origin).toMatchObject({ projectId: sources[0]!.id, sourceRevisionId: sources[0]!.revisionId })
-  const withoutBaseline = createPublicSnapshot({ planner: { localData: changed, catalogs: [composed] } }, target, { includeNotes: false })
-  expect(withoutBaseline.receipts[0]!.kind).toBe('class')
-  expect(withoutBaseline.receipts[0]!.origin).toBeNull()
+  expect(() => createPublicSnapshot({ planner: { localData: changed, catalogs: [composed] } }, target, { includeNotes: false })).toThrow('every pinned source snapshot')
 })
 
 it('rejects conflicting saved origins for the same selected identity across Team slots', async () => {
@@ -294,33 +292,33 @@ it('rejects conflicting saved origins for the same selected identity across Team
   if (team.kind !== 'shared') throw new Error('Expected shared Team')
   const checkpoint = localData.teamRevisions[team.latestRevisionId]!, member = checkpoint.slots[1]!, saved = member.content.referenceNames![0]!
   localData = { ...localData, teamRevisions: { ...localData.teamRevisions, [checkpoint.id]: { ...checkpoint, slots: [checkpoint.slots[0], { ...member, content: { ...member.content, referenceNames: [{ ...saved, projectId: sources[1]!.id }] } }, null, null] } } }
-  expect(() => createPublicSnapshot({ planner: { localData, catalogs: [composed] } }, { kind: 'team', teamId: team.id }, { includeNotes: false })).toThrow(/ambiguous source origin/)
+  expect(() => createPublicSnapshot({ planner: { localData, catalogs: [...sources, composed] } }, { kind: 'team', teamId: team.id }, { includeNotes: false })).toThrow(/ambiguous source origin/)
 })
 
 it('publishes the exact effective lock even for an empty Team independently of setup defaults', async () => {
   const { saveSharedTeam } = await import('../domain/team-checkpoints')
   const state = fixture(), original = Object.values(state.planner.localData.gameSetups)[0]!
-  const localData = saveSharedTeam(state.planner.localData, { id: 'empty-team' as never, title: 'Empty historical Team', gameSetupRevisionId: original.id, catalogLock: { native: 'historical-native' as never }, slots: [null, null, null, null] })
+  const localData = saveSharedTeam(state.planner.localData, { id: 'empty-team' as never, title: 'Empty historical Team', gameSetupRevisionId: original.id, catalogLock: { 'crystal-project/vanilla': 'v1' as never }, slots: [null, null, null, null] })
   const value = createPublicSnapshot({ planner: { localData, catalogs: [] } }, { kind: 'team', teamId: 'empty-team' as never }, { includeNotes: false })
-  expect(value.setup).toHaveProperty('catalogLock', { native: 'historical-native' })
+  expect(value.setup).toHaveProperty('catalogLock', { 'crystal-project/vanilla': 'v1' })
 })
 
 it('rejects conflicting saved display names for one identity even when exact mechanics remain', async () => {
-  const { localData, composed, target } = await composedOriginFixture()
+  const { localData, composed, sources, target } = await composedOriginFixture()
   const revision = localData.buildRevisions[target.revisionId]!, saved = revision.content.referenceNames![0]!
   const changed = { ...localData, buildRevisions: { ...localData.buildRevisions, [revision.id]: { ...revision, content: { ...revision.content, referenceNames: [saved, { ...saved, name: 'Conflicting saved name' }] } } } }
-  expect(() => createPublicSnapshot({ planner: { localData: changed, catalogs: [composed] } }, target, { includeNotes: false })).toThrow(/ambiguous saved display names/)
+  expect(() => createPublicSnapshot({ planner: { localData: changed, catalogs: [...sources, composed] } }, target, { includeNotes: false })).toThrow(/ambiguous saved display names/)
 })
 
 it('rejects conflicting saved display names across Team slots with unavailable definitions', async () => {
   const { saveSharedTeam } = await import('../domain/team-checkpoints')
-  const { localData: initial, target } = await composedOriginFixture()
+  const { localData: initial, sources, target } = await composedOriginFixture()
   let localData = saveSharedTeam(initial, { id: 'name-conflict-team' as never, title: 'Conflicting Team', gameSetupRevisionId: 'origin-setup' as never, slots: [target.revisionId, target.revisionId, null, null] })
   const team = localData.teams['name-conflict-team']!
   if (team.kind !== 'shared') throw new Error('Expected shared Team')
   const checkpoint = localData.teamRevisions[team.latestRevisionId]!, member = checkpoint.slots[1]!, saved = member.content.referenceNames![0]!
   localData = { ...localData, teamRevisions: { ...localData.teamRevisions, [checkpoint.id]: { ...checkpoint, slots: [checkpoint.slots[0], { ...member, content: { ...member.content, referenceNames: [{ ...saved, name: 'Conflicting saved name' }] } }, null, null] } } }
-  expect(() => createPublicSnapshot({ planner: { localData, catalogs: [] } }, { kind: 'team', teamId: team.id }, { includeNotes: false })).toThrow(/ambiguous saved display names/)
+  expect(() => createPublicSnapshot({ planner: { localData, catalogs: sources } }, { kind: 'team', teamId: team.id }, { includeNotes: false })).toThrow(/ambiguous saved display names/)
 })
 
 it.each([0, 1])('preserves richer nonconflicting exact origin with unknown Team slot %s', async unknownSlot => {
@@ -332,15 +330,15 @@ it.each([0, 1])('preserves richer nonconflicting exact origin with unknown Team 
   const checkpoint = localData.teamRevisions[team.latestRevisionId]!, member = checkpoint.slots[unknownSlot]!, saved = member.content.referenceNames![0]!
   const slots = checkpoint.slots.map((slot, index) => index === unknownSlot ? { ...member, content: { ...member.content, referenceNames: [{ ref: saved.ref, name: saved.name }] } } : slot)
   localData = { ...localData, teamRevisions: { ...localData.teamRevisions, [checkpoint.id]: { ...checkpoint, slots } } }
-  const value = createPublicSnapshot({ planner: { localData, catalogs: [] } }, { kind: 'team', teamId: team.id }, { includeNotes: false })
+  const value = createPublicSnapshot({ planner: { localData, catalogs: sources } }, { kind: 'team', teamId: team.id }, { includeNotes: false })
   expect(value.receipts).toHaveLength(1)
   expect(value.receipts[0]!.kind).toBeNull()
   expect(value.receipts[0]!.origin).toMatchObject({ projectId: sources[2]!.id, sourceRevisionId: sources[2]!.revisionId, modelKey: 'crystal-edit:Jobs:0' })
 })
 
 it('rejects conflicting exact catalog and unavailable receipt kinds instead of choosing one', async () => {
-  const { localData, composed, target } = await composedOriginFixture()
+  const { localData, composed, sources, target } = await composedOriginFixture()
   const selected = localData.buildRevisions[target.revisionId]!.content.referenceNames![0]!
   const changed = { ...localData, unavailableDefinitions: [{ ref: selected.ref, kind: 'item' as const, name: selected.name }] }
-  expect(() => createPublicSnapshot({ planner: { localData: changed, catalogs: [composed] } }, target, { includeNotes: false })).toThrow(/ambiguous kind/)
+  expect(() => createPublicSnapshot({ planner: { localData: changed, catalogs: [...sources, composed] } }, target, { includeNotes: false })).toThrow(/ambiguous kind/)
 })

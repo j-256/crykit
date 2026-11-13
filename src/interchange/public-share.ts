@@ -1,14 +1,17 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
+import { definitionOrigins } from '../domain/definition-origins'
+import { sourceCompositionDigest } from '../domain/source-composition'
+import { fulfillSource } from '../domain/source-fulfillment'
 import { publicSnapshotFromCheckpoint } from '../domain/public-source-context'
 import { checkpointContentDigest } from '../domain/checkpoint-identity'
 import type { WorkspaceState } from '../workspace/documents'
-import type { BuildCalculationPlan, BuildRevisionContent, EntityRef, GameSetupRevision, Knowledge, LocalData, BuildRevisionId, ScenarioId, TeamId, TeamRevisionId } from '../domain/types'
+import type { BuildCalculationPlan, BuildRevisionContent, EntityRef, GameSetupRevision, Knowledge, LocalData, CatalogSnapshot, DefinitionOrigins, BuildRevisionId, ScenarioId, TeamId, TeamRevisionId } from '../domain/types'
 import { entityDefinitionKey, requirePlaythrough } from '../domain/core'
 import { catalogEntity } from '../domain/entity-identities'
 import { effectiveScenarioAssignments } from '../domain/scenarios'
 import { modSourceReceipts } from '../domain/build-reference-names'
 import { jsonRecord } from '../domain/crystal-edit'
-import { CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
-import { PUBLIC_SHARE_LIMITS, PUBLIC_SHARE_ROUTE_PREFIX, publicRefKey, validatePublicSnapshot, type PublicEntityReceipt, type PublicLoadout, type PublicRef, type PublicSetup, type PublicSnapshot } from './public-share-schema'
+import { PUBLIC_SHARE_LIMITS, PUBLIC_SHARE_ROUTE_PREFIX, PUBLIC_SHARE_VERSION, PUBLIC_COMPOSITION_REVISION_PREFIX, publicRefKey, validatePublicSnapshot, type PublicEntityReceipt, type PublicLoadout, type PublicRef, type PublicSetup, type PublicSnapshot } from './public-share-schema'
 export { validatePublicSnapshot } from './public-share-schema'
 export type { PublicSnapshot, PublicSetup, PublicLoadout, PublicEntityReceipt, PublicNotes } from './public-share-schema'
 
@@ -16,15 +19,15 @@ export type PublicShareTarget = { readonly kind: 'build'; readonly revisionId: B
 function fingerprint(value: unknown): string { return checkpointContentDigest(value) }
 function knowledge<T>(value: Knowledge<T>): { state: 'known'; value: T } | { state: 'unknown' | 'conflicting' | 'notApplicable' } { return value.state === 'known' ? { state: 'known', value: value.value } : { state: value.state } }
 
-export function publicCatalogPin(localData: LocalData, catalogId: string, catalogRevisionId: string) {
+export function publicCatalogPin(localData: LocalData, catalogId: string, catalogRevisionId: string, catalogs: readonly CatalogSnapshot[] = []) {
     if (!catalogRevisionId.startsWith('mod-setup:')) return { catalogId, catalogRevisionId }
     const owner = Object.values(localData.gameSetups).find(candidate => `mod-setup:${candidate.id}` === catalogRevisionId)
     if (!owner?.modComposition) throw new Error('A selected entry needs an unavailable exact mod composition')
-    return { catalogId, catalogRevisionId: `composition-v1:sha256:${fingerprint(owner.modComposition)}` }
+    return { catalogId, catalogRevisionId: `${PUBLIC_COMPOSITION_REVISION_PREFIX}${sourceCompositionDigest(owner.modComposition, catalogs)}` }
   }
 
-export function publicPersonalDefinitionFingerprint(localData: LocalData, definitionId: string): string {
-  const publicPin = (catalogId: string, catalogRevisionId: string) => publicCatalogPin(localData, catalogId, catalogRevisionId)
+export function publicPersonalDefinitionFingerprint(localData: LocalData, definitionId: string, catalogs: readonly CatalogSnapshot[] = []): string {
+  const publicPin = (catalogId: string, catalogRevisionId: string) => publicCatalogPin(localData, catalogId, catalogRevisionId, catalogs)
   const personalFingerprints = new Map<string, string>()
   const personalIdentity = (definitionId: string, visiting = new Set<string>()): string => {
     const cached = personalFingerprints.get(definitionId)
@@ -103,38 +106,24 @@ export function createPublicSnapshot(state: { readonly planner: Pick<WorkspaceSt
   if (compositionOwners.length > 1) throw new Error('This saved context has multiple mod compositions and cannot be represented by one public setup')
   const compositionOwner = compositionOwners[0]
   const composition = compositionOwner?.modComposition
-  const publicPin = (catalogId: string, catalogRevisionId: string) => publicCatalogPin(localData, catalogId, catalogRevisionId)
+  const publicPin = (catalogId: string, catalogRevisionId: string) => publicCatalogPin(localData, catalogId, catalogRevisionId, catalogs)
   const pins = Object.entries(lock).map(([catalogId, catalogRevisionId]) => ({ catalogId, catalogRevisionId }))
   const baseline = composition?.baseline ?? (pins.length === 1 ? pins[0]! : null)
-  const layers = composition?.layers.filter(layer => layer.enabled) ?? (pins.length > 1 ? pins : [])
+  const layers = composition?.layers ?? (pins.length > 1 ? pins : [])
   const savedSources = compositionOwner ? modSourceReceipts(compositionOwner, catalogs) : setup.modSourceReceipts
   const publicSetup: PublicSetup = {
     catalogLock: Object.fromEntries(Object.entries(lock).map(([id, revision]) => [id, publicPin(id, revision).catalogRevisionId])),
     baseline: baseline ? publicPin(baseline.catalogId, baseline.catalogRevisionId) : null,
     layers: layers.map(pin => {
-      const catalog = catalogs.find(candidate => candidate.id === pin.catalogId && candidate.revisionId === pin.catalogRevisionId)
+      const catalog = fulfillSource(pin as import('../domain/types').ModCatalogPin, catalogs)?.catalog
       const receipt = savedSources?.find(candidate => candidate.catalogId === pin.catalogId && candidate.catalogRevisionId === pin.catalogRevisionId)
       if (!catalog && !receipt) throw new Error('A required source receipt is unavailable; restore the exact source before sharing')
       const legacy = catalog?.legacy
       const projectTitle = legacy && typeof legacy === 'object' && !Array.isArray(legacy) ? (legacy as Record<string, unknown>).projectTitle : undefined
-      return { ...publicPin(pin.catalogId, pin.catalogRevisionId), title: receipt?.title ?? (typeof projectTitle === 'string' ? projectTitle : pin.catalogId), ...(receipt?.checksum || catalog?.checksum?.startsWith('sha256:') ? { checksum: receipt?.checksum ?? catalog!.checksum } : {}), ...(receipt?.contentFingerprint ? { contentFingerprint: receipt.contentFingerprint } : {}) }
+      return { ...publicPin(pin.catalogId, pin.catalogRevisionId), ...('enabled' in pin ? { enabled: pin.enabled as boolean } : {}), title: receipt?.title ?? (typeof projectTitle === 'string' ? projectTitle : pin.catalogId), ...(receipt?.checksum || catalog?.checksum ? { checksum: receipt?.checksum ?? catalog!.checksum } : {}), ...(receipt?.contentFingerprint ? { contentFingerprint: receipt.contentFingerprint } : {}) }
     }),
     mode: knowledge(setup.mode), ...(setup.difficulty ? { difficulty: knowledge(setup.difficulty.selection) } : {}), ...(setup.ppLimit ? { ppLimit: knowledge(setup.ppLimit) } : {}), ppCostsNonNegative: knowledge(setup.ppCostsNonNegative),
     slots: setup.slots.map(slot => ({ id: slot.id, label: slot.label, ...(slot.equipmentRole !== undefined ? { equipmentRole: slot.equipmentRole } : {}) })),
-  }
-  type SourceOrigin = Pick<NonNullable<PublicEntityReceipt['origin']>, 'projectId' | 'sourceRevisionId' | 'modelKey'>
-  const sourceOrigins = new Map<string, SourceOrigin[]>()
-  const provenanceKey = (value: { readonly sourceId: string; readonly locator?: string }) => JSON.stringify([value.sourceId, value.locator])
-  for (const source of catalogs) {
-    if (source.schemaVersion !== CRYSTAL_EDIT_CATALOG_SCHEMA || !jsonRecord(source.legacy) || !jsonRecord(source.legacy.crystalEditIdentities)) continue
-    const identities = new Map(Object.entries(source.legacy.crystalEditIdentities).map(([modelKey, id]) => [id, modelKey]))
-    for (const entity of Object.values(source.entities)) {
-      const modelKey = identities.get(entity.id)
-      if (modelKey) for (const provenance of entity.sources) {
-        const key = provenanceKey(provenance)
-        sourceOrigins.set(key, [...sourceOrigins.get(key) ?? [], { projectId: source.id, sourceRevisionId: source.revisionId, modelKey }])
-      }
-    }
   }
   const receipts = new Map<string, PublicEntityReceipt>()
   const addRef = (input: EntityRef, content: BuildRevisionContent): PublicRef => {
@@ -146,12 +135,12 @@ export function createPublicSnapshot(state: { readonly planner: Pick<WorkspaceSt
       const definition = localData.personalDefinitions[ref.definitionId]
       if (!definition && (!unavailable || unavailable.fingerprint?.kind !== 'personal-definition-v1')) throw new Error('A selected personal definition needs its exact display fingerprint before sharing')
       // Hash the exact private content, never publish the private object ID or its mechanical body
-      const identity = definition ? { kind: 'personal-definition-v1' as const, value: publicPersonalDefinitionFingerprint(localData, definition.id) } : unavailable!.fingerprint! as { kind: 'personal-definition-v1'; value: string }
+      const identity = definition ? { kind: 'personal-definition-v1' as const, value: publicPersonalDefinitionFingerprint(localData, definition.id, catalogs) } : unavailable!.fingerprint! as { kind: 'personal-definition-v1'; value: string }
       const result: PublicRef = { kind: 'personal', fingerprint: identity }
       receipts.set(publicRefKey(result), { ref: result, kind: definition?.kind ?? unavailable!.kind, name: definition?.name ?? unavailable!.name, fingerprint: identity, origin: { kind: 'personal', projectId: 'personal-definition-v1', sourceRevisionId: identity.value, catalogId: 'personal-definition-v1', catalogRevisionId: identity.value } })
       return result
     }
-    const catalog = catalogs.find(candidate => candidate.id === ref.catalogId && candidate.revisionId === ref.catalogRevisionId)
+    const catalog = fulfillSource(ref, catalogs)?.catalog
     const entity = catalog && catalogEntity(catalog, ref.entityId)
     const savedNames = content.referenceNames?.filter(entry => entityDefinitionKey(entry.ref) === entityDefinitionKey(ref)) ?? []
     const savedName = savedNames[0]
@@ -160,47 +149,25 @@ export function createPublicSnapshot(state: { readonly planner: Pick<WorkspaceSt
     if (new Set([entity?.name, unavailable?.name, ...savedNames.map(receipt => receipt.name)].filter(value => value !== undefined)).size > 1) throw new Error('A selected entry has ambiguous saved display names; restore the exact source before sharing')
     if (entity && unavailable && entity.kind !== unavailable.kind) throw new Error('A selected entry has an ambiguous kind; restore the exact source before sharing')
     const result: PublicRef = { kind: 'catalog', ...publicPin(ref.catalogId, ref.catalogRevisionId), entityId: ref.entityId }
-    const owner = ref.catalogRevisionId.startsWith('mod-setup:') ? Object.values(localData.gameSetups).find(candidate => `mod-setup:${candidate.id}` === ref.catalogRevisionId) : undefined
-    let origin: SourceOrigin | null = entity ? { projectId: ref.catalogId, sourceRevisionId: ref.catalogRevisionId } : null
-    if (!owner) {
-      const exact = entity?.sources.flatMap(provenance => sourceOrigins.get(provenanceKey(provenance)) ?? []).filter(candidate => candidate.projectId === ref.catalogId && candidate.sourceRevisionId === ref.catalogRevisionId) ?? []
-      const saved = savedNames.flatMap(receipt => receipt.projectId === ref.catalogId && receipt.modelKey ? [{ projectId: receipt.projectId, sourceRevisionId: ref.catalogRevisionId, modelKey: receipt.modelKey }] : [])
-      const candidates = new Map([...exact, ...saved].map(candidate => [JSON.stringify(candidate), candidate]))
-      if (candidates.size > 1) throw new Error('A selected entry has an ambiguous source origin; restore the exact source before sharing')
-      origin = candidates.values().next().value ?? origin
-    }
-    if (owner?.modComposition) {
-      const pins = owner.modComposition.layers.filter(layer => layer.enabled)
-      const fresh = entity?.sources.flatMap(provenance => sourceOrigins.get(provenanceKey(provenance)) ?? []).filter(candidate => pins.some(pin => pin.catalogId === candidate.projectId && pin.catalogRevisionId === candidate.sourceRevisionId)) ?? []
-      const saved = savedNames.flatMap(receipt => {
-        if (!receipt.projectId || !receipt.modelKey) return []
-        const matching = pins.filter(pin => pin.catalogId === receipt.projectId)
-        if (matching.length !== 1) throw new Error('A selected entry has an unavailable or ambiguous source origin; restore the exact source before sharing')
-        return [{ projectId: receipt.projectId, sourceRevisionId: matching[0]!.catalogRevisionId, modelKey: receipt.modelKey }]
-      })
-      // Display refresh cannot erase saved exact origin, and conflicting evidence must never pick a source by order
-      const candidates = new Map([...fresh, ...saved].map(candidate => [JSON.stringify(candidate), candidate]))
-      if (candidates.size > 1) throw new Error('A selected entry has an ambiguous source origin; restore the exact source before sharing')
-      const selected = candidates.values().next().value
-      if (selected) origin = selected
-      else {
-        // The composition catalog ID is also the baseline ID; it proves native origin only for an unchanged exact baseline entity
-        const baseline = owner.modComposition.baseline
-        const baselineCatalog = catalogs.find(candidate => candidate.id === baseline.catalogId && candidate.revisionId === baseline.catalogRevisionId)
-        const baselineEntity = baselineCatalog && catalogEntity(baselineCatalog, ref.entityId)
-        origin = entity && baselineEntity && fingerprint(entity) === fingerprint(baselineEntity) ? { projectId: baseline.catalogId, sourceRevisionId: baseline.catalogRevisionId } : null
-      }
-    }
-    // Missing mechanics do not erase saved selections or certify metadata from a slot, model family or native partial facts
-    const receipt: PublicEntityReceipt = { ref: result, kind: entity?.kind ?? unavailable?.kind ?? null, name, ...(unavailable?.fingerprint ? { fingerprint: unavailable.fingerprint } : {}), origin: origin ? { kind: 'catalog', ...origin, ...publicPin(ref.catalogId, ref.catalogRevisionId) } : null }
+    if (savedNames.some(value => value.origins && value.projectId && value.projectId !== value.origins.mechanical.catalogId)) throw new Error('A selected entry has an ambiguous source origin; restore the exact source before sharing')
+    const candidates = [catalog && entity ? definitionOrigins(catalog, entity) : undefined, ...savedNames.map(value => value.origins)].filter((value): value is DefinitionOrigins => Boolean(value))
+    const distinct = new Map(candidates.map(value => [fingerprint(value), value]))
+    if (distinct.size > 1) throw new Error('A selected entry has an ambiguous source origin; restore the exact source before sharing')
+    const origins = distinct.values().next().value
+    const mechanical = origins?.mechanical
+    const source = mechanical && fulfillSource(mechanical, catalogs)?.catalog
+    const identities = source && jsonRecord(source.legacy) && jsonRecord(source.legacy.crystalEditIdentities) ? source.legacy.crystalEditIdentities : {}
+    const modelKey = Object.entries(identities).find(([, id]) => id === mechanical?.entityId)?.[0]
+    // Saved explicit origins survive missing bodies; names and citation similarity never create contributor claims
+    const receipt: PublicEntityReceipt = { ref: result, kind: entity?.kind ?? unavailable?.kind ?? null, name, ...(unavailable?.fingerprint ? { fingerprint: unavailable.fingerprint } : {}), ...(origins ? { origins } : {}), origin: mechanical ? { kind: 'catalog', projectId: mechanical.catalogId, sourceRevisionId: mechanical.catalogRevisionId, ...(modelKey ? { modelKey } : {}), ...publicPin(ref.catalogId, ref.catalogRevisionId) } : null }
     const previous = receipts.get(publicRefKey(result))
     if (previous) {
       if (previous.name !== receipt.name) throw new Error('A selected entry has ambiguous saved display names across Team slots; restore the exact source before sharing')
       if (previous.kind !== null && receipt.kind !== null && previous.kind !== receipt.kind) throw new Error('A selected entry has an ambiguous kind across Team slots; restore the exact source before sharing')
-      if (previous.origin && receipt.origin && fingerprint(previous.origin) !== fingerprint(receipt.origin)) throw new Error('A selected entry has an ambiguous source origin across Team slots; restore the exact source before sharing')
+      if (previous.origins && receipt.origins && fingerprint(previous.origins) !== fingerprint(receipt.origins)) throw new Error('A selected entry has an ambiguous source origin across Team slots; restore the exact source before sharing')
     }
     // Unknown metadata supplies no conflicting claim; preserve richer exact evidence from another selected slot
-    receipts.set(publicRefKey(result), { ...receipt, kind: receipt.kind ?? previous?.kind ?? null, origin: receipt.origin ?? previous?.origin ?? null })
+    receipts.set(publicRefKey(result), { ...receipt, kind: receipt.kind ?? previous?.kind ?? null, origin: receipt.origin ?? previous?.origin ?? null, ...(receipt.origins ?? previous?.origins ? { origins: receipt.origins ?? previous?.origins } : {}) })
     return result
   }
   const slots = contents.map(saved => {
@@ -213,7 +180,7 @@ export function createPublicSnapshot(state: { readonly planner: Pick<WorkspaceSt
     for (const [slotId, selection] of Object.entries(content.equipment)) if (selection?.allocationId) groups.set(selection.allocationId, [...groups.get(selection.allocationId) ?? [], slotId])
     return { ...(target.kind === 'team' && saved.name !== undefined ? { name: saved.name } : {}), primaryClass: nullableRef(content.primaryClass), secondaryClass: nullableRef(content.secondaryClass), equipment, equipmentGroups: [...groups.values()].filter(group => group.length > 1), passives: content.passives.map(selection => mapRef(selection.ref)), ...(content.calculation ? { calculation: projectCalculation(content.calculation, mapRef) } : {}) }
   })
-  return validatePublicSnapshot({ version: 5, kind: target.kind, title, setup: publicSetup, slots, receipts: [...receipts.values()], ...(options.includeNotes ? { notes: { ...(checkpointNote !== undefined ? { checkpoint: checkpointNote } : {}), slots: contents.map(saved => saved ? { contextAssumptions: [...saved.content.contextAssumptions], ...(saved.content.rotationNotes !== undefined ? { rotationNotes: saved.content.rotationNotes } : {}), ...(saved.note !== undefined ? { checkpoint: saved.note } : {}) } : null) } } : {}) })
+  return validatePublicSnapshot({ version: PUBLIC_SHARE_VERSION, dataGeneration: LAUNCH_DATA_GENERATION, kind: target.kind, title, setup: publicSetup, slots, receipts: [...receipts.values()], ...(options.includeNotes ? { notes: { ...(checkpointNote !== undefined ? { checkpoint: checkpointNote } : {}), slots: contents.map(saved => saved ? { contextAssumptions: [...saved.content.contextAssumptions], ...(saved.content.rotationNotes !== undefined ? { rotationNotes: saved.content.rotationNotes } : {}), ...(saved.note !== undefined ? { checkpoint: saved.note } : {}) } : null) } } : {}) })
 }
 
 function projectCalculation(plan: BuildCalculationPlan, ref: (value: EntityRef) => PublicRef): PublicLoadout['calculation'] {
@@ -237,7 +204,7 @@ export function encodePublicSnapshot(snapshot: PublicSnapshot): string {
 export function decodePublicSnapshot(encoded: string): PublicSnapshot {
   if (!encoded || encoded.length + PUBLIC_SHARE_ROUTE_PREFIX.length > PUBLIC_SHARE_LIMITS.url || !/^[A-Za-z0-9_-]+$/.test(encoded)) throw new Error('This public link is malformed or exceeds the URL limit')
   try {
-    // v5 uses raw UTF-8, so input bounds also bound allocation and work before parsing; no decompression occurs
+    // The launch format uses raw UTF-8, so input bounds also bound allocation and work before parsing; no decompression occurs
     const bytes = Uint8Array.from(atob(encoded.replaceAll('-', '+').replaceAll('_', '/')), character => character.charCodeAt(0))
     if (bytes.length > PUBLIC_SHARE_LIMITS.bytes) throw new Error('Public snapshot exceeds 256 KiB')
     return validatePublicSnapshot(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)))

@@ -1,4 +1,5 @@
-import { publicRefKey, validatePublicSnapshot, type PublicRef, type PublicSnapshot } from '../interchange/public-share-schema'
+import { LAUNCH_DATA_GENERATION } from './data-generation'
+import { publicRefKey, validatePublicSnapshot, PUBLIC_SHARE_VERSION, type PublicRef, type PublicSnapshot } from '../interchange/public-share-schema'
 import { checkpointContentDigest } from './checkpoint-identity'
 import { buildModReferences } from './build-references'
 import type { BuildRevision, BuildRevisionContent, EntityRef, GameSetupRevision, Knowledge, LocalData, TeamRevision } from './types'
@@ -18,7 +19,7 @@ export function assertPublicSetupContext(setup: GameSetupRevision): void {
   if (!setup.publicSourceContext) return
   const { setup: original } = PublicSetupContextSchema.parse(setup.publicSourceContext)
   const slots = original.slots.map((slot, order) => ({ ...slot, kind: 'equipment', order, provenance: 'imported', sources: [] }))
-  if (!equal(original.catalogLock, setup.catalogLock) || !equal(slots, setup.slots) || !equal(setup.mode, publicKnowledge(original.mode)) || !equal(setup.ppCostsNonNegative, publicKnowledge(original.ppCostsNonNegative)) || !equal(setup.ppLimit, original.ppLimit && publicKnowledge(original.ppLimit)) || !equal(setup.difficulty?.selection, original.difficulty && publicKnowledge(original.difficulty)) || !equal(setup.platform, { state: 'unknown' }) || !equal(setup.gameVersion, { state: 'unknown' }) || !equal(setup.mods, { state: 'known', value: original.layers.map(layer => layer.title) }) || setup.disabledMods || setup.customMods?.length || setup.modSourceReceipts?.length || setup.modComposition || setup.definitionOverrides?.length) throw new Error('Copied public setup differs from its exact source receipt')
+  if (!equal(original.catalogLock, setup.catalogLock) || !equal(slots, setup.slots) || !equal(setup.mode, publicKnowledge(original.mode)) || !equal(setup.ppCostsNonNegative, publicKnowledge(original.ppCostsNonNegative)) || !equal(setup.ppLimit, original.ppLimit && publicKnowledge(original.ppLimit)) || !equal(setup.difficulty?.selection, original.difficulty && publicKnowledge(original.difficulty)) || !equal(setup.platform, { state: 'unknown' }) || !equal(setup.gameVersion, { state: 'unknown' }) || !equal(setup.mods, { state: 'known', value: original.layers.filter(layer => layer.enabled !== false).map(layer => layer.title) }) || setup.disabledMods || setup.customMods?.length || setup.modSourceReceipts?.length || setup.modComposition || setup.definitionOverrides?.length) throw new Error('Copied public setup differs from its exact source receipt')
 }
 export function publicSetupAllowsPin(setup: GameSetupRevision | undefined, catalogId: string, revisionId: string): boolean {
   if (!setup?.publicSourceContext) return false
@@ -53,7 +54,7 @@ export function publicSnapshotFromCheckpoint(setup: GameSetupRevision, checkpoin
   const notes = 'slots' in checkpoint ? checkpoint.slots.map(slot => slot?.note) : [checkpoint.note]
   const names = 'slots' in checkpoint ? checkpoint.slots.map(slot => slot?.name) : []
   // Build notes belong to their only slot; the Team checkpoint has a separate shared note
-  return validatePublicSnapshot({ version: 5, kind: 'slots' in checkpoint ? 'team' : 'build', title, setup: setup.publicSourceContext.setup, slots: contents.map((content, index) => content ? { ...publicContent(content, context), ...(names[index] !== undefined ? { name: names[index] } : {}) } : null), receipts: context.receipts, notes: { ...('slots' in checkpoint && checkpoint.note !== undefined ? { checkpoint: checkpoint.note } : {}), slots: contents.map((content, index) => content ? { contextAssumptions: [...content.contextAssumptions], ...(content.rotationNotes !== undefined ? { rotationNotes: content.rotationNotes } : {}), ...(notes[index] !== undefined ? { checkpoint: notes[index] } : {}) } : null) } })
+  return validatePublicSnapshot({ version: PUBLIC_SHARE_VERSION, dataGeneration: LAUNCH_DATA_GENERATION, kind: 'slots' in checkpoint ? 'team' : 'build', title, setup: setup.publicSourceContext.setup, slots: contents.map((content, index) => content ? { ...publicContent(content, context), ...(names[index] !== undefined ? { name: names[index] } : {}) } : null), receipts: context.receipts, notes: { ...('slots' in checkpoint && checkpoint.note !== undefined ? { checkpoint: checkpoint.note } : {}), slots: contents.map((content, index) => content ? { contextAssumptions: [...content.contextAssumptions], ...(content.rotationNotes !== undefined ? { rotationNotes: content.rotationNotes } : {}), ...(notes[index] !== undefined ? { checkpoint: notes[index] } : {}) } : null) } })
 }
 export function assertPublicCheckpointContext(localData: LocalData, checkpoint: Checkpoint): void {
   const setup = localData.gameSetups[checkpoint.gameSetupRevisionId]

@@ -34,7 +34,7 @@ export function editCopiedCheckpoint(before: WorkspaceState, input: CopiedCheckp
   let rebind: ((ref: EntityRef | null) => EntityRef | null) | undefined
   if (input.gameSetupRevisionId) {
     const enrichment = enrichPublicSnapshot(snapshot, before)
-    if (!enrichment.resolved || enrichment.adaptedProjections.length || snapshot.setup.baseline && enrichment.unresolvedCalculations) throw new Error('Exact matching definitions must be available before adapting this checkpoint')
+    if (!enrichment.resolved || snapshot.setup.baseline && enrichment.unresolvedCalculations) throw new Error('Exact matching definitions must be available before adapting this checkpoint')
     const refs = new Map(enrichment.entries.map(entry => [publicRefKey(entry.receipt.ref), entry.viewerRef!]))
     rebind = ref => {
       if (!ref) return ref

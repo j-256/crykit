@@ -750,11 +750,11 @@ it('adminStopUsesActualFrozenPendingJournalAndTrustedLedgerReconciliation', asyn
   const s = await setup(),
     id = randomId(),
     snapshot = {
-      version: 5,
+      version: 6, dataGeneration: 'catalog-sources-1',
       kind: 'build',
       title: 'Public synthetic build',
       setup: {
-        catalogLock: { 'exact-public-baseline': 'historical-source-v1' },
+        catalogLock: { 'crystal-project/guide/synthetic-baseline': 'v1' },
         baseline: null,
         layers: [],
         mode: { state: 'unknown' },
@@ -1117,11 +1117,11 @@ it('sharingPauseAndUploadPauseStayIndependentAndNewAccountsRespectOwnerCeiling',
       .first('capacity_bytes'),
   ).toBe(100000)
   const snapshot = {
-    version: 5,
+    version: 6, dataGeneration: 'catalog-sources-1',
     kind: 'build',
     title: 'Public synthetic build',
     setup: {
-      catalogLock: { 'exact-public-baseline': 'historical-source-v1' },
+      catalogLock: { 'crystal-project/guide/synthetic-baseline': 'v1' },
       baseline: null,
       layers: [],
       mode: { state: 'unknown' },

@@ -412,6 +412,7 @@ export interface BuildRevisionContent {
 
 // Display receipts do not supply mechanics or substitute for a catalog definition
 export interface BuildReferenceName {
+  readonly origins?: DefinitionOrigins
   readonly ref: CatalogRef
   readonly name: string
   readonly projectId?: CatalogId

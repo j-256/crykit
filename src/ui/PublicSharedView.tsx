@@ -38,14 +38,14 @@ export function PublicSharedView({ encoded, onSave }: { readonly encoded: string
 
 export function HostedSharedView({ shareId, onSave }: { readonly shareId: string; readonly onSave?: SavePublicSnapshot }) {
   const [attempt, setAttempt] = useState(0)
-  const [result, setResult] = useState<{ id: string; value?: PublicShare; failed?: boolean; deferred?: boolean }>()
+  const [result, setResult] = useState<{ id: string; value?: PublicShare; failed?: boolean; deferred?: boolean; unsupported?: boolean }>()
   useEffect(() => {
     const controller = new AbortController()
-    void readPublishedSnapshot(shareId, controller.signal).then(value => { if (!controller.signal.aborted) setResult({ id: shareId, value }) }, error => { if (!controller.signal.aborted) setResult({ id: shareId, failed: true, deferred: error instanceof Error && ['RATE_LIMITED', 'SERVICE_PAUSED'].includes(error.message) }) })
+    void readPublishedSnapshot(shareId, controller.signal).then(value => { if (!controller.signal.aborted) setResult({ id: shareId, value }) }, error => { if (!controller.signal.aborted) setResult({ id: shareId, failed: true, unsupported: error instanceof Error && error.message === 'UNSUPPORTED_VERSION', deferred: error instanceof Error && ['RATE_LIMITED', 'SERVICE_PAUSED'].includes(error.message) }) })
     return () => controller.abort()
   }, [shareId, attempt])
   if (!result || result.id !== shareId) return <p role="status">Opening shared snapshot...</p>
-  if (!result.value) return <InlineNotice title="Shared snapshot unavailable" tone="danger"><p>{result.deferred ? 'Cloud requests are temporarily paused. Check the service notice, then retry this link.' : 'This link is unavailable. Check your connection or ask its owner for a new link.'}</p><Button onClick={() => { setResult(undefined); setAttempt(value => value + 1) }}>Retry shared link</Button></InlineNotice>
+  if (!result.value) return <InlineNotice title="Shared snapshot unavailable" tone="danger"><p>{result.deferred ? 'Cloud requests are temporarily paused. Check the service notice, then retry this link.' : result.unsupported ? 'This share uses an unsupported data format. Ask its owner to create a new link.' : 'This link is unavailable. Check your connection or ask its owner for a new link.'}</p><Button onClick={() => { setResult(undefined); setAttempt(value => value + 1) }}>Retry shared link</Button></InlineNotice>
   return <>{result.value.attribution && <p>Shared by {result.value.attribution.username}</p>}<PublicSnapshotView snapshot={result.value.snapshot} onSave={onSave}/></>
 }
 
@@ -162,7 +162,6 @@ export function PublicSnapshotView({ snapshot, copied = false, onSave, copiedAct
     {copied && <p className="share-copy-notice" role="status"><strong>Independent saved copy</strong><span>Your changes stay separate from the original.</span></p>}
     {saved && <InlineNotice title="Copy saved" tone="positive"><a href={formatAppRoute({ page: saved.teamId ? { page: 'teams', view: 'team', teamId: saved.teamId } : { page: 'builds', view: 'build', buildId: saved.buildId! }, overlays: [], query: {} })}>Open your independent copy</a></InlineNotice>}
     {error && <InlineNotice title="Shared view could not finish" tone="danger">{error}{failure?.library && !busy && <Button onClick={() => { setError(undefined); if (refreshLibrary.current && refreshLibrary.current.repository === repository) refreshLibrary.current.refresh() }}>Retry library read</Button>}</InlineNotice>}
-    {enrichment?.adaptedProjections.length ? <InlineNotice title="Adapted interpretation" tone="warning">Your matching source uses a different parser projection. These details are a read-only interpretation; the shared historical pins remain unchanged.</InlineNotice> : null}
     {snapshot.kind === 'team' ? <>
       <PublicShareRoster snapshot={snapshot} enrichment={enrichment} selected={memberIndex} onSelect={setSelectedMember}/>
       <section aria-label="Selected Team member" className="share-member"><header className="share-member__heading"><h2>{member ? publicMemberName(snapshot, memberIndex) : `Empty slot ${memberIndex + 1}`}</h2><span>Member {memberIndex + 1} of {snapshot.slots.length}</span></header>{loadout}</section>

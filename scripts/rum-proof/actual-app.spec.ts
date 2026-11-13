@@ -150,7 +150,7 @@ test('real app retains SPA/vitals without leaking synthetic private state', asyn
     const share = page.getByRole('dialog', { name: 'Share team', exact: true })
     await expect(share).toBeVisible()
     const shareUrl = await share.getByRole('textbox', { name: 'Share URL', exact: true }).inputValue()
-    sensitive.add(new URL(shareUrl).hash.slice('#/share/v5/'.length))
+    sensitive.add(new URL(shareUrl).hash.slice('#/share/v6/'.length))
     coverage.push('actual portable share generation and private names in rendered dialog/form')
     await page.keyboard.press('Escape')
     await flush(page)

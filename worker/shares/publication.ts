@@ -1,5 +1,5 @@
 import { PublishedShareSchema, PublishSnapshotSchema, UpdateSnapshotSchema, StopSharingSchema, shareListLimit, type PublishSnapshot, type UpdateSnapshot, type StopSharing, type PublishedShare } from '../../src/account/shares-protocol'
-import { validatePublicSnapshot } from '../../src/interchange/public-share-schema'
+import { validatePublicSnapshot, UnsupportedPublicSnapshotError } from '../../src/interchange/public-share-schema'
 import { randomId } from '../auth/identity'
 import { assertCustomerWrite, type CustomerPrincipal } from '../auth/session'
 import type { ServiceContext } from '../context'
@@ -106,7 +106,9 @@ export async function stopSharing(principal: CustomerPrincipal, shareId: string,
 export async function publicSnapshot(shareId: string, context: ServiceContext) {
   const row = await context.env.DB!.prepare(`SELECT p.snapshot,s.revision,s.include_attribution,${publicUsernameSql} AS username FROM shares s JOIN share_snapshots p ON p.share_id = s.id AND p.revision = s.snapshot_revision JOIN accounts a ON a.id = s.account_id WHERE s.id = ? AND s.state = 'active' AND a.access IN ('active','read-only')`).bind(shareId).first<{ snapshot: string; revision: number; include_attribution: number; username: string | null }>()
   if (!row) throw new ApiFailure('NOT_FOUND')
-  return { snapshot: validatePublicSnapshot(JSON.parse(row.snapshot)), ...(row.include_attribution && row.username ? { attribution: { username: row.username } } : {}), revision: row.revision }
+  let snapshot
+  try { snapshot = validatePublicSnapshot(JSON.parse(row.snapshot)) } catch (error) { throw new ApiFailure(error instanceof UnsupportedPublicSnapshotError ? 'UNSUPPORTED_VERSION' : 'INTEGRITY_FAILED') }
+  return { snapshot, ...(row.include_attribution && row.username ? { attribution: { username: row.username } } : {}), revision: row.revision }
 }
 export async function ownShares(principal: CustomerPrincipal, after: string | null, context: ServiceContext) {
   const guard = authority(principal, context, false)

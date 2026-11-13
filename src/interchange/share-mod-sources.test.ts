@@ -1,16 +1,16 @@
+import { analyzeBuildEquipment } from '../domain/build-mechanics'
 import { describe, expect, it } from 'vitest'
 import { addGameSetupRevision, createBuild, saveBuildRevision, resolveDefinition } from '../domain'
 import { asId } from '../domain/core'
 import { buildContentForModSetup } from '../domain/build-mods'
 import { buildReferenceName, modSourceReceipts } from '../domain/build-reference-names'
-import { prepareModComposition } from '../domain/mod-layers'
-import { analyzeBuildEquipment } from '../domain/build-mechanics'
+import { prepareModComposition, modCatalogRevision } from '../domain/mod-layers'
 import { modSourceMatch } from '../domain/mod-source-match'
 import { createTestLocalData, TEST_NOW } from '../domain/test-helpers'
-import type { BuildId, CatalogRef, EntityId, LocalData } from '../domain/types'
+import type { BuildId, CatalogRef, EntityId } from '../domain/types'
 import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
 import { prepareModCatalogs } from '../persistence/local-data'
-import { immutableCatalogSnapshot, validateNativeLocalDataGraph } from './native'
+import { immutableCatalogSnapshot } from './native'
 import { previewCrystalEdit } from './crystal-edit'
 import { createPublicSnapshot, decodePublicSnapshot, encodePublicSnapshot } from './public-share'
 import { prepareLocalBuildModRecovery } from './share-mod-recovery'
@@ -37,108 +37,70 @@ async function fixture(text = '{"ID":"synthetic-sharing","Title":"Synthetic Shar
   return { text, source, data, prepared, revision, setup: data.gameSetups[setup.id]! }
 }
 
-// Older saved workspaces retain their original parser and application baseline pins
-function historical(data: LocalData): LocalData {
-  return JSON.parse(JSON.stringify(data).replaceAll('library-v4', 'library-v2').replaceAll('catalog-v3', 'catalog-v1')) as LocalData
-}
-function selected(data: LocalData) {
-  const revision = data.buildRevisions[data.builds['synthetic-build']!.latestRevisionId!]!
-  return { revision, setup: data.gameSetups[revision.gameSetupRevisionId]! }
-}
-
 describe('modded Build source recovery', () => {
-  it('shares selected display receipts and source identities without full records, descriptions, or unselected entries', async () => {
-    const { data, prepared, revision } = await fixture()
+  it('shares selected receipts without private descriptions, indexes, or unselected entries', async () => {
+    const { data, prepared, revision, source } = await fixture()
     expect(buildReferenceName(revision.content, revision.content.primaryClass)).toBe('Synthetic Class')
-    const snapshot = createPublicSnapshot({ planner: { localData: data, catalogs: prepared } }, { kind: 'build', revisionId: revision.id }, { includeNotes: false })
-    const decoded = decodePublicSnapshot(encodePublicSnapshot(snapshot))
-    expect(decoded.receipts).toEqual([expect.objectContaining({ name: 'Synthetic Class', origin: expect.objectContaining({ projectId: 'crystal-edit:synthetic-sharing', modelKey: 'crystal-edit:Jobs:24' }) })])
-    expect(JSON.stringify(decoded)).not.toMatch(/Private original description|Unselected Synthetic Item|Crystal Edit source record|data:image|rawDescription/)
+    const decoded = decodePublicSnapshot(encodePublicSnapshot(createPublicSnapshot({ planner: { localData: data, catalogs: prepared } }, { kind: 'build', revisionId: revision.id }, { includeNotes: false })))
+    expect(decoded.receipts).toEqual([expect.objectContaining({ name: 'Synthetic Class', origin: expect.objectContaining({ projectId: source.id, modelKey: 'crystal-edit:Jobs:24' }) })])
+    expect(JSON.stringify(decoded)).not.toMatch(/Private original description|Unselected Synthetic Item|Crystal Edit source record|data:image|rawDescription|crystalEditIdentities/)
     expect(decoded.setup.layers[0]).toMatchObject({ title: 'Synthetic Sharing Mod', contentFingerprint: expect.stringMatching(/^json-content-v1:sha256:/) })
   })
 
-  it('reopens declared missing sources without substituting definitions and rejects unrelated gaps', async () => {
-    const { data, revision } = await fixture()
-    const reopened = JSON.parse(JSON.stringify(data)) as LocalData
-    const catalogs = await prepareModCatalogs(reopened, BUNDLED_CATALOGS)
-    validateNativeLocalDataGraph(reopened, catalogs)
-    expect(resolveDefinition(reopened, catalogs, revision.content.primaryClass!)).toBeUndefined()
-    const noReceipts = { ...reopened, gameSetups: Object.fromEntries(Object.entries(reopened.gameSetups).map(([id, { modSourceReceipts: _receipts, ...setup }]) => [id, setup])) }
-    await expect(prepareModCatalogs(noReceipts, BUNDLED_CATALOGS)).rejects.toThrow('unavailable catalog revision')
+  it('requires complete source bodies even when saved private receipts remain', async () => {
+    const { data } = await fixture(), before = JSON.stringify(data)
+    await expect(prepareModCatalogs(data, BUNDLED_CATALOGS)).rejects.toThrow('unavailable catalog revision')
+    expect(JSON.stringify(data)).toBe(before)
   })
 
-  it('applies equivalent source content using local file pins and preserves the saved checkpoint', async () => {
+  it('recovers formatting-equivalent sources without changing identity or interpretation', async () => {
     const { text, source, data, revision, setup } = await fixture()
     const reordered = JSON.stringify(JSON.parse(text), (_key, value) => value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).reverse()) : value, 2)
-    const local = await admittedModCatalog(reordered, 'local.json')
-    const original = JSON.stringify(data)
-    expect(local.checksum).not.toBe(source.checksum)
+    const local = await admittedModCatalog(reordered, 'local.json'), before = JSON.stringify(data)
+    expect(local).toEqual(source)
     const recovered = prepareLocalBuildModRecovery(revision.content, setup, [...BUNDLED_CATALOGS, local])
     expect(recovered.error).toBeUndefined()
-    expect(recovered.draft!.setup.modComposition!.layers[0]!.catalogRevisionId).toBe(local.revisionId)
-    const preview = { ...data, gameSetups: { [recovered.draft!.setup.id]: recovered.draft!.setup } }
-    const catalogs = await prepareModCatalogs(preview, [...BUNDLED_CATALOGS, local])
-    expect(resolveDefinition(preview, catalogs, recovered.draft!.content.primaryClass!)?.name).toBe('Synthetic Class')
-    expect(JSON.stringify(data)).toBe(original)
+    expect(recovered.changedInterpretation).toBe(false)
+    expect(recovered.draft!.setup).toEqual(setup)
+    const catalogs = await prepareModCatalogs(data, [...BUNDLED_CATALOGS, local])
+    expect(resolveDefinition(data, catalogs, recovered.draft!.content.primaryClass!)?.name).toBe('Synthetic Class')
+    expect(JSON.stringify(data)).toBe(before)
   })
 
-  it('rejects changed source content instead of substituting a same-name project', async () => {
+  it('rejects different contents of the same declared project', async () => {
     const { text, data, revision, setup } = await fixture()
     const changed = await admittedModCatalog(text.replace('Synthetic Class', 'Changed Class'), 'changed.json')
     expect(modSourceMatch(setup.modSourceReceipts![0]!, changed)).toBeUndefined()
-    const original = JSON.stringify(data)
-    const recovered = prepareLocalBuildModRecovery(revision.content, setup, [...BUNDLED_CATALOGS, changed])
+    const before = JSON.stringify(data), recovered = prepareLocalBuildModRecovery(revision.content, setup, [...BUNDLED_CATALOGS, changed])
     expect(recovered.draft).toBeUndefined()
     expect(recovered.missingSources).toEqual(['Synthetic Sharing Mod'])
-    expect(JSON.stringify(data)).toBe(original)
+    expect(JSON.stringify(data)).toBe(before)
   })
 
-  it('recovers an older interpretation and withdrawn baseline through exact selected model identities', async () => {
-    const { data, source } = await fixture()
-    const old = historical(data), { revision, setup } = selected(old)
-    const original = JSON.stringify(old)
-    const recovery = prepareLocalBuildModRecovery(revision.content, setup, [...BUNDLED_CATALOGS, source])
-    expect(recovery.error).toBeUndefined()
-    expect(recovery.changedInterpretation).toBe(true)
-    expect(recovery.missingSources).toEqual([])
-    const draft = recovery.draft!
-    expect(draft.setup.id).not.toBe(setup.id)
-    expect(draft.setup.modComposition!.baseline.catalogRevisionId).toBe(CURRENT_CATALOG.revisionId)
-    expect(draft.setup.modComposition!.layers[0]!.catalogRevisionId).toBe(source.revisionId)
-    const preview = { ...old, gameSetups: { [draft.setup.id]: draft.setup } }
-    const catalogs = await prepareModCatalogs(preview, [...BUNDLED_CATALOGS, source])
-    expect(resolveDefinition(preview, catalogs, draft.content.primaryClass!)?.name).toBe('Synthetic Class')
-    expect(JSON.stringify(old)).toBe(original)
+  it.each(['baseline', 'interpretation'] as const)('does not replace an unavailable %s with the packaged or parser default', async missing => {
+    const { data, source, revision, setup } = await fixture()
+    const composition = setup.modComposition!
+    const changed = { ...setup, modComposition: { ...composition, ...(missing === 'baseline' ? { baseline: { ...composition.baseline, catalogRevisionId: 'v999' as never } } : { layers: composition.layers.map(layer => ({ ...layer, catalogRevisionId: layer.catalogRevisionId.replace(/-p1$/, '-p2') as never })) }) } }
+    const before = structuredClone({ data, changed }), recovery = prepareLocalBuildModRecovery(revision.content, changed, [...BUNDLED_CATALOGS, source])
+    expect(recovery.draft).toBeUndefined()
+    expect(recovery.missingSources).toHaveLength(1)
+    expect({ data, changed }).toEqual(before)
   })
+})
 
-  it('reports remaining uploads, unsupported baselines, and unresolved model identities without throwing', async () => {
-    const { data, source } = await fixture()
-    const old = historical(data), { revision, setup } = selected(old)
-    expect(prepareLocalBuildModRecovery(revision.content, setup, BUNDLED_CATALOGS)).toEqual({ missingSources: ['Synthetic Sharing Mod'] })
-    const unknown = JSON.parse(JSON.stringify(setup).replaceAll('catalog-v1', 'unreviewed-baseline')) as typeof setup
-    expect(prepareLocalBuildModRecovery(revision.content, unknown, [...BUNDLED_CATALOGS, source]).error).toContain('no supported replacement')
-    const broken = { ...revision.content, referenceNames: revision.content.referenceNames!.map(entry => ({ ...entry, modelKey: 'crystal-edit:Jobs:65535' })) }
-    const failed = prepareLocalBuildModRecovery(broken, setup, [...BUNDLED_CATALOGS, source])
-    expect(failed.draft).toBeUndefined()
-    expect(failed.error).toContain('cannot resolve Synthetic Class')
-  })
-
-  it('uses exact native identity to recover an innate replacement linked through a reference alias', async () => {
-    const { data, source } = await fixture('{"ID":"synthetic-sharing","Title":"Synthetic Sharing Mod","Jobs":[{"ID":24,"Name":"Synthetic Class"}],"Passives":[{"ID":20,"Name":"Synthetic learnable innate","PP":7,"IsInnate":true,"IsLearnable":true}]}')
-    const old = historical(data), { revision, setup } = selected(old)
-    const alias = asId<EntityId>('base:innate:ref-53')
-    const linked = { ...setup, modComposition: { ...setup.modComposition!, links: [{ modelKey: 'crystal-edit:Passives:20', targetEntityId: alias }] } }
-    const content = { ...revision.content, passives: [{ ref: { ...revision.content.primaryClass as CatalogRef, entityId: asId<EntityId>('base:passive:20') } }] }
-    const original = JSON.stringify({ old, linked, content })
-    const recovered = prepareLocalBuildModRecovery(content, linked, [...BUNDLED_CATALOGS, source]).draft!
-    const preview = { ...old, gameSetups: { [recovered.setup.id]: recovered.setup } }
-    const catalogs = await prepareModCatalogs(preview, [...BUNDLED_CATALOGS, source])
-    const selection = recovered.content.passives[0]!.ref
-    expect(selection).toMatchObject({ entityId: alias })
-    expect(resolveDefinition(preview, catalogs, selection)?.name).toBe('Synthetic learnable innate')
-    expect(analyzeBuildEquipment(recovered.content, setup.slots, ref => resolveDefinition(preview, catalogs, ref)).some(issue => issue.code === 'PASSIVE_NOT_LEARNABLE')).toBe(false)
-    expect(JSON.stringify({ old, linked, content })).toBe(original)
-    const separate = prepareLocalBuildModRecovery(content, { ...linked, modComposition: { ...linked.modComposition, links: [{ modelKey: 'crystal-edit:Passives:20', targetEntityId: null }] } }, [...BUNDLED_CATALOGS, source]).draft!
-    expect(separate.content.passives[0]!.ref).toMatchObject({ entityId: 'base:passive:20' })
-  })
+it('preserves an exact native alias link and an explicit separate-definition choice during recovery', async () => {
+  const { data, source, revision, setup } = await fixture('{"ID":"synthetic-sharing","Title":"Synthetic Sharing Mod","Jobs":[{"ID":24,"Name":"Synthetic Class"}],"Passives":[{"ID":20,"Name":"Synthetic learnable innate","PP":7,"IsInnate":true,"IsLearnable":true}]}')
+  const alias = asId<EntityId>('base:innate:ref-53')
+  const linked = { ...setup, modComposition: { ...setup.modComposition!, links: [{ modelKey: 'crystal-edit:Passives:20', targetEntityId: alias }] } }
+  const ref: CatalogRef = { kind: 'catalog', catalogId: CURRENT_CATALOG.id, catalogRevisionId: modCatalogRevision(setup.id), entityId: alias }
+  const content = { ...revision.content, passives: [{ ref }] }, before = structuredClone({ data, linked, content })
+  const recovered = prepareLocalBuildModRecovery(content, linked, [...BUNDLED_CATALOGS, source]).draft!
+  const preview = { ...data, gameSetups: { [recovered.setup.id]: recovered.setup } }, catalogs = await prepareModCatalogs(preview, [...BUNDLED_CATALOGS, source])
+  expect(recovered.content.passives[0]!.ref).toEqual(ref)
+  expect(resolveDefinition(preview, catalogs, ref)?.name).toBe('Synthetic learnable innate')
+  expect(analyzeBuildEquipment(recovered.content, setup.slots, value => resolveDefinition(preview, catalogs, value)).some(issue => issue.code === 'PASSIVE_NOT_LEARNABLE')).toBe(false)
+  const separate = { ...linked, modComposition: { ...linked.modComposition, links: [{ modelKey: 'crystal-edit:Passives:20', targetEntityId: null }] } }
+  const native = { ...content, passives: [{ ref: { ...ref, entityId: asId<EntityId>('base:passive:20') } }] }
+  expect(prepareLocalBuildModRecovery(native, separate, [...BUNDLED_CATALOGS, source]).draft!.content.passives).toEqual(native.passives)
+  expect({ data, linked, content }).toEqual(before)
 })

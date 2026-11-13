@@ -173,18 +173,18 @@ describe('semantic navigation routes', () => {
   })
 
   it('allows long shared snapshots and their search overlay while retaining ordinary route bounds', () => {
-    const shared = route({ page: 'share', encoded: 'a'.repeat(40_000), version: 5 })
+    const shared = route({ page: 'share', encoded: 'a'.repeat(40_000), version: 6 })
     expectRoundTrip(shared)
-    expect(parseAppRoute('#/share/v5/abc').page).toEqual({ page: 'share', encoded: 'abc', version: 5 })
-    expect(formatAppRoute(parseAppRoute('#/share/v5/abc'))).toBe('#/share/v5/abc')
+    expect(parseAppRoute('#/share/v6/abc').page).toEqual({ page: 'share', encoded: 'abc', version: 6 })
+    expect(formatAppRoute(parseAppRoute('#/share/v6/abc'))).toBe('#/share/v6/abc')
     expectRoundTrip({ ...shared, overlays: [{ kind: 'search', query: 'sword' }] })
     expect(parentRoute(shared)?.page).toEqual({ page: 'builds', view: 'library' })
     expect(parseAppRoute(`${PUBLIC_SHARE_ROUTE_PREFIX}${'a'.repeat(PUBLIC_SHARE_LIMITS.url)}`).page.page).toBe('unresolved')
     expect(parseAppRoute(`#/reference?q=${'a'.repeat(20_000)}`).page.page).toBe('unresolved')
-    for (const hash of ['#/share/v6/abc', '#/share/v5/', '#/share/v5/a%2Fb', '#/share/v5/abc/extra']) expect(parseAppRoute(hash).page.page).toBe('unresolved')
+    for (const hash of ['#/share/v7/abc', '#/share/v6/', '#/share/v6/a%2Fb', '#/share/v6/abc/extra']) expect(parseAppRoute(hash).page.page).toBe('unresolved')
   })
   it('rejects retired public share versions without retaining their payloads or overlays', () => {
-    for (const version of [1, 2, 3, 4]) {
+    for (const version of [0, 1, 2, 3, 4, 5]) {
       for (const suffix of ['', '/search?q=private', '/inventory/equipment']) {
         const retired = parseAppRoute(`#/share/v${version}/private_snapshot${suffix}`)
         expect(retired.page).toMatchObject({ page: 'unresolved', requestedPath: '/share', recovery: 'builds' })

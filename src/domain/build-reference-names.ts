@@ -25,11 +25,12 @@ export function withBuildReferenceNames<Content extends BuildRevisionContent>(co
     const entity = catalog && catalogEntity(catalog, ref.entityId)
     const saved = savedNames.get(key)
     if (!entity) { if (saved) names.set(key, saved); continue }
-    const mechanical = definitionOrigins(catalog!, entity)?.mechanical
+    const origins = definitionOrigins(catalog!, entity)
+    const mechanical = origins?.mechanical
     const source = mechanical && fulfillSource(mechanical, catalogs)?.catalog
     const identities = source && jsonRecord(source.legacy) && jsonRecord(source.legacy.crystalEditIdentities) ? source.legacy.crystalEditIdentities : {}
     const modelKey = Object.entries(identities).find(([, id]) => id === mechanical?.entityId)?.[0]
-    names.set(key, { ref, name: entity.name, ...(mechanical && modelKey ? { projectId: mechanical.catalogId, modelKey } : {}) })
+    names.set(key, { ref, name: entity.name, ...(origins ? { origins } : {}), ...(mechanical && modelKey ? { projectId: mechanical.catalogId, modelKey } : {}) })
   }
   // Keep only selected entries; an old checkpoint's display receipts must not become a reusable catalog
   const { referenceNames: _names, ...rest } = content

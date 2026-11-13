@@ -5,7 +5,7 @@ import { initializeRevocationLedger,readRevocationHead } from './ledger'
 
 it('reconciles the exact stopped-share event after the authorizing session is revoked',async()=>{
   const f=await fixture(),owner=await customer(f),{context}=await direct(f,owner)
-  const snapshot={version:5,kind:'build',title:'Synthetic published build',setup:{catalogLock:{'exact-public-baseline':'historical-source-v1'},baseline:null,layers:[],mode:{state:'unknown'},ppCostsNonNegative:{state:'unknown'},slots:[]},slots:[{primaryClass:null,secondaryClass:null,equipment:[],equipmentGroups:[],passives:[]}],receipts:[]}
+  const snapshot={version: 6, dataGeneration: 'catalog-sources-1',kind:'build',title:'Synthetic published build',setup:{catalogLock:{'crystal-project/guide/synthetic-baseline':'v1'},baseline:null,layers:[],mode:{state:'unknown'},ppCostsNonNegative:{state:'unknown'},slots:[]},slots:[{primaryClass:null,secondaryClass:null,equipment:[],equipmentGroups:[],passives:[]}],receipts:[]}
   const published=await post(f,'shares',{mutationId:id(),snapshot,includeAttribution:false},owner.headers)
   expect(published.status).toBe(200)
   const {shareId}=await published.json() as {shareId:string},mutationId=id()

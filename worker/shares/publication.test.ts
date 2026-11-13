@@ -3,7 +3,7 @@ import { customer, fixture, id, post, direct } from '../sync/testing'
 import type { PublicSnapshot } from '../../src/interchange/public-share-schema'
 import { initializeRevocationLedger, readRevocation, readRevocationHead } from '../jobs/ledger'
 
-const snapshot = (title = 'Published build'): PublicSnapshot => ({ version: 5, kind: 'build', title, setup: { catalogLock: { 'exact-public-baseline': 'historical-source-v1' }, baseline: null, layers: [], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [], equipmentGroups: [], passives: [] }], receipts: [] })
+const snapshot = (title = 'Published build'): PublicSnapshot => ({ version: 6, dataGeneration: 'catalog-sources-1', kind: 'build', title, setup: { catalogLock: { 'crystal-project/guide/synthetic-baseline': 'v1' }, baseline: null, layers: [], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [], equipmentGroups: [], passives: [] }], receipts: [] })
 async function setup() { const f = await fixture(); const owner = await customer(f); return { f, owner } }
 const publish = (f: Awaited<ReturnType<typeof fixture>>, owner: Awaited<ReturnType<typeof customer>>, value = snapshot(), includeAttribution = false, mutationId = id()) => post(f, 'shares', { mutationId, snapshot: value, includeAttribution }, owner.headers)
 const mutate = (f: Awaited<ReturnType<typeof fixture>>, owner: Awaited<ReturnType<typeof customer>>, shareId: string, method: string, body: object) => f.request(`/api/v1/shares/${shareId}`, { method, headers: { origin: 'http://127.0.0.1', 'content-type': 'application/json', ...owner.headers }, body: JSON.stringify(body) })
@@ -205,7 +205,7 @@ it('competing Updates advance one pointer and same-mutation publication races al
   expect(await (await read(f, created[0].shareId)).json()).toMatchObject({ revision: 2 })
 })
 
-it('reads exact empty Team locks and preserves older v5 snapshots', async () => {
+it('reads exact empty Team locks and leaves absent lock information explicit', async () => {
   const { f, owner } = await setup()
   const emitted: PublicSnapshot = { ...snapshot('Empty public Team'), kind: 'team', slots: [null, null, null, null] }
   const published = await publish(f, owner, emitted), value = await published.json() as { shareId: string }
@@ -216,4 +216,17 @@ it('reads exact empty Team locks and preserves older v5 snapshots', async () => 
   const older = await publish(f, owner, old), prior = await older.json() as { shareId: string }
   expect(older.status).toBe(200)
   expect(await (await read(f, prior.shareId)).json()).toEqual({ snapshot: old, revision: 1 })
+})
+
+it('rejects prelaunch publication and classifies unsupported stored shares without exposing their payloads', async () => {
+  const { f, owner } = await setup()
+  const { publicSnapshot } = await import('./publication')
+  const { context } = await direct(f, owner)
+  for (const invalid of [0, 1, 2, 3, 4, 5].map(version => ({ ...snapshot(), version })).concat([{ ...snapshot(), dataGeneration: undefined } as never])) {
+    expect((await publish(f, owner, invalid as unknown as PublicSnapshot)).status).toBe(400)
+    const row = { snapshot: JSON.stringify(invalid), revision: 1, include_attribution: 0, username: null }
+    const db = { prepare: () => ({ bind: () => ({ first: async () => row }) }) } as unknown as D1Database
+    await expect(publicSnapshot(id(), { ...context, env: { ...context.env, DB: db } })).rejects.toMatchObject({ code: 'UNSUPPORTED_VERSION' })
+  }
+  expect(await f.db.prepare('SELECT COUNT(*) FROM shares').first('COUNT(*)')).toBe(0)
 })

@@ -4,7 +4,7 @@ import { publishSnapshot, readPublishedSnapshot } from './shares-client'
 import type { PublicSnapshot } from '../interchange/public-share-schema'
 const accountId = 'AAAAAAAAAAAAAAAAAAAAAA', sessionId = 'BBBBBBBBBBBBBBBBBBBBBA'
 const session = { accountId, username: 'person', sessionId, deviceId: 'CCCCCCCCCCCCCCCCCCCCCA', csrf: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA', authenticatedAt: 0 }
-const snapshot: PublicSnapshot = { version: 5, kind: 'build', title: 'Safe build', setup: { baseline: null, layers: [], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [], equipmentGroups: [], passives: [] }], receipts: [] }
+const snapshot: PublicSnapshot = { version: 6, dataGeneration: 'catalog-sources-1', kind: 'build', title: 'Safe build', setup: { baseline: null, layers: [], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [], equipmentGroups: [], passives: [] }], receipts: [] }
 afterEach(() => { invalidateProfile(); vi.unstubAllGlobals() })
 it('reportsAnAnonymousEdgeRateLimitWithoutParsingItAsASnapshot', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => new Response('<html>Rate limited</html>', { status: 429 })))

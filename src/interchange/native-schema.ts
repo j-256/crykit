@@ -356,7 +356,7 @@ const buildRevisionContent = z.object({
   rotationNotes: longText.optional(),
   contextAssumptions: z.array(shortText).max(MAX_COLLECTION_LENGTH),
   calculation: calculationPlan.optional(),
-  referenceNames: z.array(z.object({ ref: catalogRef, name: nonemptyText, projectId: id.optional(), modelKey: id.optional() }).strict()).max(MAX_COLLECTION_LENGTH).optional(),
+  referenceNames: z.array(z.object({ origins: z.object({ mechanical: catalogRef, text: catalogRef }).strict().optional(), ref: catalogRef, name: nonemptyText, projectId: id.optional(), modelKey: id.optional() }).strict()).max(MAX_COLLECTION_LENGTH).optional(),
 }).strict()
 
 const buildRevision = z.object({
