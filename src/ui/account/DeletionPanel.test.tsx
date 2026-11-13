@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { AccountView } from './AccountView'
 import * as profile from '../../account/profile'
 import * as management from '../../account/management'
+vi.mock('./useAccountServiceStatus', () => ({ useAccountServiceStatus: () => ({ state: 'ready', accountsAvailable: true, signupAvailable: true, retry: () => {} }) }))
 vi.mock('../../account/device-store', () => ({listCachedProfiles:async()=>[]}))
 afterEach(() => { profile.invalidateProfile(); sessionStorage.clear(); vi.restoreAllMocks() })
 it('offers explicit deletion impact and confirmation for a connected account', async () => {

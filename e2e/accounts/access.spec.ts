@@ -327,7 +327,10 @@ test('actualScreensKeepDistinctAccountKeysAlignedDuringRenewalAndPreserveForeign
 
 test('normalAppAccountRouteSupportsKeyboardErrorsAndLocalGuestContinuation', async ({ page }, testInfo) => {
   let authRequests = 0
-  page.on('request', request => { if (request.url().includes('/api/v1/')) authRequests++ })
+  page.on('request', request => {
+    const path = new URL(request.url()).pathname
+    if (path.startsWith('/api/v1/') && path !== '/api/v1/service') authRequests++
+  })
   await page.goto('/#/settings/account')
   await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible()
   await page.getByLabel('Email', { exact: true }).fill('synthetic@example.org')

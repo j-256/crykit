@@ -12,6 +12,7 @@ import * as deviceSelection from '../../workspace/device-selection'
 import { captureEmailCapability, clearEmailCapability } from '../../account/email-capability'
 import { parseAppRoute, formatAppRoute } from '../navigation/routes'
 
+vi.mock('./useAccountServiceStatus', () => ({ useAccountServiceStatus: () => ({ state: 'ready', accountsAvailable: true, signupAvailable: true, retry: () => {} }) }))
 vi.mock('../../account/device-store', () => ({ listCachedProfiles: async () => [] }))
 let container: HTMLDivElement
 let root: Root
@@ -73,7 +74,7 @@ it('skippedRecoveryRemainsVisible', async () => {
 it('focusesValidationAndPreservesPasswordWhitespace', async () => {
   const { SignInForm } = await import('./SignInForm')
   const submit = vi.fn(async () => {})
-  await act(async () => root.render(<SignInForm busy={false} onSubmit={submit}/>))
+  await act(async () => root.render(<SignInForm busy={false} signupAvailable={true} onSubmit={submit}/>))
   const form = container.querySelector('form')!
   const email = container.querySelector<HTMLInputElement>('input[name="email"]')!
   const password = container.querySelector<HTMLInputElement>('input[name="password"]')!

@@ -31,6 +31,7 @@ const { FixtureTextEncoder } = vi.hoisted(() => {
   return { FixtureTextEncoder }
 })
 
+vi.mock('./account/useAccountServiceStatus', () => ({ useAccountServiceStatus: () => ({ state: 'ready', accountsAvailable: true, signupAvailable: true, retry: () => {} }) }))
 // Ownership fixtures keep their closed synthetic planner; catalog admission is covered by native browser journeys
 vi.mock('../catalog/bundled', async importOriginal => ({ ...await importOriginal<typeof import('../catalog/bundled')>(), BUNDLED_CATALOGS: [] }))
 

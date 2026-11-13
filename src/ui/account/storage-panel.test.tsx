@@ -13,6 +13,17 @@ const service = (): StorageService => ({
   recovery: async () => ({ version: 1, state: 'paused', lastVerifiedAt: null, ageMs: null, code: 'MEASURED_POLICY_REQUIRED' }),
   backup: vi.fn(async () => {}), prepareRemoval: async () => ({ pendingWork: true, remove: vi.fn(async () => {}) }),
 })
+it('finishes a local backup across account-readiness changes', async () => {
+  const api = service()
+  let finish!: () => void
+  api.backup = () => new Promise<void>(resolve => { finish = resolve })
+  await act(async () => root.render(<StoragePanel service={api} onlineAvailable={true}/>))
+  await act(async () => button('Account backup').click())
+  await act(async () => root.render(<StoragePanel service={api} onlineAvailable={false}/>))
+  await act(async () => finish())
+  expect(button('Account backup').disabled).toBe(false)
+  expect(container.textContent).toContain('Private backup download requested')
+})
 it('shows observed quota and honest paused recovery without claiming a backup exists', async () => {
   await act(async () => root.render(<StoragePanel service={service()}/>))
   await act(async () => button('Refresh storage').click())
