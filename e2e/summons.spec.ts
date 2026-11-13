@@ -156,7 +156,7 @@ test('rolls back a failed save, reports it, and persists a retry', { tag: MOBILE
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') {
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') {
         IDBObjectStore.prototype.put = original
         throw new DOMException('Synthetic summon storage failure', 'QuotaExceededError')
       }

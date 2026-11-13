@@ -2,18 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { STARTER_CATALOG_ID } from '../catalog/catalog-ids'
 import { publicCatalogLabel, publicReceiptSourceSummary } from './public-source-summary'
 
-const origin = { kind: 'catalog' as const, projectId: STARTER_CATALOG_ID, catalogId: STARTER_CATALOG_ID, sourceRevisionId: 'catalog-v3', catalogRevisionId: 'catalog-v3' }
+const origin = { kind: 'catalog' as const, projectId: STARTER_CATALOG_ID, catalogId: STARTER_CATALOG_ID, sourceRevisionId: 'v1', catalogRevisionId: 'v1' }
 
 describe('public source summaries', () => {
   it('labels the bundled catalog without changing its recorded identity', () => {
     const before = { ...origin }
     expect(publicCatalogLabel(STARTER_CATALOG_ID)).toBe('Crystal Project')
-    expect(publicReceiptSourceSummary(origin)).toBe('Crystal Project · catalog-v3')
+    expect(publicReceiptSourceSummary(origin)).toBe('Crystal Project · v1')
     expect(origin).toEqual(before)
   })
 
   it('keeps distinct source and catalog revisions and model identity', () => {
-    expect(publicReceiptSourceSummary({ ...origin, projectId: 'custom-mod', sourceRevisionId: 'source-v2', modelKey: 'Abilities:3' })).toBe('custom-mod · Source source-v2 · Catalog catalog-v3 · Abilities:3')
+    expect(publicReceiptSourceSummary({ ...origin, projectId: 'custom-mod', sourceRevisionId: 'source-v2', modelKey: 'Abilities:3' })).toBe('custom-mod · Source source-v2 · Catalog v1 · Abilities:3')
   })
 
   it('does not relabel other catalogs or personal projects', () => {

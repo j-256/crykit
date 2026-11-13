@@ -1,3 +1,4 @@
+import { GUEST_COORDINATOR_DATABASE } from '../../src/persistence/storage-names'
 import { expectPrimedSignInRateLimit, nativeCredentialQuota, prepareAccountProofCache } from './network-fixture'
 import { readCompleteBackup } from '../workspace-backup'
 import { readLocalData } from '../local-data-helpers'
@@ -441,7 +442,7 @@ async function databaseDump(page: import('@playwright/test').Page, name: string)
 test('leaving mounted Account during sign-in cancels late activation and keeps guest Builds writable', async ({ page, context }, testInfo) => {
   const account = await uiSignup(page)
   await openAccountSettingsInMountedPlanner(page)
-  const guestBefore = await databaseDump(page, 'crykit')
+  const guestBefore = await databaseDump(page, GUEST_COORDINATOR_DATABASE)
   const finishPath = '/api/v1/auth/login/finish'
   expect((await page.request.post('/__accounts/control/response-gate', { data: { path: finishPath, phase: 'before-headers' } })).ok()).toBe(true)
   let cancelled = false
@@ -462,7 +463,7 @@ test('leaving mounted Account during sign-in cancels late activation and keeps g
     await expect(page.getByRole('heading', { name: `Signed in as ${account.username}`, exact: true })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Open account workspace', exact: true })).toHaveCount(0)
     expect((await context.cookies()).some(cookie => cookie.name === '__Host-crykit-session')).toBe(false)
-    expect(await databaseDump(page, 'crykit')).toBe(guestBefore)
+    expect(await databaseDump(page, GUEST_COORDINATOR_DATABASE)).toBe(guestBefore)
     await page.getByRole('button', { name: 'Builds', exact: true }).first().click()
     await page.getByRole('button', { name: 'New Build', exact: true }).click()
     const title = 'Synthetic guest Build after interrupted sign-in'
@@ -511,20 +512,20 @@ test('normalAppSignInOpensIndependentEncryptedWorkspaceAndLocksOnReload', async 
     page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method()) && /\/api\/v1\/(uploads|sync|documents)/.test(request.url())) writes.push(request.url()) })
     await openAccountSettingsInMountedPlanner(page)
     await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
-    const guestBefore = await databaseDump(page, 'crykit')
+    const guestBefore = await databaseDump(page, GUEST_COORDINATOR_DATABASE)
     await page.getByLabel('Email', { exact: true }).fill(account.email)
     await page.getByLabel('Password', { exact: true }).fill(uiPassword)
     await page.getByRole('button', { name: 'Sign in', exact: true }).click()
     await expect(page.getByRole('heading', { name: `Signed in as ${account.username}` })).toBeVisible()
     await page.getByRole('button', { name: 'Open account workspace' }).click()
     await expect(page.getByRole('heading', { name: 'Plan your next Build' })).toBeVisible()
-    expect(await databaseDump(page, 'crykit')).toBe(guestBefore)
+    expect(await databaseDump(page, GUEST_COORDINATOR_DATABASE)).toBe(guestBefore)
     expect(writes).toEqual([])
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Account workspace locked' })).toBeVisible()
     await page.getByRole('button', { name: 'Continue using this device' }).click()
     await expect(page.getByRole('button', { name: 'New Build', exact: true })).toBeVisible()
-    expect(await databaseDump(page, 'crykit')).toBe(guestBefore)
+    expect(await databaseDump(page, GUEST_COORDINATOR_DATABASE)).toBe(guestBefore)
     completed = true
   } finally {
     const resources = await stopResources()
@@ -597,7 +598,7 @@ test.describe('actualWorkspaceSwitchesDistinctAccountsAndRecoveryWithoutCrossing
     expect(before.kind).toBe('account')
     expect(before.token?.accountId).toBe(before.principal)
     expect(before.titles).toEqual([])
-    guestBefore = await databaseDump(page, 'crykit')
+    guestBefore = await databaseDump(page, GUEST_COORDINATOR_DATABASE)
     await page.getByRole('button', { name: 'New Build', exact: true }).click()
     await page.getByLabel('Build title', { exact: true }).fill('Synthetic private account A Build')
     await page.getByRole('button', { name: 'Save build', exact: true }).click()
@@ -639,7 +640,7 @@ test.describe('actualWorkspaceSwitchesDistinctAccountsAndRecoveryWithoutCrossing
     expect(secondSaved.backupDefinitions).toEqual(['Synthetic private account B definition'])
     const accountDump = await databaseDump(page, `crykit-account-v1-${after.token!.accountId}`)
     expect(accountDump).not.toContain('Synthetic private')
-    expect(await databaseDump(page, 'crykit')).toBe(guestBefore)
+    expect(await databaseDump(page, GUEST_COORDINATOR_DATABASE)).toBe(guestBefore)
   })
   test(CROSS_ACCOUNT_RECOVERY, async ({}, testInfo) => {
     await page.evaluate(() => { Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined }) })
@@ -664,7 +665,7 @@ test.describe('actualWorkspaceSwitchesDistinctAccountsAndRecoveryWithoutCrossing
     const readerMs = performance.now() - readerStarted
     expect(Object.values(recovered.personalDefinitions).map((value: unknown) => (value as { name: string }).name)).toEqual(['Synthetic private account B definition'])
     expect(Object.values(recovered.builds)).toEqual([])
-    expect(await databaseDump(page, 'crykit')).toBe(guestBefore)
+    expect(await databaseDump(page, GUEST_COORDINATOR_DATABASE)).toBe(guestBefore)
     await writeFile(testInfo.outputPath('cross-account-journey.json'), JSON.stringify({ elapsedMs: Date.now() - started, sameContextAcrossCheckpoints: true, oldQueuedResult: 'PROFILE_CHANGED', exactRecovery: true, reader: 'native-browser', readerMs, backupBytes: (await stat(backupPath)).size }))
   })
 })
@@ -701,7 +702,7 @@ test('blankAccountCreatesOnlyRequestedPlaythroughAndKeepsGuestEditorsClosed', as
   await page.goto(workspacePath)
   await openWorkspaceAccount(page, account)
   expect((await workspaceProof(page)).playthroughs).toEqual([])
-  const guestBefore = await databaseDump(page, 'crykit')
+  const guestBefore = await databaseDump(page, GUEST_COORDINATOR_DATABASE)
   await page.evaluate(() => { location.hash = '#/characters' })
   await page.getByRole('button', { name: 'Create or select Playthrough', exact: true }).click()
   await page.getByLabel('New blank Playthrough', { exact: true }).fill('Synthetic account Playthrough')
@@ -717,7 +718,7 @@ test('blankAccountCreatesOnlyRequestedPlaythroughAndKeepsGuestEditorsClosed', as
   await expect(page.getByLabel('Open Crystal Project save', { exact: true })).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Choose a save file', exact: true })).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Saved game saves', exact: true })).toHaveCount(0)
-  expect(await databaseDump(page, 'crykit')).toBe(guestBefore)
+  expect(await databaseDump(page, GUEST_COORDINATOR_DATABASE)).toBe(guestBefore)
   const browserStorage = await page.evaluate(async () => ({ local: JSON.stringify(localStorage), session: JSON.stringify(sessionStorage), cache: await Promise.all((await caches.keys()).map(async key => { const cache = await caches.open(key); return Promise.all((await cache.keys()).map(async request => (await cache.match(request))!.text())) })) }))
   expect(JSON.stringify(browserStorage)).not.toContain('Synthetic account Playthrough')
 })
@@ -729,7 +730,7 @@ test('completeAccountCrashRecoveryRetainsPrivateDefinitionAndGuestIsolation', as
   const account = await uiSignup(page)
   await page.goto(workspacePath)
   await openWorkspaceAccount(page, account)
-  const guestBefore = await databaseDump(page, 'crykit')
+  const guestBefore = await databaseDump(page, GUEST_COORDINATOR_DATABASE)
   await page.evaluate(() => (window as unknown as { workspaceProof: WorkspaceProof }).workspaceProof.saveDefinition('Synthetic complete recovery definition'))
   await page.evaluate(() => { Object.defineProperty(window, 'showSaveFilePicker', { configurable: true, value: undefined }) })
   await page.evaluate(() => (window as unknown as { workspaceProof: WorkspaceProof }).workspaceProof.crash())
@@ -741,5 +742,5 @@ test('completeAccountCrashRecoveryRetainsPrivateDefinitionAndGuestIsolation', as
   const recovered = await readCompleteBackup(await readFile((await download.path())!))
   expect(Object.values(recovered.planner.localData.personalDefinitions).map(value => value.name)).toEqual(['Synthetic complete recovery definition'])
   expect(recovered.planner.localData.builds).toEqual({})
-  expect(await databaseDump(page, 'crykit')).toBe(guestBefore)
+  expect(await databaseDump(page, GUEST_COORDINATOR_DATABASE)).toBe(guestBefore)
 })

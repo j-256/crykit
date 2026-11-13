@@ -21,7 +21,10 @@ export default function ModCatalogReference({ scopeId, onAddReference, onSetRefe
   const project = useMemo(() => completeModLibrary(library.catalogs, BUNDLED_MOD_LIBRARY).find(mod => mod.id === scopeId), [library.catalogs, scopeId])
   const page = navigation.route.page
   const requestedRef = page.page === 'reference' && page.view === 'detail' && page.ref.kind === 'catalog' && page.ref.catalogId === project?.id ? page.ref : undefined
-  const saved = requestedRef ? project?.revisions.find(revision => revision.catalogRevisionId === requestedRef.catalogRevisionId)?.catalog : project?.revisions[0]?.catalog
+  // A shared project ID does not establish release order; list every retained source revision
+  // Detail routes still select their exact revision so another source cannot satisfy a missing link
+  const savedCatalogs = useMemo(() => project?.revisions.filter(revision => !requestedRef || revision.catalogRevisionId === requestedRef.catalogRevisionId).map(revision => revision.catalog) ?? EMPTY_CATALOGS, [project, requestedRef])
+  const saved = savedCatalogs[0]
   const bundled = requestedRef ? project?.bundled.find(source => requestedRef.catalogRevisionId === source.revisionId) : project?.bundled[0]
   const [loaded, setLoaded] = useState<CatalogSnapshot>()
   const [error, setError] = useState<string>()
@@ -39,8 +42,8 @@ export default function ModCatalogReference({ scopeId, onAddReference, onSetRefe
     void load()
     return () => { active = false }
   }, [saved, bundled, attempt])
-  const catalog = saved ?? loaded
-  const catalogs = useMemo(() => catalog ? [catalog] : EMPTY_CATALOGS, [catalog])
+  const catalog = saved ?? (loaded?.id === bundled?.id && loaded?.revisionId === bundled?.revisionId ? loaded : undefined)
+  const catalogs = useMemo(() => savedCatalogs.length ? savedCatalogs : catalog ? [catalog] : EMPTY_CATALOGS, [savedCatalogs, catalog])
   const associations = useMemo(() => catalog ? [...library.catalogs.filter(source => source.id !== catalog.id || source.revisionId !== catalog.revisionId), catalog] : library.catalogs, [library.catalogs, catalog])
   useEffect(() => {
     onRouteCatalogsChange(catalogs)

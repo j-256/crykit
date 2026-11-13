@@ -22,9 +22,9 @@ test('reference entries are read-only and offer source issue reporting', { tag: 
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
-test('unused correction metadata cannot change source values or break planner backups', async ({ page }) => {
+test('prelaunch correction metadata remains untouched while a fresh workspace exports source values', async ({ page }) => {
   const path = referencePath('base:equipment:160')
-  // Obsolete metadata belongs to the supported legacy source, seeded before managed startup captures it
+  // Prelaunch metadata is left untouched even when it cannot be parsed
   await page.goto('/icon.svg')
   await page.evaluate(serialized => new Promise<void>((resolve, reject) => {
     const localData = JSON.parse(serialized) as LocalData
@@ -48,7 +48,18 @@ test('unused correction metadata cannot change source values or break planner ba
     }
   }), JSON.stringify(createSampleLocalData(DEFAULT_CATALOG, '2026-01-01T00:00:00.000Z')))
   await page.goto(path)
+  await expect(page.getByRole('heading', { name: 'A new source catalog', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Start new workspace', exact: true }).click()
   await waitForPlannerReady(page)
+  expect(await page.evaluate(() => new Promise((resolve, reject) => {
+    const request = indexedDB.open('crykit')
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const database = request.result, read = database.transaction('meta').objectStore('meta').get('catalog-corrections-v1')
+      read.onsuccess = () => { database.close(); resolve(read.result.value) }
+      read.onerror = () => { database.close(); reject(read.error) }
+    }
+  }))).toBe('{obsolete and unreadable')
   await expect(page.getByRole('heading', { name: 'Artisan Rapier', exact: true })).toBeVisible()
   await page.reload()
   await waitForPlannerReady(page)

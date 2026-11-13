@@ -1,3 +1,5 @@
+import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
+import { LAUNCH_DATA_GENERATION } from '../src/domain/data-generation'
 import { openStatBreakdown } from './calculation-presentation-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
@@ -58,13 +60,13 @@ async function loadFixture(page: Page, changedContext = false, nativeCalculation
   const localData = syntheticLocalData(changedContext, nativeCalculations)
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   const archive = zipSync({
-    'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
-    'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [], evidence: [], history: [] }),
+    'manifest.json': encode({ format: 'crykit-backup', formatVersion: '3.0.0', dataGeneration: LAUNCH_DATA_GENERATION, exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
+    'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: BUNDLED_CATALOGS, evidence: [], history: [] }),
   })
   const panel = await dataPanel(page)
   await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-sheet.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await panel.getByText('File details and source notices', { exact: true }).click()
-  await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()
+  await expect(panel.getByText('native-backup-3.0.0', { exact: true })).toBeVisible()
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
   await choosePlaythrough(page, selectedPlaythrough(localData).label)
@@ -306,7 +308,7 @@ test('snapshot save failure retains entered fields and retries a single observat
     const original = IDBObjectStore.prototype.put
     let failOnce = true
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1' && failOnce) { failOnce = false; throw new DOMException('Synthetic storage limit', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator' && failOnce) { failOnce = false; throw new DOMException('Synthetic storage limit', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })
@@ -399,7 +401,7 @@ for (const retryAction of ['Retry member save', 'Retry save']) {
       const put = IDBObjectStore.prototype.put
       let failOnce = true
       IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
-        if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1' && failOnce) { failOnce = false; throw new DOMException('Synthetic storage limit', 'QuotaExceededError') }
+        if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator' && failOnce) { failOnce = false; throw new DOMException('Synthetic storage limit', 'QuotaExceededError') }
         return put.apply(this, args)
       }
     })

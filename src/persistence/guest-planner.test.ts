@@ -7,7 +7,6 @@ import { compactModCatalog } from '../domain/mod-layers'
 import { afterEach, expect, it, vi } from 'vitest'
 import { updateGameSetupRevision, addGameSetupRevision, createBlankLocalData, createPersonalDefinition, createPlaythrough } from '../domain/local-data'
 import { observeInventory } from '../domain/inventory'
-import { WITHDRAWN_CATALOGS } from '../domain/withdrawn-catalogs'
 import { CryKitDatabase, setDatabaseForTests } from './database'
 import { selectBackupHistory, prepareModCatalogs, exportBackup, changedLocalData, historyEntry, subscribeLocalData, loadLocalData, saveLocalData, saveLocalDataWithStatus, undoLocalData, undoLocalDataWithStatus, commitImport, commitModSetup } from './local-data'
 import type { LocalDataRecord, MetaRecord } from './database'
@@ -628,35 +627,14 @@ it('reopens a journaled save with an unknown inventory quantity and exact operat
   } finally { reopened.close() }
 })
 
-it('reopens a journaled save with a recognized withdrawn pin without substituting a catalog', async () => {
+it('rejects a missing source pin without publishing a journaled save or changing stored rows', async () => {
   const { database, record } = await journalFixture()
-  const beforeCatalogs = await database.catalogs.toArray()
-  const receipt = WITHDRAWN_CATALOGS[0]!
-  const draft = addGameSetupRevision(record.localData, {
-    label: 'Unavailable historical catalog', catalogLock: { [receipt.id]: receipt.revisionId }, expectedRevision: record.revision,
-  })
-  const saved = await saveLocalDataWithStatus(draft, record.revision, database)
-  database.close()
-  const reopened = new CryKitDatabase(database.name, { plannerFormatRequirement: 'journaled' })
   try {
-    const rows = await installedRows(reopened)
-    const root = (await reopened.localDatas.get('local-data-record'))!
-    const admitted = validateGuestPlannerRecord(root, await reopened.meta.get(GUEST_PLANNER_LAYOUT_KEY), rows.history, 'journaled')
-    expect(admitted.format).toBe('journaled')
-    if (admitted.format !== 'journaled') throw new Error('Expected journaled planner')
-    expect(root.localData).toEqual(saved.localData)
-    expect(admitted.journal.checkpoints).toHaveLength(1)
-    const checkpoint = admitted.journal.checkpoints[0]!
-    expect(root.operativePlanner!.checkpointIds).toEqual([checkpoint.id])
-    expect(checkpoint.before).toEqual(record.localData)
-    expect(checkpoint.after).toEqual(saved.localData)
-    expect(root.localData.gameSetups[draft.planningGameSetupRevisionId!]!.catalogLock[receipt.id]).toBe(receipt.revisionId)
-    expect(rows.catalogs).toEqual(beforeCatalogs)
-    expect(rows.catalogs.some(row => row.id === receipt.id && row.revisionId === receipt.revisionId)).toBe(false)
-    const loaded = await loadLocalData(reopened)
-    expect(loaded.localData).toEqual(saved.localData)
-    expect(loaded.catalogs.some(catalog => catalog.id === receipt.id && catalog.revisionId === receipt.revisionId)).toBe(false)
-  } finally { reopened.close() }
+    const before = await installedRows(database)
+    const draft = addGameSetupRevision(record.localData, { label: 'Missing exact source', catalogLock: { [CURRENT_CATALOG.id]: 'v999' as typeof CURRENT_CATALOG.revisionId }, expectedRevision: record.revision })
+    await expect(saveLocalDataWithStatus(draft, record.revision, database)).rejects.toThrow('missing catalog revision')
+    expect(await installedRows(database)).toEqual(before)
+  } finally { database.close() }
 })
 
 it('records every supplied transition and its exact paths in one journaled save', async () => {
@@ -1232,13 +1210,13 @@ it.each([false, true])('commits exactly one save or Undo across required handles
   } finally { reopened.close() }
 })
 
-it('restores unknown inventory and withdrawn catalog pins while preserving older destination evidence', async () => {
+it('restores unknown inventory and exact catalog pins while preserving older destination evidence', async () => {
   const { database, record } = await journalFixture()
   const older = record.operativePlanner!.savedDestinationChanges[0]!
   const shortened = { ...record.localData, changes: [] }
   await database.localDatas.put({ ...record, localData: shortened })
-  const receipt = WITHDRAWN_CATALOGS[0]!
-  const setup = addGameSetupRevision(shortened, { label: 'Unavailable historical catalog', catalogLock: { [receipt.id]: receipt.revisionId }, expectedRevision: shortened.revision })
+  const receipt = CURRENT_CATALOG
+  const setup = addGameSetupRevision(shortened, { label: 'Retained exact catalog', catalogLock: { [receipt.id]: receipt.revisionId }, expectedRevision: shortened.revision })
   const playthrough = createPlaythrough(setup, { label: 'Unknown stock', expectedRevision: setup.revision })
   const defined = createPersonalDefinition(playthrough, { kind: 'item', name: 'Uncounted item', expectedRevision: playthrough.revision })
   const definitionId = Object.values(defined.personalDefinitions)[0]!.id
@@ -1477,16 +1455,17 @@ it('derives a new recovery-draft composition only for the exported candidate', a
   })
 })
 
-it('exports explicit withdrawn pins and unknown inventory quantities without invented source bodies', async () => {
+it('exports complete source bodies and unknown inventory quantities independently of the package', async () => {
   const { database, record } = await journalFixture()
-  const receipt = WITHDRAWN_CATALOGS[0]!
-  const setup = addGameSetupRevision(record.localData, { label: 'Withdrawn', catalogLock: { [receipt.id]: receipt.revisionId }, expectedRevision: record.revision })
+  const receipt = CURRENT_CATALOG
+  const setup = addGameSetupRevision(record.localData, { label: 'Complete source', catalogLock: { [receipt.id]: receipt.revisionId }, expectedRevision: record.revision })
   const playthrough = createPlaythrough(setup, { label: 'Unknown inventory', expectedRevision: setup.revision })
   const defined = createPersonalDefinition(playthrough, { kind: 'item', name: 'Unknown item', expectedRevision: playthrough.revision })
   const draft = observeInventory(defined, { ref: { kind: 'personal', definitionId: Object.values(defined.personalDefinitions)[0]!.id }, possession: 'unknown', quantity: { kind: 'unknown' }, expectedRevision: defined.revision })
   await readonlyJournalExport(database, async () => {
     const bytes = await exportBackup(draft, database), decoded = decodedBackup(bytes)
-    expect(decoded.payload.bundledCatalogs).toContainEqual(receipt)
+    expect(decoded.payload).not.toHaveProperty('bundledCatalogs')
+    expect(decoded.payload.catalogs).toContainEqual(receipt)
     expect(decoded.payload.localData.playthroughs).toEqual(draft.playthroughs)
     expect(decoded.payload.localData.personalDefinitions).toEqual(draft.personalDefinitions)
     expect(decoded.manifest.sources).toEqual([])

@@ -143,6 +143,15 @@ function WorkspaceProof() {
         const content = await (await import('../../src/workspace/editor-document')).readEditorContent(state, file)
         return { original: Array.from(content.originalBytes), appliedText: content.lastAppliedText, unfinishedText: content.unfinishedText, fieldState: file.unfinished.fieldState, editedPath: file.unfinished.editedPath, validation: file.unfinished.validation, revision: file.revision }
       },
+      async seedGuestEditor(input: { id: string; filename: string; originalText: string; draftText: string }) {
+        if (workspace.repository.kind !== 'guest') throw new Error('This fixture requires the local workspace')
+        const { editorBlob, encodeEditorText } = await import('../../src/workspace/editor-document')
+        const before = await workspace.repository.readWorkspace()
+        const original = await editorBlob(new TextEncoder().encode(input.originalText), 'utf8')
+        const unfinished = await editorBlob(encodeEditorText(input.draftText), 'utf16le')
+        const file = { version: 1 as const, id: input.id, revision: 0, filename: input.filename, referenceId: 'synthetic-reference', original: original.ref, originalByteIdentity: 'exact' as const, lastApplied: original.ref, unfinished: { text: unfinished.ref, editedPath: [], fieldState: {}, baseRevision: 0, validation: 'unchecked' as const }, createdAt: '2026-10-13', updatedAt: '2026-10-13' }
+        await workspace.repository.commitWorkspace({ ...before, editorDocuments: [...before.editorDocuments, file], blobs: [...before.blobs, original, unfinished] }, before.planner.localData.revision)
+      },
       artworkContent: async () => {
         const state = await workspace.repository.readWorkspace()
         const { blobIdentity, readBlob } = await import('../../src/workspace/blobs')

@@ -52,7 +52,7 @@ test('failed saves expose diagnostics on demand and export the retained transact
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function(...args: Parameters<typeof put>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') throw new DOMException('Synthetic recovery test', 'QuotaExceededError')
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') throw new DOMException('Synthetic recovery test', 'QuotaExceededError')
       return put.apply(this, args)
     }
   })

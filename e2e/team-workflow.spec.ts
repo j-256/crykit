@@ -22,7 +22,7 @@ async function failNextSave(page: Page) {
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic member save failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic member save failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })

@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { readManagedGuestWorkspace } from './guest-planner-reader'
 import { skipInitialModSetup, waitForPlannerReady } from './local-data-helpers'
 
-const COORDINATOR_NAME = 'crykit-guest-coordinator-v1'
+const COORDINATOR_NAME = 'crykit-catalog-sources-1-coordinator'
 interface StoredChunk { revisionId: string; index: number; bytes: Uint8Array }
 
 async function corruptReferencedChunk(page: Page): Promise<StoredChunk> {

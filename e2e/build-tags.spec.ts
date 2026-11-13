@@ -4,7 +4,6 @@ import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
-import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import type { LocalData } from '../src/domain/types'
 import { previewNativeBackup } from '../src/interchange/native'
 import { createPublicSnapshot } from '../src/interchange/public-share'
@@ -92,7 +91,7 @@ test('optional tags persist independently, round-trip in backups, and match both
   const bytes = await readFile((await (await download).path())!)
   const backup = JSON.parse(strFromU8(unzipSync(bytes)['bundle.json']!)) as { localData: LocalData }
   expect(backup.localData.builds).toEqual(after.builds)
-  expect((await previewNativeBackup(bytes, 'synthetic-tags.zip', BUNDLED_CATALOGS)).proposed.localData.builds).toEqual(after.builds)
+  expect((await previewNativeBackup(bytes, 'synthetic-tags.zip')).proposed.localData.builds).toEqual(after.builds)
   await settings.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await page.reload()
   await waitForPlannerReady(page)
@@ -145,7 +144,7 @@ test('failed detail saves roll back title and tags together while retaining the 
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic failed tag save', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic failed tag save', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })

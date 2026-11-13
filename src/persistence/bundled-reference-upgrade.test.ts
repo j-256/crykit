@@ -5,10 +5,8 @@ import { DEFAULT_CATALOG, compileBundledSourceId } from '../catalog/bundled'
 import { createSampleLocalData } from '../domain/sample-data'
 import { HISTORICAL_BUNDLED_CATALOG } from '../domain/withdrawn-catalogs'
 import { createPersonalDefinition } from '../domain'
-import { setModInReference } from '../domain/reference-library'
 import type { LocalData } from '../domain/types'
 import { CryKitDatabase, setDatabaseForTests } from './database'
-import { exportBackup, loadLocalData, previewImport, saveLocalDataWithStatus, undoLocalDataWithStatus } from './local-data'
 
 const TABLES = { localDatas: 'id, revision, updatedAt', catalogs: 'key, id, revisionId, checksum', evidence: 'id, sourceDigest, group', sources: 'id, digest, format', history: 'id, localDataId, [localDataId+nextRevision]', imports: 'id, sourceDigest, localDataId', meta: 'key' }
 const LEGACY_IDS = ['base:class:warrior', 'base:class:cleric', 'base:class:rogue', 'base:class:wizard', 'base:item:short-sword', 'base:item:buckler', 'base:item:breastplate', 'base:item:short-staff', 'base:item:hemp-robe', 'base:item:dirk', 'base:item:leather-outfit', 'base:item:oak-wand']
@@ -42,37 +40,8 @@ afterEach(async () => {
   for (const name of names.splice(0)) await Dexie.delete(name)
 })
 
-it('upgrades historical bundled references and undo history before saving Reference membership', async () => {
-  const original = await fixture()
-  const database = new CryKitDatabase(original.name)
-  setDatabaseForTests(database)
-  const loaded = await loadLocalData()
-  expect(database.verno).toBe(7)
-  expect(loaded.localData).toEqual(original.after)
-  expect((await database.history.get('history'))?.before).toEqual(original.before)
-  expect((await database.history.get('history'))?.after).toEqual(original.after)
-  const undoneHistory = await undoLocalDataWithStatus(loaded.revision)
-  expect(undoneHistory.localData.personalDefinitions).toEqual(original.before.personalDefinitions)
-  expect(undoneHistory.localData.buildRevisions).toEqual(original.before.buildRevisions)
-  const redoHistory = await undoLocalDataWithStatus(undoneHistory.localData.revision)
-  expect(redoHistory.localData.personalDefinitions).toEqual(original.after.personalDefinitions)
-  const removed = await saveLocalDataWithStatus(setModInReference(redoHistory.localData, 'name:doge shield', false), redoHistory.localData.revision)
-  expect(removed.localData.referenceLibrary?.excludedMods).toEqual(['name:doge shield'])
-  expect(removed.localData.playthroughs).toEqual(original.after.playthroughs)
-  expect(removed.localData.buildRevisions).toEqual(original.after.buildRevisions)
-  const restored = await saveLocalDataWithStatus(setModInReference(removed.localData, 'name:doge shield', true), removed.localData.revision)
-  expect(restored.localData.referenceLibrary?.excludedMods).toEqual([])
-  const preview = await previewImport(await exportBackup(), 'synthetic-upgraded.zip')
-  expect(preview.proposed.localData.buildRevisions).toEqual(original.after.buildRevisions)
-  const undone = await undoLocalDataWithStatus(restored.localData.revision)
-  await undoLocalDataWithStatus(undone.localData.revision)
-  const current = await loadLocalData()
-  expect(current.localData.personalDefinitions).toEqual(original.after.personalDefinitions)
-  database.close()
-})
-
-it('rolls back all roots, undo history, and the database version when an upgrade cannot resolve a reference', async () => {
-  const fixtureData = await fixture(true)
+it.each([false, true])('rejects prelaunch database layout without changing roots or history, including corrupt history: %s', async badHistory => {
+  const fixtureData = await fixture(badHistory)
   const database = new CryKitDatabase(fixtureData.name)
   await expect(database.open()).rejects.toThrow()
   database.close()

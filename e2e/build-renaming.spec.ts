@@ -114,7 +114,7 @@ test('failed title persistence retains both drafts for retry without creating a 
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic failed title save', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic failed title save', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })

@@ -1,15 +1,20 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { STARTER_CATALOG } from '../catalog/starter'
+import { syntheticCatalog } from '../workspace/test-helpers'
+import { checkpointContentDigest } from '../domain/checkpoint-identity'
+import { sourcePayloadContent } from '../domain/source-payload'
 import { createTestLocalData } from '../domain/test-helpers'
 import { modCatalogRevision, MOD_CATALOG_SCHEMA } from '../domain/mod-layers'
-import { WITHDRAWN_CATALOGS } from '../domain/withdrawn-catalogs'
 import type { CatalogSnapshot, CatalogRef } from '../domain/types'
 import { immutableCatalogSnapshot, immutableExpandedModCatalogs, validateNativeLocalDataGraph, validatePresentCatalogReferences } from './native'
 
 afterEach(() => vi.restoreAllMocks())
-function catalog(): CatalogSnapshot {
-  const entity = Object.values(STARTER_CATALOG.entities)[0]!
-  return structuredClone({ ...STARTER_CATALOG, entities: { [entity.id]: { ...entity, requirements: { state: 'unknown', reason: 'Synthetic unrecorded requirements' } } }, claims: [] })
+function seal(value: CatalogSnapshot): CatalogSnapshot {
+  const { checksum: _checksum, ...content } = value
+  return { ...content, checksum: `payload:sha256:${checkpointContentDigest(sourcePayloadContent(content))}` }
+}
+function catalog(label = 'catalog-index'): CatalogSnapshot {
+  const entity = { id: 'synthetic-item' as CatalogRef['entityId'], kind: 'item' as const, name: 'Synthetic item', aliases: [], fields: {}, sources: [], requirements: { state: 'unknown' as const, reason: 'Synthetic unrecorded requirements' } }
+  return syntheticCatalog(label, undefined, { [entity.id]: entity })
 }
 function ref(value: CatalogSnapshot, entityId = 'synthetic-missing'): CatalogRef {
   return { kind: 'catalog', catalogId: value.id, catalogRevisionId: value.revisionId, entityId: entityId as CatalogRef['entityId'] }
@@ -35,11 +40,11 @@ it.each([false, true])('does not reuse mutable catalog descendants under a froze
   validateNativeLocalDataGraph(data, catalogs)
   const entity = Object.values(value.entities)[0]!
   ;(value.entities as Record<string, unknown>)[entity.id] = { ...entity, requirements: { state: 'known', value: [{ kind: 'selected', ref: ref(value) }] } }
-  expect(() => validateNativeLocalDataGraph(data, catalogs)).toThrow('missing catalog entity')
+  expect(() => validateNativeLocalDataGraph(data, catalogs)).toThrow('invalid identity, revision, or contents')
 })
 
 it('rechecks new and reordered collections, duplicate revisions and invalid claims', () => {
-  const first = immutableCatalogSnapshot(catalog()), second = immutableCatalogSnapshot({ ...catalog(), id: 'synthetic-second-catalog' as never })
+  const first = immutableCatalogSnapshot(catalog()), second = immutableCatalogSnapshot(catalog('second'))
   const data = createTestLocalData(), entries = vi.spyOn(Object, 'entries')
   validateNativeLocalDataGraph(data, Object.freeze([first, second]))
   validateNativeLocalDataGraph(data, Object.freeze([second, first]))
@@ -59,22 +64,22 @@ it('rechecks a mutable collection even when all its individual catalogs are admi
 
 it('does not retain a failed cross-catalog lookup and rejects changed dependencies', () => {
   const value = catalog(), entity = Object.values(value.entities)[0]!
-  const dependency = immutableCatalogSnapshot({ ...catalog(), id: 'synthetic-dependency' as never })
-  const needsDependency = immutableCatalogSnapshot({ ...value, entities: { [entity.id]: { ...entity, requirements: { state: 'known', value: [{ kind: 'selected', ref: ref(dependency, Object.keys(dependency.entities)[0]) }] } } } })
+  const dependency = immutableCatalogSnapshot(catalog('dependency'))
+  const needsDependency = immutableCatalogSnapshot(seal({ ...value, entities: { [entity.id]: { ...entity, requirements: { state: 'known', value: [{ kind: 'selected', ref: ref(dependency, Object.keys(dependency.entities)[0]) }] } } } }))
   const invalid = Object.freeze([needsDependency]), data = createTestLocalData()
   for (let attempt = 0; attempt < 2; attempt++) expect(() => validateNativeLocalDataGraph(data, invalid)).toThrow('missing catalog entity')
   expect(() => validateNativeLocalDataGraph(data, Object.freeze([needsDependency, dependency]))).not.toThrow()
-  const changed = immutableCatalogSnapshot({ ...dependency, entities: {} })
+  const changed = immutableCatalogSnapshot(seal({ ...dependency, entities: {} }))
   expect(() => validateNativeLocalDataGraph(data, Object.freeze([needsDependency, changed]))).toThrow('missing catalog entity')
 })
 
-it('keeps unavailable-composition tolerance local to the planner validation', () => {
+it('rejects missing composition dependencies without granting receipt-only admission', () => {
   const data = createTestLocalData(), setup = Object.values(data.gameSetups)[0]!, baseline = immutableCatalogSnapshot(catalog())
-  const layer = WITHDRAWN_CATALOGS.find(value => value.id.startsWith('crystal-edit:'))!
+  const layer = catalog('missing-layer')
   const composition = { baseline: { catalogId: baseline.id, catalogRevisionId: baseline.revisionId }, layers: [{ catalogId: layer.id, catalogRevisionId: layer.revisionId, enabled: true }], links: [] }
   const effective = immutableCatalogSnapshot({ ...catalog(), revisionId: modCatalogRevision(setup.id), schemaVersion: MOD_CATALOG_SCHEMA, legacy: { modBaseline: composition.baseline, modGameSetupRevisionId: setup.id } })
   const catalogs = Object.freeze([baseline, effective])
   const unavailable = { ...data, gameSetups: { ...data.gameSetups, [setup.id]: { ...setup, catalogLock: { [baseline.id]: effective.revisionId }, modComposition: composition } } }
-  expect(() => validateNativeLocalDataGraph(unavailable, catalogs)).not.toThrow()
+  expect(() => validateNativeLocalDataGraph(unavailable, catalogs)).toThrow('unavailable catalog revision')
   expect(() => validatePresentCatalogReferences([ref(effective)], catalogs)).toThrow('missing catalog entity')
 })

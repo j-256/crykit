@@ -1,9 +1,11 @@
+import { crystalEditSourceKey } from '../src/interchange/source-identity'
+import { formatCatalogSourceId, CATALOG_GAME } from '../src/domain/source-identity'
 import { openStatBreakdown } from './calculation-presentation-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, type BrowserContext, type Locator, type Page, type TestInfo } from '@playwright/test'
 import { NATIVE_DATA } from '../src/domain/calculation-rules'
 import type { LocalData } from '../src/domain/types'
-import { SYNTHETIC_LIBRARY_SOURCES, importSyntheticLibrary, modLibraryTest as test } from './mod-library-fixtures'
+import { SYNTHETIC_LIBRARY_SOURCES, SYNTHETIC_LIBRARY_OBSERVATIONS, importSyntheticLibrary, modLibraryTest as test } from './mod-library-fixtures'
 const syntheticSources = { mods: SYNTHETIC_LIBRARY_SOURCES }
 import { CURRENT_CATALOG, DEFAULT_CATALOG, compileBundledSourceId } from '../src/catalog/bundled'
 import { createSampleLocalData } from '../src/domain/sample-data'
@@ -11,7 +13,7 @@ import { createPersonalDefinition } from '../src/domain'
 import { CRYSTAL_PROJECT_WORKSHOP_URL } from '../src/domain/mod-workshop'
 import { expectOfflineReady } from './offline-helpers'
 import { openBuildGameSetup, openGameSetupSection, waitForPlannerReady, selectedGuestPlannerName, readLocalData as storedData } from './local-data-helpers'
-import { currentReferencePath, referencePath } from './reference-helpers'
+import { referencePath } from './reference-helpers'
 import { createHash } from 'node:crypto'
 import { readManagedGuestWorkspace } from './guest-planner-reader'
 import { blobIdentity } from '../src/workspace/blobs'
@@ -39,7 +41,7 @@ function catalogHeading(page: Page, path: string, name: string) {
 }
 
 function currentBloodmageHeading(page: Page) {
-  const path = currentReferencePath('mod:bloodmage:class:ref-1083')
+  const path = referencePath('bloodmage', SYNTHETIC_LIBRARY_OBSERVATIONS.id, SYNTHETIC_LIBRARY_OBSERVATIONS.revisionId, 'Bloodmage')
   return catalogHeading(page, path, 'Bloodmage')
 }
 
@@ -93,8 +95,8 @@ async function finishModLibraryJourney(context: BrowserContext | undefined, star
   }
 }
 
-// Cold legacy admission retains its separate setup deadline and an empty native context
-async function openHistoricalProfile(page: Page): Promise<LocalData> {
+// The boundary starts from an empty browser and preserves the prelaunch profile without migrating it
+async function openAfterPrelaunchBoundary(page: Page): Promise<LocalData> {
   const before = createSampleLocalData({ ...DEFAULT_CATALOG, revisionId: 'catalog-v1' as typeof DEFAULT_CATALOG.revisionId })
   const canonical = createPersonalDefinition(before, { name: 'Synthetic retained definition', kind: 'item' })
   const legacyIds = ['base:class:warrior', 'base:class:cleric', 'base:class:rogue', 'base:class:wizard', 'base:item:short-sword', 'base:item:buckler', 'base:item:breastplate', 'base:item:short-staff', 'base:item:hemp-robe', 'base:item:dirk', 'base:item:leather-outfit', 'base:item:oak-wand']
@@ -127,29 +129,43 @@ async function openHistoricalProfile(page: Page): Promise<LocalData> {
     }
   }), { beforeText: JSON.stringify(historical(before)), afterText: JSON.stringify(historical(canonical)) })
   await page.goto('/#/mods')
+  await expect(page.getByRole('heading', { name: 'A new source catalog', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Start new workspace', exact: true }).click()
   await waitForPlannerReady(page)
   await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
-  expect(await storedData(page)).toEqual(canonical)
-  return canonical
+  const retained = await page.evaluate(() => new Promise((resolve, reject) => {
+    const request = indexedDB.open('crykit')
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const database = request.result, read = database.transaction('localDatas').objectStore('localDatas').get('local-data-record')
+      read.onsuccess = () => { database.close(); resolve(read.result.localData) }
+      read.onerror = () => { database.close(); reject(read.error) }
+    }
+  }))
+  expect(retained).toEqual(historical(canonical))
+  const fresh = await storedData(page)
+  expect(fresh.id).not.toBe(canonical.id)
+  expect(fresh.personalDefinitions).toEqual({})
+  return fresh
 }
 
-test.describe('upgrades a historical browser profile before Reference changes and a new build save', () => {
+test.describe('starts explicitly after a prelaunch profile, then retains launch records through Reference changes', () => {
   test.describe.configure({ mode: 'serial' })
   // Override the inherited seed before Playwright configures manually owned contexts
   test.use({ storageState: { cookies: [], origins: [] } })
   let context: BrowserContext | undefined, page: Page, canonical: LocalData
   let startedAt = 0, checksCompleted = false
-  // These checkpoints share the migrated database; a later checkpoint cannot replace its predecessor
+  // These checkpoints share the new launch workspace; a later checkpoint cannot replace its predecessor
   test.beforeAll(async ({ browser, baseURL, viewport, isMobile, hasTouch, userAgent, deviceScaleFactor, colorScheme, serviceWorkers, ignoreHTTPSErrors }, info) => {
     info.setTimeout(HISTORICAL_PROFILE_SETUP_TIMEOUT_MS)
     startedAt = Date.now()
     context = await browser.newContext({ baseURL, viewport, isMobile, hasTouch, userAgent, deviceScaleFactor, colorScheme, serviceWorkers, ignoreHTTPSErrors })
     page = await context.newPage()
-    canonical = await openHistoricalProfile(page)
+    canonical = await openAfterPrelaunchBoundary(page)
   })
   test.afterAll(async ({}, info) => { await finishModLibraryJourney(context, startedAt, checksCompleted, info) })
 
-  test('retains historical metadata and exact original bytes through Reference changes', { tag: MOBILE_TEST_TAG }, async () => {
+  test('retains saved launch records and exact imported bytes through Reference changes', { tag: MOBILE_TEST_TAG }, async () => {
     await importSyntheticLibrary(page)
     const archive = await archiveDigests(page)
     for (const title of ['Synthetic Shield', ...['Synthetic Moonlight', 'Synthetic Rules'].map(prefix => syntheticSources.mods.find(mod => mod.title.startsWith(prefix))!.title)]) {
@@ -172,7 +188,7 @@ test.describe('upgrades a historical browser profile before Reference changes an
     for (const table of ['catalogs', 'sources', 'evidence', 'imports', 'meta']) expect(afterArchive[table]).toBe(archive[table])
   })
 
-  test('saves and reopens the new Build while retaining the migrated records', { tag: MOBILE_TEST_TAG }, async () => {
+  test('saves and reopens the new Build while retaining earlier launch records', { tag: MOBILE_TEST_TAG }, async () => {
     await page.getByRole('button', { name: 'Game Setups', exact: true }).click()
     await page.getByRole('button', { name: 'New Game Setup', exact: true }).click()
     await page.getByRole('textbox', { name: 'Game Setup label', exact: true }).fill('Synthetic fresh setup')
@@ -207,7 +223,7 @@ test('Reference save failures stay visible beside the action and retry without c
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic Reference save failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic Reference save failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })
@@ -257,7 +273,7 @@ test('a rolled-back save alert stays on screen while scrolling and can be dismis
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic persistent alert failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic persistent alert failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })
@@ -322,7 +338,7 @@ test('Reference retry retains the requested membership after another tab complet
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic Reference retry failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic Reference retry failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })
@@ -545,7 +561,7 @@ test('keeps drafts after rejected planning imports and rolls back a failed save 
     state.__crykitModSaveFaultHits = 0
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { state.__crykitModSaveFaultHits++; IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic mod save failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { state.__crykitModSaveFaultHits++; IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic mod save failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })
@@ -657,7 +673,7 @@ test('keeps source-less named mods and their catalog entries and supports manual
   await expect(page.getByRole('button', { name: 'Remove Mod: Bloodmage filter', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Adventurer', exact: true })).toHaveCount(0)
   await page.goto(`${referencePath('base:job:0')}?library-mod=name%3Abloodmage`)
-  await expect(page.getByText('Reference definition unavailable', { exact: true })).toBeVisible()
+  await expect(page.getByText('Source record unavailable', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Warrior', exact: true })).toHaveCount(0)
   await page.goto('/#/mods')
   await page.getByRole('searchbox', { name: 'Search mods', exact: true }).fill('Bloodmage')
@@ -695,7 +711,7 @@ test('keeps same-name projects distinct and binds manual additions to the chosen
   await editor.getByRole('button', { name: 'Create definition', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Synthetic project observation', exact: true }).first()).toBeVisible()
   const observed = Object.values((await storedData(page)).personalDefinitions).find(definition => definition.name === 'Synthetic project observation')!
-  expect(observed.fields['Source mod project ID']).toEqual({ state: 'known', value: 'crystal-edit:synthetic-unrelated-bloodmage' })
+  expect(observed.fields['Source mod project ID']).toEqual({ state: 'known', value: formatCatalogSourceId({ game: CATALOG_GAME, origin: 'imported', key: await crystalEditSourceKey('synthetic-unrelated-bloodmage') }) })
   await page.goto('/#/mods')
   await page.getByRole('searchbox', { name: 'Search mods', exact: true }).fill('Bloodmage')
   await project.getByRole('button', { name: 'View catalog entries', exact: true }).click()
@@ -785,7 +801,7 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic reference opt-in failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic reference opt-in failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })
@@ -808,7 +824,7 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic reference removal failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic reference removal failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })
@@ -848,7 +864,8 @@ test('browses one temporary catalog without saving it, then explicitly adds it t
   const updatedArchive = await archiveDigests(page)
   await mod.getByRole('button', { name: 'View catalog entries', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Synthetic updated class', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Warrior', exact: true })).toHaveCount(0)
+  await referenceSearch.fill('Warrior')
+  await expect(page.getByRole('heading', { name: 'Warrior', exact: true })).toBeVisible()
   expect(await archiveDigests(page)).toEqual(updatedArchive)
 })
 
@@ -907,7 +924,7 @@ test('keeps failed source reads separate from the standing Reference library', a
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.get
     IDBObjectStore.prototype.get = function (...args) {
-      if (this.name === 'managedChunks' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.get = original; throw new DOMException('Synthetic source read failure', 'UnknownError') }
+      if (this.name === 'managedChunks' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { IDBObjectStore.prototype.get = original; throw new DOMException('Synthetic source read failure', 'UnknownError') }
       return original.apply(this, args)
     }
   })

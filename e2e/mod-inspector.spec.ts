@@ -228,7 +228,7 @@ test('retains a failed save for recovery and retries the same exact draft', asyn
     const originalPut = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof originalPut>) {
       const request = originalPut.apply(this, args)
-      if (this.transaction.db.name === 'crykit-guest-coordinator-v1' && this.name === 'active' && sessionStorage.getItem('synthetic-reject-inspector-write') === 'true') { sessionStorage.setItem('synthetic-reject-inspector-write-fired', 'true'); this.transaction.abort() }
+      if (this.transaction.db.name === 'crykit-catalog-sources-1-coordinator' && this.name === 'active' && sessionStorage.getItem('synthetic-reject-inspector-write') === 'true') { sessionStorage.setItem('synthetic-reject-inspector-write-fired', 'true'); this.transaction.abort() }
       return request
     }
   })
