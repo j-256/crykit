@@ -1,18 +1,19 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import type { ProfileToken } from '../account/profile'
 
 export type WorkspaceSelection = { readonly kind: 'guest'; readonly generation: number } | { readonly kind: 'account'; readonly token: ProfileToken } | { readonly kind: 'locked' | 'opening'; readonly generation: number }
 
-// Account route preferences are volatile and profile-scoped; guest preferences retain their legacy storage
+// Account route preferences are volatile and profile-scoped; guest routes belong to one data generation
 // Never persist private account search text in the guest browser-selection stores
 let accountSelected = false
 const accountPreferences = new Map<string, string>()
 export function selectAccountPreferences(value: boolean): void { accountSelected = value; accountPreferences.clear() }
 export function readSelectionPreference(key: string): string | null {
-  return accountSelected ? accountPreferences.get(key) ?? null : window.sessionStorage.getItem(key)
+  return accountSelected ? accountPreferences.get(key) ?? null : window.sessionStorage.getItem(`${LAUNCH_DATA_GENERATION}:${key}`)
 }
 export function writeSelectionPreference(key: string, value: string): void {
   if (accountSelected) accountPreferences.set(key, value)
-  else window.sessionStorage.setItem(key, value)
+  else window.sessionStorage.setItem(`${LAUNCH_DATA_GENERATION}:${key}`, value)
 }
 export function workspaceSelectionKey(selection: WorkspaceSelection): string {
   return selection.kind === 'account' ? `account:${selection.token.accountId}:${selection.token.generation}` : `${selection.kind}:${selection.generation}`

@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { encodeBackupPage, decodeBackupPage } from './workspace-backup-compression'
 import { BackupFrameSchema, WORKSPACE_BACKUP_MAGIC as MAGIC, WORKSPACE_BACKUP_LIMITS as LIMITS, WORKSPACE_BACKUP_VERSION, WORKSPACE_BACKUP_EVIDENCE_VERSION, BackupManifestV2Schema, WorkspaceBackupError, type BackupFrame, type BackupManifestV2 } from './workspace-backup-schema'
 import { BackupJsonReader, encodeBackupJson } from './workspace-backup-json'
@@ -83,7 +84,7 @@ export async function* exportWorkspaceBackup(snapshot: WorkspaceSnapshot, option
   } else for (const blob of snapshot.state.blobs) yield* content(blobIdentity(blob.ref), 'bytes', blob.content.open())
   // A failed final capture leaves no valid terminal manifest, even if the sink already received partial bytes
   await assertWorkspaceSnapshotCurrent(snapshot)
-  yield* frame({ kind: 'manifest', format: 'crykit-workspace-backup', version: withEvidence ? WORKSPACE_BACKUP_EVIDENCE_VERSION : WORKSPACE_BACKUP_VERSION, frames, bytes, documents: document, chain, vector: await vectorDigest(snapshot.revisionVector) }, new Uint8Array())
+  yield* frame({ kind: 'manifest', dataGeneration: LAUNCH_DATA_GENERATION, format: 'crykit-workspace-backup', version: withEvidence ? WORKSPACE_BACKUP_EVIDENCE_VERSION : WORKSPACE_BACKUP_VERSION, frames, bytes, documents: document, chain, vector: await vectorDigest(snapshot.revisionVector) }, new Uint8Array())
 }
 export async function readWorkspaceBackup(stream: AsyncIterable<Uint8Array>, options: { readonly signal?: AbortSignal } = {}): Promise<WorkspaceSnapshot> {
   const iterator = stream[Symbol.asyncIterator]()
@@ -116,7 +117,9 @@ export async function readWorkspaceBackup(stream: AsyncIterable<Uint8Array>, opt
     while (await next()) if (chunk.length) throw new Error('Trailing backup bytes')
   }
   try {
-    if ((await exact(MAGIC.length)).some((byte, index) => byte !== MAGIC[index])) throw new Error('Unsupported workspace backup')
+    const magic = await exact(MAGIC.length)
+    if (new TextDecoder().decode(magic) === 'CRYKIT-WORKSPACE/1\n') throw new WorkspaceBackupError('UNSUPPORTED_VERSION', 'Prelaunch complete backups are unsupported. Keep the original backup and start a new workspace.')
+    if (magic.some((byte, index) => byte !== MAGIC[index])) throw new Error('Unsupported workspace backup')
     let json = new BackupJsonReader()
     const documents: BackupDocument[] = []
     let current: BlobSource | undefined, route: unknown, encoding: BackupDocument['encoding'] | undefined

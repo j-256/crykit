@@ -7,17 +7,17 @@ import { writePreparedGuestPlanner } from '../persistence/guest-planner-store'
 import { blobIdentity, hashBlob, memoryBlob, readBlob } from './blobs'
 import { validateWorkspaceClosure } from './closure'
 import { requireGuestSuccessorJournal, type GuestSuccessorJournal, type GuestManifestV2 } from './guest-coordinator'
-import { compareGuestEvidence, databaseEvidenceRows, mergeGuestEvidence, readGuestEvidence, emptyPlannerEvidence, guestEvidenceFromFrozenCurrent, type CapturedGuestEvidence, type GuestEvidenceStageWriter } from './guest-evidence'
+import { compareGuestEvidence, databaseEvidenceRows, mergeGuestEvidence, readGuestEvidence, emptyPlannerEvidence, type CapturedGuestEvidence, type GuestEvidenceStageWriter } from './guest-evidence'
 import { readCapturedGuestEvidence } from './guest-evidence-capture'
 import { GuestFilesDatabase, writeGuestFiles } from './guest-files'
 import { assertGuestCurrent, guestParticipants, readGuestWorkspace, type GuestBindings, type GuestCommitOptions } from './guest-workspace'
-import { prepareGuestRestorePlanner, prepareGuestDomainMigration250, requirePreparedGuestPlanner } from './guest-planner'
+import { prepareGuestRestorePlanner, requirePreparedGuestPlanner } from './guest-planner'
 import { readUnselectedGuestCapture } from './guest-snapshot'
 import { withGuestOperationOwner, type GuestOperationOwner } from './guest-ownership'
 import { GUEST_BARRIER_KEY, acquireParticipantBarrier, releaseParticipantBarrier } from './guest-barrier'
 import { captureLegacyBranch, compareHeldLegacyBranch, compareLegacyBranch, holdLegacyReaders, readLegacyCapture, type LegacyCapture, type LegacyParticipant, type HeldLegacyReaders } from './legacy-capture'
 import { equalLegacyValue } from './legacy-value'
-import { backupMetadataDigest, ownWorkspaceSnapshot } from './snapshot'
+import { backupMetadataDigest } from './snapshot'
 import { historicalMetadataIdentity } from '../interchange/workspace-backup-evidence'
 import { WorkspaceError } from './repository'
 import type { WorkspaceState } from './documents'
@@ -160,8 +160,7 @@ async function publish(authority: SuccessorAuthority, assertMayActivate: () => v
   } finally { target.planner.close(); target.inspector.close(); target.files.close() }
 }
 
-export async function commitGuestWorkspaceSuccessor(binding: GuestBindings, next: WorkspaceState, expectedRevision: number, mode: 'additive' | 'replace', options: GuestCommitOptions, domainMigration250 = false): Promise<LoadedLocalData> {
-  if (binding.planner.frozenSource240 !== domainMigration250) throw new Error('A frozen source requires the domain migration path')
+export async function commitGuestWorkspaceSuccessor(binding: GuestBindings, next: WorkspaceState, expectedRevision: number, mode: 'additive' | 'replace', options: GuestCommitOptions): Promise<LoadedLocalData> {
   if (binding.manifest.version !== 2) throw new Error('A selected v2 guest profile is required')
   options.assertMayActivate?.()
   await assertGuestCurrent(binding)
@@ -189,13 +188,9 @@ export async function commitGuestWorkspaceSuccessor(binding: GuestBindings, next
     return { record, declaration, history: await binding.planner.history.toArray() }
   })
   const resolved = preserveInspectorOnlyDrafts(before, captured.state, next)
-  const prepared = domainMigration250 ? prepareGuestDomainMigration250(captured.state.planner, currentTuple) : prepareGuestRestorePlanner(captured.state.planner, resolved.planner, mode, currentTuple, options.command ?? 'workspace-command')
+  const prepared = prepareGuestRestorePlanner(captured.state.planner, resolved.planner, mode, currentTuple, options.command ?? 'workspace-command')
   const preparedPlanner = requirePreparedGuestPlanner(prepared).planner
-  let evidence = await mergeGuestEvidence(selectedEvidence, recoveryEvidence ?? selectedEvidence, { ...emptyPlannerEvidence(), savedChanges: preparedPlanner.savedChanges ?? preparedPlanner.localData.changes })
-  if (domainMigration250) {
-    const original = ownWorkspaceSnapshot({ version: 1, snapshotId: source.id, capturedAt: captured.state.planner.localData.updatedAt, revisionVector: { guest: binding.manifest.id, capture: source.id }, state: captured.state }, { check, dispose: async () => {} })
-    evidence = await mergeGuestEvidence(evidence, await guestEvidenceFromFrozenCurrent(original), evidence.planner)
-  }
+  const evidence = await mergeGuestEvidence(selectedEvidence, recoveryEvidence ?? selectedEvidence, { ...emptyPlannerEvidence(), savedChanges: preparedPlanner.savedChanges ?? preparedPlanner.localData.changes })
   const sources = new Set(preparedPlanner.sources.map(value => blobIdentity(value.original)))
   const blobs = new Map(resolved.blobs.map(blob => [blobIdentity(blob.ref), blob]))
   for (const blob of captured.state.blobs) if (sources.has(blobIdentity(blob.ref)) && !blobs.has(blobIdentity(blob.ref))) blobs.set(blobIdentity(blob.ref), blob)
@@ -279,10 +274,4 @@ export async function commitGuestWorkspaceSuccessor(binding: GuestBindings, next
     return { localData: unselected.state.planner.localData, lineage: unselected.state.planner.lineage, catalogs: unselected.state.planner.catalogs, evidence: unselected.state.planner.evidence, revision: unselected.state.planner.localData.revision, canUndo: unselected.state.planner.journal?.undoable ?? false }
   } catch (error) { await markBlocked(authority).catch(() => {}); throw error }
   finally { planner.close(); inspector.close(); files.close() }
-}
-
-export async function migrateSelectedGuest250(binding: GuestBindings, assertMayActivate?: () => void): Promise<LoadedLocalData> {
-  if (!binding.planner.frozenSource240) throw new Error('The selected source is not the frozen 2.4 format')
-  const source = await readGuestWorkspace(binding)
-  return commitGuestWorkspaceSuccessor(binding, source, source.planner.localData.revision, 'additive', { assertMayActivate }, true)
 }

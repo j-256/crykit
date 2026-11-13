@@ -5,10 +5,9 @@ import { withBuildReferenceNames } from './build-reference-names'
 import { asTimestamp, assertExpectedRevision, createId, DomainError, entityDefinitionKey, nowTimestamp, updateLocalData } from './core'
 import { buildModReferences } from './build-references'
 import { sameBuildBehavior } from './build-behavior'
-import { checkpointContentDigest } from './checkpoint-identity'
 import { sameValue } from './definition-values'
 import { MAX_SHORT_TEXT_LENGTH } from './limits'
-import { NativeLocalDataSchema, StoredPre250LocalDataSchema } from '../interchange/native-schema'
+import { NativeLocalDataSchema } from '../interchange/native-schema'
 import { validateNativeLocalDataGraph } from '../interchange/native'
 import type { BuildRevisionId, CatalogRevisionId, CatalogSnapshot, CheckpointRef, GameSetupRevisionId, LocalData, TeamId, TeamRevision, TeamRevisionId, TeamSlotCheckpoint, TeamSlotCheckpointId, Timestamp } from './types'
 
@@ -83,33 +82,10 @@ export function equivalentTeamSetup(localData: Pick<LocalData, 'gameSetups' | 'b
   return revisions.every(value => sameBuildBehavior(localData.gameSetups[first.gameSetupRevisionId], localData.gameSetups[value!.gameSetupRevisionId]) && sameValue(first.catalogLock, value!.catalogLock)) ? first : undefined
 }
 
-export function migrateLocalData250(value: unknown, catalogs: readonly CatalogSnapshot[]): LocalData {
-  if (value && typeof value === 'object' && 'schemaVersion' in value && value.schemaVersion === '2.5.0') {
-    const current = NativeLocalDataSchema.parse(value) as unknown as LocalData
-    validateNativeLocalDataGraph(current, catalogs)
-    return current
-  }
-  const original = StoredPre250LocalDataSchema.parse(value)
-  // Validate the original graph before copying so migration cannot conceal missing or foreign lineage
-  validateNativeLocalDataGraph(original as unknown as LocalData, catalogs)
-  const teamRevisions: Record<string, TeamRevision> = {}
-  const teams: Record<string, LocalData['teams'][string]> = {}
-  for (const team of Object.values(original.teams)) {
-    const equivalent = equivalentTeamSetup(original as unknown as LocalData, team.slots as (BuildRevisionId | null)[])
-    if (!equivalent) { teams[team.id] = { ...team, kind: 'legacy-mixed' } as unknown as LocalData['teams'][string]; continue }
-    // Historical endpoints may contain different contents for one legacy Team identity
-    // Include the exact captured content and context so immutable IDs remain stable without aliasing those endpoints
-    const revisionId = `teamMigration:${checkpointContentDigest({ team, setup: equivalent.gameSetupRevisionId, catalogLock: equivalent.catalogLock, slots: team.slots.map(id => id ? original.buildRevisions[id]!.content : null) })}` as TeamRevisionId
-    const slots = team.slots.map((sourceId, index) => sourceId ? { id: `slot:${index}` as TeamSlotCheckpointId, content: structuredClone(original.buildRevisions[sourceId]!.content), sourceBuildRevisionId: sourceId as BuildRevisionId, createdAt: team.updatedAt as Timestamp } : null)
-    teamRevisions[revisionId] = { id: revisionId, teamId: team.id as TeamId, revision: 0, gameSetupRevisionId: equivalent.gameSetupRevisionId, catalogLock: { ...equivalent.catalogLock }, slots: slots as TeamRevision['slots'], createdAt: team.updatedAt as Timestamp }
-    const { slots: _slots, ...metadata } = team
-    teams[team.id] = { ...metadata, kind: 'shared', latestRevisionId: revisionId } as LocalData['teams'][string]
-  }
-  const refs = (assignments: Readonly<Record<string, string | null>>) => Object.fromEntries(Object.entries(assignments).map(([id, revisionId]) => [id, revisionId === null ? null : { kind: 'build' as const, revisionId }]))
-  const result = { ...original, schemaVersion: '2.5.0', teams, teamRevisions, playthroughs: Object.fromEntries(Object.entries(original.playthroughs).map(([id, playthrough]) => [id, { ...playthrough, scenarios: Object.fromEntries(Object.entries(playthrough.scenarios).map(([id, scenario]) => [id, { ...scenario, assignments: refs(scenario.assignments), baseline: scenario.baseline.kind === 'recordedParty' ? { ...scenario.baseline, assignments: refs(scenario.baseline.assignments) } : scenario.baseline }])) }])) }
-  const next = NativeLocalDataSchema.parse(result) as unknown as LocalData
-  validateNativeLocalDataGraph(next, catalogs)
-  return next
+export function admitLaunchLocalData(value: unknown, catalogs: readonly CatalogSnapshot[]): LocalData {
+  const current = NativeLocalDataSchema.parse(value) as unknown as LocalData
+  validateNativeLocalDataGraph(current, catalogs)
+  return current
 }
 
 // Compatibility view only: no caller may persist these Build-shaped Team slots or update their source Builds

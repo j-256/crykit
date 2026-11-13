@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { expect, it, vi } from 'vitest'
 import { installProfile, invalidateProfile } from '../account/profile'
@@ -8,7 +9,7 @@ import { LocalWorkspaceRootV3Schema } from './local-root'
 import { createPersonalDefinition } from '../domain'
 import { editorClosureFixture } from './test-helpers'
 import { prepareAccountWorkspace } from './account-graph'
-import { captureWorkspaceSnapshot, disposeWorkspaceSnapshot, openHistoricalSnapshot, ownWorkspaceSnapshot } from './snapshot'
+import { ownWorkspaceSnapshot } from './snapshot'
 import { createGuestCopyService } from './guest-copy'
 import { blobIdentity, readBlob } from './blobs'
 
@@ -40,7 +41,7 @@ it('opens a completed first guest copy without another storage conversion or enc
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   const database = new AccountDatabase(token.accountId), fixture = await editorClosureFixture()
   const state = { ...fixture.state, editorDocuments: [fixture.file] }
-  const original = ownWorkspaceSnapshot({ version: 1, snapshotId: 'first-account-copy', capturedAt: fixture.file.updatedAt, revisionVector: {}, state }, { check: async () => {}, dispose: async () => {} })
+  const original = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'first-account-copy', capturedAt: fixture.file.updatedAt, revisionVector: {}, state }, { check: async () => {}, dispose: async () => {} })
   const service = createGuestCopyService(async () => original)
   try {
     const preview = await service.previewGuestCopy(token, ['["editor","editor-1"]'])
@@ -66,49 +67,19 @@ it('opens a completed first guest copy without another storage conversion or enc
   } finally { await service.dispose(); database.close(); invalidateProfile() }
 }, 30_000)
 
-it('migrates an existing native account on opening and preserves the exact native original and operative planner', async () => {
-  const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
-  let backup: Awaited<ReturnType<typeof captureWorkspaceSnapshot>> | undefined
-  try {
-    const fixture = await editorClosureFixture(), native = await prepareAccountWorkspace(database, token, fixture.state)
-    const old = await activateLocalAccountCommit(database, token, { version: 1, id: accountLocalId(), expected: undefined, head: native.head, records: native.records, intentStatus: 'mapped-local' })
-    const rows = await database.encryptedRevisions.toArray(), chunks = await database.stagedCipherChunks.toArray()
-    const repository = await openAccountRepository(token), selected = (await database.profileMeta.get('active'))!
-    expect(selected.head).not.toEqual(old.head)
-    expect((await openAccountJson(database, token, selected.head, LocalWorkspaceRootV3Schema)).kind).toBe('incremental-local-workspace')
-    expect((await repository.readWorkspace()).planner).toEqual(fixture.state.planner)
-    for (const row of rows) expect(await database.encryptedRevisions.get(row.revisionId)).toEqual(row)
-    for (const chunk of chunks) expect(await database.stagedCipherChunks.get([chunk.payloadId, chunk.index])).toEqual(chunk)
-    backup = await captureWorkspaceSnapshot(repository)
-    if (backup.version !== 2) throw new Error('The native account original was not retained')
-    const historical = await openHistoricalSnapshot(backup, backup.historicalEvidence.snapshots[0]!.id)
-    try { expect(historical.state.planner).toEqual(fixture.state.planner); expect(historical.state.editorDocuments).toEqual(fixture.state.editorDocuments) }
-    finally { await disposeWorkspaceSnapshot(historical) }
-    const repeated = await openAccountRepository(token)
-    expect((await repeated.readWorkspace()).planner).toEqual(fixture.state.planner)
-    expect(await database.profileMeta.get('active')).toEqual(selected)
-  } finally { if (backup) await disposeWorkspaceSnapshot(backup); database.close(); invalidateProfile() }
-}, 30_000)
-
-it('rolls back failed opening migration and preserves the native source for retry', async () => {
+it('rejects unsupported selected account layouts without changing encrypted records or pending work', async () => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
   try {
     const fixture = await editorClosureFixture(), native = await prepareAccountWorkspace(database, token, fixture.state)
     const old = await activateLocalAccountCommit(database, token, { version: 1, id: accountLocalId(), expected: undefined, head: native.head, records: native.records, intentStatus: 'mapped-local' })
-    const rows = await database.encryptedRevisions.toArray(), chunks = await database.stagedCipherChunks.toArray(), journal = await database.migrationJournal.toArray()
-    const put = IDBObjectStore.prototype.put
-    const failed = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, ...args: Parameters<typeof put>) {
-      if (this.name === 'profileMeta') throw new DOMException('Synthetic migration activation failure', 'QuotaExceededError')
-      return put.apply(this, args)
-    })
-    await expect(openAccountRepository(token)).rejects.toThrow('Synthetic migration activation failure')
+    const rows = await database.encryptedRevisions.toArray(), chunks = await database.stagedCipherChunks.toArray(), journal = await database.migrationJournal.toArray(), pending = await database.outbox.toArray()
+    await expect(openAccountRepository(token)).rejects.toThrow('unsupported prelaunch format')
     expect(await database.profileMeta.get('active')).toEqual(old)
     expect(await database.migrationJournal.toArray()).toEqual(journal)
-    for (const row of rows) expect(await database.encryptedRevisions.get(row.revisionId)).toEqual(row)
-    for (const chunk of chunks) expect(await database.stagedCipherChunks.get([chunk.payloadId, chunk.index])).toEqual(chunk)
-    failed.mockRestore()
-    expect((await (await openAccountRepository(token)).readWorkspace()).planner).toEqual(fixture.state.planner)
-  } finally { vi.restoreAllMocks(); database.close(); invalidateProfile() }
+    expect(await database.encryptedRevisions.toArray()).toEqual(rows)
+    expect(await database.stagedCipherChunks.toArray()).toEqual(chunks)
+    expect(await database.outbox.toArray()).toEqual(pending)
+  } finally { database.close(); invalidateProfile() }
 }, 30_000)
 
 it('concurrent first openings use one selected managed root without reseeding', async () => {

@@ -1,3 +1,4 @@
+import { encodeCatalogPayload } from './catalog-codec'
 import { z } from 'zod'
 import { parseBoundedJson, NATIVE_BACKUP_JSON_LIMITS } from '../interchange/json'
 import { maxDocumentBytes } from '../account/protocol'
@@ -59,8 +60,10 @@ async function* framedBody(source: BlobSource, expected?: Metadata, onMetadata?:
 }
 
 export function workspaceDocumentSource(document: WorkspaceDocument): BlobSource {
-  const binary = isBlobSource(document.value)
-  const source = binary ? document.value as BlobSource : memoryBlob(utf8.encode(JSON.stringify(document.value)))
+  // Every framed catalog uses one physical representation, including digest reconstruction for retained evidence
+  const value = document.kind === 'catalog' ? encodeCatalogPayload(document.value as unknown as import('../domain/types').CatalogSnapshot) as WorkspaceDocument['value'] : document.value
+  const binary = isBlobSource(value)
+  const source = binary ? value as BlobSource : memoryBlob(utf8.encode(JSON.stringify(value)))
   const metadata = metadataSchema.parse({ version: document.version, kind: document.kind, key: document.key, encoding: binary ? 'bytes' : 'json', byteLength: source.byteLength })
   const bytes = utf8.encode(JSON.stringify(metadata))
   if (bytes.length > INDEX_PAGE_BYTES) throw new Error('Document frame metadata exceeds bound')

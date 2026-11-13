@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { immutableHistory, immutableHistoryEndpoint, parseImmutableHistory } from './history-admission'
 import { WORKSPACE_STARTUP_PHASE } from '../diagnostics/workspace-startup'
 import { z } from 'zod'
@@ -13,7 +14,7 @@ import { compactModCatalog } from '../domain/mod-layers'
 import { immutableCatalogSnapshot, isImmutableCatalogSnapshot, immutableExpandedModCatalogs } from '../interchange/native'
 import { NativeHistorySchema, NativeLocalDataSchema } from '../interchange/native-schema'
 import { capturedWorkspaceBody, decodeWorkspaceDocument, workspaceDocumentSource } from './document-codec'
-import { decodeCatalogPayload, encodeCatalogPayload } from './catalog-codec'
+import { decodeCatalogPayload } from './catalog-codec'
 import { blobIdentity, hashBlob, memoryBlob, readBlob, verifiedBlob } from './blobs'
 import { parseBoundedJson, NATIVE_BACKUP_JSON_LIMITS } from '../interchange/json'
 import { maxDocumentBytes } from '../account/protocol'
@@ -29,7 +30,7 @@ export interface CapturedLocalLifetime { check(): void; assertCurrent(): Promise
 const refSchema = z.strictObject({ documentId: z.string().min(1), revisionId: z.string().min(1) })
 const integer = z.number().int().nonnegative().safe()
 export const LocalWorkspaceRootV3Schema = z.strictObject({
-  version: z.literal(3), kind: z.literal('incremental-local-workspace'), lineageId: z.string().min(1),
+  dataGeneration: z.literal(LAUNCH_DATA_GENERATION), version: z.literal(3), kind: z.literal('incremental-local-workspace'), lineageId: z.string().min(1),
   localRevision: integer, localUpdatedAt: z.string(), contentIndex: refSchema, allocationIndex: refSchema,
   bookkeepingIndex: refSchema, operativeChanges: refSchema, destinationChanges: refSchema, hasSavedChanges: z.boolean(), historyIndex: refSchema, inheritedEvidence: refSchema,
   journal: z.strictObject({ version: z.literal(1), checkpoints: refSchema, undoable: z.boolean() }).optional(),
@@ -206,7 +207,7 @@ export async function prepareLocalWorkspace(adapter: LocalStoreAdapter, operatio
   for (const [key, value] of documents) {
     const old = oldEntries.get(key)
     if (old && prior?.documents.get(key) === value) { entries.push(old); continue }
-    const document = value.document.kind === 'catalog' ? { ...value.document, value: encodeCatalogPayload(value.document.value as unknown as import('../domain/types').CatalogSnapshot) as WorkspaceDocument['value'] } : value.document
+    const document = value.document
     const source = workspaceDocumentSource(document), digest = await hashBlob(source)
     const ref = old?.digest === digest ? old.ref : await adapter.stage(operationId, source, [], old?.ref)
     lifetime.check()
@@ -254,7 +255,7 @@ export async function prepareLocalWorkspace(adapter: LocalStoreAdapter, operatio
   const journal = await prepareLocalHistory(state.planner.journal?.checkpoints ?? [], value => { const original = byId.get(value.id); return original?.value === value ? Promise.resolve(original.ref) : writeHistory(value) }, prior?.journal, endpoints)
   const journalIndex = await prepareLocalIndex(journal.entries, page => stageJson(page, [...page.children, ...page.entries.map(entry => entry.ref)]), prior?.journalIndex)
   const evidence = inheritedEvidence ?? previous?.root.inheritedEvidence ?? await stageJson({ version: 1, kind: 'local-inherited-evidence', roots: [] }, [])
-  const root = LocalWorkspaceRootV3Schema.parse({ version: 3, kind: 'incremental-local-workspace', lineageId: previous?.root.lineageId ?? crypto.randomUUID(), localRevision: local.revision, localUpdatedAt: local.updatedAt, contentIndex: index.root, allocationIndex: allocations.root, bookkeepingIndex: bookkeeping.root, operativeChanges: changes.root, destinationChanges: destination.root, hasSavedChanges: !!state.planner.savedChanges, historyIndex: history.root, inheritedEvidence: evidence, ...(state.planner.journal ? { journal: { version: 1, checkpoints: journalIndex.root, undoable: state.planner.journal!.undoable } } : {}), selections })
+  const root = LocalWorkspaceRootV3Schema.parse({ dataGeneration: LAUNCH_DATA_GENERATION, version: 3, kind: 'incremental-local-workspace', lineageId: previous?.root.lineageId ?? crypto.randomUUID(), localRevision: local.revision, localUpdatedAt: local.updatedAt, contentIndex: index.root, allocationIndex: allocations.root, bookkeepingIndex: bookkeeping.root, operativeChanges: changes.root, destinationChanges: destination.root, hasSavedChanges: !!state.planner.savedChanges, historyIndex: history.root, inheritedEvidence: evidence, ...(state.planner.journal ? { journal: { version: 1, checkpoints: journalIndex.root, undoable: state.planner.journal!.undoable } } : {}), selections })
   const head = await stageJson(root, [index.root, allocations.root, bookkeeping.root, history.root, journalIndex.root, destination.root, evidence, ...(changes ? [changes.root] : [])])
   await lifetime.assertCurrent(); lifetime.check()
   return { head, snapshot: snapshot(head, root, state, { adapter, lifetime, documents, index, allocations, bookkeeping, history, destination, journal, originals, journalIndex }) }

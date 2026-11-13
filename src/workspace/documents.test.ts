@@ -50,7 +50,7 @@ describe('independent private records', () => {
     assembleWorkspace(splitWorkspace(original), 0)
     const changed = { ...BUNDLED_CATALOGS[0], claims: [{ entityId: 'synthetic-missing' as never, field: 'name', value: { state: 'known' as const, value: 'Synthetic missing entity' }, sources: [] }] }
     const documents = splitWorkspace(original).map(document => document.kind === 'catalog' && Object.is(document.value, BUNDLED_CATALOGS[0]) ? { ...document, value: changed as never } : document)
-    expect(() => assembleWorkspace(documents, 0)).toThrow('unknown entity')
+    expect(() => assembleWorkspace(documents, 0)).toThrow('source payload')
   })
   it('preserves binary frames and rejects trailing or truncated bytes', async () => {
     const value = memoryBlob(new Uint8Array([0, 255, 128, 7]))

@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { afterEach, expect, it, vi } from 'vitest'
 import { installProfile, invalidateProfile } from '../account/profile'
@@ -40,7 +41,7 @@ async function original(long = false): Promise<WorkspaceSnapshotV1> {
   const sha256 = await hashBlob(content)
   const aliases = ['zz-alias', 'aa-alias'].map(documentId => ({ ref: { documentId, revisionId: 'same-bytes', encoding: 'bytes' as const, byteLength: content.byteLength, sha256 }, content }))
   const file = { ...fixture.file, unfinished: { ...fixture.file.unfinished, fieldState: { zeta: long ? 'private-C\ud800'.repeat(MULTIPAGE_DRAFT_REPEATS) : 'private-C', alpha: 'last' } } }
-  return { version: 1, snapshotId: 'synthetic-C-history', capturedAt: '2026-10-12', revisionVector: {}, state: { ...fixture.state, editorDocuments: [file], blobs: [...aliases, ...fixture.state.blobs] } }
+  return { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'synthetic-C-history', capturedAt: '2026-10-12', revisionVector: {}, state: { ...fixture.state, editorDocuments: [file], blobs: [...aliases, ...fixture.state.blobs] } }
 }
 
 it('independently reopens exact original token pages and native subset order under the destination account', async () => {

@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { afterEach, expect, it } from 'vitest'
 import { AccountDatabase } from '../../persistence/account-database'
@@ -41,7 +42,7 @@ it('borrows an exact live archive for readback while different, forged and expir
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   database = new AccountDatabase(token.accountId)
   const fixture = await editorClosureFixture()
-  const snapshot = await inheritWorkspaceSnapshot({ version: 1, snapshotId: 'readback-original', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: fixture.state }, [])
+  const snapshot = await inheritWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'readback-original', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: fixture.state }, [])
   const owner = evidence.createAccountInheritedEvidencePreparation(database, token), other = evidence.createAccountInheritedEvidencePreparation(database, token)
   try {
     const archive = await owner.prepare({ additions: [snapshot] }), different = await other.prepare({})

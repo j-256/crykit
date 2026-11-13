@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { captureGuestWorkspaceEpoch } from '../account/profile'
 import { joinWorkspaceSnapshotEvidence } from '../interchange/workspace-backup-evidence'
 import type { GuestCoordinatorDatabase } from './guest-coordinator'
@@ -26,7 +27,7 @@ export async function captureManagedGuestSnapshot(database: GuestCoordinatorData
       for await (const bytes of body.content.open()) { await check(); yield bytes }
       await check()
     } } })) }
-    const value: WorkspaceSnapshotV1 = { version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { guest: manifest.id, managedRoot: JSON.stringify(manifest.root), managedRevision: String(manifest.revision) }, state }
+    const value: WorkspaceSnapshotV1 = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { guest: manifest.id, managedRoot: JSON.stringify(manifest.root), managedRevision: String(manifest.revision) }, state }
     await validateWorkspaceSnapshot(value); await check()
     const current = ownWorkspaceSnapshot(value, { check, dispose })
     return inherited ? await joinWorkspaceSnapshotEvidence(current, guestEvidenceSources(inherited), { signal: profile.signal }) : current

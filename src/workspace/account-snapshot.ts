@@ -1,8 +1,9 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import type { AccountFence } from '../persistence/account-database'
 import type { AccountDatabase } from '../persistence/account-database'
 import type { ProfileToken } from '../account/profile'
 import type { OpenAccountWorkspace } from './account-graph'
-import { ARCHIVAL_DOCUMENT_KINDS, inspectWorkspaceClosure } from './closure'
+import { ARCHIVAL_DOCUMENT_KINDS, inspectWorkspaceClosures } from './closure'
 import { archiveWorkspaceUnit } from './pending-content'
 import { blobIdentity } from './blobs'
 import { splitWorkspace } from './documents'
@@ -22,8 +23,8 @@ export async function captureAccountSnapshot(workspace: OpenAccountWorkspace, fe
   }
   const state = { ...workspace.state, blobs: [...output.values()] }
   const retained = new Set<string>()
-  for (const unit of units) for (const id of (await inspectWorkspaceClosure(state, unit.closure)).refs) retained.add(id)
-  const snapshot: WorkspaceSnapshot = { version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { committed: JSON.stringify([fence.headRevision, fence.head.documentId, fence.head.revisionId]), entries: await backupMetadataDigest(workspace.entries) }, state, sourceEvidence: { version: 1, units, blobs: [...retained].map(id => output.get(id)!.ref) } }
+  for (const inspected of await inspectWorkspaceClosures(state, units.map(unit => unit.closure))) for (const id of inspected.refs) retained.add(id)
+  const snapshot: WorkspaceSnapshot = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { committed: JSON.stringify([fence.headRevision, fence.head.documentId, fence.head.revisionId]), entries: await backupMetadataDigest(workspace.entries) }, state, sourceEvidence: { version: 1, units, blobs: [...retained].map(id => output.get(id)!.ref) } }
   await validateWorkspaceSnapshot(snapshot)
   let disposed = false
   const check = async () => {

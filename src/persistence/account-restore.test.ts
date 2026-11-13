@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { afterEach, expect, it } from 'vitest'
 import { AccountDatabase, activateLocalAccountCommit } from './account-database'
@@ -23,7 +24,7 @@ it('restoresAnOwnedBackupWithOneGuardedPointerAndRetainsExactOriginalsForExport'
   const initial = await prepareAccountWorkspace(database, token, blank)
   const old = await activateLocalAccountCommit(database, token, { version: 1, id: accountLocalId(), expected: undefined, head: initial.head, records: initial.records })
   const fixture = await editorClosureFixture()
-  const source: WorkspaceSnapshotV1 = { version: 1, snapshotId: 'owned-editor-restore', capturedAt: '2026-10-13', revisionVector: {}, state: { ...fixture.state, editorDocuments: [{ ...fixture.file, unfinished: { ...fixture.file.unfinished, fieldState: { original: '\ud800' } } }] } }
+  const source: WorkspaceSnapshotV1 = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'owned-editor-restore', capturedAt: '2026-10-13', revisionVector: {}, state: { ...fixture.state, editorDocuments: [{ ...fixture.file, unfinished: { ...fixture.file.unfinished, fieldState: { original: '\ud800' } } }] } }
   const backup = await readWorkspaceBackup(exportWorkspaceBackup(source))
   let stage: Awaited<ReturnType<typeof stageAccountWorkspaceRestore>> | undefined
   try {

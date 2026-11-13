@@ -1,3 +1,4 @@
+import { decodeCatalogPayload } from './catalog-codec'
 import { MappingRelationSchema, MappingFrameRelationSchema, mappingRoots, inspectMappingFrames, type MappingRelation } from './mapping-closure'
 import { PersonalLineageRelationSchema, validatePersonalLineage, type PersonalLineageRelation } from './lineage-closure'
 import { BuildCopyRelationSchema, buildCopyRoots, validateBuildCopy, assertBuildCopyOriginals, type BuildCopyInspection } from './build-copy'
@@ -13,8 +14,6 @@ import { splitWorkspace, type WorkspaceState, type BlobSource, type WorkspaceDoc
 import { INDEX_PAGE_BYTES, INDEX_PAGE_ENTRIES } from './directory'
 import { EditorWorkspaceDocumentSchema, SaveWorkspaceDocumentSchema, WorkspaceAssetSchema, WorkspaceBlobRefSchema, WorkspaceConflictSchema, WorkspaceRetainedContentSchema } from './file-schemas'
 import { resolvedDomainClosureKeys } from './domain-closure'
-import { decodeWorkspaceDocument } from './document-codec'
-import { PackagedCatalogPinSchema } from './catalog-codec'
 import { validateWorkspace } from './validation'
 
 // Archive kinds are an allowlist: control, operational commands and conflict indexes never masquerade as domain units
@@ -23,7 +22,7 @@ const entrySchema = z.object({ version: z.literal(1), ref: WorkspaceBlobRefSchem
 const pageSchema = z.object({ version: z.literal(1), kind: z.literal('conflict-closure-page'), entries: z.array(entrySchema), children: z.array(WorkspaceBlobRefSchema) }).strict().refine(value => value.entries.length + value.children.length <= INDEX_PAGE_ENTRIES)
 const directorySchema = z.object({ version: z.literal(1), kind: z.literal('directory'), shard: z.number().int().min(0).max(63), entries: z.array(z.object({ key: z.string(), documentId: z.string() }).strict()), children: z.array(WorkspaceBlobRefSchema) }).strict().refine(value => value.entries.length + value.children.length <= INDEX_PAGE_ENTRIES)
 const mappingSchema = z.object({ version: z.literal(1), kind: z.literal('directory-mapping-unit'), privateKey: z.string(), shard: z.number().int().min(0).max(63), shardEvidence: WorkspaceBlobRefSchema, allocation: z.discriminatedUnion('kind', [z.object({ kind: z.literal('absent') }).strict(), z.object({ kind: z.literal('present'), sourceDocumentId: z.string(), valueRoot: WorkspaceBlobRefSchema }).strict()]) }).strict()
-export const WorkspaceUnitIndexSchema = z.object({ version: z.literal(1), kind: z.literal('unit-index'), roots: z.array(WorkspaceBlobRefSchema).max(INDEX_PAGE_ENTRIES), relation: z.discriminatedUnion('kind', [MappingRelationSchema, MappingFrameRelationSchema, PersonalLineageRelationSchema, BuildCopyRelationSchema, z.object({ kind: z.literal('unit'), privateKey: z.string(), primary: WorkspaceBlobRefSchema }).strict(), z.object({ kind: z.literal('catalog-expansion'), privateKey: z.string(), evidence: WorkspaceBlobRefSchema, materialized: WorkspaceBlobRefSchema, id: z.string(), revisionId: z.string(), checksum: z.string() }).strict(), SourceBookkeepingSchema.omit({ version: true }).extend({ scenario: WorkspaceBlobRefSchema, owner: WorkspaceBlobRefSchema, baselineCheckpoints: SourceBookkeepingSchema.shape.baselineCheckpoints.element.extend({ ref: WorkspaceBlobRefSchema }).array().max(TEAM_SIZE) }).strict(), ConflictSuccessorEvidenceSchema.extend({ body: WorkspaceBlobRefSchema }), z.object({ kind: z.literal('publication-source'), publication: OriginalPublicationSchema, body: WorkspaceBlobRefSchema }).strict(), z.object({ kind: z.literal('page') }).strict(), z.object({ kind: z.literal('retaining-edges'), privateKey: z.string(), owner: WorkspaceBlobRefSchema }).strict()]) }).strict()
+export const WorkspaceUnitIndexSchema = z.object({ version: z.literal(1), kind: z.literal('unit-index'), roots: z.array(WorkspaceBlobRefSchema).max(INDEX_PAGE_ENTRIES), relation: z.discriminatedUnion('kind', [MappingRelationSchema, MappingFrameRelationSchema, PersonalLineageRelationSchema, BuildCopyRelationSchema, z.object({ kind: z.literal('unit'), privateKey: z.string(), primary: WorkspaceBlobRefSchema }).strict(), SourceBookkeepingSchema.omit({ version: true }).extend({ scenario: WorkspaceBlobRefSchema, owner: WorkspaceBlobRefSchema, baselineCheckpoints: SourceBookkeepingSchema.shape.baselineCheckpoints.element.extend({ ref: WorkspaceBlobRefSchema }).array().max(TEAM_SIZE) }).strict(), ConflictSuccessorEvidenceSchema.extend({ body: WorkspaceBlobRefSchema }), z.object({ kind: z.literal('publication-source'), publication: OriginalPublicationSchema, body: WorkspaceBlobRefSchema }).strict(), z.object({ kind: z.literal('page') }).strict(), z.object({ kind: z.literal('retaining-edges'), privateKey: z.string(), owner: WorkspaceBlobRefSchema }).strict()]) }).strict()
 export type WorkspaceUnitIndex = z.infer<typeof WorkspaceUnitIndexSchema>
 function sameRefs(left: readonly WorkspaceBlobRef[], right: readonly WorkspaceBlobRef[]) {
   const canonical = (refs: readonly WorkspaceBlobRef[]) => [...new Map(refs.map(ref => [blobIdentity(ref), JSON.stringify([ref.documentId, ref.revisionId, ref.byteLength, ref.sha256, ref.encoding])])).values()].sort()
@@ -54,14 +53,14 @@ export function archiveTypedReferences(kind: WorkspaceDocument['kind'], value: u
 // Reuse parsing only for its exact body/source binding; each unit still validates its own edges,
 // identities and authority, and a later validation invocation reads and hashes everything again
 type ParsedClosureBodies = WeakMap<BlobSource, { open: BlobSource['open']; byteLength: number; values: Map<string, Promise<ReturnType<typeof parseBoundedJson>>> }>
-async function closureJson(ref: WorkspaceBlobRef, source: BlobSource, limit: number, parsed: ParsedClosureBodies): Promise<ReturnType<typeof parseBoundedJson>> {
+async function closureJson(ref: WorkspaceBlobRef, source: BlobSource, limit: number, parsed: ParsedClosureBodies, catalog = false): Promise<ReturnType<typeof parseBoundedJson>> {
   if (ref.byteLength > limit || source.byteLength > limit) throw new Error('Retained workspace content exceeds its bound')
   let cached = parsed.get(source)
   if (cached && (cached.open !== source.open || cached.byteLength !== source.byteLength)) throw new Error('Closure body source changed during validation')
   if (!cached) { cached = { open: source.open, byteLength: source.byteLength, values: new Map() }; parsed.set(source, cached) }
-  const key = JSON.stringify([ref.documentId, ref.revisionId, ref.byteLength, ref.sha256, ref.encoding])
+  const key = JSON.stringify([ref.documentId, ref.revisionId, ref.byteLength, ref.sha256, ref.encoding, catalog])
   let value = cached.values.get(key)
-  if (!value) { value = readBlob(source, limit).then(bytes => parseBoundedJson(bytes, 'retained workspace content', NATIVE_BACKUP_JSON_LIMITS)); cached.values.set(key, value) }
+  if (!value) { value = readBlob(source, limit).then(bytes => parseBoundedJson(bytes, 'retained workspace content', NATIVE_BACKUP_JSON_LIMITS)).then(value => catalog ? decodeCatalogPayload(value) as ReturnType<typeof parseBoundedJson> : value); cached.values.set(key, value) }
   return value
 }
 
@@ -77,7 +76,7 @@ async function inspectClosure(state: WorkspaceState, closure: WorkspaceConflictC
     if (!blob || !sameRefs([blob.ref], [ref])) throw new Error('Missing or foreign closure reference')
     refs.add(blobIdentity(ref)); return blob.content
   }
-  const json = async (ref: WorkspaceBlobRef, limit: number) => closureJson(ref, get(ref), limit, parsed)
+  const json = async (ref: WorkspaceBlobRef, limit: number, catalog = false) => closureJson(ref, get(ref), limit, parsed, catalog)
   async function page(ref: WorkspaceBlobRef): Promise<void> {
     const id = blobIdentity(ref)
     if (pending.has(id)) throw new Error('Cyclic closure pages')
@@ -148,7 +147,7 @@ async function inspectClosure(state: WorkspaceState, closure: WorkspaceConflictC
   }
   const metadata = new Map<string, WorkspaceDocument>(), metadataByRef = new Map<string, WorkspaceDocument>()
   for (const entry of entries.values()) if (entry.encoding === 'json') {
-    const document: WorkspaceDocument = { version: 1, key: entry.key, kind: entry.kind, value: await json(entry.ref, maxDocumentBytes) }
+    const document: WorkspaceDocument = { version: 1, key: entry.key, kind: entry.kind, value: await json(entry.ref, maxDocumentBytes, entry.kind === 'catalog') }
     metadataByRef.set(blobIdentity(entry.ref), document)
     if (entry.kind !== 'directory-mapping-unit' && entry.kind !== 'unit-index') {
       if (metadata.has(entry.key)) throw new Error('Contradictory typed unit identity')
@@ -237,13 +236,7 @@ async function inspectClosure(state: WorkspaceState, closure: WorkspaceConflictC
         validateSourceBookkeeping(evidence, { ref: relation.scenario, document: scenario }, { ref: relation.owner, document: owner })
         validateSourceCheckpoints(evidence, { ref: relation.scenario, document: scenario }, relation.baselineCheckpoints.map(value => ({ ref: value.ref, document: metadataByRef.get(blobIdentity(value.ref))! })))
       } else {
-        if (!sameRefs(index.roots, [relation.evidence, relation.materialized]) || blobIdentity(relation.evidence) === blobIdentity(relation.materialized)) throw new Error('Catalog expansion identities conflict')
-        const evidenceEntry = entryFor(relation.evidence), materializedEntry = entryFor(relation.materialized)
-        if (evidenceEntry.kind !== 'blob' || materializedEntry.kind !== 'catalog' || materializedEntry.key !== relation.privateKey) throw new Error('Catalog expansion roles mismatch')
-        const decoded = await decodeWorkspaceDocument(get(relation.evidence))
-        const pin = PackagedCatalogPinSchema.parse(decoded.value)
-        const catalog = metadataByRef.get(blobIdentity(relation.materialized))!.value as unknown as import('../domain/types').CatalogSnapshot
-        if (decoded.kind !== 'catalog' || decoded.key !== relation.privateKey || pin.id !== relation.id || pin.revisionId !== relation.revisionId || pin.checksum !== relation.checksum || catalog.id !== pin.id || catalog.revisionId !== pin.revisionId || catalog.checksum !== pin.checksum) throw new Error('Catalog expansion association mismatch')
+        throw new Error('Unsupported archived unit relation')
       }
     }
     if (entry.kind === 'directory-mapping-unit') {
@@ -282,7 +275,6 @@ async function inspectClosure(state: WorkspaceState, closure: WorkspaceConflictC
     for (const entry of entries.values()) if (entry.kind === 'unit-index') {
       const wrapper = WorkspaceUnitIndexSchema.parse(metadataByRef.get(blobIdentity(entry.ref))!.value)
       if (wrapper.relation.kind === 'recorded-party-source' && !semantic.has(blobIdentity(wrapper.relation.scenario))) throw new Error('Source bookkeeping is unrelated to the primary unit')
-      if (wrapper.relation.kind === 'catalog-expansion' && !semantic.has(blobIdentity(wrapper.relation.materialized))) throw new Error('Catalog expansion is unrelated to the primary unit')
     }
     const publications = [...metadataByRef.values()].filter(document => document.kind === 'unit-index').map(document => WorkspaceUnitIndexSchema.parse(document.value).relation).filter(relation => relation.kind === 'publication-source')
     if (publications.length > 1 || publications.some(value => !sameRefs([value.body], [index.relation.kind === 'unit' ? index.relation.primary : closure.root]))) throw new Error('Foreign or duplicate original publication association')

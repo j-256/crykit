@@ -56,12 +56,6 @@ export async function openGuestBindings(original: CryKitDatabase): Promise<Guest
       // File and Inspector edits need not advance the planner revision; validate the live graph on every reopen
       await validateWorkspaceClosure(await readGuestWorkspace({ coordinator, manifest, planner, inspector, files }))
       profile.assertCurrent()
-      if (planner.frozenSource240) {
-        const { migrateSelectedGuest250 } = await import('./guest-successor')
-        await migrateSelectedGuest250({ coordinator, manifest, planner, inspector, files }, profile.assertCurrent)
-        planner.close(); inspector.close(); files.close(); coordinator.close()
-        return openGuestBindings(original)
-      }
       return { coordinator, manifest, planner, inspector, files }
     } catch (error) { planner.close(); inspector.close(); files.close(); coordinator.close(); throw error }
   }
@@ -88,7 +82,7 @@ export async function guestParticipants(binding: GuestBindings): Promise<readonl
 }
 export async function readGuestWorkspace(binding: GuestBindings): Promise<WorkspaceState> {
   await assertGuestCurrent(binding)
-  if (!binding.planner.frozenSource240) await loadLocalData(binding.planner)
+  await loadLocalData(binding.planner)
   const planner = await binding.planner.transaction('r', binding.planner.tables, async () => {
     const record = await binding.planner.localDatas.get(ACTIVE_RECORD)
     if (!record) throw new Error('The saved planner is unavailable')
@@ -96,7 +90,7 @@ export async function readGuestWorkspace(binding: GuestBindings): Promise<Worksp
     await binding.planner.sources.each(({ bytes, ...source }) => sources.push({ ...source, original: { documentId: `source:${source.id}`, revisionId: source.digest, byteLength: bytes.byteLength, sha256: source.digest, encoding: 'bytes' } }))
     const catalogs = [...new Map([...BUNDLED_CATALOGS, ...(await binding.planner.catalogs.toArray()).map(row => row.snapshot)].map(catalog => [JSON.stringify([catalog.id, catalog.revisionId]), catalog])).values()]
     const history = await binding.planner.history.toArray()
-    const admitted = binding.manifest.version === 2 ? validateGuestPlannerRecord(record, await binding.planner.meta.get(GUEST_PLANNER_LAYOUT_KEY), history, 'journaled', binding.planner.frozenSource240) : undefined
+    const admitted = binding.manifest.version === 2 ? validateGuestPlannerRecord(record, await binding.planner.meta.get(GUEST_PLANNER_LAYOUT_KEY), history, 'journaled') : undefined
     if (admitted && admitted.format !== 'journaled') throw new Error('The selected restore planner is not journaled')
     return { localData: record.localData, lineage: record.lineage, catalogs, evidence: await binding.planner.evidence.toArray(), history, sources,
       ...(admitted && admitted.format === 'journaled' ? { journal: admitted.journal, savedChanges: admitted.descriptor.savedDestinationChanges } : {}) }

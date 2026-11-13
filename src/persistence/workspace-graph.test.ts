@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 // Native equality checks exact bytes and table metadata without enumerating typed-array keys
 // A boolean assertion also avoids constructing a multi-megabyte diagnostic diff on failure
@@ -906,8 +907,8 @@ it('reopens complete inactive nonempty history from immutable ciphertext after a
   const native = new TextEncoder().encode('private-D2-historical-only-native')
   const content = memoryBlob(native), sha256 = await hashBlob(content)
   const aliases = ['zz-history-only', 'aa-history-only'].map(documentId => ({ ref: { documentId, revisionId: 'original:1', encoding: 'bytes' as const, byteLength: native.length, sha256 }, content }))
-  const historical = { version: 1 as const, snapshotId: 'D2-historical', capturedAt: '2026-10-13', revisionVector: {}, state: { ...fixture.state, blobs: [...aliases, ...fixture.state.blobs], editorDocuments: [{ ...fixture.file, unfinished: { ...fixture.file.unfinished, fieldState: { original: multiPageMetadataText('D2-private\ud800') } } }] } }
-  const current = { version: 1 as const, snapshotId: 'D2-current', capturedAt: '2026-10-13', revisionVector: {}, state: f.blank.opened.workspace.state }
+  const historical = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1 as const, snapshotId: 'D2-historical', capturedAt: '2026-10-13', revisionVector: {}, state: { ...fixture.state, blobs: [...aliases, ...fixture.state.blobs], editorDocuments: [{ ...fixture.file, unfinished: { ...fixture.file.unfinished, fieldState: { original: multiPageMetadataText('D2-private\ud800') } } }] } }
+  const current = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1 as const, snapshotId: 'D2-current', capturedAt: '2026-10-13', revisionVector: {}, state: f.blank.opened.workspace.state }
   const snapshot = await inheritWorkspaceSnapshot(current, [historical])
   async function pages(source: import('../workspace/documents').BlobSource) { const result: Uint8Array[] = []; for await (const page of source.open()) result.push(page.slice()); return result }
   let fresh: AccountDatabase | undefined
@@ -949,7 +950,7 @@ it.each(['omitted', 'copied', 'disposed', 'erased', 'downgrade'] as const)('reje
   const { disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
   const { createAccountPreparationOwner } = await import('../workspace/account-prepared-records')
   const fixture = await editorClosureFixture()
-  const current = { version: 1 as const, snapshotId: 'membership-current', capturedAt: '2026-10-13', revisionVector: {}, state: f.blank.opened.workspace.state }
+  const current = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1 as const, snapshotId: 'membership-current', capturedAt: '2026-10-13', revisionVector: {}, state: f.blank.opened.workspace.state }
   const snapshot = await inheritWorkspaceSnapshot(current, [{ ...current, snapshotId: 'membership-history', state: fixture.state }])
   const successor = createAccountPreparationOwner(f.database, f.token)
   try {

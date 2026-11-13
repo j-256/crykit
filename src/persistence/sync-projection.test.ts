@@ -113,8 +113,10 @@ it('projectsRecordedPartyAfterIndependentChildBookkeepingWithoutRewritingOrigina
   const installed = await prepareAccountWorkspace(database, token, { ...projection!.workspace.state, planner: adopted }, projection!.workspace)
   const currentFence = (await database.profileMeta.get('active'))!
   await activateLocalAccountCommit(database, token, { version: 1, id: accountLocalId(), expected: currentFence, head: installed.head, records: installed.records })
-  const repository = await openAccountRepository(token)
-  expect((await repository.previewImport(await repository.exportPlannerBackup(), 'recorded-party.zip')).proposed.localData).toEqual(adopted.localData)
+  const retainedFence = await database.profileMeta.get('active')
+  await expect(openAccountRepository(token)).rejects.toThrow('unsupported prelaunch format')
+  expect(await database.profileMeta.get('active')).toEqual(retainedFence)
+  expect((await openAccountWorkspace(database, token, installed.head)).state.planner.localData).toEqual(adopted.localData)
   expect(() => projectPlanner({ ...state.planner, localData: { ...data, playthroughs: { ...data.playthroughs, [TEST_PLAYTHROUGH_ID]: { ...data.playthroughs[TEST_PLAYTHROUGH_ID], revision: Number.MAX_SAFE_INTEGER } } } }, projection!.workspace.state.planner, false)).toThrow('overflow')
 
 })
@@ -205,55 +207,18 @@ async function frozenRecordedPartyFixture() {
   return { ...f, pendingFence, pending, intent, operationId }
 }
 
-it('migratesOnlyTheExactValidatedLegacySnapshotAndRetainsOriginalScenarioCiphertextAcrossALocalRace', async () => {
-  const { token, database, state, modern, scenario, checkpoint, legacyBody, legacy, fence, originalCiphertext, pendingFence, intent, operationId, unmarkedRoot, index, oldRoot } = await frozenRecordedPartyFixture()
-  const { openOrMapAccountWorkspace, MappedWorkspaceIntentSchema } = await import('../workspace/account-intents')
-  const { openLegacyLocalAccountWorkspace } = await import('../workspace/account-graph')
-  const { stageAccountJson, openAccountJson } = await import('../workspace/account-cache')
-  const { activateLocalAccountCommit } = await import('./account-database')
-  const { inspectWorkspaceClosure } = await import('../workspace/closure')
-  const { archiveWorkspaceUnit } = await import('../workspace/pending-content')
-  const { readBlob, blobIdentity } = await import('../workspace/blobs')
-  // Missing exact original intent context fails without promoting a partial strict view
-  const row = (await database.outbox.get(operationId))!
-  await database.outbox.delete(operationId)
-  await expect(openOrMapAccountWorkspace(database, token, pendingFence)).rejects.toThrow('Original pending source context')
+it('rejects implicit migration of an incomplete recorded-party graph without changing ciphertext or pending work', async () => {
+  const { token, database, legacyBody, originalCiphertext, pendingFence, operationId } = await frozenRecordedPartyFixture()
+  const { openExactAccountWorkspace } = await import('../workspace/account-intents')
+  const row = await database.outbox.get(operationId)
+  const records = await database.encryptedRevisions.toArray()
+  await expect(openExactAccountWorkspace(database, token, pendingFence)).rejects.toThrow('Missing recorded-party')
+  await expect(openAccountRepository(token)).rejects.toThrow('unsupported prelaunch format')
   expect(await database.profileMeta.get('active')).toEqual(pendingFence)
-  expect(await database.syncState.count()).toBe(0)
-  await database.outbox.put(row)
-  const { prepareSourceEvidenceMigration } = await import('../workspace/account-source-migration')
-  const pendingSnapshot = await openLegacyLocalAccountWorkspace(database, token, pendingFence.head)
-  const migration = await prepareSourceEvidenceMigration(database, token, pendingFence.head, new Map([[pendingFence.head.revisionId, pendingSnapshot], [legacy.head.revisionId, legacy]]), [intent.value])
-  const racedFence = await activateLocalAccountCommit(database, token, { version: 1, id: accountLocalId(), expected: pendingFence, head: pendingFence.head, records: [] })
-  await expect(activateLocalAccountCommit(database, token, { version: 1, id: accountLocalId(), expected: pendingFence, ...migration })).rejects.toThrow('another tab')
-  expect(await database.syncState.count()).toBe(0)
-  expect(await database.profileMeta.get('active')).toEqual(racedFence)
-  const falselyMarked = await stageAccountJson(database, token, { ...unmarkedRoot, sourceEvidenceVersion: 1, index }, [index, oldRoot.allocations, oldRoot.playthroughBookkeeping!.index])
-  await database.encryptedRevisions.put(falselyMarked)
-  await expect(openLegacyLocalAccountWorkspace(database, token, cipherRef(falselyMarked))).rejects.toThrow('Missing recorded-party')
-  const migrated = await openOrMapAccountWorkspace(database, token, racedFence)
-  expect(await openAccountJson(database, token, row.ref, MappedWorkspaceIntentSchema)).toEqual(intent.value)
   expect(await database.outbox.get(operationId)).toEqual(row)
-  const migratedPending = migrated.workspace.state.retainedContent[0]
-  if (migratedPending.kind !== 'pending-content') throw new Error('Missing migrated pending content')
-  expect((await inspectWorkspaceClosure(migrated.workspace.state, migratedPending.target)).refs.has(blobIdentity(checkpoint.ref))).toBe(true)
-  expect((await inspectWorkspaceClosure(migrated.workspace.state, migratedPending.base.kind === 'present' ? migratedPending.base.closure : migratedPending.target)).value).toEqual((await legacy.readCaptured(cipherRef(legacyBody))).document.value)
-  expect(migrated.workspace.head).not.toEqual(fence.head)
-  expect(migrated.workspace.sourceEvidenceVersion).toBe(1)
-  expect((await openAccountWorkspace(database, token, fence.head)).entries.find(entry => entry.key === scenario.key)!.ref).toEqual(cipherRef(legacyBody))
-  const association = migrated.workspace.entries.find(entry => entry.key === scenario.key)!.sourceBookkeeping!
-  expect(association.origin).toBe('legacy-local-migration')
-  expect(association.scenarioDependencies).toBe('legacy-s02')
-  expect(association.scenario).toEqual(cipherRef(legacyBody))
-  expect(association.baselineCheckpoints).toEqual(modern.entries.filter(entry => entry.kind === 'build-checkpoint').map(entry => ({ key: entry.key, ref: entry.ref })))
+  expect(await database.encryptedRevisions.toArray()).toEqual(records)
+  expect(await database.syncState.count()).toBe(0)
   expect((await database.stagedCipherChunks.get([legacyBody.payloadId, 0]))!.bytes).toEqual(originalCiphertext)
-  const portable = new Map<string, import('../workspace/documents').WorkspaceState['blobs'][number]>()
-  const closure = await archiveWorkspaceUnit(migrated.workspace, scenario.key, portable)
-  expect((await inspectWorkspaceClosure({ ...state, blobs: [...portable.values()] }, closure)).refs.has(blobIdentity(checkpoint.ref))).toBe(true)
-  const attempt = await preparePublicationAttempt(database, token, migrated.workspace, null, new Map(), 0)
-  const projected = (await openRemoteProjection(database, token, new Map(attempt.final.heads.map(ref => [ref.documentId, ref.revisionId])), fence.head, 0))!
-  expect(await readBlob(projected.workspace.payloads.get(scenario.key)!, 100000)).toEqual(await readBlob(legacy.payloads.get(scenario.key)!, 100000))
-  expect((await database.encryptedRevisions.get(legacyBody.revisionId))!.descriptor).toEqual(legacyBody.descriptor)
 })
 
 it('projectionReaderReusesExactRefsOnlyInsideOneReadAndKeepsAssociationAndProfileGuards', async () => {

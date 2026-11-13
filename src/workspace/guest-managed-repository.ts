@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { GuestManagedRecoverySelectionSchema } from './guest-managed-contract'
 import Dexie from 'dexie'
 import { recordWorkspaceStartup, WORKSPACE_STARTUP_PHASE } from '../diagnostics/workspace-startup'
@@ -276,7 +277,7 @@ export async function openGuestManagedRepository(database: GuestCoordinatorDatab
       const inherited = await readLocalEvidence(store.adapter, current.root.inheritedEvidence, check)
       const incoming = await guestEvidenceFromSnapshot(input, emptyPlannerEvidence())
       const incomingCurrent = await guestEvidenceFromFrozenCurrent(ownWorkspaceSnapshot(projectWorkspaceSnapshotV1(input), { check: checkInput, dispose: async () => {} }))
-      const original = ownWorkspaceSnapshot({ version: 1, snapshotId: `${operationId}-selected`, capturedAt: new Date().toISOString(), revisionVector: { guest: expected.id, root: JSON.stringify(expected.root) }, state: current.state }, { check, dispose: async () => {} })
+      const original = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: `${operationId}-selected`, capturedAt: new Date().toISOString(), revisionVector: { guest: expected.id, root: JSON.stringify(expected.root) }, state: current.state }, { check, dispose: async () => {} })
       const selected = await guestEvidenceFromFrozenCurrent(original)
       const plannerEvidence = { ...emptyPlannerEvidence(), savedChanges: projection.planner.savedChanges ?? projection.planner.localData.changes }
       // Replacement removes active files, never their original bytes or the complete pre-restore graph

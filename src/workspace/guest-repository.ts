@@ -199,7 +199,7 @@ export function createGuestRepository(original?: CryKitDatabase): WorkspaceRepos
         const startup = await prepareGuestStartup(original ?? getDatabase())
         profile.assertCurrent()
         recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.guestPrepared)
-        return startup.kind === 'managed' ? openGuestManagedRepository(startup.coordinator, startup.manifest) : guestRepository(Promise.resolve(startup.binding))
+        return openGuestManagedRepository(startup.coordinator, startup.manifest)
       })()
       void opening.catch(() => {})
     }
@@ -226,16 +226,11 @@ export interface GuestCopySource { readonly snapshot: WorkspaceSnapshot; readonl
 export async function captureGuestWorkspaceForCopy(original = getDatabase()): Promise<GuestCopySource> {
   const profile = captureGuestWorkspaceEpoch(), startup = await prepareGuestStartup(original, 'capture')
   profile.assertCurrent()
-  if (startup.kind === 'managed') {
-    const repository = await openGuestManagedRepository(startup.coordinator, startup.manifest)
-    profile.assertCurrent()
-    const { captureWorkspaceSnapshot } = await import('./snapshot')
-    profile.assertCurrent()
-    return Object.freeze({ snapshot: await captureWorkspaceSnapshot(repository) })
-  }
-  const { captureGuestNativeForCopy } = await import('./guest-managed-migration')
+  const repository = await openGuestManagedRepository(startup.coordinator, startup.manifest)
   profile.assertCurrent()
-  return captureGuestNativeForCopy(startup.binding)
+  const { captureWorkspaceSnapshot } = await import('./snapshot')
+  profile.assertCurrent()
+  return Object.freeze({ snapshot: await captureWorkspaceSnapshot(repository) })
 }
 
 function guestRepository(captured: Promise<GuestBindings>): WorkspaceRepository {

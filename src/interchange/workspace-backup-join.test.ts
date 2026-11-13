@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { expect, it } from 'vitest'
 import * as evidence from './workspace-backup-evidence'
@@ -7,7 +8,7 @@ import { exportWorkspaceBackup, readWorkspaceBackup } from './workspace-backup'
 
 async function fixture() {
   const { state } = await editorClosureFixture()
-  return { version: 1 as const, snapshotId: 'source', capturedAt: '2026-10-12', revisionVector: { guest: 'source' }, state }
+  return { dataGeneration: LAUNCH_DATA_GENERATION, version: 1 as const, snapshotId: 'source', capturedAt: '2026-10-12', revisionVector: { guest: 'source' }, state }
 }
 async function inherited(source: WorkspaceSnapshotV1) {
   const metadata = evidence.metadataSource(snapshotMetadata(source))

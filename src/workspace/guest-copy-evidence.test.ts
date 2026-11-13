@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { expect, it } from 'vitest'
 import * as evidence from './guest-evidence'
@@ -11,7 +12,7 @@ const LEGACY_METADATA_PAGE_BYTES = 256
 
 it.each([false, true])('composes exact copy originals without an intermediate backup, including legacy page packing: inherited=%s', async inherited => {
   const fixture = await editorClosureFixture()
-  const original = ownWorkspaceSnapshot({ version: 1, snapshotId: 'exact-original', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: { ...fixture.state, editorDocuments: [fixture.file] } }, { check: async () => {}, dispose: async () => {} })
+  const original = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'exact-original', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: { ...fixture.state, editorDocuments: [fixture.file] } }, { check: async () => {}, dispose: async () => {} })
   let selectedLive = true
   const selected = ownWorkspaceSnapshot({ ...original, snapshotId: 'selected-original' }, { check: async () => { if (!selectedLive) throw new Error('Selected copy was released') }, dispose: async () => { selectedLive = false } })
   const pages = [...encodeBackupJson(snapshotMetadata(original), LEGACY_METADATA_PAGE_BYTES)]
@@ -32,7 +33,7 @@ it.each([false, true])('composes exact copy originals without an intermediate ba
 
 it('rejects damaged stored current metadata even when the source owner remains live', async () => {
   const fixture = await editorClosureFixture()
-  const source = ownWorkspaceSnapshot({ version: 1, snapshotId: 'damaged-current', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
+  const source = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'damaged-current', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
   const bytes = new TextEncoder().encode('invalid stored token pages')
   registerBackupMetadata(source, { byteLength: bytes.length, async *open() { yield bytes } })
   try {

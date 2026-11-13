@@ -1,15 +1,12 @@
+import { GUEST_PLANNER_DATABASE, isPrelaunchGuestDatabase } from '../persistence/storage-names'
 import { captureGuestWorkspaceEpoch } from '../account/profile'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { createStarterLocalData } from '../persistence/local-data'
 import { guestPlannerValuesEqual } from '../persistence/guest-planner-equality'
 import type { WorkspaceState } from './documents'
-import Dexie from 'dexie'
 import type { CryKitDatabase } from '../persistence/database'
 import { GuestCoordinatorDatabase } from './guest-coordinator'
-import { GuestManagedManifestSchema, requireGuestManagedMigration, type GuestManagedManifest } from './guest-managed-contract'
-import { openGuestBindings, type GuestBindings } from './guest-workspace'
-import { migrateGuestWorkspace, reconcileGuestManagedMigration } from './guest-managed-migration'
-import { checkGuestRecovery } from './guest-recovery'
+import { GuestManagedManifestSchema, type GuestManagedManifest } from './guest-managed-contract'
 import { createGuestLocalStore } from './guest-local-store'
 import { admitLocalRoot, prepareLocalWorkspace } from './local-root'
 
@@ -36,7 +33,7 @@ export async function prepareFreshGuestWorkspace(database: GuestCoordinatorDatab
   return receipt.target
 }
 
-type GuestStartup = { readonly kind: 'managed'; readonly coordinator: GuestCoordinatorDatabase; readonly manifest: GuestManagedManifest } | { readonly kind: 'legacy-recovery'; readonly binding: GuestBindings }
+type GuestStartup = { readonly kind: 'managed'; readonly coordinator: GuestCoordinatorDatabase; readonly manifest: GuestManagedManifest }
 const pendingStartups = new Map<string, { readonly signal: AbortSignal; readonly result: Promise<GuestStartup> }>()
 
 // Only unfinished preparation is coalesced within one captured profile epoch
@@ -49,35 +46,37 @@ export async function prepareGuestStartup(original: CryKitDatabase, purpose: 'ed
   pendingStartups.set(key, { signal: profile.signal, result })
   return result
   async function prepare(): Promise<GuestStartup> {
-    const primary = original.name === 'crykit'
+    const primary = original.name === GUEST_PLANNER_DATABASE
     const coordinator = new GuestCoordinatorDatabase(primary ? undefined : `${original.name}-coordinator`)
     try {
-      const active = await coordinator.active.get('active')
+      // Enumerating names never opens an old database or runs its schema upgrades
+      // A partially prepared new namespace is not consent to abandon a prelaunch workspace
+      if (!globalThis.indexedDB?.databases) throw new Error('Browser storage cannot be inspected safely. Keep the existing data and use a browser that supports database enumeration.')
+      const names = (await indexedDB.databases()).flatMap(value => value.name ? [value.name] : [])
       profile.assertCurrent()
-      if ((active?.manifest as { version?: unknown } | undefined)?.version === 3) return { kind: 'managed', coordinator, manifest: GuestManagedManifestSchema.parse(active!.manifest) }
-      if (!active) {
-        const names = [original.name, primary ? 'crykit-mod-inspector-v1' : `${original.name}-inspector`, `${original.name}-workspace-files-v1`]
-        const present = await Promise.all(names.map(name => Dexie.exists(name)))
-        profile.assertCurrent()
-        if (present.every(value => !value)) return { kind: 'managed', coordinator, manifest: await prepareFreshGuestWorkspace(coordinator) }
-        if (!present[0]) throw new Error('The saved guest planner is missing. Existing local data was retained.')
-      }
-      coordinator.close()
-      const binding = await openGuestBindings(original)
+      const active = names.includes(coordinator.name) ? await coordinator.active.get('active') : undefined
       profile.assertCurrent()
-      // Interrupted migration may have acquired barriers without publishing; reconcile its exact operation first
-      for (const value of await binding.coordinator.table('managedMigrations').toArray()) {
-        const row = requireGuestManagedMigration(value)
-        if (row.phase !== 'published' && row.phase !== 'failed' && guestPlannerValuesEqual(row.expected, binding.manifest)) await reconcileGuestManagedMigration(binding, row.id)
-        profile.assertCurrent()
-      }
-      const recovery = await checkGuestRecovery(binding, profile.signal)
-      // Copy-only reads use the frozen native capture; creating a managed successor would add
-      // another full original and migration before the user's explicit source-copy operation
-      if (purpose === 'capture' || recovery.length) return { kind: 'legacy-recovery', binding }
-      const manifest = await migrateGuestWorkspace(binding)
-      profile.assertCurrent()
-      return { kind: 'managed', coordinator: binding.coordinator, manifest }
+      if (active) return { kind: 'managed', coordinator, manifest: GuestManagedManifestSchema.parse(active.manifest) }
+      const prelaunch = primary ? names.some(isPrelaunchGuestDatabase) : names.some(name => [original.name, `${original.name}-inspector`, `${original.name}-workspace-files-v1`].includes(name))
+      if (prelaunch) throw new PrelaunchGuestDataError()
+      return { kind: 'managed', coordinator, manifest: await prepareFreshGuestWorkspace(coordinator) }
     } catch (error) { coordinator.close(); throw error }
   }
+}
+
+export class PrelaunchGuestDataError extends Error {
+  readonly code = 'PRELAUNCH_GUEST_DATA'
+  constructor() { super('This browser has data from a prelaunch CryKit format. Start a new workspace to use the new source catalog. The prelaunch data will remain stored in this browser.') }
+}
+
+// Only the explicit startup action calls this when prelaunch data exists
+// Publication retains the normal profile fence and compare-and-swap against an absent selection
+export async function startLaunchGuestWorkspace(supplied?: GuestCoordinatorDatabase): Promise<GuestManagedManifest> {
+  const database = supplied ?? new GuestCoordinatorDatabase()
+  try {
+    const profile = captureGuestWorkspaceEpoch()
+    const active = await database.active.get('active')
+    profile.assertCurrent()
+    return active ? GuestManagedManifestSchema.parse(active.manifest) : await prepareFreshGuestWorkspace(database)
+  } finally { if (!supplied) database.close() }
 }

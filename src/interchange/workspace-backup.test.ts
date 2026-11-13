@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { expect, it, vi } from 'vitest'
 import { previewCrystalEdit } from './crystal-edit'
@@ -26,7 +27,7 @@ async function fixture(): Promise<WorkspaceSnapshot> {
   const otherRoot = await fixture.add(otherFile, 'other-root')
   const otherIndex = await fixture.add({ version: 1, kind: 'conflict-closure-page', entries: [{ ...fixture.entries[0], ref: otherRoot }, fixture.entries[1]], children: [] }, 'other-index')
   const other = { version: 1 as const, root: otherRoot, index: otherIndex }
-  const snapshot: WorkspaceSnapshot = { version: 1, snapshotId: 'synthetic-snapshot', capturedAt: '2026-10-12T00:00:00.000Z', revisionVector: { committed: 'synthetic-vector' }, state: { ...fixture.state, editorDocuments: [fixture.file], saveDocuments: [{ version: 1, id: 'unsupported-save', revision: 1, filename: 'save.dat', original: ref, working: ref, pendingForm: { invalid: 'unfinished' }, requirements: [], coverage: { status: 'unsupported', diagnostics: ['Unknown codec'] }, createdAt: '2026-10-12', updatedAt: '2026-10-12', exportedRevision: null }], blobs: [...fixture.state.blobs, { ref, content }], assets: [{ version: 1, id: 'art', sourceKey: 'synthetic', relativePath: 'art.png', original: ref, mediaType: 'image/png', width: 1, height: 1 }], conflicts: [{ version: 1, id: 'file-conflict', unit: { kind: 'record', privateKey: fixture.entries[0].key }, commonAncestor: { kind: 'present', closure: fixture.closure }, branches: [{ role: 'local-pending', closure: fixture.closure }, { role: 'accepted-cloud', closure: other }], disposition: { kind: 'resolved', choice: 'other', result: other } }] } }
+  const snapshot: WorkspaceSnapshot = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'synthetic-snapshot', capturedAt: '2026-10-12T00:00:00.000Z', revisionVector: { committed: 'synthetic-vector' }, state: { ...fixture.state, editorDocuments: [fixture.file], saveDocuments: [{ version: 1, id: 'unsupported-save', revision: 1, filename: 'save.dat', original: ref, working: ref, pendingForm: { invalid: 'unfinished' }, requirements: [], coverage: { status: 'unsupported', diagnostics: ['Unknown codec'] }, createdAt: '2026-10-12', updatedAt: '2026-10-12', exportedRevision: null }], blobs: [...fixture.state.blobs, { ref, content }], assets: [{ version: 1, id: 'art', sourceKey: 'synthetic', relativePath: 'art.png', original: ref, mediaType: 'image/png', width: 1, height: 1 }], conflicts: [{ version: 1, id: 'file-conflict', unit: { kind: 'record', privateKey: fixture.entries[0].key }, commonAncestor: { kind: 'present', closure: fixture.closure }, branches: [{ role: 'local-pending', closure: fixture.closure }, { role: 'accepted-cloud', closure: other }], disposition: { kind: 'resolved', choice: 'other', result: other } }] } }
   const imported = await previewCrystalEdit(new TextEncoder().encode('{"ID":"synthetic-backup-mod","Title":"Synthetic backup mod","EditorVersion":34,"Items":[{"ID":999,"Name":"Synthetic unknown item","FutureField":{"value":"unknown"}}]}'), 'original-mod.json')
   const sources = []
   const sourceBodies = []
@@ -110,12 +111,12 @@ async function futureBackup(version: string) {
   return { prefix: bytes.subarray(0, bytes.length - last.length), manifest }
 }
 async function* backupParts(prefix: Uint8Array, manifest: Uint8Array) { yield prefix; yield manifest }
-it.each(['2.0.0', '2.0.0-rc.1', '2.0.0+build.7', '2.0.0-rc.1+build.7'])('rejectsNewerCompleteBackupVersionExplicitly: %s', async version => {
+it.each(['1.0.0', '1.1.0', '3.0.0', '3.0.0-rc.1', '3.0.0+build.7', '3.0.0-rc.1+build.7'])('rejectsUnsupportedCompleteBackupVersionExplicitly: %s', async version => {
   const { prefix, manifest } = await futureBackup(version)
   await expect(readWorkspaceBackup(backupParts(prefix, manifest))).rejects.toMatchObject({ code: 'UNSUPPORTED_VERSION' })
 })
 it('rejectsMalformedFutureManifestFramingBeforeVersionDiagnosis', async () => {
-  const { prefix, manifest } = await futureBackup('2.0.0')
+  const { prefix, manifest } = await futureBackup('3.0.0')
   const oversized = manifest.slice()
   new DataView(oversized.buffer).setUint32(oversized.length - 4, 4 * 1024 * 1024 + 1, true)
   const nonempty = new Uint8Array(manifest.length + 1)

@@ -18,21 +18,21 @@ import { editorBlob } from './editor-document'
 import type { SaveWorkspaceDocument, WorkspaceState } from './documents'
 import { readSaveContent } from './save-repository'
 
-it('starts with current definitions and retains an older catalog when saving a native pinned Build', async () => {
+it('starts with the launch collection and retains exact sources when saving a native pinned Build', async () => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   const database = new AccountDatabase(token.accountId)
   try {
     const repository = await openAccountRepository(token), initial = await repository.load()
-    expect(initial.catalogs.map(catalog => catalog.revisionId)).toEqual([CURRENT_CATALOG.revisionId])
-    const historical = BUNDLED_CATALOGS.find(catalog => catalog.revisionId !== CURRENT_CATALOG.revisionId)!
+    expect(initial.catalogs.map(catalog => [catalog.id, catalog.revisionId])).toEqual(BUNDLED_CATALOGS.map(catalog => [catalog.id, catalog.revisionId]))
+    const historical = CURRENT_CATALOG
     const source = createSampleLocalData(historical), original = Object.values(source.builds)[0]!
     const native = { ...initial.localData, gameSetups: { ...initial.localData.gameSetups, ...source.gameSetups }, builds: { ...initial.localData.builds, ...source.builds }, buildRevisions: { ...initial.localData.buildRevisions, ...source.buildRevisions }, personalDefinitions: { ...initial.localData.personalDefinitions, ...source.personalDefinitions } }
     await repository.save(native, initial.revision)
     const reopened = await openAccountRepository(token), saved = await reopened.load()
     const checkpoint = saved.localData.buildRevisions[saved.localData.builds[original.id]!.latestRevisionId!]!
     expect(saved.localData.gameSetups[checkpoint.gameSetupRevisionId]!.catalogLock[historical.id]).toBe(historical.revisionId)
-    expect(saved.catalogs.map(catalog => catalog.revisionId)).toEqual([CURRENT_CATALOG.revisionId, historical.revisionId])
-    expect(initial.catalogs.map(catalog => catalog.revisionId)).toEqual([CURRENT_CATALOG.revisionId])
+    expect(saved.catalogs).toEqual(BUNDLED_CATALOGS)
+    expect(initial.catalogs.map(catalog => [catalog.id, catalog.revisionId])).toEqual(BUNDLED_CATALOGS.map(catalog => [catalog.id, catalog.revisionId]))
   } finally { database.close(); invalidateProfile() }
 })
 

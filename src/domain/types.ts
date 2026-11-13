@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from './data-generation'
 export type Brand<Value, Name extends string> = Value & { readonly __brand: Name }
 
 export type LocalDataId = Brand<string, 'LocalDataId'>
@@ -635,9 +636,10 @@ export interface ReferenceLibrarySettings {
   readonly excludedMods: readonly string[]
 }
 
-export const LOCAL_DATA_SCHEMA_VERSION = '2.5.0'
+export const LOCAL_DATA_SCHEMA_VERSION = '3.0.0'
 
 export interface LocalData {
+  readonly dataGeneration: typeof LAUNCH_DATA_GENERATION
   readonly schemaVersion: typeof LOCAL_DATA_SCHEMA_VERSION
   readonly id: LocalDataId
   readonly revision: number

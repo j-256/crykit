@@ -8,7 +8,7 @@ import { catalogEntity } from './entity-identities'
 import { resolveGameRules } from './game-rules'
 import { expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
-import { NativeLocalDataSchema, NativeLocalData240Schema } from '../interchange/native-schema'
+import { NativeLocalDataSchema } from '../interchange/native-schema'
 import { validateNativeLocalDataGraph } from '../interchange/native'
 import { createPublicSnapshot } from '../interchange/public-share'
 import { defaultCalculation } from './calculation-plan'
@@ -71,14 +71,14 @@ it('admits an exact unavailable identity receipt only for absent sources, never 
   const saved = saveTeamSlotAsBuild(unavailable, { teamRevisionId: revision(unavailable).id, slot: 0, title: 'Unresolved copy', expectedRevision: unavailable.revision })
   validateNativeLocalDataGraph(saved, [])
 })
-it('keeps frozen historical content strict and existing marker-free current values unchanged', () => {
+it('rejects prelaunch formats and preserves supported values', () => {
   const data = addTestBuild(createTestLocalData(), 'old', '', {})
   expect(NativeLocalDataSchema.parse(data)).toEqual(data)
   const { teamRevisions: _team, ...base } = data
   const frozen = { ...base, schemaVersion: '2.4.0' }
-  expect(NativeLocalData240Schema.parse(frozen)).toEqual(frozen)
+  expect(NativeLocalDataSchema.safeParse(frozen).success).toBe(false)
   const build = frozen.buildRevisions['old-revision']!
-  expect(NativeLocalData240Schema.safeParse({ ...frozen, buildRevisions: { [build.id]: { ...build, content: { ...build.content, retainedSelections: { refs: [], slotIds: [] } } } } }).success).toBe(false)
+  expect(NativeLocalDataSchema.safeParse({ ...frozen, buildRevisions: { [build.id]: { ...build, content: { ...build.content, retainedSelections: { refs: [], slotIds: [] } } } } }).success).toBe(false)
 })
 
 it('keeps retained growth, ability, status and battle inputs inert even with exact native definitions available', () => {

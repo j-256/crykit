@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { assertActiveProfile, profileSignal, type ProfileToken } from '../account/profile'
 import type { AccountDatabase, AccountFence, CipherRef, CipherRecord } from '../persistence/account-database'
 import { accountLocalId } from './account-cache'
@@ -36,7 +37,7 @@ export async function prepareManagedAccountProjection(database: AccountDatabase,
         await checkLocalEvidenceRoot(store.adapter, evidenceRef, check)
         await inherited.check()
       } else {
-        snapshot = ownWorkspaceSnapshot({ version: 1, snapshotId: accountLocalId(), capturedAt: native.opened.state.planner.localData.updatedAt, revisionVector: { projection: JSON.stringify(native.head) }, state: native.opened.state }, { check, dispose: async () => {} })
+        snapshot = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: accountLocalId(), capturedAt: native.opened.state.planner.localData.updatedAt, revisionVector: { projection: JSON.stringify(native.head) }, state: native.opened.state }, { check, dispose: async () => {} })
         snapshot = await joinWorkspaceSnapshotEvidence(snapshot, await accountInheritedSources(inherited), { signal: profileSignal(token) })
         const evidence = await guestEvidenceFromSnapshot(snapshot, emptyPlannerEvidence())
         evidenceRef = await prepareLocalEvidence(store.adapter, operationId, evidence)

@@ -1,3 +1,4 @@
+import { artifactSuppliesCatalog } from '../domain/source-artifacts'
 import { immutableHistory } from './history-admission'
 import { assertPublicPersonalBindings, assertPublicSetupContext, publicSnapshotFromCheckpoint, publicUnavailableCatalogKeys } from '../domain/public-source-context'
 import { z } from 'zod'
@@ -5,7 +6,7 @@ import type { EntityRef, Knowledge, BuildCalculationPlan, BuildRevisionContent, 
 import { buildModReferences } from '../domain/build-references'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { battleCalculationReferences } from '../domain/battle-plan'
-import { NativeLocalDataSchema, NativeLocalData240Schema, NativeCatalogSnapshotSchema, NativeEvidenceSchema, NativeHistorySchema, NativeSourceManifestSchema } from '../interchange/native-schema'
+import { NativeLocalDataSchema, NativeCatalogSnapshotSchema, NativeEvidenceSchema, NativeHistorySchema, NativeSourceManifestSchema } from '../interchange/native-schema'
 import { privateRecordKey, type WorkspaceDocumentKind, type WorkspaceDocument } from './documents'
 import { immutableCatalogSnapshot, unavailableSetupCatalogKeys, validateNativeLocalDataGraph, validatePresentCatalogReferences } from '../interchange/native'
 import { modCatalogRevision } from '../domain/mod-layers'
@@ -15,7 +16,7 @@ import { WorkspaceBlobRefSchema, SaveWorkspaceDocumentSchema, LibraryDefaultsSch
 
 const local = NativeLocalDataSchema.shape
 const play = local.playthroughs.valueType.shape
-const rootSchemas = { 'library-defaults': LibraryDefaultsSchema, 'workspace-preferences': z.object({ modSetup: local.modSetup, unavailableDefinitions: local.unavailableDefinitions, optional: z.object({ skillTreeLayouts: z.boolean() }).strict() }).strict(), build: local.builds.valueType, 'build-checkpoint': local.buildRevisions.valueType, team: z.union([local.teams.valueType, NativeLocalData240Schema.shape.teams.valueType]), 'team-checkpoint': local.teamRevisions.valueType, 'personal-definition': local.personalDefinitions.valueType, setup: local.gameSetups.valueType, 'import-receipt': local.importReceipts.valueType, 'skill-layout': local.skillTreeLayouts.unwrap().valueType, character: play.characters.valueType, progress: play.progress.valueType, goal: play.goals.valueType, scenario: z.union([play.scenarios.valueType, NativeLocalData240Schema.shape.playthroughs.valueType.shape.scenarios.valueType]), 'skill-capture': play.skillTreeCaptures.unwrap().valueType, 'quintar-breeding': play.quintarBreeding.unwrap(), 'reference-preferences': local.referenceLibrary.unwrap(), change: local.changes.element, catalog: NativeCatalogSnapshotSchema, evidence: NativeEvidenceSchema, history: NativeHistorySchema, source: NativeSourceManifestSchema.omit({ path: true, size: true }).extend({ original: WorkspaceBlobRefSchema }).strict(), inventory: z.object({ inventory: play.inventory, inventoryEvents: play.inventoryEvents }).strict(), playthrough: z.object({ metadata: local.playthroughs.valueType.omit({ activeScenarioId: true, characters: true, progress: true, goals: true, scenarios: true, inventory: true, inventoryEvents: true, quintarBreeding: true, skillTreeCaptures: true }), optional: z.object({ skillTreeCaptures: z.boolean(), quintarBreeding: z.boolean() }).strict() }).strict(), tombstone: z.object({ version: z.literal(1), kind: z.literal('tombstone'), privateKey: z.string() }).strict() } as const
+const rootSchemas = { 'library-defaults': LibraryDefaultsSchema, 'workspace-preferences': z.object({ modSetup: local.modSetup, unavailableDefinitions: local.unavailableDefinitions, optional: z.object({ skillTreeLayouts: z.boolean() }).strict() }).strict(), build: local.builds.valueType, 'build-checkpoint': local.buildRevisions.valueType, team: local.teams.valueType, 'team-checkpoint': local.teamRevisions.valueType, 'personal-definition': local.personalDefinitions.valueType, setup: local.gameSetups.valueType, 'import-receipt': local.importReceipts.valueType, 'skill-layout': local.skillTreeLayouts.unwrap().valueType, character: play.characters.valueType, progress: play.progress.valueType, goal: play.goals.valueType, scenario: play.scenarios.valueType, 'skill-capture': play.skillTreeCaptures.unwrap().valueType, 'quintar-breeding': play.quintarBreeding.unwrap(), 'reference-preferences': local.referenceLibrary.unwrap(), change: local.changes.element, catalog: NativeCatalogSnapshotSchema, evidence: NativeEvidenceSchema, history: NativeHistorySchema, source: NativeSourceManifestSchema.omit({ path: true, size: true }).extend({ original: WorkspaceBlobRefSchema }).strict(), inventory: z.object({ inventory: play.inventory, inventoryEvents: play.inventoryEvents }).strict(), playthrough: z.object({ metadata: local.playthroughs.valueType.omit({ activeScenarioId: true, characters: true, progress: true, goals: true, scenarios: true, inventory: true, inventoryEvents: true, quintarBreeding: true, skillTreeCaptures: true }), optional: z.object({ skillTreeCaptures: z.boolean(), quintarBreeding: z.boolean() }).strict() }).strict(), tombstone: z.object({ version: z.literal(1), kind: z.literal('tombstone'), privateKey: z.string() }).strict() } as const
 const immutableHistoryEdges = new WeakMap<object, readonly string[]>()
 const immutableCatalogEdges = new WeakMap<object, readonly string[]>()
 export function validateArchiveDomainValue(kind: WorkspaceDocumentKind, value: unknown): void {
@@ -46,7 +47,7 @@ export function domainClosureKeys(kind: WorkspaceDocumentKind, value: unknown, s
   const source = (ref: import('../domain/types').SourceRef) => { if (ref.sourceId.startsWith('source:sha256:')) add('source', ref.sourceId) }
   const knowledge = (value: Knowledge<unknown> | undefined) => { if (!value) return; if (value.state === 'conflicting') for (const claim of value.claims) claim.sources.forEach(source); else if ('sources' in value) value.sources?.forEach(source) }
   const definition = (value: import('../domain/types').CatalogEntity | import('../domain/types').PersonalDefinition) => { value.sources.forEach(source); Object.values(value.fields).forEach(knowledge); Object.values(value.listedContributions ?? {}).forEach(knowledge); [value.slotKinds, value.ppCost, value.requirements, value.grants].forEach(knowledge) }
-  if (kind === 'catalog') { const record = value as import('../domain/types').CatalogSnapshot; Object.values(record.entities).forEach(definition); for (const claim of record.claims) { claim.sources.forEach(source); knowledge(claim.value) }; knowledge(record.applicability); knowledge(record.rights); if (record.schemaVersion === 'crystal-edit-json-1' && /^sha256:[a-f0-9]{64}$/.test(record.checksum)) add('source', `source:${record.checksum}`) }
+  if (kind === 'catalog') { const record = value as import('../domain/types').CatalogSnapshot; Object.values(record.entities).forEach(definition); for (const claim of record.claims) { claim.sources.forEach(source); knowledge(claim.value) }; knowledge(record.applicability); knowledge(record.rights) }
   if (kind === 'personal-definition') definition(value as import('../domain/types').PersonalDefinition)
   if (kind === 'evidence') (value as import('../interchange/types').EvidenceRecord).sources.forEach(source)
   if (kind === 'library-defaults') for (const layer of LibraryDefaultsSchema.parse(value).layers) catalog(layer.catalogId, layer.catalogRevisionId)
@@ -97,10 +98,15 @@ export function resolvedDomainClosureKeys(document: Pick<WorkspaceDocument, 'key
   if (document.kind === 'tombstone' ? record.privateKey !== document.key : record.id !== undefined && (record.id !== parts[child ? 2 : 1] || parts.length !== (child || document.kind === 'catalog' ? 3 : 2) || document.kind === 'catalog' && record.revisionId !== parts[2])) throw new Error('Private archive identity mismatch')
   if (document.kind === 'playthrough' && record.metadata?.id !== parts[1]) throw new Error('Private archive identity mismatch')
   const keys = new Set(domainClosureKeys(document.kind, document.value, scenarioDependencies))
+  // Complete definitions do not require original artifacts, but an exact available artifact stays with its captured source
+  // Match explicit payload bindings, never acquisition names or a semantic digest mistaken for original bytes
+  if (document.kind === 'catalog') {
+    for (const source of documents.values()) if (source.kind === 'source' && artifactSuppliesCatalog(source.value as unknown as import('./documents').WorkspacePlannerState['sources'][number], document.value as unknown as import('../domain/types').CatalogSnapshot)) keys.add(source.key)
+  }
   const digests = new Set<string>()
   if (document.kind === 'evidence' || document.kind === 'skill-capture') digests.add((document.value as unknown as { sourceDigest: string }).sourceDigest)
   if (document.kind === 'history') { const history = document.value as unknown as import('../interchange/types').PersistedHistoryEntry; for (const root of [history.before, history.after]) for (const playthrough of Object.values(root.playthroughs)) for (const capture of Object.values(playthrough.skillTreeCaptures ?? {})) digests.add(capture.sourceDigest) }
-  // Digest-owned records resolve the actual source identities, which older native bundles may name differently
+  // Digest-owned evidence retains every exact original with that byte digest
   for (const digest of digests) {
     const sources = [...documents.values()].filter(value => value.kind === 'source' && (value.value as unknown as { digest: string }).digest === digest)
     if (!sources.length) throw new Error('Missing exact source original')

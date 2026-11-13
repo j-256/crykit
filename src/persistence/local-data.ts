@@ -1,16 +1,14 @@
+import { fulfillSource } from '../domain/source-fulfillment'
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { mergeArtifactCatalogs } from '../domain/source-artifacts'
 import type { WorkspacePlannerState } from '../workspace/documents'
 import { publicContextContainers, publicUnavailableCatalogKeys } from '../domain/public-source-context'
 import { GUEST_PLANNER_LAYOUT_KEY, guestPlannerValuesEqual, validateGuestPlannerRecord, type ValidatedGuestPlanner } from './guest-planner-record'
 import { CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
 import { referenceLibraryWithMod } from '../domain/reference-library'
-import { WITHDRAWN_CATALOGS, withdrawnCatalogKey } from '../domain/withdrawn-catalogs'
 import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
 import { NATIVE_BACKUP_FORMAT_VERSION } from '../interchange/native-schema'
-import { appendStarterBuilds } from './starter-builds'
 import { createSampleLocalData } from '../domain/sample-data'
-import { SWITCH_MOD_PACKS } from '../catalog/mods'
-import { normalizeModName } from '../domain/mods'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
 import { configureModSetup } from '../domain/mod-setup'
 import { zipSync, type Zippable } from 'fflate'
@@ -24,7 +22,7 @@ import type {
 import { AppDataError, asAppDataError } from '../interchange/errors'
 import { previewImport as buildImportPreview } from '../interchange/import'
 import { unavailableModCatalogKeys, validateNativeLocalDataGraph, immutableCatalogSnapshot, isImmutableCatalogSnapshot, immutableExpandedModCatalogs } from '../interchange/native'
-import { composeModCatalog, compactModCatalog, expandModCatalogs, hasWithdrawnModDependencies, modCatalogForPin, modCatalogRevision } from '../domain/mod-layers'
+import { composeModCatalog, compactModCatalog, expandModCatalogs, hasMissingModDependencies, modCatalogForPin, modCatalogRevision } from '../domain/mod-layers'
 import { NATIVE_BACKUP_JSON_LIMITS, parseBoundedJson } from '../interchange/json'
 import { catalogSnapshotKey } from '../interchange/identity'
 import type {
@@ -164,6 +162,12 @@ function assertStarterCatalogIdentity(catalogs: readonly CatalogSnapshot[]): voi
   }
 }
 
+// Package availability may add sources, but never replaces a saved revision or its complete body
+function availableSourceSnapshots(stored: readonly CatalogSnapshot[]): readonly CatalogSnapshot[] {
+  assertStarterCatalogIdentity(stored)
+  return Object.freeze([...new Map([...BUNDLED_CATALOGS, ...stored.map(immutableCatalogSnapshot)].map(catalog => [catalogKey(catalog), catalog])).values()])
+}
+
 const INVALID_JOURNALED_PLANNER = 'The journaled planner data is missing or invalid. Keep your draft and reopen the workspace'
 const DIRECT_JOURNALED_IMPORT = 'Direct imports are not supported for this journaled planner'
 const DIRECT_JOURNALED_MOD_SETUP = 'Direct mod setup is not supported for this journaled planner'
@@ -177,14 +181,14 @@ function journaledPlannerError(message = INVALID_JOURNALED_PLANNER, cause?: unkn
 }
 
 // Every caller holds localDatas/meta/history/catalogs in its own transaction on this handle
-// Admission covers an already-open native layout-6 database; Dexie initial opening can still migrate or patch stores
+// Supported native layouts admit the exact stored planner before exposing its data
 async function readPlannerAdmissionInTransaction(database: CryKitDatabase): Promise<PlannerAdmission> {
   const roots = await database.localDatas.toArray()
   const record = roots.find(row => row.id === LOCAL_DATA_RECORD_KEY)
   const declaration = await database.meta.get(GUEST_PLANNER_LAYOUT_KEY)
   const marked = roots.some(row => Object.hasOwn(row, 'operativePlanner'))
   if (!marked && !declaration && database.plannerFormatRequirement === 'legacy-or-journaled') {
-    // Marker-free legacy fallback retains its original physical key and permissive historical shape
+    // Simple native planner records still pass strict launch-domain admission before use
     return { format: 'legacy', record }
   }
   if (!record || roots.some(row => row.id !== LOCAL_DATA_RECORD_KEY && Object.hasOwn(row, 'operativePlanner'))) throw journaledPlannerError()
@@ -225,24 +229,16 @@ async function readModSetupTarget(database: CryKitDatabase, expectedRevision: nu
   return record
 }
 
-async function removePersistedBundledCatalogs(database: CryKitDatabase): Promise<void> {
-  await database.catalogs.bulkDelete([...BUNDLED_CATALOG_KEYS])
-}
-
-// Fresh managed profiles and the legacy initializer share the exact supplied sample baseline
-// Constructing it performs no database writes and grants no authority over existing user records
+// Fresh workspaces contain labeled synthetic samples with complete launch source pins
 export function createStarterLocalData(): LocalData {
-  let localData = appendStarterBuilds(createSampleLocalData(CURRENT_CATALOG))
-  // The first-run records form one baseline; unavailable definitions retain their exact pins
-  // Reinterpreting a source with another parser would silently change the supplied checkpoints
-  localData = { ...localData, revision: 0, changes: [], updatedAt: localData.createdAt }
-  localData = { ...localData, modSetup: { version: 1, state: BUNDLED_MOD_LIBRARY.length ? 'pending' : 'skipped' }, referenceLibrary: { version: 1, excludedMods: [...new Set([...BUNDLED_MOD_LIBRARY.map(mod => mod.id), ...SWITCH_MOD_PACKS.flatMap(pack => pack.mods).map(name => `name:${normalizeModName(name)}`)])] } }
+  const sample = createSampleLocalData(CURRENT_CATALOG)
+  const localData: LocalData = { ...sample, revision: 0, changes: [], updatedAt: sample.createdAt, modSetup: { version: 1, state: BUNDLED_MOD_LIBRARY.length ? 'pending' : 'skipped' }, referenceLibrary: { version: 1, excludedMods: BUNDLED_MOD_LIBRARY.map(mod => mod.id) } }
   validateLocalDataForStorage(localData, BUNDLED_CATALOGS)
   return localData
 }
 
 async function initializeStarterRecord(database: CryKitDatabase): Promise<LocalDataRecord> {
-  return database.transaction('rw', database.localDatas, async () => {
+  return database.transaction('rw', database.localDatas, database.catalogs, async () => {
     const active = await database.localDatas.get(LOCAL_DATA_RECORD_KEY)
     if (active) return active
     const existing = await database.localDatas.orderBy('updatedAt').last()
@@ -255,6 +251,7 @@ async function initializeStarterRecord(database: CryKitDatabase): Promise<LocalD
       localData,
       lineage: { rootLocalDataId: localData.id },
     }
+    await database.catalogs.bulkPut(BUNDLED_CATALOGS.map(toCatalogRecord))
     await database.localDatas.add(record)
     return record
   })
@@ -312,16 +309,10 @@ function localDataImportDigests(localData: LocalData): Set<string> {
 }
 
 async function loadedDataForRecord(database: CryKitDatabase, record: LocalDataRecord, admission: PlannerAdmission): Promise<LoadedLocalData> {
-  const keys = catalogReferences(record.localData)
   const digests = localDataImportDigests(record.localData)
-  const availableCatalogRecords = admission.format === 'journaled' ? admission.catalogs : await database.catalogs.toArray()
-  const catalogRecords = availableCatalogRecords.filter(
-    (candidate) => !BUNDLED_CATALOG_KEYS.has(candidate.key) && (keys.has(candidate.key) || digests.has(/^sha256:([0-9a-f]{64})$/.exec(candidate.checksum)?.[1] ?? '')),
-  )
-  for (const catalog of [...BUNDLED_CATALOGS, ...catalogRecords.map(record => record.snapshot)]) {
-    const digest = /^sha256:(.+)$/.exec(catalog.checksum)?.[1]
-    if (digest) digests.add(digest)
-  }
+  const catalogRecords = admission.format === 'journaled' ? admission.catalogs : await database.catalogs.toArray()
+  const catalogs = availableSourceSnapshots(catalogRecords.map(row => row.snapshot))
+  validateNativeLocalDataGraph(record.localData, catalogs)
   const evidence = digests.size > 0
     ? (await database.evidence.toArray()).filter((record) => digests.has(record.sourceDigest))
     : []
@@ -332,7 +323,7 @@ async function loadedDataForRecord(database: CryKitDatabase, record: LocalDataRe
   return {
     localData: cloneJson(record.localData),
     lineage: cloneJson(record.lineage),
-    catalogs: expandModCatalogs([...BUNDLED_CATALOGS.filter(catalog => catalog === CURRENT_CATALOG || keys.has(catalogKey(catalog))), ...catalogRecords.map((catalog) => cloneJson(catalog.snapshot))]),
+    catalogs: expandModCatalogs(catalogs),
     evidence: evidence.map(cloneJson),
     revision: record.revision,
     canUndo,
@@ -353,7 +344,6 @@ export async function loadLocalData(database = getDatabase()): Promise<LoadedLoc
     return await database.transaction('rw', tables, async () => {
       const admission = await readPlannerAdmissionInTransaction(database)
       if (admission.format === 'journaled') return loadedDataForRecord(database, admission.record, admission)
-      await removePersistedBundledCatalogs(database)
       const record = await resolveLocalDataRecord(database)
       return loadedDataForRecord(database, record, admission)
     })
@@ -502,15 +492,23 @@ async function storedCatalogsForLocalData(
   localData: LocalData,
 ): Promise<readonly CatalogSnapshot[]> {
   const keys = catalogReferences(localData)
-  const stored = (await database.catalogs.toArray())
-    .filter((record) => !BUNDLED_CATALOG_KEYS.has(record.key) && keys.has(record.key))
-    .map((record) => record.snapshot)
-  return [...BUNDLED_CATALOGS.filter((catalog) => keys.has(catalogKey(catalog))), ...stored]
+  return availableSourceSnapshots((await database.catalogs.toArray()).map(record => record.snapshot)).filter(catalog => keys.has(catalogKey(catalog)))
 }
 
 const preparedCompositionBySources = new WeakMap<readonly CatalogSnapshot[], { readonly origin: string; readonly catalog: CatalogSnapshot }>()
 
 export async function prepareModCatalogs(localData: LocalData, availableCatalogs: readonly CatalogSnapshot[]): Promise<readonly CatalogSnapshot[]> {
+  const requested: CatalogSnapshot[] = []
+  const present = new Set(availableCatalogs.map(catalogKey))
+  for (const key of catalogReferences(localData)) {
+    if (present.has(key)) continue
+    const [catalogId, catalogRevisionId] = JSON.parse(key) as [CatalogSnapshot['id'], CatalogSnapshot['revisionId']]
+    const supplied = fulfillSource({ catalogId, catalogRevisionId }, availableCatalogs)
+    if (supplied) { requested.push(immutableCatalogSnapshot(supplied.catalog)); present.add(key) }
+  }
+  // Save the requested distribution descriptor alongside its actual body before composition
+  // Resolving from an exact alternate distribution must survive package removal and later offline reopen
+  if (requested.length) availableCatalogs = Object.freeze([...availableCatalogs, ...requested])
   const composed: CatalogSnapshot[] = []
   const immutableSources = availableCatalogs.every(isImmutableCatalogSnapshot)
   const reusableSources = immutableSources && Object.isFrozen(availableCatalogs)
@@ -519,7 +517,7 @@ export async function prepareModCatalogs(localData: LocalData, availableCatalogs
     const origin = Object.values(localData.gameSetups).find(value => modCatalogRevision(value.id) === gameSetup.catalogLock[gameSetup.modComposition!.baseline.catalogId])
     if (!origin?.modComposition) throw new AppDataError('schema-mismatch', 'The effective mod catalog has no originating Game Setup')
     if (composed.some(value => value.revisionId === modCatalogRevision(origin.id))) continue
-    if (hasWithdrawnModDependencies(origin.modComposition, availableCatalogs, origin.modSourceReceipts)) continue
+    if (hasMissingModDependencies(origin.modComposition, availableCatalogs, origin.publicSourceContext ? origin.modSourceReceipts : [])) continue
     // The App and captured repository prepare the same candidate independently
     // Reuse one result only for an exact frozen source array and the complete captured origin value
     // A weak source-array key keeps private context within its owning snapshot lifetime
@@ -527,8 +525,7 @@ export async function prepareModCatalogs(localData: LocalData, availableCatalogs
     const previous = reusableSources ? preparedCompositionBySources.get(availableCatalogs) : undefined
     if (previous && previous.origin === originValue) { composed.push(previous.catalog); continue }
     const catalog = composeModCatalog(origin, availableCatalogs)!
-    const prepared = { ...catalog, checksum: `composition:sha256:${await sha256(new TextEncoder().encode(canonicalJson(catalog)))}` }
-    const admitted = immutableSources ? immutableCatalogSnapshot(prepared) : prepared
+    const admitted = immutableSources ? immutableCatalogSnapshot(catalog) : catalog
     if (originValue !== undefined) preparedCompositionBySources.set(availableCatalogs, { origin: originValue, catalog: admitted })
     composed.push(admitted)
   }
@@ -545,7 +542,7 @@ export async function saveLocalDataWithStatus(localData: LocalData, expectedRevi
     openingError = captureRequiredPlannerOpeningError(database)
     // Reject required-format failure before composition can mask it; the write transaction independently rechecks admission
     await database.transaction('r', [database.localDatas, database.meta, database.history, database.catalogs], () => readSaveTarget(database, expectedRevision))
-    const availableCatalogs = [...BUNDLED_CATALOGS, ...(await database.catalogs.toArray()).map(record => record.snapshot)]
+    const availableCatalogs = availableSourceSnapshots((await database.catalogs.toArray()).map(record => record.snapshot))
     const preparedCatalogs = await prepareModCatalogs(localData, availableCatalogs)
     const originalKeys = new Set(availableCatalogs.map(catalogKey))
     const composed = preparedCatalogs.filter(catalog => !originalKeys.has(catalogKey(catalog))).map(compactModCatalog)
@@ -624,7 +621,7 @@ export async function commitModSetup(previews: readonly ImportPreview[], expecte
       const existing = stored.find(catalog => catalogKey(catalog) === catalogKey(incoming))
       return { ...incoming, ...(existing ? { importedAt: existing.importedAt } : {}) }
     })
-    const available = [...BUNDLED_CATALOGS, ...stored, ...candidates.filter(candidate => !stored.some(catalog => catalogKey(catalog) === catalogKey(candidate)))]
+    const available = availableSourceSnapshots([...stored, ...candidates.filter(candidate => !stored.some(catalog => catalogKey(catalog) === catalogKey(candidate)))])
     const configured = configureModSetup(before.localData, candidates, available, expectedRevision, skip)
     const prepared = await prepareModCatalogs(configured, available)
     await database.transaction('rw', [database.localDatas, database.catalogs, database.sources, database.evidence, database.imports, database.history, database.meta], async () => {
@@ -661,7 +658,7 @@ export async function commitModSetup(previews: readonly ImportPreview[], expecte
 
 async function putCandidateData(database: CryKitDatabase, candidate: ImportCandidate): Promise<void> {
   assertStarterCatalogIdentity(candidate.catalogs)
-  const storedCatalogs = candidate.catalogs.filter((catalog) => !isBundledCatalog(catalog)).map(compactModCatalog)
+  const storedCatalogs = candidate.catalogs.map(compactModCatalog)
   await assertCatalogsImmutable(database, storedCatalogs)
   if (storedCatalogs.length > 0) await database.catalogs.bulkPut(storedCatalogs.map(toCatalogRecord))
   for (const evidence of candidate.evidence) {
@@ -759,12 +756,7 @@ export async function commitImport(
           const command = alreadyImported ? 'reference.mod-membership' : 'add-reference-catalog'
           const membership = inclusionChanged ? { referenceLibrary: referenceLibraryWithMod(target.localData.referenceLibrary, options.includeModInReference!, true) } : {}
           const updated = changedLocalData(target.localData, { ...target.localData, importReceipts: { ...target.localData.importReceipts, ...receipts }, ...membership }, command, timestamp)
-          const storedCatalogs = [
-            ...BUNDLED_CATALOGS,
-            ...(await database.catalogs.toArray())
-              .filter(record => !BUNDLED_CATALOG_KEYS.has(record.key))
-              .map(record => record.snapshot),
-          ]
+          const storedCatalogs = availableSourceSnapshots((await database.catalogs.toArray()).map(record => record.snapshot))
           validateNativeLocalDataGraph(updated, storedCatalogs)
           await database.localDatas.put({ ...target, revision: updated.revision, updatedAt: timestamp, localData: updated })
           await database.history.add(historyEntry(target.localData, updated, command, timestamp))
@@ -780,11 +772,7 @@ export async function commitImport(
           'replace-localData-from-import',
           timestamp,
         )
-        const replacementCatalogs = new Map(
-          [...BUNDLED_CATALOGS, ...preview.proposed.catalogs]
-            .map(catalog => [catalogSnapshotKey(catalog.id, catalog.revisionId), catalog]),
-        )
-        validateNativeLocalDataGraph(replacement, [...replacementCatalogs.values()])
+        validateNativeLocalDataGraph(replacement, availableSourceSnapshots(preview.proposed.catalogs))
         await putCandidateData(database, preview.proposed)
         await database.localDatas.put({
           id: LOCAL_DATA_RECORD_KEY,
@@ -1044,10 +1032,7 @@ export async function exportPlannerSnapshot(planner: WorkspacePlannerState, sour
 
 async function encodeCapturedPlannerBackup(captured: PlannerBackupCapture): Promise<Uint8Array> {
   // Journal admission requires exact historical effective catalogs; only a new journal draft may need composition
-  const availableCatalogRecords = (await prepareModCatalogs(captured.localData, [
-    ...BUNDLED_CATALOGS,
-    ...captured.catalogRecords.filter(record => !BUNDLED_CATALOG_KEYS.has(record.key)).map(record => record.snapshot),
-  ])).map(compactModCatalog).map(toCatalogRecord)
+  const availableCatalogRecords = (await prepareModCatalogs(captured.localData, availableSourceSnapshots(captured.catalogRecords.map(record => record.snapshot)))).map(compactModCatalog).map(toCatalogRecord)
   const payloadFor = (history: readonly PersistedHistoryEntry[]) => {
     // A native root without Undo checkpoints cannot carry live changes; clear only this export copy
     const localData = history.length === 0 && captured.localData.changes.length > 0
@@ -1070,7 +1055,7 @@ async function encodeCapturedPlannerBackup(captured: PlannerBackupCapture): Prom
     const availableCatalogKeys = new Set(catalogs.map((catalog) => catalogKey(catalog)))
     const roots = [localData, ...history.flatMap(entry => [entry.before, entry.after])]
     const unavailableCompositions = new Set([...unavailableModCatalogKeys(roots, catalogs), ...roots.flatMap(root => [...publicUnavailableCatalogKeys(root)])])
-    if (Array.from(catalogKeys).some((key) => !availableCatalogKeys.has(key) && !withdrawnCatalogKey(key) && !unavailableCompositions.has(key))) {
+    if (Array.from(catalogKeys).some((key) => !availableCatalogKeys.has(key) && !unavailableCompositions.has(key))) {
       throw new AppDataError('storage-failure', 'The planner data references catalog data that is missing locally', {
         recoverable: true,
       })
@@ -1098,8 +1083,7 @@ async function encodeCapturedPlannerBackup(captured: PlannerBackupCapture): Prom
       payload: {
         localData,
         lineage: captured.lineage,
-        catalogs: catalogs.filter(catalog => !isBundledCatalog(catalog)),
-        bundledCatalogs: [...catalogs.filter(isBundledCatalog).map(catalog => ({ id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum })), ...WITHDRAWN_CATALOGS.filter(receipt => catalogKeys.has(catalogKey(receipt)) && !availableCatalogKeys.has(catalogKey(receipt)))],
+        catalogs,
         evidence,
         history,
       },
@@ -1127,6 +1111,7 @@ async function encodeCapturedPlannerBackup(captured: PlannerBackupCapture): Prom
   const exportedAt = nowTimestamp()
   const manifest: NativeBackupManifest = {
     format: 'crykit-backup',
+    dataGeneration: LAUNCH_DATA_GENERATION,
     formatVersion: NATIVE_BACKUP_FORMAT_VERSION,
     exportedAt,
     payload: 'bundle.json',

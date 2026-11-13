@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { isDeepStrictEqual } from 'node:util'
 import { expect } from 'vitest'
 import type { ProfileToken } from '../account/profile'
@@ -33,7 +34,7 @@ export async function completeInactiveCandidate(database: AccountDatabase, token
   // Fault matrices need exact nonempty history, not the payload-size cross-product
   // Dedicated transfer and admission cases opt into real segmented metadata
   const metadata = 'synthetic-private-metadata\ud800'
-  const historical = { version: 1 as const, snapshotId: 'synthetic-private-history', capturedAt: '2026-10-13', revisionVector: {}, state: { ...fixture.state, blobs: [body, ...fixture.state.blobs], editorDocuments: [{ ...fixture.file, unfinished: { ...fixture.file.unfinished, fieldState: { original: segmentedMetadata ? multiPageMetadataText(metadata) : metadata } } }] } }
+  const historical = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1 as const, snapshotId: 'synthetic-private-history', capturedAt: '2026-10-13', revisionVector: {}, state: { ...fixture.state, blobs: [body, ...fixture.state.blobs], editorDocuments: [{ ...fixture.file, unfinished: { ...fixture.file.unfinished, fieldState: { original: segmentedMetadata ? multiPageMetadataText(metadata) : metadata } } }] } }
   const current = { ...historical, snapshotId: 'synthetic-current', state: source.workspace.state }
   const snapshot = nonempty ? await inheritWorkspaceSnapshot(current, [historical]) : undefined
   const pages = snapshot ? await metadataPages([...capturedBackupEvidence(snapshot).historical.values()][0]) : []

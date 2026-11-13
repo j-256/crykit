@@ -1,3 +1,4 @@
+import { syntheticCatalog } from './test-helpers'
 import './guest-managed-monitor.test-helpers'
 import { expect, it, vi } from 'vitest'
 import { GuestCoordinatorDatabase } from './guest-coordinator'
@@ -18,14 +19,14 @@ it('captures mutable bulk input without recloning an admitted immutable catalog'
   const database = new GuestCoordinatorDatabase(`synthetic-managed-capture-${crypto.randomUUID()}`)
   const store = createGuestLocalStore(database, () => {})
   const localData = createTestLocalData()
-  const catalog: CatalogSnapshot = { id: 'synthetic-admitted' as never, revisionId: 'synthetic-admitted-v1' as never, schemaVersion: 'synthetic', checksum: 'synthetic', importedAt: localData.createdAt, applicability: { state: 'unknown' }, rights: { state: 'unknown' }, entities: {}, claims: [] }
+  const catalog = syntheticCatalog('admitted')
   const initial: WorkspaceState = { planner: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: [catalog], sources: [], evidence: [], history: [] }, editorDocuments: [], saveDocuments: [], assets: [], conflicts: [], retainedContent: [], blobs: [], libraryDefaults: { version: 1, layers: [] } }
   const prepared = await prepareLocalWorkspace(store.adapter, 'initial', initial, { check: () => {}, assertCurrent: async () => {} })
   const receipt = await store.activate('initial', prepared.head, undefined, () => {})
   const repository = await openGuestManagedRepository(database, receipt.target)
   const state = await repository.readWorkspace(), admitted = state.planner.catalogs[0]!
   expect(isImmutableCatalogSnapshot(admitted)).toBe(true)
-  const mutable: CatalogSnapshot = { ...catalog, id: 'synthetic-mutable' as never, revisionId: 'synthetic-mutable-v1' as never, legacy: { marker: 'Captured input' } }
+  const mutable = syntheticCatalog('mutable', { marker: 'Captured input' })
   const input = { ...state, planner: { ...state.planner, catalogs: [admitted, mutable] } }
   const clone = globalThis.structuredClone
   let fullCatalogCopies = 0

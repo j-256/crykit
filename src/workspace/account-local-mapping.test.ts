@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { expect, it, vi } from 'vitest'
 import * as documentCodec from './document-codec'
@@ -106,7 +107,7 @@ it('maps every inherited original with exact bytes and rejects a replaced outbox
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   const database = new AccountDatabase(token.accountId), store = createAccountLocalStore(database, token)
   const fixture = await editorClosureFixture()
-  const original = ownWorkspaceSnapshot({ version: 1, snapshotId: 'historical-mapping-source', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: { synthetic: 'original' }, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
+  const original = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'historical-mapping-source', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: { synthetic: 'original' }, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
   let exported: Awaited<ReturnType<typeof captureAccountSnapshot>> | undefined
   try {
     const operation = accountLocalId(), evidence = await guestEvidenceFromFrozenCurrent(original)
@@ -167,7 +168,7 @@ it('maps a fresh managed baseline without selecting a native head and reuses it 
 it('reuses the exact encrypted sidecar association after restart and rejects a foreign local-sidecar binding', async () => {
   const accountId = accountLocalId(), key = crypto.getRandomValues(new Uint8Array(32))
   let token = installProfile(accountId, key.slice()), database = new AccountDatabase(accountId), store = createAccountLocalStore(database, token)
-  const fixture = await editorClosureFixture(), original = ownWorkspaceSnapshot({ version: 1, snapshotId: 'evidence-reuse-source', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: { source: 'one' }, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
+  const fixture = await editorClosureFixture(), original = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'evidence-reuse-source', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: { source: 'one' }, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
   try {
     const operation = accountLocalId(), evidence = await guestEvidenceFromFrozenCurrent(original)
     const inherited = await prepareLocalEvidence(store.adapter, operation, evidence)

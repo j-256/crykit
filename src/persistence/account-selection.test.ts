@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { deepStrictEqual } from 'node:assert'
 import 'fake-indexeddb/auto'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -16,7 +17,7 @@ function setup() {
   database = new AccountDatabase(token.accountId)
   return token
 }
-const graph = (version = 1) => ({ version, kind: 'local-workspace-graph', lineageId: 'synthetic-selection-lineage', localRevision: 0, localUpdatedAt: '2026-01-01', index: ref(), allocations: ref(), selections: { scenarios: {} } })
+const graph = (version = 1) => ({ version, dataGeneration: LAUNCH_DATA_GENERATION, kind: 'local-workspace-graph', lineageId: 'synthetic-selection-lineage', localRevision: 0, localUpdatedAt: '2026-01-01', index: ref(), allocations: ref(), selections: { scenarios: {} } })
 const snapshot = async () => Object.fromEntries(await Promise.all(database.tables.filter(table => table.name !== 'stagedCipherChunks').map(async table => [table.name, await table.toArray()])))
 async function operation(record: CipherRecord, installed = false): Promise<PreparedLocalActivation> {
   if (installed) await database.encryptedRevisions.add(record)

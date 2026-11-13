@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { expect, it } from 'vitest'
 import { AccountDatabase, activateLocalAccountCommit } from '../persistence/account-database'
@@ -17,7 +18,7 @@ it('opens valid current data without reading an unrelated archive and rejects th
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   const database = new AccountDatabase(token.accountId), store = createAccountLocalStore(database, token)
   const fixture = await editorClosureFixture()
-  const original = ownWorkspaceSnapshot({ version: 1, snapshotId: 'archive-only-original', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: {}, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
+  const original = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'archive-only-original', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: {}, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
   try {
     const operation = accountLocalId(), evidence = await guestEvidenceFromFrozenCurrent(original)
     const inherited = await prepareLocalEvidence(store.adapter, operation, evidence)
@@ -51,7 +52,7 @@ it('exports exact encrypted current and inherited graphs while preserving captur
   const database = new AccountDatabase(token.accountId), store = createAccountLocalStore(database, token)
   let backup: Awaited<ReturnType<typeof captureWorkspaceSnapshot>> | undefined
   const fixture = await editorClosureFixture()
-  const original = ownWorkspaceSnapshot({ version: 1, snapshotId: 'retained-native-original', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: { synthetic: 'original' }, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
+  const original = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'retained-native-original', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: { synthetic: 'original' }, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
   try {
     const operation = accountLocalId(), evidence = await guestEvidenceFromFrozenCurrent(original)
     const inherited = await prepareLocalEvidence(store.adapter, operation, evidence)

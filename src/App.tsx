@@ -1,3 +1,5 @@
+import { PrelaunchWorkspaceNotice } from './ui/PrelaunchWorkspaceNotice'
+import { PrelaunchGuestDataError, startLaunchGuestWorkspace } from './workspace/guest-managed-startup'
 import { editCopiedCheckpoint } from './interchange/public-checkpoint-edit'
 import { recordWorkspaceStartup, WORKSPACE_STARTUP_PHASE } from './diagnostics/workspace-startup'
 import type { SaveCopiedCheckpoint } from './ui/PublicSharedView'
@@ -210,6 +212,7 @@ export default function App() {
   const { noticeRef: navigationWarningRef, revealNotice: revealNavigationWarning } = useNavigationNotice()
   const buildDraftRouteRef = useRef<AppRoute>(undefined)
   const [loadingError, setLoadingError] = useState<string>()
+  const [prelaunchGuestData, setPrelaunchGuestData] = useState(false)
   const [saveState, setSaveState] = useState<SaveState>('saved')
   const [pendingCommitCount, setPendingCommitCount] = useState(0)
   const [dirty, setDirty] = useState(false)
@@ -262,7 +265,7 @@ export default function App() {
       persistedRevisionRef.current = loaded.localData.revision
       setLoadedData(loaded)
       if (initialLanding.current && BUNDLED_MOD_LIBRARY.length > 0 && loaded.localData.modSetup?.state === 'pending') setModSelectorOpen(true)
-    }).catch((error: unknown) => { if (live) setLoadingError(formatAppError(error, 'Local records could not be opened.')) })
+    }).catch((error: unknown) => { if (live) { setPrelaunchGuestData(error instanceof PrelaunchGuestDataError); setLoadingError(formatAppError(error, 'Local records could not be opened.')) } })
     return () => { live = false }
   }, [])
 
@@ -969,6 +972,7 @@ export default function App() {
     return [...catalogs, ...BUNDLED_CATALOGS.filter(catalog => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)]
   }, [loadedData?.catalogs, navigation.route.page])
 
+  if (prelaunchGuestData) return <PrelaunchWorkspaceNotice onStart={async () => { await startLaunchGuestWorkspace(); window.location.reload() }}/>
   if (loadingError) return <main className="error-screen panel"><div className="panel__body stack"><p className="eyebrow">Local planner data unavailable</p><h1>Your records could not be opened</h1><InlineNotice title="No data was cleared" tone="danger">{loadingError}</InlineNotice><Button icon="history" onClick={() => window.location.reload()}>Reload app</Button></div></main>
   if (!loadedData) return <LoadingScreen detail="Loading local records from this browser..."/>
 

@@ -1,3 +1,4 @@
+import { encodeCatalogPayload } from './catalog-codec'
 import { OriginalPublicationSchema, type OriginalPublication, type ConflictSuccessorEvidence } from './conflict-authority'
 import { sourceBookkeepingRefs } from './source-bookkeeping'
 import { maxDependencies } from '../account/protocol'
@@ -8,8 +9,6 @@ import { ARCHIVAL_DOCUMENT_KINDS, archiveTypedReferences, inspectWorkspaceClosur
 import { resolvedDomainClosureKeys } from './domain-closure'
 import { isBlobSource, type WorkspaceState, type WorkspaceBlobRef, type WorkspaceConflictClosureEntry, type WorkspaceConflictClosure, type WorkspaceRetainedContent } from './documents'
 import { memoryBlob, blobIdentity, hashBlob } from './blobs'
-import { decodeWorkspaceDocument } from './document-codec'
-import { PackagedCatalogPinSchema } from './catalog-codec'
 import { INDEX_PAGE_BYTES, INDEX_PAGE_ENTRIES } from './directory'
 
 export async function archiveWorkspaceUnit(workspace: OpenAccountWorkspace, key: string, output: Map<string, WorkspaceState['blobs'][number]>, publication?: OriginalPublication, successor?: ConflictSuccessorEvidence): Promise<WorkspaceConflictClosure> {
@@ -78,18 +77,7 @@ async function archiveCapturedUnit(captured: Awaited<ReturnType<typeof captureAr
     for (const ref of direct) binary(ref)
     const dependencies = [...direct]
     for (const dependency of resolvedDomainClosureKeys({ key, kind, value }, documents, entry.sourceBookkeeping?.scenarioDependencies ?? 'legacy-s02')) dependencies.push(await visit(dependency))
-    const payload = records.get(key)?.source
-    const decoded = kind === 'catalog' && payload ? await decodeWorkspaceDocument(payload) : undefined
-    const pin = decoded?.kind === 'catalog' ? PackagedCatalogPinSchema.safeParse(decoded.value) : undefined
-    const materialized = pin?.success === true
-    const ref = await json(value, materialized ? `materialized-catalog:${entry.ref.documentId}` : entry.ref.documentId, entry.ref.revisionId)
-    if (materialized) {
-      if (decoded!.key !== key || await hashBlob(payload!) !== entry.digest) throw new Error('Original catalog pin evidence changed')
-      const evidence: WorkspaceBlobRef = { ...entry.ref, byteLength: payload!.byteLength, sha256: entry.digest, encoding: 'bytes' }
-      put({ ref: evidence, content: payload! })
-      entries.set(blobIdentity(evidence), { version: 1, ref: evidence, documentVersion: 1, kind: 'blob', key: JSON.stringify(['blob', blobIdentity(evidence)]), encoding: 'bytes', dependencies: [] })
-      expansions.push(await unit({ version: 1, kind: 'unit-index', roots: [evidence, ref], relation: { kind: 'catalog-expansion', privateKey: key, evidence, materialized: ref, id: pin.data.id, revisionId: pin.data.revisionId, checksum: pin.data.checksum } }))
-    }
+    const ref = await json(kind === 'catalog' ? encodeCatalogPayload(value as unknown as import('../domain/types').CatalogSnapshot) : value, entry.ref.documentId, entry.ref.revisionId)
     const sourceBookkeeping = entry.sourceBookkeeping
     if (sourceBookkeeping) {
       const { version: _version, ...relation } = sourceBookkeeping

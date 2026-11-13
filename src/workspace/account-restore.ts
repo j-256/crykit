@@ -1,6 +1,6 @@
 import { captureAccountSyncWorkspace, isManagedAccountHead } from './account-sync-capture'
 import { prepareManagedAccountProjection } from './account-managed-projection'
-import { migratePlanner250 } from './planner-journal'
+import { admitLaunchPlanner } from './planner-journal'
 import { prepareCopiedConflicts } from './copied-conflicts'
 import { assertActiveProfile, type ProfileToken } from '../account/profile'
 import { activateLocalAccountCommit, AccountDatabase, type AccountFence, type CipherRef, type PreparedLocalActivation } from '../persistence/account-database'
@@ -89,7 +89,7 @@ export async function stageAccountWorkspaceRestore(preview: AccountRestorePrevie
     const evidence = await operation.prepare({ base, additions: [normalized] })
     // Source comparisons remain exact inherited originals until destination publication establishes
     // an accepted branch. Replacement authority changes records, never the meaning of source parents
-    const workspace = await prepareAccountWorkspaceWithEvidence(database, token, { ...snapshot.state, planner: migratePlanner250(snapshot.state.planner), conflicts: [] }, evidence, previous)
+    const workspace = await prepareAccountWorkspaceWithEvidence(database, token, { ...snapshot.state, planner: admitLaunchPlanner(snapshot.state.planner), conflicts: [] }, evidence, previous)
     const id = accountLocalId()
     const source = snapshot.state.conflicts.length ? await prepareAccountWorkspaceWithEvidence(database, token, snapshot.state, evidence) : undefined
     const registrations = source ? await prepareCopiedConflicts(database, token, { operationId: id, source: source.opened, destination: previous, keys: [], evidence, snapshot, owner: evidence.owner, mode: 'replace' }) : undefined
