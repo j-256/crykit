@@ -3,6 +3,8 @@ import { createPublicShareUrl, decodePublicSnapshot } from '../src/interchange/p
 import { skipInitialModSetup, readLocalData } from './local-data-helpers'
 import { openShareSources } from './share-view-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
+import { CURRENT_CATALOG } from '../src/catalog/bundled'
+import type { PublicSnapshot } from '../src/interchange/public-share-schema'
 
 async function sampleBuildUrl(page: Page): Promise<string> {
   await page.goto('/')
@@ -90,7 +92,16 @@ test('missing mechanics retain readable selections and conflicting setup receipt
   const url = await sampleBuildUrl(page)
   const snapshot = decodePublicSnapshot(new URL(url).hash.split('/')[3]!)
   const longName = 'Synthetic equipment with a very long unbroken identifier '.repeat(2) + 'x'.repeat(100)
-  const missing = { ...snapshot, title: 'Synthetic missing sources', setup: { ...snapshot.setup, baseline: null, mode: { state: 'conflicting' as const } }, receipts: snapshot.receipts.map((receipt, index) => index === 0 ? { ...receipt, name: longName } : receipt) }
+  const unavailableRevision = 'v999'
+  // Removing the calculation baseline does not remove exact definitions already owned by the viewer
+  // Keep selection, contributor, and setup pins consistent while requesting a genuinely missing revision
+  const unavailable = JSON.parse(JSON.stringify(snapshot, (key, value: unknown) => {
+    if (!value || typeof value !== 'object') return value
+    if (key === 'catalogLock') return { ...value, [CURRENT_CATALOG.id]: unavailableRevision }
+    if ('catalogId' in value && value.catalogId === CURRENT_CATALOG.id) return { ...value, catalogRevisionId: unavailableRevision, ...('sourceRevisionId' in value ? { sourceRevisionId: unavailableRevision } : {}) }
+    return value
+  })) as PublicSnapshot
+  const missing = { ...unavailable, title: 'Synthetic missing sources', setup: { ...unavailable.setup, baseline: null, mode: { state: 'conflicting' as const } }, receipts: unavailable.receipts.map((receipt, index) => index === 0 ? { ...receipt, name: longName } : receipt) }
   await page.goto(createPublicShareUrl(missing, `${baseURL}/`))
   const loadout = page.getByRole('region', { name: 'Shared build loadout', exact: true })
   await expect(loadout.getByText(longName, { exact: true })).toBeVisible()

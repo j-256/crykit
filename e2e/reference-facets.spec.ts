@@ -1,6 +1,6 @@
 import { importSyntheticLibrary } from './mod-library-fixtures'
 import { waitForPlannerReady } from './local-data-helpers'
-import { referencePath } from './reference-helpers'
+import { guideReferencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -113,7 +113,7 @@ test('reference facets retain filtering, direct routes and offline navigation', 
     await expect(technical).toHaveCount(0)
     await expect(page).not.toHaveURL(/audience=technical/)
 
-    await page.goto(referencePath('base:mechanic:stat:ref-445') + '?v=1')
+    await page.goto(guideReferencePath('ref-445') + '?v=1')
     await expect(page.getByRole('heading', { name: 'AbilityItemConsumptionDown', exact: true })).toBeVisible()
     await expect(page).not.toHaveURL(/audience=technical/)
 

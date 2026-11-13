@@ -8,6 +8,8 @@ import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import type { LocalData } from '../src/domain/types'
 
+const SAMPLE_BUILD_TITLES = ['Mira: sample Cleric', 'Rowan: sample Warrior', 'Sol: sample Wizard', 'Tavi: sample Rogue']
+
 async function openData(page: Page) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
   return page.getByRole('region', { name: 'Data & Settings', exact: true })
@@ -37,8 +39,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   const original = await exportLocalData(page)
   expect(selectedPlaythrough(original).label).toBe('Sample playthrough')
   expect(Object.values(selectedPlaythrough(original).characters).map(character => character.name).sort()).toEqual(['Mira', 'Rowan', 'Sol', 'Tavi'])
-  expect(Object.values(original.builds)).toHaveLength(8)
-  expect(Object.values(original.builds).filter(build => build.title.includes(': sample '))).toHaveLength(4)
+  expect(Object.values(original.builds).map(build => build.title).sort()).toEqual(SAMPLE_BUILD_TITLES)
   const team = selectedPlaythrough(original).scenarios[selectedPlaythrough(original).activeScenarioId!]!
   expect(team.memberIds).toEqual(Object.keys(selectedPlaythrough(original).characters))
   expect(Object.keys(team.assignments)).toHaveLength(4)
@@ -99,12 +100,12 @@ test('an explicitly created blank playthrough keeps its records empty while shar
   await skipInitialModSetup(page)
   await createBlankPlaythrough(page)
   await page.reload()
-  await expect(page.getByRole('region', { name: 'Build Library', exact: true }).locator('.build-card')).toHaveCount(8)
+  await expect(page.getByRole('region', { name: 'Build Library', exact: true }).locator('.build-card')).toHaveCount(SAMPLE_BUILD_TITLES.length)
   await page.getByRole('button', { name: 'Characters', exact: true }).filter({ visible: true }).click()
   await expect(page.getByRole('heading', { name: 'Your roster is blank', exact: true })).toBeVisible()
   const localData = await exportLocalData(page)
   for (const key of ['characters', 'inventory', 'scenarios'] as const) expect(selectedPlaythrough(localData)[key]).toEqual({})
-  expect(Object.values(localData.builds)).toHaveLength(8)
+  expect(Object.values(localData.builds).map(build => build.title).sort()).toEqual(SAMPLE_BUILD_TITLES)
 })
 
 test('Game Setup starts with core fields and reveals optional settings on demand', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
