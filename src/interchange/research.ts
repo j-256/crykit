@@ -103,8 +103,13 @@ function uniqueEntityId(
   return candidate
 }
 
+function researchFields(record: { readonly [key: string]: JsonValue }) {
+  // Source identity ignores object key order, so projection must not derive ordered values from it
+  return Object.keys(record).sort().map(field => [field, record[field]!] as const)
+}
+
 function rawDescription(record: { readonly [key: string]: JsonValue }): string | undefined {
-  const descriptions = Object.entries(record)
+  const descriptions = researchFields(record)
     .filter(([field, value]) => DESCRIPTION_FIELDS.has(normalizeImportedFieldName(field)) && typeof value === 'string' && value.length > 0)
     .map(([, value]) => value as string)
   const unique = Array.from(new Set(descriptions))
@@ -118,12 +123,13 @@ function aliases(record: { readonly [key: string]: JsonValue }): readonly string
 }
 
 function ppCost(record: { readonly [key: string]: JsonValue }, source: SourceRef): Knowledge<number> | undefined {
-  const entry = Object.entries(record).find(([field]) => PP_FIELDS.has(normalizeImportedFieldName(field)))
-  if (!entry) return undefined
-  const [, value] = entry
-  return typeof value === 'number'
-    ? { state: 'known', value, sources: [source] }
-    : { state: 'unknown', reason: 'The explicit PP field is not a numeric source value', sources: [source] }
+  const entries = researchFields(record).filter(([field]) => PP_FIELDS.has(normalizeImportedFieldName(field)))
+  if (!entries.length) return undefined
+  const claims = entries.flatMap(([field, value]) => typeof value === 'number' ? [{ value, sources: [source], note: `PP field: ${field}` }] : [])
+  // Neither insertion order nor alias spelling establishes authority over contradictory source evidence
+  if (claims.length !== entries.length) return { state: 'unknown', reason: 'An explicit PP field is not a numeric source value', sources: [source] }
+  if (new Set(claims.map(claim => claim.value)).size > 1) return { state: 'conflicting', claims }
+  return { state: 'known', value: claims[0]!.value, sources: [source] }
 }
 
 function objectArray(root: { readonly [key: string]: JsonValue }, key: string): readonly { readonly [key: string]: JsonValue }[] {
@@ -231,7 +237,7 @@ function buildCatalog(
         name,
         aliases: aliases(record),
         fields: Object.fromEntries(
-          Object.entries(record)
+          researchFields(record)
             .filter(([key]) => !omitted.has(key))
             .map(([key, value]) => [key, knowledge(value, source, key)]),
         ),
@@ -273,7 +279,7 @@ function buildCatalog(
         continue
       }
       const source = sourceRef(digest, `/${config.array}/${index}`, true)
-      for (const [field, value] of Object.entries(record)) {
+      for (const [field, value] of researchFields(record)) {
         if (config.names.includes(field) || config.ids.includes(field)) continue
         claims.push({
           entityId: entity.id,
@@ -303,7 +309,7 @@ function buildCatalog(
       kind: 'location',
       name,
       aliases: aliases(record),
-      fields: Object.fromEntries(Object.entries(record).map(([key, value]) => [key, knowledge(value, source, key)])),
+      fields: Object.fromEntries(researchFields(record).map(([key, value]) => [key, knowledge(value, source, key)])),
       sources: [source],
       ...(description === undefined ? {} : { rawDescription: description }),
       ...(documentedPpCost === undefined ? {} : { ppCost: documentedPpCost }),
