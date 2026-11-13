@@ -1,4 +1,5 @@
 import { entityDefinitionKey, entityRefKey } from './core'
+import { fulfillSource } from './source-fulfillment'
 import { catalogEntity } from './entity-identities'
 import { preservedNativeDefinition } from './preserved-native-definitions'
 import { MOD_CATALOG_SCHEMA } from './mod-layers'
@@ -23,7 +24,7 @@ export function resolveDefinition(
   ref: EntityRef,
 ): ResolvedDefinition | undefined {
   if (ref.kind === 'personal') return localData.personalDefinitions[ref.definitionId]
-  const catalog = catalogs.find((catalog) => catalog.id === ref.catalogId && catalog.revisionId === ref.catalogRevisionId)
+  const catalog = fulfillSource(ref, catalogs)?.catalog
   const entity = catalog && catalogEntity(catalog, ref.entityId)
   // Receipt-only public selections never acquire native mechanics through a missing-source fallback
   if (!entity && localData.unavailableDefinitions?.some(receipt => entityDefinitionKey(receipt.ref) === entityDefinitionKey(ref))) return undefined

@@ -4,14 +4,14 @@ import { useSaveWorkspace, type SaveWorkspace, type OpenSaveDocument } from './s
 import { emptySavePending } from '../workspace/save-input-controller'
 import { parseSavePending } from '../workspace/save-pending'
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { BUNDLED_MOD_LIBRARY, bundledModEditableSource } from '../catalog/mod-library'
+import { BUNDLED_MOD_LIBRARY, bundledModPreview } from '../catalog/mod-library'
 import { SAVE_EDITOR_CATALOG } from '../catalog/save-editor'
 import { NATIVE_GAME_DATA } from '../catalog/native-game'
 import { nativeGameplayScopeLabel } from '../domain/native-game'
 import { CRYSTAL_SAVE_LIMITS, crystalSaveVersion, decodeCrystalSave, encodeCrystalSave, type CrystalSave } from '../interchange/crystal-save'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { editSave, inspectSave, previewSaveChanges, previewSaveAdditions, previewVanillaConversion, saveEditorChoices, SAVE_EDITOR_MAX_CURRENCY, type SaveEditCommand } from '../domain/save-editor'
-import { createSaveEditorModSource, resolveSaveEditorMods, saveEditorModProjectId, saveEditorModSourceKey, type SaveEditorModSource } from '../domain/save-editor-mods'
+import { createSaveEditorModSource, resolveSaveEditorMods, saveEditorModSourceKey, type SaveEditorModSource } from '../domain/save-editor-mods'
 import { MAX_MOD_SOURCE_BYTES, type BundledLibraryMod } from '../domain/mod-library'
 import type { LocalData } from '../domain/types'
 import { Badge, Button, Field, InlineNotice, ScreenHeader } from './components'
@@ -103,7 +103,7 @@ function bundledDefinitionsForSave(save: CrystalSave) {
   const active = new Map(save.header.mods.map(mod => [mod.id, mod]))
   const historical = new Set(save.header.modIdMaps.map(map => map.modId).filter(id => !active.has(id)))
   return BUNDLED_MOD_LIBRARY.filter(mod => {
-    const id = saveEditorModProjectId(mod.id)
+    const id = mod.projectId
     const saved = active.get(id)
     if (!saved) return historical.has(id)
     return (mod.declaredVersion ?? '') === saved.version && (saved.steamWorkshopFileId === 0n || mod.steamWorkshopFileId === saved.steamWorkshopFileId.toString())
@@ -122,11 +122,10 @@ function loadBundledSaveEditorSource(mod: BundledLibraryMod): Promise<SaveEditor
   }
   // Bundled bytes are content-addressed; reuse parsing across saves and discard failed loads for retry
   const loading = (async () => {
-    const source = await bundledModEditableSource(mod)
-    const preview = await previewCrystalEdit(new TextEncoder().encode(source.text), source.filename)
+    const preview = await bundledModPreview(mod)
     if (preview.errors.length) throw new Error(preview.errors[0]!.message)
     const catalog = preview.proposed.catalogs[0]
-    if (!catalog) throw new Error(`${source.filename} is not a Crystal Edit project`)
+    if (!catalog) throw new Error(`${mod.title} is not a Crystal Edit project`)
     return createSaveEditorModSource(catalog, preview.warnings, 'bundled', mod.key)
   })().catch(reason => {
     if (bundledSaveEditorSources.get(key) === loading) bundledSaveEditorSources.delete(key)
@@ -248,7 +247,7 @@ export function SaveEditorView({ storage, localData: localDataProp, onDraftChang
     })
     const historical = (modResolution?.historicalModIds ?? []).map(id => {
       const sources = modSources.filter(source => source.id === id)
-      const bundled = BUNDLED_MOD_LIBRARY.find(mod => saveEditorModProjectId(mod.id) === id)
+      const bundled = BUNDLED_MOD_LIBRARY.find(mod => mod.projectId === id)
       const source = sources.find(candidate => candidate.origin === 'file') ?? sources[0]
       return { id, title: source?.title ?? bundled?.title ?? id, version: undefined, active: false, matched: sources.length > 0, source }
     })

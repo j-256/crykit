@@ -1,3 +1,4 @@
+import { NavigationProvider, useNavigationController } from './navigation'
 import { useMemo, useState } from 'react'
 import { SaveEditorView as SaveContent } from './SaveEditorView'
 import { createSaveSession, saveContentBase, type OpenSaveDocument, type SaveWorkspace } from './save-workspace'
@@ -11,6 +12,7 @@ import type { DraftChangeHandler } from './drafts'
 
 // Native handler tests use an explicit volatile adapter; real provider/transaction tests live separately
 export function SaveEditorView(props: { readonly localData?: LocalData; readonly onDraftChange?: DraftChangeHandler }) {
+  const navigation = useNavigationController()
   const [generation, update] = useState(0)
   const shared = useMemo(() => ({ session: createSaveSession(), rows: new Map<string, OpenSaveDocument>() }), [])
   const storage = useMemo<SaveWorkspace>(() => {
@@ -56,5 +58,5 @@ export function SaveEditorView(props: { readonly localData?: LocalData; readonly
       },
     }
   }, [shared, generation])
-  return <SaveContent {...props} key={generation} storage={storage}/>
+  return <NavigationProvider controller={navigation}><SaveContent {...props} key={generation} storage={storage}/></NavigationProvider>
 }

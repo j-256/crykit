@@ -15,7 +15,7 @@ it('keeps personal observations linked to an earlier project source while browsi
   const before = JSON.stringify(observation.localData)
   const catalogs = [earlier, latest]
   const cards = buildModLibraryCards(catalogs, buildDefinitionOptions(observation.localData, catalogs), observation.localData)
-  expect(cards.find(card => card.project?.id === latest.id)?.entryCount).toBe(2)
+  expect(cards.find(card => card.project?.id === latest.id)?.entryCount).toBe(3)
   const temporaryCards = buildModLibraryCards(catalogs, buildDefinitionOptions(observation.localData, [latest]), observation.localData)
   expect(temporaryCards.find(card => card.project?.id === latest.id)?.entryCount).toBe(2)
   expect(JSON.stringify(observation.localData)).toBe(before)

@@ -48,8 +48,8 @@ export function BuildModSelectionGate({ content, value, onChange, onBusyChange, 
     const versions = project ? buildModVersions(project) : []
     const ref = selection.option.ref
     const bundled = bundledModIdentity(selection.option.record)
-    const source = project?.bundled.find(source => source.key === bundled?.key && source.declaredVersion === bundled?.version || ref.kind === 'catalog' && ref.catalogRevisionId.startsWith(source.sourceDigest + ':'))
-    const saved = source && project?.revisions.find(revision => revision.sourceDigest === source.sourceDigest)
+    const source = project?.bundled.find(source => source.key === bundled?.key && source.declaredVersion === bundled?.version || ref.kind === 'catalog' && ref.catalogId === source.id && ref.catalogRevisionId === source.revisionId)
+    const saved = source && project?.revisions.find(revision => revision.payloadChecksum === source.payloadChecksum)
     const version = ref.kind === 'catalog' && ref.catalogId === project?.id && project.revisions.some(revision => revision.catalogRevisionId === ref.catalogRevisionId) ? ref.catalogRevisionId : saved?.catalogRevisionId ?? (source ? `${BUNDLED_VERSION_PREFIX}${source.sourceDigest}` : value.modComposition?.layers.find(layer => layer.catalogId === project?.id)?.catalogRevisionId) ?? versions[0]?.id ?? ''
     const next = { ...selection, requirement, version }
     pendingRef.current = next; setPending(next); setError(undefined); onBusyChange(true)

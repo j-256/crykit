@@ -101,6 +101,14 @@ export function approvedModSource(source, projects = allowlist.projects) {
   return !WITHHELD_PROJECT_IDS.has(source.projectId) && projects.some(project => project.projectId === source.projectId && project.sourceDigests.includes(source.sha256))
 }
 
+function sourceDescriptor(source, projects) {
+  const approval = projects.find(project => project.projectId === source.projectId && project.sourceDigests.includes(source.sha256))
+  const key = approval?.key
+  const revisionId = approval?.revisions?.[source.sha256]
+  if (typeof key !== 'string' || key.length > 128 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(key) || typeof revisionId !== 'string' || !/^v[1-9][0-9]*$/.test(revisionId) || !Number.isSafeInteger(Number(revisionId.slice(1)))) throw new Error('Approved sources require an explicit stable key and immutable revision')
+  return { ...source, key, revisionId }
+}
+
 export async function bundleModDirectory(input, output, manifestPath, projects = allowlist.projects) {
   const snapshots = new Map()
   let skipped = 0
@@ -113,7 +121,7 @@ export async function bundleModDirectory(input, output, manifestPath, projects =
     if (!source) { skipped++; continue }
     if (!approvedModSource(source, projects)) { withheld++; continue }
     if (snapshots.has(source.sha256)) { duplicates++; continue }
-    snapshots.set(source.sha256, { source, bytes })
+    snapshots.set(source.sha256, { source: sourceDescriptor(source, projects), bytes })
   }
   if (!snapshots.size && !withheld) throw new Error('The input directory contains no Crystal Edit mod JSON')
   let retained = []
@@ -123,8 +131,9 @@ export async function bundleModDirectory(input, output, manifestPath, projects =
   // Retain older source digests so a directory refresh cannot remove revisions pinned by saved setups
   const revisions = new Map(retained.map(source => [source.sha256, source]))
   for (const { source } of snapshots.values()) revisions.set(source.sha256, source)
-  // Same-timestamp exports can differ only by a recorded Workshop ID; prefer that identity for default previews and save matching
-  const mods = [...revisions.values()].sort((left, right) => left.projectId.localeCompare(right.projectId) || (right.timestamp ?? '').localeCompare(left.timestamp ?? '') || Number(Boolean(right.steamWorkshopFileId)) - Number(Boolean(left.steamWorkshopFileId)) || left.sha256.localeCompare(right.sha256))
+  const mods = [...revisions.values()].sort((left, right) => left.key.localeCompare(right.key) || left.revisionId.localeCompare(right.revisionId))
+  const pins = mods.map(source => JSON.stringify([source.key, source.revisionId]))
+  if (new Set(pins).size !== pins.length) throw new Error('Distinct original artifacts cannot publish the same source revision')
   // Compress the original bytes, not parsed JSON; BOMs and line endings are part of the archived digest
   const generated = [...snapshots.values()].map(({ source, bytes }) => ({ path: join(output, `${source.sha256}.json`), text: jsonText({ schemaVersion: 1, encoding: 'gzip-base64', sha256: source.sha256, sourceBytes: bytes.length, data: gzipSync(bytes, { level: 9 }).toString('base64') }) }))
   for (const file of generated) {
@@ -151,7 +160,7 @@ export async function checkModLibrary(output, manifestPath, projects = allowlist
     const asset = JSON.parse(await readFile(join(output, `${source.sha256}.json`), 'utf8'))
     if (asset.schemaVersion !== 1 || asset.encoding !== 'gzip-base64' || asset.sha256 !== source.sha256 || asset.sourceBytes !== source.sourceBytes || asset.sourceBytes > MAX_SOURCE_BYTES || typeof asset.data !== 'string') throw new Error('Invalid bundled source asset')
     const bytes = gunzipSync(Buffer.from(asset.data, 'base64'), { maxOutputLength: MAX_SOURCE_BYTES })
-    if (bytes.length !== source.sourceBytes || JSON.stringify(inspectModSource(bytes)) !== JSON.stringify(source)) throw new Error('Bundled source evidence differs from the manifest')
+    if (bytes.length !== source.sourceBytes || JSON.stringify(sourceDescriptor(inspectModSource(bytes), projects)) !== JSON.stringify(source)) throw new Error('Bundled source evidence differs from the manifest')
   }
   const assets = (await readdir(output)).filter(file => file.endsWith('.json'))
   if (assets.some(file => !seen.has(file.replace(/\.json$/, '')))) throw new Error('Unlisted bundled mod source asset')

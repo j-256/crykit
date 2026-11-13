@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto'
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { gzipSync, gunzipSync } from 'node:zlib'
@@ -45,7 +45,7 @@ function packedJson(value) {
 export function recordSourceRevision(receipts, receipt) {
   const previous = receipts.find(entry => entry.id === receipt.id && entry.revisionId === receipt.revisionId)
   // Source revisions are immutable receipts, not aliases for whichever body is packaged
-  if (previous && previous.checksum !== receipt.checksum) throw new Error(`Immutable source revision differs: ${receipt.id}@${receipt.revisionId}; allocate a new revision`)
+  if (previous && (previous.checksum !== receipt.checksum || JSON.stringify(previous.payloadSource) !== JSON.stringify(receipt.payloadSource))) throw new Error(`Immutable source revision differs: ${receipt.id}@${receipt.revisionId}; allocate a new revision`)
   return previous ? receipts : [...receipts, receipt]
 }
 
@@ -60,6 +60,7 @@ export async function generateModIndex({ check = false } = {}) {
     const { compiledEntityId } = await server.ssrLoadModule('/src/domain/catalog-identities.ts')
     const allocations = JSON.parse(await readFile(join(ROOT, 'src/catalog/supplemental-entity-ids.json'), 'utf8')).ids
     const { crystalEditSourceKey } = await server.ssrLoadModule('/src/interchange/source-identity.ts')
+    const { parseCatalogSourceId, parseSourceRevision } = await server.ssrLoadModule('/src/domain/source-identity.ts')
     const { catalogContentForChecksum } = await server.ssrLoadModule('/src/interchange/catalog-checksum.ts')
     const { immutableCatalogSnapshot } = await server.ssrLoadModule('/src/interchange/native.ts')
     const { previewCrystalEdit } = await server.ssrLoadModule('/src/interchange/crystal-edit.ts')
@@ -73,28 +74,35 @@ export async function generateModIndex({ check = false } = {}) {
       receipts.sources = recordSourceRevision(receipts.sources, receipt)
       outputs.push([receiptPath, `${JSON.stringify({ schemaVersion: 1, ...receipt }, null, 2)}\n`], [packedPath, packedJson(immutableCatalogSnapshot({ ...content, checksum }))])
     }
-    outputs.push([REVISION_RECEIPTS, `${JSON.stringify(receipts, null, 2)}\n`])
     const sourceIds = Object.fromEntries(Object.values(vanillaSourceCatalog().entities).map(entity => [entity.id, compiledEntityId(entity, allocations)]))
     outputs.push([GUIDE_IDS, `${JSON.stringify(Object.fromEntries(Object.keys(referenceSupplements('guide').entities).map(id => [id, `ref-${allocations[id]}`])), null, 2)}\n`])
     outputs.push([SOURCE_IDS, `${JSON.stringify(sourceIds, null, 2)}\n`])
     const catalogs = []
     const seenProjects = new Set()
     for (const source of manifest.mods) {
-      if (seenProjects.has(source.projectId)) continue
-      seenProjects.add(source.projectId)
+      const id = `crystal-project/mod/${source.key}`
+      if (parseCatalogSourceId(id)?.origin !== 'mod' || !parseSourceRevision('mod', source.revisionId)) throw new Error('Bundled mods require an explicit stable key and source revision')
+      const pin = JSON.stringify([id, source.revisionId])
+      if (seenProjects.has(pin)) throw new Error(`Duplicate bundled source revision: ${id}@${source.revisionId}`)
+      seenProjects.add(pin)
       const packed = JSON.parse(await readFile(join(ROOT, 'src/assets/mod-sources', `${source.sha256}.json`), 'utf8'))
       const bytes = gunzipSync(Buffer.from(packed.data, 'base64'), { maxOutputLength: MAX_SOURCE_BYTES })
       if (bytes.length !== source.sourceBytes || digest(bytes) !== source.sha256) throw new Error(`Bundled source integrity differs: ${source.title}`)
       const preview = await previewCrystalEdit(new Uint8Array(bytes), `${source.title}.json`, GENERATED_AT)
       const catalog = preview.proposed.catalogs[0]
       if (catalog?.id !== `crystal-project/imported/${await crystalEditSourceKey(source.projectId)}`) throw new Error(`Bundled project identity differs: ${source.title}`)
-      catalogs.push(modSearchCatalog(catalog))
+      const receipt = { id, revisionId: source.revisionId, checksum: catalog.checksum, payloadSource: { catalogId: catalog.id, catalogRevisionId: catalog.revisionId } }
+      receipts.sources = recordSourceRevision(receipts.sources, receipt)
+      const bundled = { ...catalog, ...receipt }
+      outputs.push([`src/assets/mod-catalogs/${source.key}-${source.revisionId}.json`, packedJson(bundled)])
+      catalogs.push(modSearchCatalog(bundled))
     }
+    outputs.push([REVISION_RECEIPTS, `${JSON.stringify(receipts, null, 2)}\n`])
     const json = JSON.stringify({ schemaVersion: 1, catalogs })
     const index = packedJson({ schemaVersion: 1, catalogs })
     for (const [path, text] of [[INDEX, index], ...outputs]) {
       if (check) { if (await readFile(join(ROOT, path), 'utf8') !== text) throw new Error(`Generated output differs: ${path}`) }
-      else await writeFile(join(ROOT, path), text)
+      else { await mkdir(dirname(join(ROOT, path)), { recursive: true }); await writeFile(join(ROOT, path), text) }
     }
     return { projects: catalogs.length, searchBytes: Buffer.byteLength(json), packedBytes: Buffer.byteLength(index) }
   } finally { await server.close() }

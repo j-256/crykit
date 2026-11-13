@@ -31,7 +31,7 @@ const MOD_LIBRARY_STATE_LABELS = Object.freeze({ enabled: 'Enabled', disabled: '
 
 function SavedRevision({ revision, busy, onEdit }: { readonly revision: ModRevision; readonly busy: boolean; readonly onEdit: (revision: ModRevision) => void }) {
   return <div className="split mod-library__revision">
-    <div><Badge>Saved version</Badge><Sources anchor={<strong>{revision.declaredVersion ? `Version ${revision.declaredVersion}` : 'Version unspecified'}</strong>} label={`Sources for saved ${revision.title} version ${revision.declaredVersion ?? 'unspecified'}`}><p>Source {revision.sourceDigest} · Editor format {revision.editorVersion ?? 'unknown'}</p></Sources><p>{Object.keys(revision.catalog.entities).length} catalog definitions</p></div>
+    <div><Badge>Saved version</Badge><Sources anchor={<strong>{revision.declaredVersion ? `Version ${revision.declaredVersion}` : 'Version unspecified'}</strong>} label={`Sources for saved ${revision.title} version ${revision.declaredVersion ?? 'unspecified'}`}><p>Source {revision.payloadChecksum} · Editor format {revision.editorVersion ?? 'unknown'}</p></Sources><p>{Object.keys(revision.catalog.entities).length} catalog definitions</p></div>
     <Button disabled={busy} onClick={() => onEdit(revision)} tone="secondary">Edit this version</Button>
   </div>
 }
@@ -59,7 +59,7 @@ function ModCard({ card, busy, referenceFeedback, onBrowse, onToggleReference, o
   const bundled = mod?.bundled[0]
   const sourceCount = bundled ? bundledModDefinitionCount(bundled) : 0
   const unloadedSource = !saved && sourceCount > 0
-  const bundledSource = Boolean(bundled && (!saved || mod?.bundled.some(source => source.sourceDigest === saved.sourceDigest)))
+  const bundledSource = Boolean(bundled && (!saved || mod?.bundled.some(source => source.payloadChecksum === saved.payloadChecksum)))
   const workshop = steamWorkshopItemUrl(mod?.revisions.find(revision => revision.steamWorkshopFileId)?.steamWorkshopFileId ?? mod?.bundled.find(revision => revision.steamWorkshopFileId)?.steamWorkshopFileId)
   const version = saved?.declaredVersion ?? bundled?.declaredVersion
   const sourceName = card.catalogNames[0] ?? card.title
@@ -157,7 +157,7 @@ export function ModLibrary({ onOpenEditor, onEdit, onEditBundled, onImport, onCo
       if (!included || card.entryCount > 0) await onSetReference(card.id, included)
       else if (bundled && mod && !mod.revisions.length) {
         const source = await bundledModEditableSource(bundled)
-        warnings = (await onImport(source.text, source.filename, mod.id, true)).warnings
+        warnings = (await onImport(source.text, source.filename, { catalogId: bundled.id, catalogRevisionId: bundled.revisionId }, true)).warnings
       }
       setReferenceFeedback({ cardId: card.id, included, status: 'saved', warnings })
     } catch (reason) {

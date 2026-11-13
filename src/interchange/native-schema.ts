@@ -132,7 +132,7 @@ const entityShape = {
   sources: sourceRefs,
 }
 
-const catalogEntity = z.object({ ...entityShape, legacy: jsonValue.optional() }).strict()
+const catalogEntity = z.object({ ...entityShape, origins: z.object({ mechanical: catalogRef, text: catalogRef }).strict().optional(), legacy: jsonValue.optional() }).strict()
 const catalogClaim = z.object({
   entityId: id,
   field: nonemptyText,
@@ -145,6 +145,7 @@ export const NativeCatalogSnapshotSchema = z.object({
   revisionId: id,
   schemaVersion: nonemptyText,
   checksum: nonemptyText,
+  payloadSource: z.object({ catalogId: id, catalogRevisionId: id }).strict().optional(),
   importedAt: timestamp.optional(),
   applicability: knowledge(shortText),
   rights: knowledge(shortText),

@@ -33,7 +33,7 @@ it('finds the source project for selections and growth without duplicate require
   expect(data.gameSetups[setup.id]).toEqual(setup)
 })
 
-it('enables an exact synthetic source, reconciles named choices, and calculates its class without changing older setups', async () => {
+it('enables an exact synthetic source without rewriting named observations or older setups', async () => {
   const data = createTestLocalData()
   const original = data.gameSetups[TEST_GAME_SETUP_REVISION_ID]!
   const source = { filename: 'synthetic.json', text: JSON.stringify({ ID: SYNTHETIC_MOD_SNAPSHOT.source.projectId, Title: SYNTHETIC_MOD_SNAPSHOT.source.title, Version: '2.2', EditorVersion: 34, ...SYNTHETIC_MOD_SNAPSHOT.families }) }
@@ -41,10 +41,10 @@ it('enables an exact synthetic source, reconciles named choices, and calculates 
   const catalogs = [DEFAULT_CATALOG, imported]
   const before = { ...buildBehavior(original), mods: { state: 'known' as const, value: ['Unrelated mod'] }, disabledMods: { state: 'known' as const, value: ['Synthetic Library'] } }
   const chosen = selectBuildModRevision(before, imported, catalogs)
-  expect(chosen.mods).toEqual({ state: 'known', value: ['Unrelated mod', 'Synthetic Library'] })
-  expect(chosen.disabledMods).toEqual({ state: 'known', value: [] })
+  expect(chosen.mods).toEqual({ state: 'known', value: ['Unrelated mod'] })
+  expect(chosen.disabledMods).toEqual({ state: 'known', value: ['Synthetic Library'] })
   expect(chosen.modComposition!.layers).toEqual([{ catalogId: imported.id, catalogRevisionId: imported.revisionId, enabled: true }])
-  const setup: GameSetupRevision = { ...original, ...chosen, platform: { state: 'known', value: 'Windows' }, gameVersion: { state: 'known', value: '1.6.9' }, mode: { state: 'known', value: 'Standard' }, mods: { state: 'known', value: ['Synthetic Library'] }, catalogLock: { ...chosen.catalogLock, [DEFAULT_CATALOG.id]: modCatalogRevision(original.id) } }
+  const setup: GameSetupRevision = { ...original, ...chosen, platform: { state: 'known', value: 'Windows' }, gameVersion: { state: 'known', value: '1.6.9' }, mode: { state: 'known', value: 'Standard' }, mods: { state: 'known', value: [] }, disabledMods: { state: 'known', value: [] }, catalogLock: { ...chosen.catalogLock, [DEFAULT_CATALOG.id]: modCatalogRevision(original.id) } }
   const effective = composeModCatalog(setup, catalogs)
   const result = calculatePCStats(buildContentForModSetup(content, setup, catalogs), SUGGESTED_BUILD_SLOTS, ref => resolveCalculationEntity(data, [...catalogs, effective!], ref, setup), [], false, resolveGameRules(setup, catalogs))
   expect(result.issues).toEqual([])

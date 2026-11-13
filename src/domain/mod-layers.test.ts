@@ -30,8 +30,8 @@ describe('ordered mod composition', () => {
     expect(result.unresolvedReferences).toEqual([])
     expect(result.entities[result.identities['crystal-edit:Equipment:50']!]?.name).toBe('First Sword')
     expect(result.entities[result.identities['crystal-edit:Items:50']!]?.name).toBe('Different family')
-    expect(result.identities['crystal-edit:Equipment:50']).toBe('mod:layer-a:equipment:50')
-    expect(result.identities['crystal-edit:Items:50']).toBe('mod:layer-a:item:50')
+    expect(result.identities['crystal-edit:Equipment:50']).toBe(modModelEntity(catalogs[1]!, 'crystal-edit:Equipment:50')!.id)
+    expect(result.identities['crystal-edit:Items:50']).toBe(modModelEntity(catalogs[1]!, 'crystal-edit:Items:50')!.id)
     expect(JSON.stringify(catalogs)).toBe(before)
   })
 
@@ -40,7 +40,7 @@ describe('ordered mod composition', () => {
     const reversed = composeModLayers({ ...composition, layers: [...composition.layers].reverse() }, catalogs)
     expect(reversed.entities['base:job:0']?.name).toBe('First Fighter')
     expect(reversed.unresolvedReferences).toEqual([])
-    const disabled = composeModLayers({ ...composition, layers: composition.layers.map(layer => ({ ...layer, enabled: layer.catalogId === 'crystal-edit:layer-a' })) }, catalogs)
+    const disabled = composeModLayers({ ...composition, layers: composition.layers.map(layer => ({ ...layer, enabled: layer.catalogId === catalogs[1]!.id })) }, catalogs)
     expect(disabled.unresolvedReferences).toEqual(['Abilities #8', 'Passives #2'])
     const separate = composeModLayers({ ...composition, links: [] }, catalogs)
     expect(separate.entities['base:job:0']?.name).toBe('Warrior')
@@ -75,7 +75,7 @@ describe('ordered mod composition', () => {
     const setup = local.gameSetups[local.planningGameSetupRevisionId!]!
     const effectiveCatalogs = expandModCatalogs([...catalogs, composeModCatalog(setup, catalogs)!])
     const ref = { kind: 'catalog' as const, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: setup.catalogLock[DEFAULT_CATALOG.id]! }
-    const content: BuildRevisionContent = { primaryClass: { ...ref, entityId: 'base:job:0' as EntityId }, secondaryClass: null, equipment: {}, passives: [{ ref: { ...ref, entityId: 'mod:layer-b:passive:2' as EntityId } }], contextAssumptions: [] }
+    const content: BuildRevisionContent = { primaryClass: { ...ref, entityId: 'base:job:0' as EntityId }, secondaryClass: null, equipment: {}, passives: [{ ref: { ...ref, entityId: modModelEntity(catalogs[2]!, 'crystal-edit:Passives:2')!.id } }], contextAssumptions: [] }
     const resolve = (value: Parameters<typeof resolveDefinition>[2]) => resolveDefinition(local, effectiveCatalogs, value)
     expect(innateEffects(content, resolve)).toMatchObject([{ text: 'Equip anything regardless of current Class.', name: 'Second Fighter: Shared Passive' }])
     const innate = innateEffects(content, resolve)[0]!.definition

@@ -13,7 +13,7 @@ import { newMapProject } from '../mod-inspector/map-editor'
 import type { DocumentChange, InspectorDraft, InspectorDraftSummary, InspectorRelationship, InspectorResolver, JsonNode, JsonPath, ParsedDocument } from '../mod-inspector/types'
 import { Button, Field, InlineNotice, ScreenHeader } from './components'
 import type { DraftActions, DraftChangeHandler } from './drafts'
-import type { CatalogId } from '../domain/types'
+import type { CatalogId, ModCatalogPin } from '../domain/types'
 import { readModFile } from './mod-inspector/import-file'
 import { createSearchScheduler } from './mod-inspector/search-scheduler'
 import type { ModEditorView } from './mod-workspace'
@@ -21,7 +21,7 @@ import { ModWorkspaceNavigation } from './ModWorkspaceNavigation'
 import { isExpanded, prepareVisibleTree, revealPath, setExpansion, type ExpansionRule, type VisibleTreeRow } from './mod-inspector/tree'
 import './mod-inspector/inspector.css'
 
-export type SaveModToLibrary = (text: string, filename: string, expectedCatalogId?: CatalogId, includeInReference?: boolean, futureDefault?: boolean, editorOwner?: symbol) => Promise<{ readonly title: string; readonly unchanged: boolean; readonly warnings: readonly string[] }>
+export type SaveModToLibrary = (text: string, filename: string, expectedSource?: CatalogId | ModCatalogPin, includeInReference?: boolean, futureDefault?: boolean, editorOwner?: symbol) => Promise<{ readonly title: string; readonly unchanged: boolean; readonly warnings: readonly string[] }>
 
 // Coalesce typing bursts while leaving time for encrypted persistence and the next input
 const EDITOR_QUIET_MS = 350

@@ -201,7 +201,7 @@ export function formatPage(page: PageRoute, resolveName: EntityRouteNameResolver
   }
   if (page.page === 'reference') {
     if (page.view === 'promote') return '/reference/promote'
-    if (page.view === 'detail') return `/reference/${formatEntityRefPath(page.ref, resolveName)}`
+    if (page.view === 'detail') return `/reference/${formatEntityRefPath(page.ref.kind === 'catalog' ? resolveName.sourceRef?.(page.ref) ?? page.ref : page.ref, resolveName)}`
     return '/reference'
   }
   if (page.page === 'settings') return `/settings/${page.section}${'previewId' in page ? `/import/${encodeSegment(page.previewId)}` : ''}`

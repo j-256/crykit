@@ -4,7 +4,6 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
 import * as bundledLibrary from '../catalog/mod-library'
-import * as crystalEdit from '../interchange/crystal-edit'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { SAVE_EDITOR_CATALOG } from '../catalog/save-editor'
 import { inspectSave } from '../domain/save-editor'
@@ -27,11 +26,17 @@ const CHEAT_PASSIVES = BUNDLED_MOD_LIBRARY[0]!
 const CHEAT_PASSIVES_FIXTURE = { ...SYNTHETIC_SAVE_MOD, id: 'synthetic-bundled-save-mod', title: 'Synthetic Bundled Save Mod' }
 vi.mock('../catalog/mod-library-metadata', async () => {
   const { SYNTHETIC_SAVE_MOD: mod } = await import('../domain/save-editor.fixture')
-  return { BUNDLED_MOD_LIBRARY: [{ id: 'crystal-edit:synthetic-bundled-save-mod', key: 'synthetic-bundled-save-mod', title: 'Synthetic Bundled Save Mod', declaredVersion: mod.version, editorVersion: 34, sourceDigest: 'sha256:synthetic-fixture', models: { Jobs: [mod.jobId], Passives: [...mod.passiveIds] } }], STARTER_MOD_PROJECT_IDS: [] }
+  return { BUNDLED_MOD_LIBRARY: [{ projectId: 'synthetic-bundled-save-mod', id: 'crystal-project/mod/synthetic-bundled-save-mod', revisionId: 'v1', key: 'synthetic-bundled-save-mod', title: 'Synthetic Bundled Save Mod', declaredVersion: mod.version, editorVersion: 34, sourceDigest: 'sha256:synthetic-fixture', models: { Jobs: [mod.jobId], Passives: [...mod.passiveIds] } }], STARTER_MOD_PROJECT_IDS: [] }
 })
 vi.mock('../catalog/mod-library', async importOriginal => {
-  const { createSaveEditorModProjectFixture } = await import('../domain/save-editor.fixture')
-  return { ...await importOriginal<typeof import('../catalog/mod-library')>(), bundledModEditableSource: vi.fn(async () => ({ filename: 'synthetic.json', text: JSON.stringify({ ...createSaveEditorModProjectFixture(), ID: 'synthetic-bundled-save-mod', Title: 'Synthetic Bundled Save Mod' }) })) }
+  const original = await importOriginal<typeof import('../catalog/mod-library')>()
+  return { ...original, bundledModPreview: vi.fn(async (mod: typeof CHEAT_PASSIVES) => {
+    const { previewCrystalEdit } = await import('../interchange/crystal-edit')
+    const preview = await previewCrystalEdit(new TextEncoder().encode(JSON.stringify({ ...createSaveEditorModProjectFixture(), ID: 'synthetic-bundled-save-mod', Title: 'Synthetic Bundled Save Mod' })), 'synthetic.json')
+    const catalog = preview.proposed.catalogs[0]!
+    const payloadSource = { catalogId: catalog.id, catalogRevisionId: catalog.revisionId }
+    return original.bundleImportPreview(preview, { ...mod, payloadSource, payloadChecksum: catalog.checksum }, [{ id: mod.id, revisionId: mod.revisionId, checksum: catalog.checksum, payloadSource }])
+  }) }
 })
 
 beforeEach(() => {
@@ -111,24 +116,15 @@ async function open(bytes = encodeCrystalSave(createSaveEditorFixture())) {
 }
 
 async function openBundledSave(bytes: Uint8Array) {
-  const sourceSpy = vi.spyOn(bundledLibrary, 'bundledModEditableSource')
-  const previewSpy = vi.spyOn(crystalEdit, 'previewCrystalEdit')
+  const sourceSpy = vi.spyOn(bundledLibrary, 'bundledModPreview')
   try {
     await open(bytes)
-    // Both stages hash asynchronously after the module import, so await their real work before checking the UI
     await act(async () => {
       expect(sourceSpy).toHaveBeenCalledTimes(1)
       expect(sourceSpy).toHaveBeenCalledWith(CHEAT_PASSIVES)
-      expect(sourceSpy.mock.results[0]?.type).toBe('return')
       await sourceSpy.mock.results[0]!.value
-      expect(previewSpy).toHaveBeenCalledTimes(1)
-      expect(previewSpy.mock.results[0]?.type).toBe('return')
-      await previewSpy.mock.results[0]!.value
     })
-  } finally {
-    previewSpy.mockRestore()
-    sourceSpy.mockRestore()
-  }
+  } finally { sourceSpy.mockRestore() }
 }
 
 function draftActions() {
@@ -574,13 +570,11 @@ describe('save editor session', () => {
     expect(container.textContent).toContain('Synthetic Bundled Save Mod 1.0 (bundled)')
     expect(input('Copper').disabled).toBe(false)
 
-    const sourceSpy = vi.spyOn(bundledLibrary, 'bundledModEditableSource')
-    const previewSpy = vi.spyOn(crystalEdit, 'previewCrystalEdit')
+    const sourceSpy = vi.spyOn(bundledLibrary, 'bundledModPreview')
     try {
       await choose(file(encodeCrystalSave(createModdedSaveEditorFixture({ active: false, equipped: true, mod: CHEAT_PASSIVES_FIXTURE }))))
       await waitForText('Bundled project identified')
       expect(sourceSpy).not.toHaveBeenCalled()
-      expect(previewSpy).not.toHaveBeenCalled()
       expect(input('Synthetic Bundled Save Mod definition available').checked).toBe(true)
       expect(container.textContent).toContain('Saved revision unavailable')
       expect(input('Copper').disabled).toBe(true)
@@ -596,7 +590,6 @@ describe('save editor session', () => {
       expect(edited.header.mods).toEqual([])
       expect(edited.header.modIdMaps).toEqual([])
     } finally {
-      previewSpy.mockRestore()
       sourceSpy.mockRestore()
     }
   })

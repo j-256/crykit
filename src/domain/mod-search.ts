@@ -22,7 +22,7 @@ export function modSearchCatalog(catalog: CatalogSnapshot): CatalogSnapshot {
     }
     const raw = entity.fields['Crystal Edit source record']
     if (raw?.state === 'known' && jsonRecord(raw.value)) fields['Crystal Edit source record'] = { state: 'known', sources: raw.sources, value: Object.fromEntries(Object.entries(raw.value).filter(([key, value]) => key === 'ID' || key === 'Name' || typeof value === 'number' || typeof value === 'boolean' || SEARCH_ARRAY_FIELDS.has(key) || SEARCH_ARTWORK_FIELDS.has(key))) }
-    entities[entity.id] = { id: entity.id, kind: entity.kind, name: entity.name, aliases: entity.aliases, fields, sources: entity.sources.slice(0, 1), ...(entity.rawDescription ? { rawDescription: entity.rawDescription.slice(0, SEARCH_DESCRIPTION_LIMIT) } : {}), ...(entity.ppCost ? { ppCost: entity.ppCost } : {}) }
+    entities[entity.id] = { id: entity.id, kind: entity.kind, name: entity.name, aliases: entity.aliases, fields, sources: entity.sources.slice(0, 1), ...(entity.origins ? { origins: entity.origins } : {}), ...(entity.rawDescription ? { rawDescription: entity.rawDescription.slice(0, SEARCH_DESCRIPTION_LIMIT) } : {}), ...(entity.ppCost ? { ppCost: entity.ppCost } : {}) }
   }
   return { ...catalog, entities, legacy: { ...(jsonRecord(catalog.legacy) ? catalog.legacy : {}), gameRules: null, [MOD_SEARCH_PREVIEW_FIELD]: true } }
 }

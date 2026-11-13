@@ -1,6 +1,7 @@
 import type { BundledModSnapshot } from '../domain/bundled-mods'
 import type { BundledLibraryMod } from '../domain/mod-library'
 import type { CatalogId, CatalogSnapshot, CatalogRevisionId, EntityId } from '../domain/types'
+import { checkpointContentDigest } from '../domain/checkpoint-identity'
 
 export const SYNTHETIC_MOD_SNAPSHOT: BundledModSnapshot = {
   schemaVersion: 1, key: 'synthetic-library', requiredMod: 'Synthetic Library', contentDigest: 'synthetic-fixture',
@@ -14,7 +15,7 @@ export const SYNTHETIC_MOD_SNAPSHOT: BundledModSnapshot = {
 }
 
 export const SYNTHETIC_BUNDLED_MOD: BundledLibraryMod = {
-  id: 'crystal-edit:synthetic-library' as CatalogId, key: 'synthetic-library', title: 'Synthetic Library', declaredVersion: '2.2', editorVersion: 34, sourceDigest: `sha256:${'a'.repeat(64)}`, models: { Jobs: [26], Abilities: [565], Passives: [9000], Equipment: [9000] }, catalogNames: ['Synthetic Library'],
+  projectId: SYNTHETIC_MOD_SNAPSHOT.source.projectId, id: 'crystal-project/mod/synthetic-library' as CatalogId, revisionId: 'v1' as CatalogRevisionId, payloadChecksum: `payload:sha256:${'b'.repeat(64)}`, payloadSource: { catalogId: `crystal-project/imported/ce1-${checkpointContentDigest(['crykit-source-key', 1, 'crystal-project', 'crystal-edit', 'synthetic-library'])}` as CatalogId, catalogRevisionId: `j1-${'c'.repeat(64)}-p1` as CatalogRevisionId }, key: 'synthetic-library', title: 'Synthetic Library', declaredVersion: '2.2', editorVersion: 34, sourceDigest: `sha256:${'a'.repeat(64)}`, models: { Jobs: [26], Abilities: [565], Passives: [9000], Equipment: [9000] }, catalogNames: ['Synthetic Library'],
 }
 
 // This fixture uses attributed reference observations, not Crystal Edit project records

@@ -12,15 +12,15 @@ import type { CatalogId } from './types'
 
 const imported = async (id: string, extra: object) => (await previewCrystalEdit(new TextEncoder().encode(JSON.stringify({ ID: id, Title: 'Synthetic renamed update', Version: 'synthetic-next', EditorVersion: 34, ...extra })), 'synthetic-update.json')).proposed.catalogs[0]!
 
-it('unifies curated catalog names with full sources and includes mods without JSON', async () => {
+it('keeps curated catalog names separate from imported source identities', async () => {
   const bundled = SYNTHETIC_BUNDLED_MOD
-  const update = await imported(bundled.id.replace(/^crystal-edit:/, ''), { Equipment: [{ ID: 9000, Name: 'Synthetic equipment' }] })
+  const update = await imported(SYNTHETIC_MOD_SNAPSHOT.source.projectId, { Equipment: [{ ID: 9000, Name: 'Synthetic equipment' }] })
   const library = completeModLibrary([update], [bundled])
   const entry = { key: 'original', name: 'Synthetic Library', sourceIds: [] }
   const entries = [entry, { key: 'updated', projectId: update.id, sourceIds: [] }, { key: 'manual', name: 'Renamed manual item', projectId: update.id, sourceIds: [] }, { key: 'doge', name: 'Doge Shield', sourceIds: [] }]
   const before = JSON.stringify(library)
   const cards = modLibraryCards(library, ['Synthetic Library', 'Doge Shield', 'Missing mod'], entries)
-  expect(cards.find(card => card.project?.id === update.id)).toMatchObject({ title: 'Synthetic renamed update', entryCount: 3 })
+  expect(cards.find(card => card.project?.id === update.id)).toMatchObject({ title: 'Synthetic renamed update', entryCount: 2 })
   expect(cards.filter(card => card.catalogNames.includes('Synthetic Library'))).toHaveLength(1)
   expect(cards.find(card => card.title === 'Doge Shield')?.entryCount).toBe(1)
   expect(cards.find(card => card.title === 'Doge Shield')?.project).toBeUndefined()
@@ -60,26 +60,25 @@ it('counts every saved source revision and unversioned personal entries independ
   expect(modCardIncludesEntry(cards[0]!, entries[3]!)).toBe(true)
 })
 
-it('groups bundled and saved revisions by project ID while retaining all originals', async () => {
+it('keeps bundled and imported origins separate while retaining all originals', async () => {
   const bundled = SYNTHETIC_BUNDLED_MOD
-  const update = await imported(bundled.id.replace(/^crystal-edit:/, ''), { Equipment: [{ ID: 266, Name: 'Synthetic updated item' }] })
+  const update = await imported(SYNTHETIC_MOD_SNAPSHOT.source.projectId, { Equipment: [{ ID: 266, Name: 'Synthetic updated item' }] })
   const library = completeModLibrary([update, DEFAULT_CATALOG], [bundled, { ...bundled, sourceDigest: 'sha256:synthetic-earlier' }])
-  expect(library).toHaveLength(1)
-  expect(library[0]?.title).toBe('Synthetic renamed update')
-  expect(library[0]?.bundled).toHaveLength(2)
-  expect(library[0]?.revisions[0]?.catalog).toEqual(update)
+  expect(library).toHaveLength(2)
+  expect(library.find(mod => mod.id === update.id)?.title).toBe('Synthetic renamed update')
+  expect(library.find(mod => mod.id === bundled.id)?.bundled).toHaveLength(2)
+  expect(library.find(mod => mod.id === update.id)?.revisions[0]?.catalog).toEqual(update)
   expect(completeModLibrary([], [bundled])[0]?.revisions).toEqual([])
 })
 
 it('links updates by verified project, family and ID without relying on names', async () => {
-  const bundled = SYNTHETIC_BUNDLED_MOD
   const target = buildBundledModEntities(SYNTHETIC_MOD_SNAPSHOT, NATIVE_GAME_DATA.enums)['mod:synthetic-library:equipment:9000']!
   const baseline = { ...DEFAULT_CATALOG, entities: { ...DEFAULT_CATALOG.entities, [target.id]: target } }
   const id = target.fields['Crystal Edit model ID']!
   const family = target.fields['Crystal Edit model type']!
   expect(id.state).toBe('known'); expect(family.state).toBe('known')
   const record = { ID: id.state === 'known' ? id.value : -1, Name: 'Synthetic renamed equipment' }
-  const update = await imported(bundled.id.replace(/^crystal-edit:/, ''), { [family.state === 'known' ? String(family.value) : 'Equipment']: [record] })
+  const update = await imported(SYNTHETIC_MOD_SNAPSHOT.source.projectId, { [family.state === 'known' ? String(family.value) : 'Equipment']: [record] })
   const links = bundledModReplacementLinks(baseline, update, BUNDLED_MOD_LIBRARY)
   const historicalLinks = [{ modelKey: `crystal-edit:${family.state === 'known' ? family.value : ''}:${record.ID}`, targetEntityId: target.id }]
   expect(links).toEqual([{ ...historicalLinks[0], projectId: update.id }])
@@ -104,7 +103,7 @@ it('links updates by verified project, family and ID without relying on names', 
 
 it('preserves innate kinds when replacing exported innate passives and links dated class records', async () => {
   const bundled = { ...SYNTHETIC_BUNDLED_MOD, models: { Jobs: [0], Passives: [10] }, nativeBaseReplacements: true };
-  const update = await imported(bundled.id.replace(/^crystal-edit:/, ''), { Jobs: [{ ID: 0, Name: 'Synthetic revised Warrior' }], Passives: [{ ID: 10, Name: 'Synthetic revised innate', IsInnate: true, PP: 0 }] })
+  const update = await imported(SYNTHETIC_MOD_SNAPSHOT.source.projectId, { Jobs: [{ ID: 0, Name: 'Synthetic revised Warrior' }], Passives: [{ ID: 10, Name: 'Synthetic revised innate', IsInnate: true, PP: 0 }] })
   const links = bundledModReplacementLinks(DEFAULT_CATALOG, update, [bundled])
   expect(links).toContainEqual({ modelKey: 'crystal-edit:Jobs:0', targetEntityId: 'base:job:0' })
   const innate = links.find(link => link.modelKey === 'crystal-edit:Passives:10')!

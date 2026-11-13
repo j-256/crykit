@@ -12,7 +12,7 @@ export interface ModRevision extends ModCatalogPin {
   readonly title: string
   readonly declaredVersion?: string
   readonly editorVersion?: number
-  readonly sourceDigest: string
+  readonly payloadChecksum: string
   readonly steamWorkshopFileId?: string
   readonly rules?: Readonly<Record<string, JsonValue>>
   readonly catalog: CatalogSnapshot
@@ -25,7 +25,11 @@ export interface Mod {
 }
 
 export interface BundledLibraryMod {
+  readonly projectId: string
   readonly id: CatalogId
+  readonly revisionId: CatalogRevisionId
+  readonly payloadChecksum: string
+  readonly payloadSource: ModCatalogPin
   readonly key: string
   readonly title: string
   readonly declaredVersion?: string
@@ -90,7 +94,7 @@ export function modLibraryCards(projects: readonly LibraryMod[], names: readonly
 export function modRevision(catalog: CatalogSnapshot): ModRevision | undefined {
   if (catalog.schemaVersion !== CRYSTAL_EDIT_CATALOG_SCHEMA || isModSearchPreview(catalog)) return undefined
   const metadata = jsonRecord(catalog.legacy) ? catalog.legacy : {}
-  return { catalogId: catalog.id, catalogRevisionId: catalog.revisionId, title: modCatalogTitle(catalog), declaredVersion: typeof metadata.projectVersion === 'string' ? metadata.projectVersion : undefined, editorVersion: typeof metadata.editorVersion === 'number' ? metadata.editorVersion : undefined, sourceDigest: catalog.checksum, steamWorkshopFileId: steamWorkshopFileId(metadata.steamWorkshopFileId), rules: jsonRecord(metadata.gameRules) ? metadata.gameRules : undefined, catalog }
+  return { catalogId: catalog.id, catalogRevisionId: catalog.revisionId, title: modCatalogTitle(catalog), declaredVersion: typeof metadata.projectVersion === 'string' ? metadata.projectVersion : undefined, editorVersion: typeof metadata.editorVersion === 'number' ? metadata.editorVersion : undefined, payloadChecksum: catalog.checksum, steamWorkshopFileId: steamWorkshopFileId(metadata.steamWorkshopFileId), rules: jsonRecord(metadata.gameRules) ? metadata.gameRules : undefined, catalog }
 }
 
 export function modLibrary(catalogs: readonly CatalogSnapshot[]): readonly Mod[] {

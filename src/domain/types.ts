@@ -118,6 +118,11 @@ export type EntityRequirement =
   | { readonly kind: 'permission'; readonly permission: string }
   | { readonly kind: 'selected'; readonly ref: EntityRef }
 
+export interface DefinitionOrigins {
+  readonly mechanical: CatalogRef
+  readonly text: CatalogRef
+}
+
 export interface CatalogEntity {
   readonly id: EntityId
   readonly kind: CatalogEntityKind
@@ -131,6 +136,7 @@ export interface CatalogEntity {
   readonly requirements?: Knowledge<readonly EntityRequirement[]>
   readonly grants?: Knowledge<readonly string[]>
   readonly sources: readonly SourceRef[]
+  readonly origins?: DefinitionOrigins
   readonly legacy?: JsonValue
 }
 
@@ -146,6 +152,7 @@ export interface CatalogSnapshot {
   readonly revisionId: CatalogRevisionId
   readonly schemaVersion: string
   readonly checksum: string
+  readonly payloadSource?: ModCatalogPin
   readonly importedAt?: Timestamp
   readonly applicability: Knowledge<string>
   readonly rights: Knowledge<string>

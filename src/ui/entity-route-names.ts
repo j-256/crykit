@@ -1,8 +1,11 @@
+import { definitionOrigins } from '../domain/definition-origins'
+import { fulfillSource } from '../domain/source-fulfillment'
+import { catalogEntity } from '../domain/entity-identities'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { nativeDisplayName, nativeIdentity, nativeSourceRecord } from '../domain/native-game'
 import type { CatalogRef, CatalogSnapshot } from '../domain/types'
 
-export type EntityRouteNameResolver = (ref: CatalogRef) => string | undefined
+export type EntityRouteNameResolver = ((ref: CatalogRef) => string | undefined) & { readonly sourceRef?: (ref: CatalogRef) => CatalogRef | undefined }
 
 export const MAX_ENTITY_SLUG_LENGTH = 160
 const UNNAMED_ENTITY_SLUG = 'definition'
@@ -25,8 +28,8 @@ export function isEntityRouteSlug(value: string): boolean {
 
 export function createEntityRouteNameResolver(catalogs: readonly CatalogSnapshot[]): EntityRouteNameResolver {
   const snapshots = new Map(catalogs.map(catalog => [JSON.stringify([catalog.id, catalog.revisionId]), catalog]))
-  return ref => {
-    const catalog = snapshots.get(JSON.stringify([ref.catalogId, ref.catalogRevisionId]))
+  const resolve: EntityRouteNameResolver = ref => {
+    const catalog = snapshots.get(JSON.stringify([ref.catalogId, ref.catalogRevisionId])) ?? fulfillSource(ref, catalogs)?.catalog
     const entity = catalog && Object.hasOwn(catalog.entities, ref.entityId) ? catalog.entities[ref.entityId] : undefined
     if (!entity) return undefined
     const identity = nativeIdentity(entity)
@@ -36,6 +39,11 @@ export function createEntityRouteNameResolver(catalogs: readonly CatalogSnapshot
     if (bundled && reviewed && entity.name === 'Brutish Quintar' && record?.Level === reviewed.level && record.TexturePath === reviewed.texture) return reviewed.name
     return nativeDisplayName(entity)
   }
+  return Object.assign(resolve, { sourceRef: (ref: CatalogRef) => {
+    const catalog = snapshots.get(JSON.stringify([ref.catalogId, ref.catalogRevisionId])) ?? fulfillSource(ref, catalogs)?.catalog
+    const entity = catalog && catalogEntity(catalog, ref.entityId)
+    return catalog && entity ? definitionOrigins(catalog, entity)?.mechanical : undefined
+  } })
 }
 
 export const bundledEntityRouteName = createEntityRouteNameResolver(BUNDLED_CATALOGS)

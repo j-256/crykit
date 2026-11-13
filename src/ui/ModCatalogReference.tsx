@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BUNDLED_MOD_LIBRARY, bundledModEditableSource } from '../catalog/mod-library'
+import { BUNDLED_MOD_LIBRARY, bundledModEditableSource, bundledModCatalog } from '../catalog/mod-library'
 import { bundledModDefinitionCount, completeModLibrary } from '../domain/mod-library'
 import { modIsInReference } from '../domain/reference-library'
 import type { CatalogSnapshot } from '../domain/types'
-import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { Button, InlineNotice } from './components'
 import { DefinitionProvider, useDefinitionLibrary } from './definitions'
 import { buildModLibraryCards } from './mod-library-data'
@@ -23,7 +22,7 @@ export default function ModCatalogReference({ scopeId, onAddReference, onSetRefe
   const page = navigation.route.page
   const requestedRef = page.page === 'reference' && page.view === 'detail' && page.ref.kind === 'catalog' && page.ref.catalogId === project?.id ? page.ref : undefined
   const saved = requestedRef ? project?.revisions.find(revision => revision.catalogRevisionId === requestedRef.catalogRevisionId)?.catalog : project?.revisions[0]?.catalog
-  const bundled = requestedRef ? project?.bundled.find(source => requestedRef.catalogRevisionId.startsWith(`${source.sourceDigest}:`)) : project?.bundled[0]
+  const bundled = requestedRef ? project?.bundled.find(source => requestedRef.catalogRevisionId === source.revisionId) : project?.bundled[0]
   const [loaded, setLoaded] = useState<CatalogSnapshot>()
   const [error, setError] = useState<string>()
   const [attempt, setAttempt] = useState(0)
@@ -33,10 +32,7 @@ export default function ModCatalogReference({ scopeId, onAddReference, onSetRefe
     let active = true
     const load = async () => {
       try {
-        const source = await bundledModEditableSource(bundled)
-        const preview = await previewCrystalEdit(new TextEncoder().encode(source.text), source.filename)
-        const catalog = preview.proposed.catalogs[0]
-        if (!catalog || catalog.id !== bundled.id) throw new Error('The bundled catalog has a different mod identity.')
+        const catalog = await bundledModCatalog(bundled)
         if (active) { setLoaded(catalog); setError(undefined) }
       } catch (reason) { if (active) setError(reason instanceof Error ? reason.message : 'The mod catalog could not be opened.') }
     }
@@ -58,7 +54,7 @@ export default function ModCatalogReference({ scopeId, onAddReference, onSetRefe
       if (inReference || card.entryCount > 0) await onSetReference(scopeId, !inReference)
       else if (bundled && !saved) {
         const source = await bundledModEditableSource(bundled)
-        await onAddReference(source.text, source.filename, bundled.id, true)
+        await onAddReference(source.text, source.filename, { catalogId: bundled.id, catalogRevisionId: bundled.revisionId }, true)
       }
       returnToReference()
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Reference membership could not be changed.') }

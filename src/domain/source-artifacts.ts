@@ -1,10 +1,13 @@
 import type { CatalogSnapshot } from './types'
+import { SOURCE_REVISION_RECEIPTS } from '../catalog/source-revisions'
 
 export interface ArtifactCatalogPin { readonly id: string; readonly revisionId: string; readonly checksum: string }
 
-export function artifactSuppliesCatalog(source: { readonly catalogs?: readonly ArtifactCatalogPin[] }, catalog: Pick<CatalogSnapshot, 'id' | 'revisionId' | 'checksum'>): boolean {
+export function artifactSuppliesCatalog(source: { readonly catalogs?: readonly ArtifactCatalogPin[] }, catalog: Pick<CatalogSnapshot, 'id' | 'revisionId' | 'checksum' | 'payloadSource'>): boolean {
   // One exact original can support multiple interpretation revisions without changing its bytes
-  return source.catalogs?.some(pin => pin.id === catalog.id && pin.revisionId === catalog.revisionId && pin.checksum === catalog.checksum) ?? false
+  const payload = catalog.payloadSource
+  const trusted = payload && SOURCE_REVISION_RECEIPTS.some(receipt => receipt.id === catalog.id && receipt.revisionId === catalog.revisionId && receipt.checksum === catalog.checksum && receipt.payloadSource?.catalogId === payload.catalogId && receipt.payloadSource.catalogRevisionId === payload.catalogRevisionId)
+  return source.catalogs?.some(pin => pin.checksum === catalog.checksum && (pin.id === catalog.id && pin.revisionId === catalog.revisionId || trusted && pin.id === payload.catalogId && pin.revisionId === payload.catalogRevisionId)) ?? false
 }
 
 export function mergeArtifactCatalogs(before: readonly ArtifactCatalogPin[] = [], incoming: readonly ArtifactCatalogPin[] = []): readonly ArtifactCatalogPin[] {
