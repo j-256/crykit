@@ -1,3 +1,4 @@
+import { previewImport } from '../src/interchange/import'
 import { openStatBreakdown } from './calculation-presentation-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -29,6 +30,7 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   page.on('pageerror', error => errors.push(error.message))
   const original = NATIVE_DATA.records.gender[0]!
   const mod = { ID: 'synthetic-bonus-profiles', Title: 'Synthetic bonus profiles', EditorVersion: 34, System: { BattleConfig: { ...NATIVE_DATA.battleConfig, LearnAllJobZeroJPAbilities: true, TwoHandedPAtkFlat: NATIVE_DATA.battleConfig.TwoHandedPAtkFlat + 12, PerfectHitAtChanceOrHigher: NATIVE_DATA.battleConfig.PerfectHitAtChanceOrHigher - 5 } }, Genders: [{ ...original, Name: 'Synthetic focus', BoostHP: false, BoostStr: true }, { ...original, ID: 8, Name: 'Synthetic extra', BoostStr: true }] }
+  const catalog = (await previewImport(new TextEncoder().encode(JSON.stringify(mod)), 'synthetic.json')).proposed.catalogs[0]!
   await page.goto('/')
   await skipInitialModSetup(page)
   const importing = await settings(page, 'Import & Backup')
@@ -38,7 +40,7 @@ test('mod profiles and explained rules affect saved stats and shared previews of
   const setup = await settings(page, 'Game Setup')
   await openGameSetupSection(setup, 'Imported mod files')
   const layers = setup.getByRole('region', { name: 'Imported mod layers', exact: true })
-  await layers.getByRole('combobox', { name: 'Imported mod to add', exact: true }).selectOption('crystal-edit:synthetic-bonus-profiles')
+  await layers.getByRole('combobox', { name: 'Imported mod to add', exact: true }).selectOption(catalog.id)
   await layers.getByRole('button', { name: 'Add mod layer', exact: true }).click()
   await openGameSetupSection(setup, 'Rules from game data')
   await setup.getByText('All bonus profiles · 3', { exact: true }).click()
@@ -168,6 +170,7 @@ test('mod automatic statuses and ability cost overrides survive checkpoints, bac
     Passives: [{ ID: addedId, Name: 'Synthetic battle innate', IsInnate: true, StatMods: [modifier('StatusAuto', addedId, 100, 255), modifier('Flat_AbilityMPCost', addedId, -5)] }],
     Statuses: [{ ID: addedId, Name: 'Synthetic automatic vitality', Category: 1, PersistsThroughDeath: true, ReApplyResistance: false, StatMods: [modifier('Flat_HP', 100)] }],
   }
+  const catalog = (await previewImport(new TextEncoder().encode(JSON.stringify(mod)), 'synthetic.json')).proposed.catalogs[0]!
   await page.goto('/')
   await skipInitialModSetup(page)
   const importing = await settings(page, 'Import & Backup')
@@ -177,7 +180,7 @@ test('mod automatic statuses and ability cost overrides survive checkpoints, bac
   const setup = await settings(page, 'Game Setup')
   await openGameSetupSection(setup, 'Imported mod files')
   const layers = setup.getByRole('region', { name: 'Imported mod layers', exact: true })
-  await layers.getByRole('combobox', { name: 'Imported mod to add', exact: true }).selectOption('crystal-edit:synthetic-battle-mod')
+  await layers.getByRole('combobox', { name: 'Imported mod to add', exact: true }).selectOption(catalog.id)
   await layers.getByRole('button', { name: 'Add mod layer', exact: true }).click()
   await saveAndApplyGameSetup(setup)
   await setup.getByRole('link', { name: 'Back to previous page', exact: true }).click()
@@ -232,7 +235,7 @@ test('mod automatic statuses and ability cost overrides survive checkpoints, bac
   expect(revision.content.calculation?.battle).toMatchObject({ version: 1, automaticStatuses: true, turnCount: 0, targetTurnCount: 0, statuses: [] })
   const composition = localData.gameSetups[revision.gameSetupRevisionId]!.modComposition!
   expect(composition.version).toBe(3)
-  expect(composition.identityMappings).toEqual(expect.arrayContaining(['Abilities', 'Passives', 'Statuses'].map(family => ({ projectId: 'crystal-edit:synthetic-battle-mod', family, originalId: addedId, effectiveId: addedId }))))
+  expect(composition.identityMappings).toEqual(expect.arrayContaining(['Abilities', 'Passives', 'Statuses'].map(family => ({ projectId: catalog.id, family, originalId: addedId, effectiveId: addedId }))))
   await exporting.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await page.getByRole('button', { name: 'Share build', exact: true }).click()
   const shareUrl = await page.getByRole('dialog', { name: 'Share build', exact: true }).getByLabel('Share URL', { exact: true }).inputValue()
