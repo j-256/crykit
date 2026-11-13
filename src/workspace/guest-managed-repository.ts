@@ -78,7 +78,7 @@ export async function copyManagedGuestRecovery(repository: WorkspaceRepository, 
   await captured.copy(notice, canReplace)
   return true
 }
-// The managed entrypoint is connected only after legacy preparation has produced a selected v3 head
+// Launch startup admits only a selected managed head
 // Each wrapper captures one head; only an owned receipt constructs a wrapper for its exact successor
 export async function openGuestManagedRepository(database: GuestCoordinatorDatabase, manifest: GuestManagedManifest): Promise<WorkspaceRepository> {
   const profile = captureGuestWorkspaceEpoch(), store = createGuestLocalStore(database, profile.assertCurrent)
@@ -378,7 +378,14 @@ export async function openGuestManagedRepository(database: GuestCoordinatorDatab
             successor ??= wrapper(result, receipt.target)
             retired = true
             return { repository: successor, state: result.state, assertCurrent: assertSaved }
-          }, async () => { await assertSaved(); await admitLocalRoot(store.adapter, receipt.target.root, lifetime); await assertSaved() }) }
+          }, async () => {
+            await assertSaved()
+            const fresh = await admitLocalRoot(store.adapter, receipt.target.root, lifetime)
+            // A valid graph is insufficient if its immutable root now selects different inherited history
+            // Bind explicit verification to the exact prepared root, including every content and evidence reference
+            if (JSON.stringify(fresh.root) !== JSON.stringify(result.root)) throw new Error('The saved managed root changed')
+            await assertSaved()
+          }) }
         } catch (error) { return reconcilableFileOutcome({ status: 'uncertain', error }, reconcile) }
       }
       return reconcile()
