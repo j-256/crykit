@@ -16,3 +16,8 @@ test('sources allocate revisions independently while keeping historical receipts
   const guide = { ...vanilla, id: 'crystal-project/guide/modding', checksum: `builtin:sha256:${'3'.repeat(64)}` }
   assert.deepEqual(recordSourceRevision(recordSourceRevision([vanilla], next), guide), [vanilla, next, guide])
 })
+
+test('a bundle cannot change its payload source or interpretation under the same receipt', () => {
+  const receipt = { ...vanilla, id: 'crystal-project/mod/synthetic', payloadSource: { catalogId: `crystal-project/imported/ce1-${'a'.repeat(64)}`, catalogRevisionId: `j1-${'b'.repeat(64)}-p1` } }
+  assert.throws(() => recordSourceRevision([receipt], { ...receipt, payloadSource: { ...receipt.payloadSource, catalogRevisionId: `j1-${'b'.repeat(64)}-p2` } }), /Immutable source revision/)
+})

@@ -38,7 +38,7 @@ const assert = (value, message) => { if (!value) throw new Error(message) }
 const serialize = value => `${JSON.stringify(value, null, 2)}\n`
 
 export function runtimeManifest(manifest) {
-  return { assets: manifest.assets, atlases: manifest.atlases, projects: Object.fromEntries(Object.entries(manifest.projects).map(([digest, project]) => [digest, { projectId: project.projectId, title: project.title, version: project.version, entities: Object.fromEntries(Object.entries(project.entities).map(([key, binding]) => [key, { kind: binding.kind, asset: binding.asset, reference: binding.reference, sourceTextures: binding.rendering.sourceTextures.map(({ texturePath, origin }) => ({ texturePath, origin })) }])) }])) }
+  return { assets: manifest.assets, atlases: manifest.atlases, projects: Object.fromEntries(Object.entries(manifest.projects).map(([digest, project]) => [digest, { projectId: project.projectId, payloadSource: project.payloadSource, title: project.title, version: project.version, entities: Object.fromEntries(Object.entries(project.entities).map(([key, binding]) => [key, { kind: binding.kind, asset: binding.asset, reference: binding.reference, sourceTextures: binding.rendering.sourceTextures.map(({ texturePath, origin }) => ({ texturePath, origin })) }])) }])) }
 }
 
 export async function packArtwork(assets, files, sharp) {
@@ -83,6 +83,7 @@ export function safeTexturePath(path) {
 
 async function librarySources() {
   const library = JSON.parse(await readFile(join(ROOT, 'src/catalog/bundled-mod-sources.json'), 'utf8'))
+  const receipts = JSON.parse(await readFile(join(ROOT, 'src/catalog/source-revisions.json'), 'utf8')).sources
   const result = []
   for (const metadata of library.mods) {
     const packed = JSON.parse(await readFile(join(ROOT, `src/assets/mod-sources/${metadata.sha256}.json`), 'utf8'))
@@ -91,7 +92,9 @@ async function librarySources() {
     assert(hash(bytes) === metadata.sha256 && bytes.length === packed.sourceBytes, 'Bundled mod source digest differs')
     const root = JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes).replace(/^\uFEFF/, ''))
     assert(root.ID === metadata.projectId, 'Bundled mod project identity differs')
-    result.push({ metadata, root })
+    const receipt = receipts.find(receipt => receipt.id === `crystal-project/mod/${metadata.key}` && receipt.revisionId === metadata.revisionId)
+    assert(receipt?.payloadSource, 'Mod artwork requires an immutable source receipt')
+    result.push({ metadata: { ...metadata, payloadSource: receipt.payloadSource }, root })
   }
   return result
 }
@@ -150,7 +153,7 @@ export async function projectArtwork(metadata, root, loadTexture, sharp, assets,
       gaps[entry.key] = { ...identity, reason: error.code ? 'Companion texture cannot be read' : error.message.startsWith('Native artwork texture is absent:') ? 'Declared texture is unavailable in this source snapshot' : ['Record has no complete direct artwork reference', 'Texture reference is not a bounded relative texture path'].includes(error.message) ? error.message : 'Declared texture is invalid or its crop is outside the source image' }
     }
   }
-  return { projectId: metadata.projectId, title: metadata.title, version: metadata.version, entities, gaps }
+  return { projectId: metadata.projectId, payloadSource: metadata.payloadSource, title: metadata.title, version: metadata.version, entities, gaps }
 }
 
 async function diskSources(directory) {
@@ -240,7 +243,7 @@ export async function validate(sharp) {
   let gaps = 0
   for (const { metadata, root } of sources) {
     const project = manifest.projects[metadata.sha256]
-    assert(project?.projectId === metadata.projectId && project.title === metadata.title && project.version === metadata.version, 'Mod artwork project revision differs')
+    assert(project?.projectId === metadata.projectId && project.title === metadata.title && project.version === metadata.version && JSON.stringify(project.payloadSource) === JSON.stringify(metadata.payloadSource), 'Mod artwork project revision differs')
     const records = artworkRecords(root)
     assert(Object.keys(project.entities).length + Object.keys(project.gaps).length === records.length, 'Mod artwork record coverage differs')
     for (const entry of records) {

@@ -1,10 +1,15 @@
-import { renderToStaticMarkup } from 'react-dom/server'
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { createBlankLocalData } from '../domain'
 import { CLASS_FIELDS } from '../domain/crystal-edit'
 import { BuildSelectionDetails, BuildSelectionFacts } from './BuildSelectionDetails'
 import { buildDefinitionOptions } from './definitions'
+
+import type { ReactNode } from 'react'
+import { NavigationProvider, formatAppRoute, type NavigationController } from './navigation'
+const navigation = { href: formatAppRoute } as NavigationController
+const renderToStaticMarkup = (children: ReactNode) => renderMarkup(<NavigationProvider controller={navigation}>{children}</NavigationProvider>)
 
 const options = buildDefinitionOptions(createBlankLocalData(), [DEFAULT_CATALOG])
 

@@ -153,11 +153,11 @@ export function createSaveEditorModSource(catalog: CatalogSnapshot, warnings: re
   if (rules?.localization === true) issues.push('Localization projects are not supported by mod-aware save editing')
   if (unsupported.size) issues.push(`Unsupported model families are present: ${[...unsupported].sort().join(', ')}`)
   return {
-    id: String(catalog.id).replace(/^crystal-edit:/, ''),
+    id: typeof metadata?.projectId === 'string' ? metadata.projectId : catalog.id,
     title: modCatalogTitle(catalog),
     version: revision.declaredVersion,
     editorVersion: revision.editorVersion,
-    checksum: revision.sourceDigest,
+    checksum: revision.payloadChecksum,
     steamWorkshopFileId: revision.steamWorkshopFileId,
     origin, catalog, ...(bundledKey ? { bundledKey } : {}),
     records,
@@ -237,10 +237,6 @@ export function saveEditorDefinitionId(scope: SaveEditorDefinitionScope, ref: En
   if (!ref) return undefined
   const binding = scope.bindings.get(entityDefinitionKey(ref))
   return binding?.family === family ? binding.id : undefined
-}
-
-export function saveEditorModProjectId(id: string) {
-  return id.replace(/^crystal-edit:/, '')
 }
 
 export function saveEditorModSourceKey(source: Pick<SaveEditorModSource, 'id' | 'version' | 'steamWorkshopFileId'>) {

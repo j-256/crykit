@@ -64,6 +64,7 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string, at
   const sourceId = `source:${contentFingerprint}`
   const projectKey = await crystalEditSourceKey(root.ID)
   const catalogId = formatCatalogSourceId({ game: 'crystal-project', origin: 'imported', key: projectKey })
+  const revisionId = importedJsonRevision(contentFingerprint, MOD_LIBRARY_IMPORT_REVISION)
   const identities: Record<string, string> = {}
   for (const [family, kind] of Object.entries(FAMILIES)) {
     const records = root[family]
@@ -92,7 +93,8 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string, at
         ...(family === 'Jobs' ? classFields(record, source) : {}),
         ...(family === 'Jobs' ? { 'Class change': { state: 'known' as const, value: (record.ID as number) <= LAST_VANILLA_JOB_ID ? `Edits vanilla class ID ${record.ID}` : 'Adds a custom class', sources: [source, { sourceId: 'community:geef-modding-guide', locator: 'Crystal Edit anatomy > Editor controls and Grid viewers', applicability: 'Vanilla job IDs 0 through 23 are editable and cannot be deleted' }] } } : {}),
       }
-      entities[id] = { id, kind: effectiveKind, name: record.Name as string, aliases: [], fields, sources: [source], ...(typeof record.Description === 'string' && record.Description ? { rawDescription: record.Description } : {}), ...(['passive', 'innate'].includes(effectiveKind) && typeof record.PP === 'number' ? { ppCost: { state: 'known' as const, value: record.PP, sources: [source] } } : {}) }
+      const origin = { kind: 'catalog' as const, catalogId, catalogRevisionId: revisionId, entityId: id }
+      entities[id] = { id, kind: effectiveKind, name: record.Name as string, aliases: [], fields, sources: [source], origins: { mechanical: origin, text: origin }, ...(typeof record.Description === 'string' && record.Description ? { rawDescription: record.Description } : {}), ...(['passive', 'innate'].includes(effectiveKind) && typeof record.PP === 'number' ? { ppCost: { state: 'known' as const, value: record.PP, sources: [source] } } : {}) }
     }
   }
   if (!total && !hasRuleData(root)) warnings.push({ severity: 'warning', code: 'unmodeled-mod-content', message: 'This mod has no supported planning definitions or calculation settings. Its complete source is saved for editing; other game effects remain unmodeled.' })
@@ -124,7 +126,7 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string, at
   if (missing.size) warnings.push({ severity: 'warning', code: 'external-model-references', message: `${missing.size} referenced ability or passive definitions are absent. Their IDs and tree positions are retained; names, costs, and effects remain unresolved.` })
   const catalog = await sealImportedCatalog({
     // Content and interpretation identify definitions; the archive below owns acquisition metadata
-    id: catalogId, revisionId: importedJsonRevision(contentFingerprint, MOD_LIBRARY_IMPORT_REVISION), schemaVersion: CRYSTAL_EDIT_FORMAT,
+    id: catalogId, revisionId, schemaVersion: CRYSTAL_EDIT_FORMAT,
     checksum: '', entities, claims: [],
     applicability: { state: 'known', value: 'Crystal Edit project data; game platform and enabled-mod applicability are unverified' },
     rights: { state: 'unknown', reason: 'No content license is established by the project file' },

@@ -1,4 +1,8 @@
 import { withdrawnCatalog } from './withdrawn-catalogs'
+import { fulfillSource } from './source-fulfillment'
+import { sourceCompositionDigest } from './source-composition'
+import { deeplyImmutable as immutableCatalogValue } from './immutable-value'
+import { MOD_CATALOG_SCHEMA, CRYSTAL_EDIT_CATALOG_SCHEMA } from './catalog-schemas'
 import { DomainError } from './core'
 import { classFields, jsonRecord, LEARN_NODE_TYPES } from './crystal-edit'
 import { catalogEntity } from './entity-identities'
@@ -9,26 +13,14 @@ import { CRYSTAL_EDIT_LOCALIZATION_FIELD, CRYSTAL_EDIT_VERSION_FIELD, interpretC
 import { gameRecordFacts } from './game-record-facts'
 import { NATIVE_GAME_DATA } from '../catalog/native-game'
 import { nativeIdentity } from './native-game'
-import type { CatalogEntity, CatalogRevisionId, CatalogSnapshot, EntityId, GameSetupRevision, ModCatalogPin, ModComposition, ModDefinitionLink } from './types'
+import type { CatalogRef, CatalogEntity, CatalogRevisionId, CatalogSnapshot, EntityId, GameSetupRevision, ModCatalogPin, ModComposition, ModDefinitionLink } from './types'
 
-export const MOD_CATALOG_SCHEMA = 'game-setup-mod-catalog-1'
-export const CRYSTAL_EDIT_CATALOG_SCHEMA = 'crystal-edit-json-1'
+export { MOD_CATALOG_SCHEMA, CRYSTAL_EDIT_CATALOG_SCHEMA } from './catalog-schemas'
 export const MOD_COMPOSITION_VERSION = 3
 export const MAX_MOD_LAYERS = 100
 const MAX_NATIVE_ID = 0xffffffff
 const MODEL_KEY = /^crystal-edit:(Jobs|Abilities|Passives|Equipment|Items|Monsters|Statuses|Recipes|Biomes|Genders):(0|[1-9]\d*)$/
 const immutableExpandedCatalogs = new WeakMap<CatalogSnapshot, WeakMap<CatalogSnapshot, CatalogSnapshot>>()
-const deeplyImmutableCatalogValues = new WeakSet<object>()
-function immutableCatalogValue(value: unknown, visiting = new Set<object>()): boolean {
-  if (!value || typeof value !== 'object') return true
-  if (deeplyImmutableCatalogValues.has(value)) return true
-  if (!Object.isFrozen(value) || visiting.has(value)) return false
-  visiting.add(value)
-  const immutable = Object.values(value).every(child => immutableCatalogValue(child, visiting))
-  visiting.delete(value)
-  if (immutable) deeplyImmutableCatalogValues.add(value)
-  return immutable
-}
 const BASELINE_METADATA_KEYS = ['nativeIdentityBindings', 'nativeModeIdentityBindings', 'nativeEnums'] as const
 const NATIVE_MOD_FAMILIES: Readonly<Record<string, string>> = Object.freeze({ job: 'Jobs', ability: 'Abilities', passive: 'Passives', equipment: 'Equipment', item: 'Items', monster: 'Monsters', status: 'Statuses', recipe: 'Recipes', biome: 'Biomes', gender: 'Genders' })
 
@@ -37,7 +29,7 @@ export function modCatalogTitle(catalog: CatalogSnapshot): string {
 }
 
 export function modCatalogForPin(catalogs: readonly CatalogSnapshot[], pin: ModCatalogPin): CatalogSnapshot | undefined {
-  return catalogs.find(catalog => catalog.id === pin.catalogId && catalog.revisionId === pin.catalogRevisionId)
+  return fulfillSource(pin, catalogs)?.catalog
 }
 
 export function modModelRecords(catalog: CatalogSnapshot): ReadonlyMap<string, CatalogEntity> {
@@ -85,7 +77,7 @@ export function nativeModReplacementLinks(baseline: CatalogSnapshot, incoming: C
 }
 
 export function bundledModReplacementLinks(baseline: CatalogSnapshot, incoming: CatalogSnapshot, bundled: readonly BundledLibraryMod[]): ModComposition['links'] {
-  const mod = bundled.find(value => value.id === incoming.id)
+  const mod = bundled.find(value => value.id === incoming.id || value.payloadSource.catalogId === incoming.id)
   if (!mod) return []
   const models = modModelRecords(incoming)
   const candidates = new Map<string, { readonly rank: number; readonly entities: readonly CatalogEntity[] }>()
@@ -186,7 +178,12 @@ export function composeModLayers(composition: ModComposition, catalogs: readonly
       const original = previous?.entity ?? (target ? baseline.entities[target] : undefined)
       if (localization && !original) continue
       // Localization changes display text and source attribution without replacing mechanical fields
-      const effective = localization ? { ...original!, ...(scoped ? { sources: [...original!.sources, ...entity.sources] } : {}), name: entity.name, ...(entity.rawDescription !== undefined ? { rawDescription: entity.rawDescription } : {}), fields: { ...original!.fields, ...(entity.fields.Description ? { Description: entity.fields.Description } : {}) } } : entity
+      const incomingOrigin: CatalogRef = { kind: 'catalog', catalogId: layer.catalogId, catalogRevisionId: layer.catalogRevisionId, entityId: originalEntity.id }
+      const mechanicalOrigin = localization ? previous?.entity.origins?.mechanical ?? (target ? { kind: 'catalog' as const, ...composition.baseline, entityId: target } : undefined) : incomingOrigin
+      if (!mechanicalOrigin) throw new DomainError('INVALID_INPUT', 'A localized record requires an exact mechanical contributor')
+      const projected = localization ? { ...original!, ...(scoped ? { sources: [...original!.sources, ...entity.sources] } : {}), name: entity.name, ...(entity.rawDescription !== undefined ? { rawDescription: entity.rawDescription } : {}), fields: { ...original!.fields, ...(entity.fields.Description ? { Description: entity.fields.Description } : {}) } } : entity
+      // Original contributor IDs survive logical replacement and composition-local numeric remapping
+      const effective: CatalogEntity = { ...projected, origins: { mechanical: mechanicalOrigin, text: incomingOrigin } }
       winners.set(modelKey, { modelKey, ...(scoped ? { originalModelKey, identityProjectId: localization ? previous?.identityProjectId ?? previous?.source.catalogId ?? layer.catalogId : layer.catalogId } : {}), entity: effective, source: layer, sourceTitle: modCatalogTitle(catalog), superseded: previous ? [...previous.superseded, previous.sourceTitle] : [] })
     }
   }
@@ -261,7 +258,7 @@ export function composeModCatalog(gameSetup: GameSetupRevision, catalogs: readon
   const result = composeModLayers(gameSetup.modComposition, catalogs)
   const metadata = jsonRecord(baseline.legacy) ? baseline.legacy : {}
   const preserved = Object.fromEntries(BASELINE_METADATA_KEYS.flatMap(key => metadata[key] === undefined ? [] : [[key, metadata[key]]]))
-  return { ...baseline, revisionId: modCatalogRevision(gameSetup.id), schemaVersion: MOD_CATALOG_SCHEMA, checksum: `composition:${gameSetup.id}`, importedAt: gameSetup.createdAt, entities: Object.fromEntries(result.changes.map(change => [change.targetEntityId, change.entity])), claims: [], applicability: { state: 'unknown', reason: 'User-selected mod priority and bundled links; game load order and platform parity are unverified' }, rights: { state: 'unknown', reason: 'Source catalogs retain their individual rights' }, legacy: { ...preserved, ...(gameSetup.modComposition.version ? { modCompositionVersion: gameSetup.modComposition.version } : {}), modGameSetupRevisionId: gameSetup.id, modBaseline: { ...gameSetup.modComposition.baseline }, crystalEditIdentities: result.identities, ...(gameSetup.modComposition.version === 3 ? { modSourceIdentities: result.sourceIdentities } : {}), unresolvedReferences: result.unresolvedReferences } }
+  return { ...baseline, revisionId: modCatalogRevision(gameSetup.id), schemaVersion: MOD_CATALOG_SCHEMA, checksum: `composition:sha256:${sourceCompositionDigest(gameSetup.modComposition, catalogs)}`, importedAt: gameSetup.createdAt, entities: Object.fromEntries(result.changes.map(change => [change.targetEntityId, change.entity])), claims: [], applicability: { state: 'unknown', reason: 'User-selected mod priority and bundled links; game load order and platform parity are unverified' }, rights: { state: 'unknown', reason: 'Source catalogs retain their individual rights' }, legacy: { ...preserved, ...(gameSetup.modComposition.version ? { modCompositionVersion: gameSetup.modComposition.version } : {}), modGameSetupRevisionId: gameSetup.id, modBaseline: { ...gameSetup.modComposition.baseline }, crystalEditIdentities: result.identities, ...(gameSetup.modComposition.version === 3 ? { modSourceIdentities: result.sourceIdentities } : {}), unresolvedReferences: result.unresolvedReferences } }
 }
 
 export function expandModCatalogs(catalogs: readonly CatalogSnapshot[]): readonly CatalogSnapshot[] {

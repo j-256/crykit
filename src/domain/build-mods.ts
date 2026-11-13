@@ -1,3 +1,6 @@
+import { definitionOrigins } from './definition-origins'
+import { fulfillSource } from './source-fulfillment'
+import { parseCatalogSourceId } from './source-identity'
 import { buildModReferences } from './build-references'
 import { retainedSelectionRefs } from './retained-selections'
 import { withBuildReferenceNames } from './build-reference-names'
@@ -32,16 +35,17 @@ export function buildModRequirements(content: BuildRevisionContent, localData: L
     if (seen.has(entityDefinitionKey(ref))) continue
     seen.add(entityDefinitionKey(ref))
     const root = definitionLineageRootRef(localData, ref)
-    const catalog = root.kind === 'catalog' ? catalogs.find(candidate => candidate.id === root.catalogId && candidate.revisionId === root.catalogRevisionId) : undefined
+    const catalog = root.kind === 'catalog' ? fulfillSource(root, catalogs)?.catalog : undefined
     const record = ref.kind === 'personal' ? localData.personalDefinitions[ref.definitionId] : catalog ? catalogEntity(catalog, ref.entityId) : undefined
     const availability = definitionModAvailability(localData, ref, setup, catalogs)
     if (!record || !availability.requiredMod) continue
     const project = record.fields[MOD_PROJECT_FIELD]
     const bundled = bundledModIdentity(record)
-    const matches = BUNDLED_MOD_LIBRARY.filter(mod => bundled ? mod.key === bundled.key : mod.catalogNames?.some(name => normalizeModName(name) === normalizeModName(availability.requiredMod!)))
-    const source = new Set(matches.map(mod => mod.id)).size === 1 ? matches[0] : undefined
-    const origin = catalog?.schemaVersion === MOD_CATALOG_SCHEMA ? catalogs.find(candidate => candidate.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA && setup?.modComposition?.layers.some(layer => layer.enabled && layer.catalogId === candidate.id && layer.catalogRevisionId === candidate.revisionId) && Object.values(candidate.entities).some(entity => entity.sources.some(provenance => record.sources.some(saved => saved.sourceId === provenance.sourceId)))) : undefined
-    const projectId = catalog?.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA ? catalog.id : project?.state === 'known' && typeof project.value === 'string' ? project.value as CatalogId : origin?.id ?? source?.id
+    const source = bundled && BUNDLED_MOD_LIBRARY.find(mod => mod.key === bundled.key)
+    const originEntity = catalog && root.kind === 'catalog' ? catalogEntity(catalog, root.entityId) : undefined
+    const origin = catalog && originEntity ? definitionOrigins(catalog, originEntity)?.mechanical : undefined
+    const originType = origin && parseCatalogSourceId(origin.catalogId)?.origin
+    const projectId = catalog?.schemaVersion === CRYSTAL_EDIT_CATALOG_SCHEMA ? catalog.id : origin && (originType === 'mod' || originType === 'imported') ? origin.catalogId : project?.state === 'known' && typeof project.value === 'string' ? project.value as CatalogId : source?.id
     const reviewed = BUNDLED_MOD_LIBRARY.find(mod => mod.id === projectId)
     const key = projectId ?? `name:${normalizeModName(availability.requiredMod)}`
     const previous = requirements.get(key)

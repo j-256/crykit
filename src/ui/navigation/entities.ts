@@ -1,3 +1,4 @@
+import { SOURCE_REVISION_RECEIPTS } from '../../catalog/source-revisions'
 import { type EntityRef, type PersonalDefinitionId, type CatalogId, type CatalogRevisionId, type EntityId } from '../../domain/types'
 import { parseCatalogSourceId, parseSourceRevision, type CatalogSourceIdentity } from '../../domain/source-identity'
 import { type EntityRouteNameResolver, bundledEntityRouteName, entityRouteSlug, isEntityRouteSlug } from '../entity-route-names'
@@ -9,14 +10,23 @@ const MAX_NATIVE_ID = 0xffffffff
 const segment = (value: string) => encodeIdentitySegment(value, ENTITY_ID_RESERVED_SEGMENTS)
 const validRecordKey = (value: string) => RECORD_KEY.test(value) && (value.startsWith('ref-') ? Number.isSafeInteger(Number(value.slice(4))) : Number(value) <= MAX_NATIVE_ID)
 
-function sourceRecord(source: CatalogSourceIdentity, entityId: string): { readonly family: string; readonly key: string; readonly mode?: string } | undefined {
+function recordSourceKey(source: CatalogSourceIdentity, revisionId: string): string | undefined {
+  if (source.origin === 'vanilla') return undefined
+  if (source.origin !== 'mod') return source.key
+  const receipt = SOURCE_REVISION_RECEIPTS.find(receipt => receipt.id === `crystal-project/mod/${source.key}` && receipt.revisionId === revisionId)
+  const payload = receipt?.payloadSource && parseCatalogSourceId(receipt.payloadSource.catalogId)
+  return payload?.origin === 'imported' ? payload.key : source.key
+}
+
+function sourceRecord(source: CatalogSourceIdentity, entityId: string, revisionId: string): { readonly family: string; readonly key: string; readonly mode?: string } | undefined {
   const parts = entityId.split(':')
+  const payloadKey = recordSourceKey(source, revisionId)
   if (source.origin === 'vanilla' && parts[0] === 'base' && (parts.length === 3 || parts.length === 5 && parts[3] === 'mode')) {
     const mode = parts.length === 5 ? decodeSegment(parts[4]!) : undefined
     if (parts.length === 5 && (!mode || mode === 'base')) return undefined
     if (RECORD_FAMILIES.has(parts[1]!) && validRecordKey(parts[2]!)) return { family: parts[1]!, key: parts[2]!, ...(mode ? { mode } : {}) }
   }
-  if ((source.origin === 'mod' || source.origin === 'imported') && parts.length === 4 && parts[0] === 'mod' && parts[1] === source.key && RECORD_FAMILIES.has(parts[2]!) && validRecordKey(parts[3]!)) return { family: parts[2] === 'class' ? 'job' : parts[2]!, key: parts[3]! }
+  if ((source.origin === 'mod' || source.origin === 'imported') && parts.length === 4 && parts[0] === 'mod' && parts[1] === payloadKey && RECORD_FAMILIES.has(parts[2]!) && validRecordKey(parts[3]!)) return { family: parts[2] === 'class' ? 'job' : parts[2]!, key: parts[3]! }
   return undefined
 }
 
@@ -28,7 +38,7 @@ export function formatEntityRefPath(ref: EntityRef, resolveName: EntityRouteName
   // Effective records and synthetic workspace catalogs never borrow a public source route
   if (!source || ref.catalogRevisionId.startsWith('mod-setup:')) return `local/catalog/${encodeSegment(ref.catalogId)}/${encodeSegment(ref.catalogRevisionId)}/entries/${encodeSegment(ref.entityId)}/${slug}`
   if (!parseSourceRevision(source.origin, ref.catalogRevisionId)) throw new Error('Source revision is invalid')
-  const record = sourceRecord(source, ref.entityId)
+  const record = sourceRecord(source, ref.entityId, ref.catalogRevisionId)
   const identity = record ? `${record.mode ? `mode/${segment(record.mode)}/` : ''}${record.family}/${segment(record.key)}` : `entries/${encodeSegment(ref.entityId)}`
   return `${ref.catalogId}/${ref.catalogRevisionId}/${identity}/${slug}`
 }
@@ -71,10 +81,10 @@ export function parseEntityRefPath(segments: readonly string[], offset = 0): { r
   if (family === 'entries' && !mode) {
     entityId = key
     // Structured records have exactly one encoding, so opaque keys cannot alias them
-    if (source && sourceRecord(source, entityId)) return undefined
+    if (source && sourceRecord(source, entityId, catalogRevisionId)) return undefined
   } else {
     if (local || !source || source.origin === 'guide' || !family || !RECORD_FAMILIES.has(family) || !validRecordKey(key)) return undefined
-    entityId = source.origin === 'vanilla' ? `base:${family}:${key}${mode ? `:mode:${encodeURIComponent(mode)}` : ''}` : `mod:${source.key}:${family === 'job' ? 'class' : family}:${key}`
+    entityId = source.origin === 'vanilla' ? `base:${family}:${key}${mode ? `:mode:${encodeURIComponent(mode)}` : ''}` : `mod:${recordSourceKey(source, catalogRevisionId)}:${family === 'job' ? 'class' : family}:${key}`
     if (source.origin !== 'vanilla' && family === 'class') return undefined
   }
   if (!boundedOpaque(entityId)) return undefined

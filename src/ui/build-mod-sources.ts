@@ -4,7 +4,7 @@ import type { CatalogSnapshot } from '../domain/types'
 export const BUNDLED_VERSION_PREFIX = 'bundled:'
 
 export function buildModVersions(project: LibraryMod) {
-  return [...project.revisions.map(revision => ({ id: revision.catalogRevisionId as string, label: `${revision.declaredVersion ?? 'Version unspecified'} · saved · format ${revision.editorVersion ?? 'unknown'}`, version: revision.declaredVersion, editorVersion: revision.editorVersion })), ...project.bundled.filter(source => !project.revisions.some(revision => revision.sourceDigest === source.sourceDigest)).map(source => ({ id: `${BUNDLED_VERSION_PREFIX}${source.sourceDigest}`, label: `${source.declaredVersion ?? 'Version unspecified'} · bundled · format ${source.editorVersion}`, version: source.declaredVersion, editorVersion: source.editorVersion }))]
+  return [...project.revisions.map(revision => ({ id: revision.catalogRevisionId as string, label: `${revision.declaredVersion ?? 'Version unspecified'} · saved · format ${revision.editorVersion ?? 'unknown'}`, version: revision.declaredVersion, editorVersion: revision.editorVersion })), ...project.bundled.filter(source => !project.revisions.some(revision => revision.payloadChecksum === source.payloadChecksum)).map(source => ({ id: `${BUNDLED_VERSION_PREFIX}${source.sourceDigest}`, label: `${source.declaredVersion ?? 'Version unspecified'} · bundled · format ${source.editorVersion}`, version: source.declaredVersion, editorVersion: source.editorVersion }))]
 }
 
 export async function loadBuildModVersion(project: LibraryMod, selected: string, loadBundled?: (source: BundledLibraryMod) => Promise<CatalogSnapshot>): Promise<CatalogSnapshot> {

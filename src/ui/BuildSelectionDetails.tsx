@@ -1,3 +1,5 @@
+import { definitionOrigins } from '../domain/definition-origins'
+import { ReferenceLink } from './ReferenceLink'
 import type { ReactNode } from 'react'
 import { modPlanningReason } from '../catalog/mods'
 import { corroboratedFact } from '../catalog/source-corroboration'
@@ -72,6 +74,8 @@ export function BuildSelectionDetails({ option, comparedWith, alternatives = [],
   const fieldSources = values.flatMap(value => value.state === 'conflicting' ? value.claims.flatMap(claim => claim.sources) : value.state === 'notApplicable' ? [] : value.sources ?? [])
   const catalog = option.ref.kind === 'catalog' ? catalogs.find(catalog => option.ref.kind === 'catalog' && catalog.id === option.ref.catalogId && catalog.revisionId === option.ref.catalogRevisionId) : undefined
   const entity = catalog && option.ref.kind === 'catalog' ? catalogEntity(catalog, option.ref.entityId) : undefined
+  const origins = entity && catalog ? definitionOrigins(catalog, entity) : undefined
+  const localized = origins && JSON.stringify(origins.mechanical) !== JSON.stringify(origins.text)
   const target = entity && catalog && !bundledModIdentity(option.record) ? { catalog, entity: { ...option.record, id: entity.id } } : undefined
   // Only exact field receipts can quiet citations; imported or changed facts keep their evidence
   const verified = option.kind === 'class' && Object.entries(sourceFields).every(([field, value]) => corroboratedFact(target, field, value))
@@ -87,6 +91,7 @@ export function BuildSelectionDetails({ option, comparedWith, alternatives = [],
   const legacyInnate = option.kind === 'innate' && !option.modAvailability?.requiredMod
   const showPpCost = !previous && ['passive', 'innate'].includes(option.kind)
   return <div className="build-selection-details">
+    {origins && <nav aria-label="Definition contributors"><ReferenceLink refValue={origins.mechanical}>Mechanical source</ReferenceLink>{localized && <> · <ReferenceLink refValue={origins.text}>Localized text source</ReferenceLink></>}</nav>}
     <div className="cluster">{sourceControl ?? identity}{legacyInnate && <HistoricalInnateLearningBadge record={option.record}/>}{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} showState={false} state={option.modAvailability.state}/>}{(!heading || showPpCost) && <small>{!heading ? definitionKindLabel(option.kind) : ''}{showPpCost ? `${!heading ? ' · ' : ''}${ppCostLabel(option)}` : ''}</small>}</div>
     {modPlanningReason(option.modAvailability) && <p className="field__hint">{modPlanningReason(option.modAvailability)}</p>}
     {previous && option.kind !== 'class' ? <table className="build-fact-table"><caption>Catalog facts compared with {comparedWith!.name}</caption><thead><tr><th>{comparedWith!.name}</th><th>{option.name}</th></tr></thead><tbody><tr><td><SelectionSummary option={comparedWith!} showPpCost/></td><td><SelectionSummary option={option} showPpCost/></td></tr></tbody></table> : previous ? <table className="build-fact-table"><caption>Catalog facts compared with {comparedWith!.name}</caption><thead><tr><th>Field</th><th>{comparedWith!.name}</th><th>{option.name}</th></tr></thead><tbody>{labels.map((label) => <tr key={label}><th><StatLabel label={label}/></th><td><KnowledgeValue compact field={label} value={previous.find((fact) => fact.label === label)?.value ?? { state: 'unknown' }}/></td><td><KnowledgeValue compact field={label} value={facts.find((fact) => fact.label === label)?.value ?? { state: 'unknown' }}/></td></tr>)}</tbody></table> : option.kind === 'class' ? <dl className="definition-list">{displayedFacts.map(({ label, value }) => <div className="definition-row" key={label}><dt><StatLabel label={label}/></dt><dd><KnowledgeValue compact field={label} value={value}/></dd></div>)}</dl> : <SelectionSummary option={option}/>}

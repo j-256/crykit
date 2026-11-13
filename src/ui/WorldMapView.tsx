@@ -20,13 +20,13 @@ const PREVIEW_SETUP = 'preview'
 const RESULT_LIMIT = 80
 const ALL_KINDS = Object.keys(MAP_KIND_LABELS) as WorldMarker['kind'][]
 const DEFAULT_KINDS = ALL_KINDS.filter(kind => kind !== 'encounter' && kind !== 'sign' && kind !== 'object')
-interface ModChoice { readonly key: string; readonly pin: ModCatalogPin; readonly title: string; readonly version?: string; readonly sourceDigest?: string; readonly imported: boolean }
+interface ModChoice { readonly key: string; readonly pin: ModCatalogPin; readonly title: string; readonly version?: string; readonly payloadChecksum?: string; readonly imported: boolean }
 function modChoices(catalogs: readonly CatalogSnapshot[]): readonly ModChoice[] {
   return completeModLibrary(catalogs, BUNDLED_MOD_LIBRARY).flatMap(mod => {
-    const choices: ModChoice[] = mod.revisions.map(revision => ({ key: mapModPinKey(revision), pin: revision, title: revision.title, version: revision.declaredVersion, sourceDigest: revision.sourceDigest, imported: true }))
+    const choices: ModChoice[] = mod.revisions.map(revision => ({ key: mapModPinKey(revision), pin: revision, title: revision.title, version: revision.declaredVersion, payloadChecksum: revision.payloadChecksum, imported: true }))
     for (const source of mod.bundled) {
-      const pin = { catalogId: source.id, catalogRevisionId: source.sourceDigest as ModCatalogPin['catalogRevisionId'] }
-      if (!choices.some(choice => choice.key === mapModPinKey(pin) || choice.sourceDigest === source.sourceDigest)) choices.push({ key: mapModPinKey(pin), pin, title: source.title, version: source.declaredVersion, sourceDigest: source.sourceDigest, imported: false })
+      const pin = { catalogId: source.id, catalogRevisionId: source.revisionId }
+      if (!choices.some(choice => choice.key === mapModPinKey(pin) || choice.payloadChecksum === source.payloadChecksum)) choices.push({ key: mapModPinKey(pin), pin, title: source.title, version: source.declaredVersion, payloadChecksum: source.payloadChecksum, imported: false })
     }
     return choices
   })
@@ -83,7 +83,7 @@ export default function WorldMapView({ localData, catalogs }: { readonly localDa
   const setupId = navigation.route.query.gameSetup?.[0] ?? PREVIEW_SETUP
   const setup = setupId === PREVIEW_SETUP ? undefined : localData.gameSetups[setupId]
   const expansion = BUNDLED_MOD_LIBRARY.find(mod => mod.key === 'equipment-expansion')
-  const defaultMod = expansion && choices.find(choice => choice.pin.catalogId === expansion.id && choice.sourceDigest === expansion.sourceDigest)
+  const defaultMod = expansion && choices.find(choice => choice.pin.catalogId === expansion.id && choice.payloadChecksum === expansion.payloadChecksum)
   const previewKeys = navigation.route.query.mods?.[0] === 'none' ? [] : navigation.route.query.mods ?? (defaultMod ? [defaultMod.key] : [])
   const pinKeys = useMemo(() => {
     if (!setup) return setupId === PREVIEW_SETUP ? previewKeys : []

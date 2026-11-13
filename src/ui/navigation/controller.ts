@@ -1,4 +1,5 @@
 import { bundledEntityRouteName, type EntityRouteNameResolver } from '../entity-route-names'
+import { entityDefinitionKey } from '../../domain/core'
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { type AppRoute, type Destination, BUILDS_ROUTE } from './types.ts'
 import { parseAppRoute, formatAppRoute } from './routes.ts'
@@ -57,7 +58,8 @@ export function useNavigationController(options: { readonly resolveEntityName?: 
   }, [])
 
   const accept = useCallback((next: AppRoute) => {
-    const canonical = next.legacy ? { ...next, legacy: undefined } : next
+    const sourceRef = next.page.page === 'reference' && next.page.view === 'detail' && next.page.ref.kind === 'catalog' ? optionsRef.current.resolveEntityName?.sourceRef?.(next.page.ref) : undefined
+    const canonical = { ...next, ...(next.legacy ? { legacy: undefined } : {}), ...(sourceRef ? { page: { page: 'reference' as const, view: 'detail' as const, ref: sourceRef } } : {}) }
     acceptedRef.current = canonical
     setRoute(canonical)
     const canonicalHash = href(canonical)
@@ -66,9 +68,12 @@ export function useNavigationController(options: { readonly resolveEntityName?: 
   }, [href, canCanonicalize])
 
   useEffect(() => {
+    const page = acceptedRef.current.page
+    const sourceRef = page.page === 'reference' && page.view === 'detail' && page.ref.kind === 'catalog' ? optionsRef.current.resolveEntityName?.sourceRef?.(page.ref) : undefined
+    if (sourceRef && 'ref' in page && entityDefinitionKey(sourceRef) !== entityDefinitionKey(page.ref)) { accept(acceptedRef.current); return }
     const canonicalHash = href(acceptedRef.current)
     if (acceptedRef.current.page.page !== 'unresolved' && canCanonicalize(acceptedRef.current) && window.location.hash !== canonicalHash) window.history.replaceState(window.history.state, '', canonicalHash)
-  }, [href, canCanonicalize, options.resolveEntityName])
+  }, [accept, href, canCanonicalize, options.resolveEntityName])
 
   useEffect(() => {
     const existing = navigationState(window.history.state)

@@ -1,11 +1,11 @@
 import manifestJson from './mod-artwork-runtime.json'
 import { BUNDLED_MOD_LIBRARY } from './mod-library-metadata'
-import { bundledModIdentity } from '../domain/bundled-mods'
 import { GAME_RECORD_FIELD } from '../domain/game-record-facts'
 import { nativeRecord } from '../domain/native-game'
 import { modArtworkReference } from '../domain/mod-artwork'
 import type { CatalogEntity } from '../domain/types'
 import { MOD_PROJECT_FIELD } from '../domain/mod-library'
+import { parseSourceRevision } from '../domain/source-identity'
 
 interface ArtworkBinding {
   readonly kind: string
@@ -16,35 +16,37 @@ interface ArtworkBinding {
 export interface ModArtworkManifest {
   readonly assets: Readonly<Record<string, { readonly file: string; readonly sha256: string; readonly width: number; readonly height: number; readonly license: string; readonly contentBounds: Region; readonly atlas: string; readonly region: Region }>>
   readonly atlases: Readonly<Record<string, { readonly file: string; readonly width: number; readonly height: number }>>
-  readonly projects: Readonly<Record<string, { readonly projectId: string; readonly title: string; readonly version: string; readonly entities: Readonly<Record<string, ArtworkBinding>> }>>
+  readonly projects: Readonly<Record<string, { readonly projectId: string; readonly payloadSource: { readonly catalogId: string; readonly catalogRevisionId: string }; readonly title: string; readonly version: string; readonly entities: Readonly<Record<string, ArtworkBinding>> }>>
 }
 interface Region { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
 
-export type ModArtworkIdentity = Partial<Pick<CatalogEntity, 'fields' | 'legacy'>>
+export type ModArtworkIdentity = Partial<Pick<CatalogEntity, 'fields' | 'legacy' | 'origins'>>
 const manifest = manifestJson as unknown as ModArtworkManifest
 const urls = import.meta.glob<string>('../assets/mod-artwork-atlases/*.png', { eager: true, query: '?url&no-inline', import: 'default' })
 export const modSourceArtwork = createModArtworkResolver(manifest, urls, BUNDLED_MOD_LIBRARY)
 
 export function createModArtworkResolver(manifest: ModArtworkManifest, urls: Readonly<Record<string, string>>, library: readonly import('../domain/mod-library').BundledLibraryMod[]) {
-  const libraryByRevision = new Map(library.map(mod => [`${mod.key}:${mod.declaredVersion}`, mod]))
+  const libraryByRevision = new Map(library.map(mod => [JSON.stringify([mod.id, mod.revisionId]), mod]))
+  const projectsByPayload = new Map(Object.values(manifest.projects).map(project => [JSON.stringify([project.payloadSource.catalogId, project.payloadSource.catalogRevisionId]), project]))
   return function modSourceArtwork(entity: Pick<CatalogEntity, 'kind'> & ModArtworkIdentity) {
     const fields = entity.fields
     const recordField = fields?.[GAME_RECORD_FIELD]
     if (recordField?.state !== 'known' || !nativeRecord(recordField.value)) return undefined
     const record = recordField.value
-    const bundled = bundledModIdentity(entity)
+    const origin = entity.origins?.mechanical
+    if (!origin) return undefined
+    const bundled = libraryByRevision.get(JSON.stringify([origin.catalogId, origin.catalogRevisionId]))
+    const payloadSource = bundled?.payloadSource ?? origin
+    const project = projectsByPayload.get(JSON.stringify([payloadSource.catalogId, payloadSource.catalogRevisionId]))
+    const revision = parseSourceRevision('imported', payloadSource.catalogRevisionId)
     const projectField = fields?.[MOD_PROJECT_FIELD]
     const familyField = fields?.['Crystal Edit model type']
-    const family = bundled?.family ?? (familyField?.state === 'known' && typeof familyField.value === 'string' ? familyField.value : undefined)
-    if (!family || typeof record.ID !== 'number' || bundled && bundled.modelId !== record.ID) return undefined
-    const library = bundled && libraryByRevision.get(`${bundled.key}:${bundled.version}`)
-    const bundledMetadata = nativeRecord(entity.legacy) && nativeRecord(entity.legacy.bundledMod) ? entity.legacy.bundledMod : undefined
-    const digest = library ? typeof bundledMetadata?.sourceDigest === 'string' ? bundledMetadata.sourceDigest : library.sourceDigest.replace(/^sha256:/, '') : recordField.sources?.find(source => /^source:sha256:[a-f0-9]{64}$/.test(source.sourceId))?.sourceId.slice('source:sha256:'.length)
-    if (!digest) return undefined
-    const project = manifest.projects[digest]
-    const projectId = library?.id ?? (projectField?.state === 'known' && typeof projectField.value === 'string' ? projectField.value : undefined)
-    if (!project || projectId !== `crystal-edit:${project.projectId}`) return undefined
-    const binding = project.entities[`${family}:${record.ID}`]
+    const family = familyField?.state === 'known' && typeof familyField.value === 'string' ? familyField.value : undefined
+    // Remapping changes runtime numeric IDs, but artwork belongs to the original source record
+    const originalId = origin.entityId.split(':').at(-1)
+    if (!project || revision?.kind !== 'imported' || revision.encoding !== 'j1' || !family || !originalId || !/^(0|[1-9][0-9]*)$/.test(originalId) || projectField?.state !== 'known' || projectField.value !== payloadSource.catalogId) return undefined
+    if (!recordField.sources?.some(source => source.sourceId === `source:json-content-v1:sha256:${revision.digest}`)) return undefined
+    const binding = project.entities[`${family}:${originalId}`]
     const reference = modArtworkReference(family, record)
     if (!binding || binding.kind !== entity.kind || !reference || JSON.stringify(reference) !== JSON.stringify(binding.reference)) return undefined
     const asset = manifest.assets[binding.asset]

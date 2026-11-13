@@ -4,7 +4,12 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createBlankLocalData } from '../domain'
 import { DefinitionEditor, DefinitionProvider } from './definitions'
 import { NavigationProvider, parseAppRoute, routeWithOverlay, useNavigation, useNavigationController, type NavigationController } from './navigation'
-import type { EntityRouteNameResolver } from './entity-route-names'
+import { createEntityRouteNameResolver, type EntityRouteNameResolver } from './entity-route-names'
+import { syntheticModLayers } from '../domain/mod-layers.test-helpers'
+import { addGameSetupRevision } from '../domain/local-data'
+import { composeModCatalog } from '../domain/mod-layers'
+import { formatEntityRefPath } from './navigation/entities'
+import type { CatalogRef } from '../domain/types'
 import { Sheet } from './Sheet'
 
 let container: HTMLDivElement
@@ -102,6 +107,26 @@ describe('navigation controller history', () => {
     expect(window.location.hash).toBe(hash.replace('incorrect-name', 'synthetic-imported-name'))
     expect(controller.route).toEqual(exact)
     expect(window.history.length).toBe(length + 1)
+    await act(async () => root.unmount())
+  })
+
+  it('opens a composition reference at its exact contributor after its sources load', async () => {
+    const { catalogs, composition } = await syntheticModLayers()
+    const local = addGameSetupRevision(createBlankLocalData(), { label: 'Synthetic composition', modComposition: composition })
+    const effective = composeModCatalog(local.gameSetups[local.planningGameSetupRevisionId!]!, catalogs)!
+    const ref: CatalogRef = { kind: 'catalog', catalogId: effective.id, catalogRevisionId: effective.revisionId, entityId: 'base:job:0' as CatalogRef['entityId'] }
+    const hash = `#/reference/${formatEntityRefPath(ref, () => undefined)}`
+    window.history.replaceState({ retained: true }, '', hash)
+    const length = window.history.length
+    const root = createRoot(container)
+    await act(async () => { root.render(<Harness resolveEntityName={() => undefined}/>); await tick() })
+    expect(window.location.hash).toBe(hash)
+    await act(async () => { root.render(<Harness resolveEntityName={createEntityRouteNameResolver([...catalogs, effective])}/>); await tick() })
+    const origin = effective.entities[ref.entityId]!.origins!.mechanical
+    expect(controller.route.page).toEqual({ page: 'reference', view: 'detail', ref: origin })
+    expect(window.location.hash).toBe(`#/reference/${formatEntityRefPath(origin, createEntityRouteNameResolver(catalogs))}`)
+    expect(window.history.length).toBe(length)
+    expect(window.history.state.retained).toBe(true)
     await act(async () => root.unmount())
   })
 

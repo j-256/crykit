@@ -1,3 +1,5 @@
+import { previewCrystalEdit } from '../interchange/crystal-edit'
+import { fulfillSource } from '../domain/source-fulfillment'
 import { decodeMapSurface, MAP_SURFACE_LIMITS, type MapSurface } from '../domain/map-surface'
 import { decodeMapGeometry, MAP_GEOMETRY, type MapGeometryMetadata, type MapGeometryTile } from '../domain/map-geometry'
 import { sha256 } from '../interchange/util'
@@ -154,7 +156,7 @@ export function createMapModLayerLoader(readSource: MapModSourceReader, assertCu
   return async (pin: ModCatalogPin, catalogs: readonly CatalogSnapshot[]): Promise<WorldMapModLayer> => {
     assertCurrent()
     const catalog = modCatalogForPin(catalogs, pin)
-    const bundled = BUNDLED_MOD_LIBRARY.find(mod => mod.id === pin.catalogId && (mod.sourceDigest === pin.catalogRevisionId || mod.sourceDigest === catalog?.checksum))
+    const bundled = BUNDLED_MOD_LIBRARY.find(mod => mod.id === pin.catalogId && mod.revisionId === pin.catalogRevisionId)
     const identity = { sourceId: pin.catalogId, sourceName: catalog ? modCatalogTitle(catalog) : bundled?.title ?? pin.catalogId, revisionId: pin.catalogRevisionId }
     const key = JSON.stringify([mapModPinKey(pin), catalog?.checksum, identity.sourceName, !!catalog, bundled?.sourceDigest])
     let promise = promises.get(key)
@@ -165,7 +167,10 @@ export function createMapModLayerLoader(readSource: MapModSourceReader, assertCu
           assertCurrent()
           if (!source) return { ...identity, entities: [], definitions: [], warnings: ['This exact mod revision is unavailable. Import its original Crystal Edit JSON to preview it.'] }
           const root = parseBoundedJson(new TextEncoder().encode(source.text), source.filename, { maxNodes: MAX_MOD_SOURCE_NODES })
-          if (!jsonRecord(root) || typeof root.ID !== 'string' || `crystal-edit:${root.ID}` !== pin.catalogId || typeof root.EditorVersion !== 'number' || !Number.isSafeInteger(root.EditorVersion) || root.EditorVersion < 0) throw new Error('The mod source project identity does not match its pinned catalog.')
+          const parsed = (await previewCrystalEdit(new TextEncoder().encode(source.text), source.filename)).proposed.catalogs[0]!
+          assertCurrent()
+          const fulfilled = fulfillSource(pin, [parsed])?.catalog
+          if (!jsonRecord(root) || !fulfilled || catalog && fulfilled.checksum !== catalog.checksum) throw new Error('The mod source identity does not match its pinned catalog.')
           return worldMapModLayer(identity, root)
         } catch (error) {
           assertCurrent()

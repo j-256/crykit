@@ -1,3 +1,4 @@
+import { parseCatalogSourceId } from './source-identity'
 import { withoutRetainedMechanics } from './retained-selections'
 import modifierData from '../calculations/native-modifiers-v1.json' with { type: 'json' }
 import { calculateFormula, evaluateExpression, NATIVE_DATA, PC_RULES } from './calculation-rules'
@@ -185,7 +186,7 @@ export function resolveLinkedStatus(source: EntityRef, id: number, resolve: Defi
   if (!catalog || !definition) return {}
   const identity = 'legacy' in definition ? bundledModIdentity(definition) : undefined
   const project = definition.fields[MOD_PROJECT_FIELD]
-  const importedKey = project?.state === 'known' && typeof project.value === 'string' && project.value.startsWith('crystal-edit:') && !('legacy' in definition && jsonRecord(definition.legacy) && definition.legacy.modRecordVersion === 3) ? encodeURIComponent(project.value.slice('crystal-edit:'.length)) : undefined
+  const importedKey = project?.state === 'known' && typeof project.value === 'string' && parseCatalogSourceId(project.value)?.origin === 'imported' && !('legacy' in definition && jsonRecord(definition.legacy) && definition.legacy.modRecordVersion === 3) ? project.value.split('/').at(-1) : undefined
   const candidates = [`crystal-edit:Statuses:${id}`, ...(importedKey ? [bundledModEntityId(importedKey, 'Statuses', id)] : []), ...(identity ? [bundledModEntityId(identity.key, 'Statuses', id)] : []), nativeEntityId('status', id)]
   for (const entityId of candidates) {
     const ref = { ...catalog, entityId: entityId as typeof catalog.entityId }

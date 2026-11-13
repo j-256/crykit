@@ -13,7 +13,7 @@ const project = (version = '1') => ({ ID: 'synthetic-project', Title: 'Synthetic
 const approvedBytes = [1, 2, 3].map(version => Buffer.from(JSON.stringify(project(String(version)))))
 approvedBytes.push(Buffer.from(`\ufeff${JSON.stringify(project(), null, 2).replaceAll('\n', '\r\n')}\r\n`))
 for (const workshopId of [0, 123456]) approvedBytes.push(Buffer.from(JSON.stringify({ ...project(), Timestamp: '2025-01-01T00:00:00Z', SteamWorkshopFileID: workshopId })))
-const syntheticApproval = [{ projectId: 'synthetic-project', sourceDigests: approvedBytes.map(bytes => inspectModSource(bytes).sha256) }]
+const syntheticApproval = [{ projectId: 'synthetic-project', key: 'synthetic-project', sourceDigests: approvedBytes.map(bytes => inspectModSource(bytes).sha256), revisions: Object.fromEntries(approvedBytes.map((bytes, index) => [inspectModSource(bytes).sha256, `v${index + 1}`])) }]
 
 test('scans nested directories, deduplicates exact bytes, retains revisions, and checks without originals', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'crykit-mod-library-'))
@@ -69,7 +69,7 @@ test('withholds an exact project identity across filenames and revisions', async
   } finally { await rm(directory, { recursive: true, force: true }) }
 })
 
-test('prefers a Workshop-identified export when the same project timestamp is retained', async () => {
+test('retains distinct explicitly revisioned exports when their project timestamps match', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'crykit-mod-workshop-revision-'))
   const input = join(directory, 'input')
   const output = join(directory, 'assets')
@@ -83,8 +83,8 @@ test('prefers a Workshop-identified export when the same project timestamp is re
     await bundleModDirectory(input, output, manifest, syntheticApproval)
     const { mods } = JSON.parse(await readFile(manifest, 'utf8'))
     assert.equal(mods.length, 2)
-    assert.equal(mods[0].steamWorkshopFileId, '123456')
-    assert.equal(mods[1].steamWorkshopFileId, undefined)
+    assert.equal(mods.find(source => source.revisionId === 'v6').steamWorkshopFileId, '123456')
+    assert.equal(mods.find(source => source.revisionId === 'v5').steamWorkshopFileId, undefined)
     assert.deepEqual(await checkModLibrary(output, manifest, syntheticApproval), { mods: 2 })
   } finally { await rm(directory, { recursive: true, force: true }) }
 })

@@ -24,7 +24,7 @@ import { applyLibraryDefaultsToNewSetup, assertLibraryProject } from './domain/m
 import type { BuildBehavior } from './domain/build-behavior'
 import { importLibrarySource } from './workspace/mod-repository'
 import { confirmModFolder, type FolderImportPreview, type FolderSelection } from './workspace/folder-import'
-import { bundledModEditableSource } from './catalog/mod-library'
+import { bundleImportPreview, bundledModPreview } from './catalog/mod-library'
 import { setModInReference } from './domain/reference-library'
 import { adoptTeam, deleteTeam, recordBuildForCharacter, saveTeam, type SaveTeamInput } from './domain/teams'
 import type { CatalogId, TeamId } from './domain/types'
@@ -732,14 +732,19 @@ export default function App() {
     } catch (error) { setImportError(committed ? `The import was saved. Reopen the selected workspace to continue. ${formatAppError(error, 'Reopening is pending.')}` : formatAppError(error, 'The import could not be committed.')) } finally { setImportBusy(false) }
   }, [closeData, installLoadedData, waitForSafeTransition, repository, workspace.reopenGuest])
 
-  const saveModDraft = useCallback(async (text: string, filename: string, expectedCatalogId?: CatalogId, includeInReference = false, futureDefault = false, editorOwner?: symbol) => {
+  const saveModDraft = useCallback(async (text: string, filename: string, expectedSource?: CatalogId | import('./domain/types').ModCatalogPin, includeInReference = false, futureDefault = false, editorOwner?: symbol) => {
     setImportBusy(true)
     let committed = false
     try {
-      const preview = await previewImport(new TextEncoder().encode(text), filename)
+      let preview = await previewImport(new TextEncoder().encode(text), filename)
+      if (expectedSource && typeof expectedSource !== 'string') {
+        const bundled = BUNDLED_MOD_LIBRARY.find(mod => mod.id === expectedSource.catalogId && mod.revisionId === expectedSource.catalogRevisionId)
+        if (!bundled) throw new Error('The requested bundled source revision is unavailable.')
+        preview = bundleImportPreview(preview, bundled)
+      }
       const revision = preview.proposed.catalogs[0] && modRevision(preview.proposed.catalogs[0])
       if (preview.detectedFormat !== CRYSTAL_EDIT_FORMAT || !revision) throw new Error('This draft needs a valid Crystal Edit project ID and structure before saving to the mod library.')
-      assertLibraryProject(revision.catalogId, expectedCatalogId)
+      assertLibraryProject(revision.catalogId, typeof expectedSource === 'string' ? expectedSource : expectedSource?.catalogId)
       await waitForSafeTransition()
       const current = loadedDataRef.current
       if (!current) throw new Error('The local planner data is not ready.')
@@ -790,8 +795,7 @@ export default function App() {
   const loadBuildModSource = useCallback(async (mod: BundledLibraryMod) => {
     setImportBusy(true)
     try {
-      const source = await bundledModEditableSource(mod)
-      const preview = await previewImport(new TextEncoder().encode(source.text), source.filename)
+      const preview = await bundledModPreview(mod)
       const catalog = preview.proposed.catalogs[0]
       if (!catalog || catalog.id !== mod.id || !modRevision(catalog)) throw new Error('The bundled source does not match this mod project.')
       await commitQueueRef.current
@@ -813,8 +817,7 @@ export default function App() {
       for (const id of ids) {
         const mod = BUNDLED_MOD_LIBRARY.find(mod => mod.id === id)
         if (!mod) throw new Error('The selected mod is unavailable in this bundled library.')
-        const source = await bundledModEditableSource(mod)
-        previews.push(await previewImport(new TextEncoder().encode(source.text), source.filename))
+        previews.push(await bundledModPreview(mod))
       }
       await waitForSafeTransition()
       installLoadedData(await commitModSetup(previews, persistedRevisionRef.current))

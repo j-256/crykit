@@ -6,12 +6,12 @@ import { applyLibraryDefaultsToNewSetup, enableLibrarySourceForBuild } from './m
 import { jsonRecord } from './crystal-edit'
 import { buildBehavior } from './build-behavior'
 
-it('semanticMatchDoesNotRewriteHistoricalPin', async () => {
+it('formatting-equivalent source preserves the exact pin and earlier checkpoints', async () => {
   const bytes = new TextEncoder().encode('{"ID":"same-project","EditorVersion":34,"Items":[{"ID":3,"Name":"Mod item"}]}')
   const original = (await previewCrystalEdit(bytes, 'original.json')).proposed.catalogs[0]!
   const reformatted = (await previewCrystalEdit(new TextEncoder().encode(JSON.stringify(JSON.parse(new TextDecoder().decode(bytes)), null, 2)), 'reformatted.json')).proposed.catalogs[0]!
   expect(original.legacy).toMatchObject({ contentFingerprint: jsonRecord(reformatted.legacy) && reformatted.legacy.contentFingerprint })
-  expect(original.revisionId).not.toBe(reformatted.revisionId)
+  expect(original.revisionId).toBe(reformatted.revisionId)
   const before = addTestBuild(createTestLocalData(), 'original-build', '', {})
   const originalCheckpoint = before.buildRevisions['original-build-revision']!
   const after = enableLibrarySourceForBuild(before, original, [...BUNDLED_CATALOGS, original, reformatted], 'original-build', before.builds['original-build']!.revision)
