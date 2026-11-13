@@ -1,4 +1,7 @@
 import 'fake-indexeddb/auto'
+import { GuestCoordinatorDatabase } from '../workspace/guest-coordinator'
+import { createGuestLocalStore } from '../workspace/guest-local-store'
+import { prepareLocalWorkspace } from '../workspace/local-root'
 import { createPersonalDefinition } from '../domain'
 import { createTestLocalData } from '../domain/test-helpers'
 import { act, StrictMode, useState, useLayoutEffect, useRef } from 'react'
@@ -88,7 +91,13 @@ beforeEach(async () => {
   db = new CryKitDatabase(`provider-${crypto.randomUUID()}`); setDatabaseForTests(db)
   // Provider ownership tests need a real closed planner, not unrelated first-run starter Build archives
   const localData = { ...createTestLocalData(), revision: 0, changes: [] }
-  await db.localDatas.add({ id: 'local-data-record', revision: 0, updatedAt: localData.updatedAt, localData, lineage: { rootLocalDataId: localData.id } })
+  const coordinator = new GuestCoordinatorDatabase(`${db.name}-coordinator`)
+  try {
+    const store = createGuestLocalStore(coordinator, () => {})
+    const state = { planner: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: [], sources: [], evidence: [], history: [] }, editorDocuments: [], saveDocuments: [], assets: [], conflicts: [], retainedContent: [], blobs: [], libraryDefaults: { version: 1 as const, layers: [] } }
+    const prepared = await prepareLocalWorkspace(store.adapter, 'fixture', state, { check: () => {}, assertCurrent: async () => {} })
+    await store.activate('fixture', prepared.head, undefined, () => {})
+  } finally { coordinator.close() }
   token = installProfile('AAAAAAAAAAAAAAAAAAAAAA', new Uint8Array(32))
 })
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); invalidateProfile(); vi.restoreAllMocks(); vi.unstubAllGlobals(); setDatabaseForTests(undefined); await db.delete() })
