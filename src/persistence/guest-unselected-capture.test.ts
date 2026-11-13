@@ -88,7 +88,8 @@ it('retains history-only bundled pins and every stored catalog without adding un
     const pinned = addGameSetupRevision(first.localData, { ...template, catalogLock: { [historical.id]: historical.revisionId } })
     const saved = await saveLocalDataWithStatus(pinned, first.revision, setup.required)
     const current = await setup.read(await setup.capture())
-    expect(current.state.planner.catalogs.map(catalog => catalog.revisionId)).toEqual([historical.revisionId])
+    // Complete source bodies remain available even when only one source is pinned
+    expect(current.state.planner.catalogs.map(catalog => [catalog.id, catalog.revisionId])).toEqual(BUNDLED_CATALOGS.map(catalog => [catalog.id, catalog.revisionId]))
     await saveLocalDataWithStatus({ ...saved.localData, gameSetups: {}, planningGameSetupRevisionId: undefined }, saved.localData.revision, setup.required)
     await setup.required.catalogs.put({ key: JSON.stringify([stored.id, stored.revisionId]), id: stored.id, revisionId: stored.revisionId, checksum: stored.checksum, snapshot: stored })
     const before = await nativeVector(setup)
@@ -96,7 +97,7 @@ it('retains history-only bundled pins and every stored catalog without adding un
     expect(state.planner.localData.gameSetups).toEqual({})
     expect(state.planner.history.some(entry => Object.values(entry.before.gameSetups).some(setup => setup.catalogLock[historical.id] === historical.revisionId))).toBe(true)
     expect(state.planner.catalogs.map(catalog => [catalog.id, catalog.revisionId])).toEqual(BUNDLED_CATALOGS.map(catalog => [catalog.id, catalog.revisionId]))
-    deepStrictEqual(state.planner.catalogs.find(catalog => catalog.revisionId === stored.revisionId), stored)
+    deepStrictEqual(state.planner.catalogs.find(catalog => catalog.id === stored.id && catalog.revisionId === stored.revisionId), stored)
     deepStrictEqual(await nativeVector(setup), before)
   } finally { setup.close() }
 })

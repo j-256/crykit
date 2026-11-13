@@ -1,3 +1,4 @@
+import { readSelectionPreference } from '../workspace/profile-selection'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { EntityRef } from '../domain/types'
 import { parseDestination } from './Shell'
@@ -102,18 +103,18 @@ describe('reference route state', () => {
     commitReferenceRouteState(first, 'replace')
     commitReferenceRouteState(second, 'push')
     expect(readReferenceRouteState()).toEqual(second)
-    expect(JSON.parse(window.sessionStorage.getItem(REFERENCE_ROUTE_STORAGE_KEY) ?? '{}')).toMatchObject({ query: 'second' })
+    expect(JSON.parse(readSelectionPreference(REFERENCE_ROUTE_STORAGE_KEY) ?? '{}')).toMatchObject({ query: 'second' })
     expect(parseReferenceRoute(formatReferenceRoute(first))).toEqual(first)
   })
 
   it('keeps temporary catalog searches out of the standing reference route', () => {
     const standing = { ...DEFAULT_REFERENCE_ROUTE_STATE, query: 'vanilla search', kinds: ['class' as const] }
     commitReferenceRouteState(standing)
-    const stored = window.sessionStorage.getItem(REFERENCE_ROUTE_STORAGE_KEY)
+    const stored = readSelectionPreference(REFERENCE_ROUTE_STORAGE_KEY)
     const temporary = { ...DEFAULT_REFERENCE_ROUTE_STATE, libraryMod: 'crystal-edit:synthetic', query: 'temporary search' }
     commitReferenceRouteState(temporary)
     expect(readReferenceRouteState()).toEqual(temporary)
-    expect(window.sessionStorage.getItem(REFERENCE_ROUTE_STORAGE_KEY)).toBe(stored)
+    expect(readSelectionPreference(REFERENCE_ROUTE_STORAGE_KEY)).toBe(stored)
     expect(parseReferenceRoute('#/reference', stored)).toEqual(standing)
     expect(parseReferenceRoute('#/reference', JSON.stringify(temporary))).toEqual(DEFAULT_REFERENCE_ROUTE_STATE)
   })

@@ -39,7 +39,7 @@ it('saves source bytes, Reference membership, exact enabled revisions and priori
   expect(setup.modComposition?.layers).toEqual([two, one].map(preview => ({ catalogId: preview.proposed.catalogs[0]!.id, catalogRevisionId: preview.proposed.catalogs[0]!.revisionId, enabled: true })))
   expect(configured.localData.modSetup?.state).toBe('completed')
   expect(configured.localData.referenceLibrary?.excludedMods).toEqual(expect.arrayContaining(BUNDLED_MOD_LIBRARY.map(mod => mod.id)))
-  expect(configured.localData.referenceLibrary?.excludedMods).toContain('name:doge shield')
+  expect(configured.localData.referenceLibrary?.excludedMods).toEqual([])
   expect(configured.localData.buildRevisions).toEqual(original.localData.buildRevisions)
   const archived = await database.sources.get(one.proposed.sources[0]!.id)
   expect(archived?.bytes).toEqual(source())

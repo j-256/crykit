@@ -20,13 +20,16 @@ afterEach(async () => { vi.restoreAllMocks(); setDatabaseForTests(undefined); aw
 
 it('preserves colliding added selections and reserved identity maps in storage, backups, and rollback', async () => {
   await loadLocalData()
+  const importedIds: string[] = []
   for (const id of ['synthetic-first-gender', 'synthetic-second-gender']) {
     const root = { ID: id, Title: id, EditorVersion: 34, Genders: [{ ...NATIVE_DATA.records.gender[0], ID: 8, Name: `${id} selection` }] }
-    await commitImport(await previewImport(new TextEncoder().encode(JSON.stringify(root)), 'synthetic.json'), { mode: 'add-reference' })
+    const imported = await previewImport(new TextEncoder().encode(JSON.stringify(root)), 'synthetic.json')
+    importedIds.push(imported.proposed.catalogs[0]!.id)
+    await commitImport(imported, { mode: 'add-reference' })
   }
   const loaded = await loadLocalData()
-  const first = loaded.catalogs.find(catalog => catalog.id === 'crystal-edit:synthetic-first-gender')!
-  const second = loaded.catalogs.find(catalog => catalog.id === 'crystal-edit:synthetic-second-gender')!
+  const first = loaded.catalogs.find(catalog => catalog.id === importedIds[0])!
+  const second = loaded.catalogs.find(catalog => catalog.id === importedIds[1])!
   const initial = loaded.localData.gameSetups[loaded.localData.planningGameSetupRevisionId!]!
   const behavior = selectBuildModRevision(selectBuildModRevision(buildBehavior(initial), first, loaded.catalogs), second, loaded.catalogs)
   const configured = saveBuildBehavior(loaded.localData, behavior)

@@ -1,9 +1,9 @@
 import 'fake-indexeddb/auto'
-import { readFileSync } from 'node:fs'
+import { launchBackupFixtures } from '../interchange/workspace-backup.test-helpers'
 import Dexie from 'dexie'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { CryKitDatabase } from './database'
-import { changedLocalData, loadLocalData, saveLocalDataWithStatus } from './local-data'
+import { loadLocalData, saveLocalDataWithStatus } from './local-data'
 import { createBlankLocalData } from '../domain/local-data'
 import { guestParticipants, openGuestBindings, readGuestWorkspace } from '../workspace/guest-workspace'
 import { captureGuestSnapshot } from '../workspace/guest-snapshot'
@@ -15,21 +15,14 @@ import { requireGuestRestoreJournal, requireGuestSuccessorJournal, type GuestRes
 import { guestPlannerValuesEqual } from './guest-planner-record'
 import { captureGuestRecovery, checkGuestRecovery, copyGuestRecovery } from '../workspace/guest-recovery'
 import { acquireParticipantBarrier, GUEST_BARRIER_KEY } from '../workspace/guest-barrier'
-import { createGuestRepository, readGuestSaveRecovery } from '../workspace/guest-repository'
-import { commitOwnedFile, newOwnedFileCommand, resolveOwnedFileReceipt, verifyOwnedFileReceipt } from '../workspace/owned-file-command'
-import { createSaveRepository } from '../workspace/save-repository'
+import { createGuestRepository } from '../workspace/guest-repository'
 
-// Native restore journals and deterministic participant names must be exercised before managed startup migration
-vi.mock('../workspace/guest-managed-startup', async importOriginal => {
-  const actual = await importOriginal<typeof import('../workspace/guest-managed-startup')>()
-  const { openGuestBindings } = await import('../workspace/guest-workspace')
-  return { ...actual, prepareGuestStartup: async (original: CryKitDatabase) => ({ kind: 'legacy-recovery', binding: await openGuestBindings(original) }) }
-})
+// Native restore fixtures contain no source references
+vi.mock('../catalog/bundled', async importOriginal => ({ ...await importOriginal<typeof import('../catalog/bundled')>(), BUNDLED_CATALOGS: [] }))
 
 const names: string[] = []
 afterEach(async () => { for (const name of names.splice(0)) await Dexie.delete(name) })
 const backupStagingNames = async () => (await Dexie.getDatabaseNames()).filter(name => name.startsWith('crykit-backup-staging-')).sort()
-const legacyBackup = Buffer.from((JSON.parse(readFileSync(new URL('../interchange/workspace-backup-v1.fixtures.json', import.meta.url), 'utf8')) as { archive: string }[])[2].archive, 'base64')
 it('releases v1 normalization if guest preview fails after inheritance', async () => {
   const planner = new CryKitDatabase(`guest-restore-${crypto.randomUUID()}`)
   names.push(planner.name, `${planner.name}-coordinator`, `${planner.name}-inspector`, `${planner.name}-workspace-files-v1`)
@@ -38,7 +31,7 @@ it('releases v1 normalization if guest preview fails after inheritance', async (
   const originalStaging = await backupStagingNames()
   try {
     await blankPlanner(planner)
-    input = await readWorkspaceBackup(memoryBlob(legacyBackup).open())
+    input = await readWorkspaceBackup(memoryBlob(new Uint8Array(Buffer.from((await launchBackupFixtures())[0]!.archive, 'base64'))).open())
     expect(input.version).toBe(1)
     const uploadedStaging = await backupStagingNames()
     expect(uploadedStaging).toHaveLength(originalStaging.length + 1)
@@ -64,7 +57,6 @@ async function blankPlanner(planner: CryKitDatabase) {
 
 describe('published guest restore', () => {
   const sharedNames: string[] = []
-  let v2SaveRevision: number
   let planner: CryKitDatabase
   let binding: Awaited<ReturnType<typeof openGuestBindings>>
   let snapshot: Awaited<ReturnType<typeof captureGuestSnapshot>> | undefined
@@ -136,75 +128,13 @@ describe('published guest restore', () => {
       selected.planner.close(); selected.inspector.close(); selected.files.close(); selected.coordinator.close()
     }
   })
-  it('publishes a full-workspace successor from a selected v2 profile and reopens its history', async () => {
-    const repository = createGuestRepository(new CryKitDatabase(planner.name))
-    const before = await repository.readWorkspace()
-    const saved = await repository.commitWorkspace(before, before.planner.localData.revision)
-    const successor = await openGuestBindings(new CryKitDatabase(planner.name))
-    sharedNames.push(successor.manifest.planner, successor.manifest.inspector, successor.manifest.files)
-    try {
-      expect(successor.manifest.version).toBe(2)
-      expect(successor.manifest.id).not.toBe(target.id)
-      expect(saved.revision).toBe(before.planner.localData.revision + 1)
-      const reopened = await readGuestWorkspace(successor)
-      expect(reopened.planner.localData.revision).toBe(saved.revision)
-      expect(reopened.planner.history.length).toBeGreaterThan(before.planner.history.length)
-      expect(await checkGuestRecovery(successor)).toEqual([])
-    } finally { successor.planner.close(); successor.inspector.close(); successor.files.close(); successor.coordinator.close() }
-  })
-  it('commits an owned file command at the selected v2 revision and verifies its receipt', async () => {
-    const repository = createGuestRepository(new CryKitDatabase(planner.name))
-    const before = await repository.readWorkspace()
-    const command = newOwnedFileCommand('apply')
-    const outcome = await commitOwnedFile(repository, before, before, command)
-    expect(outcome.status).toBe('saved')
-    expect(outcome.receipt?.id).toBe(command.id)
-    await verifyOwnedFileReceipt(outcome.receipt!)
-    const completion = await resolveOwnedFileReceipt(outcome.receipt!)
-    expect(completion.state.planner.localData.revision).toBe(before.planner.localData.revision + 1)
-    const successor = await openGuestBindings(new CryKitDatabase(planner.name))
-    sharedNames.push(successor.manifest.planner, successor.manifest.inspector, successor.manifest.files)
-    try {
-      const row = requireGuestSuccessorJournal(await successor.coordinator.journal.get(successor.manifest.id))
-      expect(row.kind).toBe('guest-successor')
-      expect(row.commandId).toBe(command.id)
-    } finally { successor.planner.close(); successor.inspector.close(); successor.files.close(); successor.coordinator.close() }
-  })
-  it('publishes an ahead-revision planner save as a selected v2 successor', async () => {
-    const selected = createGuestRepository(new CryKitDatabase(planner.name))
-    const before = await selected.readWorkspace()
-    const proposed = changedLocalData(before.planner.localData, before.planner.localData, 'test-domain', new Date().toISOString() as typeof before.planner.localData.updatedAt)
-    const saved = await selected.save(proposed, before.planner.localData.revision)
-    expect(saved.localData.revision).toBe(proposed.revision)
-    v2SaveRevision = saved.localData.revision
-    const savedBinding = await openGuestBindings(new CryKitDatabase(planner.name))
-    sharedNames.push(savedBinding.manifest.planner, savedBinding.manifest.inspector, savedBinding.manifest.files)
-    try {
-      expect(savedBinding.manifest.version).toBe(2)
-      const savedState = await readGuestWorkspace(savedBinding)
-      expect(savedState.planner.journal?.checkpoints.at(-1)?.command).toBe('test-domain')
-    } finally { savedBinding.planner.close(); savedBinding.inspector.close(); savedBinding.files.close(); savedBinding.coordinator.close() }
-  })
-  it('publishes operative Undo over the selected v2 save and reopens it', async () => {
-    const undoRepository = createGuestRepository(new CryKitDatabase(planner.name))
-    const before = await undoRepository.readWorkspace()
-    expect(before.planner.localData.revision).toBe(v2SaveRevision)
-    const undone = await undoRepository.undo(v2SaveRevision)
-    expect(undone.localData.revision).toBe(v2SaveRevision + 1)
-    const reopened = await openGuestBindings(new CryKitDatabase(planner.name))
-    sharedNames.push(reopened.manifest.planner, reopened.manifest.inspector, reopened.manifest.files)
-    try { expect((await readGuestWorkspace(reopened)).planner.localData.revision).toBe(v2SaveRevision + 1) }
-    finally { reopened.planner.close(); reopened.inspector.close(); reopened.files.close(); reopened.coordinator.close() }
-  })
-  it('reads an exact save original from a published v2 successor for recovery', async () => {
-    const repository = createGuestRepository(new CryKitDatabase(planner.name))
-    const bytes = new Uint8Array([99, 0, 1])
-    const saved = await createSaveRepository(repository).importFile('retained.sav', bytes)
-    const content = await readGuestSaveRecovery(repository, saved)
-    expect(content.originalBytes).toEqual(bytes)
+  it('requires explicit admission before public startup can use the detached target', async () => {
+    const before = await binding.coordinator.active.get('active')
+    await expect(createGuestRepository(new CryKitDatabase(planner.name)).readWorkspace()).rejects.toThrow()
+    expect(await binding.coordinator.active.get('active')).toEqual(before)
     const selected = await openGuestBindings(new CryKitDatabase(planner.name))
-    sharedNames.push(selected.manifest.planner, selected.manifest.inspector, selected.manifest.files)
-    selected.planner.close(); selected.inspector.close(); selected.files.close(); selected.coordinator.close()
+    try { expect((await readGuestWorkspace(selected)).planner.journal).toBeDefined() }
+    finally { selected.planner.close(); selected.inspector.close(); selected.files.close(); selected.coordinator.close() }
   })
   it('reports an unaware old-tab write and captures the retained branch for recovery', async () => {
     const selected = await openGuestBindings(new CryKitDatabase(planner.name))

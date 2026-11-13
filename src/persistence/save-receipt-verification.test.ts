@@ -2,19 +2,14 @@ import 'fake-indexeddb/auto'
 import '../workspace/guest-managed-monitor.test-helpers'
 import { expect, it, vi } from 'vitest'
 import { CryKitDatabase } from './database'
+import { seedBlankManagedGuest, managedGuestBinding, corruptManagedRecord } from '../workspace/managed-guest.test-helpers'
+import { privateRecordKey } from '../workspace/documents'
 import { AccountDatabase } from './account-database'
 import { installProfile, invalidateProfile } from '../account/profile'
-import { createGuestRepository, guestRepositoryBindings } from '../workspace/guest-repository'
+import { createGuestRepository } from '../workspace/guest-repository'
 import { openAccountRepository } from '../workspace/account-repository'
 import { createSaveRepository } from '../workspace/save-repository'
 import { newOwnedFileCommand, resolveOwnedFileReceipt, verifyOwnedFileReceipt, type OwnedFileOutcome } from '../workspace/owned-file-command'
-
-// Named row and fresh native-reader lifetime checks keep their actual legacy storage subject
-vi.mock('../workspace/guest-managed-startup', async importOriginal => {
-  const actual = await importOriginal<typeof import('../workspace/guest-managed-startup')>()
-  const { openGuestBindings } = await import('../workspace/guest-workspace')
-  return { ...actual, prepareGuestStartup: async (original: CryKitDatabase) => original.name.startsWith('native-save-verification-') ? { kind: 'legacy-recovery', binding: await openGuestBindings(original) } : actual.prepareGuestStartup(original) }
-})
 
 it.each(['guest', 'account'] as const)('verifies a real saved %s result after strict input changes without granting continuation', async kind => {
   const guest = new CryKitDatabase(`save-verification-${crypto.randomUUID()}`)
@@ -37,14 +32,15 @@ it.each(['guest', 'account'] as const)('verifies a real saved %s result after st
     if (token) { invalidateProfile(); await expect(verifyOwnedFileReceipt(outcome!.receipt!)).rejects.toThrow('PROFILE_CHANGED') }
   } finally { if (token) invalidateProfile(); await account?.delete(); await guest.delete() }
 })
-it('guest saved verification rejects a complete result mismatch', async () => {
+it('guest saved verification rejects altered durable result bytes', async () => {
   const guest = new CryKitDatabase(`native-save-verification-mismatch-${crypto.randomUUID()}`)
   try {
+    await seedBlankManagedGuest(guest)
     let outcome: OwnedFileOutcome | undefined
     const row = await createSaveRepository(createGuestRepository(guest), { onOutcome: value => { outcome = value } }).importFile('future.sav', new Uint8Array([11, 29, 37]))
-    const binding = await guestRepositoryBindings(createGuestRepository(guest))
-    await binding.files.documents.put({ key: JSON.stringify(['saveDocuments', row.id]), value: { ...row, filename: 'altered.sav' } })
-    await expect(verifyOwnedFileReceipt(outcome!.receipt!)).rejects.toThrow(/result|match/)
+    const restore = await corruptManagedRecord(createGuestRepository(guest), privateRecordKey('save', row.id))
+    try { await expect(verifyOwnedFileReceipt(outcome!.receipt!)).rejects.toThrow() } finally { await restore() }
+    await expect(verifyOwnedFileReceipt(outcome!.receipt!)).resolves.toBeUndefined()
   } finally { await guest.delete() }
 })
 it('saved account verification rejects corrupted ciphertext and releases its native readers', async () => {
@@ -79,16 +75,18 @@ it('saved account verification rejects corrupted ciphertext and releases its nat
     await expect(verifyOwnedFileReceipt(outcome!.receipt!)).resolves.toBeUndefined()
   } finally { vi.restoreAllMocks(); invalidateProfile(); await database.delete() }
 })
-it('guest verification rejects a changed profile epoch and closes only fresh readers', async () => {
-  const database = new CryKitDatabase(`native-save-verification-epoch-${crypto.randomUUID()}`)
+it('guest verification rejects a changed profile epoch without opening native planner storage', async () => {
+  const database = new CryKitDatabase(`save-verification-epoch-${crypto.randomUUID()}`)
   try {
+    await seedBlankManagedGuest(database)
+    const repository = createGuestRepository(database)
     let outcome: OwnedFileOutcome | undefined
-    await createSaveRepository(createGuestRepository(database), { onOutcome: value => { outcome = value } }).importFile('epoch.sav', new Uint8Array([17, 19]))
-    const close = vi.spyOn(CryKitDatabase.prototype, 'close')
+    await createSaveRepository(repository, { onOutcome: value => { outcome = value } }).importFile('epoch.sav', new Uint8Array([17, 19]))
+    const binding = await managedGuestBinding(repository)
+    const open = vi.spyOn(CryKitDatabase.prototype, 'open')
     await verifyOwnedFileReceipt(outcome!.receipt!)
-    expect(close).toHaveBeenCalled()
-    expect(close.mock.contexts.every(reader => reader instanceof CryKitDatabase && reader !== database && !reader.isOpen())).toBe(true)
-    expect(database.isOpen()).toBe(true)
+    expect(open).not.toHaveBeenCalled()
+    expect(binding.coordinator.isOpen()).toBe(true)
     invalidateProfile()
     await expect(verifyOwnedFileReceipt(outcome!.receipt!)).rejects.toThrow('PROFILE_CHANGED')
   } finally { vi.restoreAllMocks(); await database.delete() }

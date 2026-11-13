@@ -4,12 +4,8 @@ import Dexie from 'dexie'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import { GuestFilesDatabase } from '../workspace/guest-files'
 
-// Exercise native v1/v2 compatibility directly before public startup migrates these stores to managed storage
-vi.mock('../workspace/guest-managed-startup', async importOriginal => {
-  const actual = await importOriginal<typeof import('../workspace/guest-managed-startup')>()
-  const { openGuestBindings } = await import('../workspace/guest-workspace')
-  return { ...actual, prepareGuestStartup: async (original: import('./database').CryKitDatabase) => ({ kind: 'legacy-recovery', binding: await openGuestBindings(original) }) }
-})
+// These storage graphs use closed blank planners; packaged source retention has dedicated coverage
+vi.mock('../catalog/bundled', async importOriginal => ({ ...await importOriginal<typeof import('../catalog/bundled')>(), BUNDLED_CATALOGS: [] }))
 
 it('creates and transactionally upgrades the named files layout with mandatory empty evidence', async () => {
   for (const legacy of [false, true]) {
@@ -60,15 +56,15 @@ it('reopens the strict empty graph and rejects missing and unreachable extension
 })
 it('carries empty v2 evidence through ordinary complete commands and frozen export', async () => {
   const { CryKitDatabase } = await import('./database')
-  const { createGuestRepository, guestRepositoryBindings } = await import('../workspace/guest-repository')
+  const { createDetachedGuestGraph, detachedGuestBindings } = await import('../workspace/detached-guest.test-helpers')
   const { captureGuestSnapshot } = await import('../workspace/guest-snapshot')
   const { disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
   const db = new CryKitDatabase(`guest-evidence-command-${crypto.randomUUID()}`)
-  const repository = createGuestRepository(db)
+  const repository = createDetachedGuestGraph(db)
   try {
     const initial = await repository.readWorkspace()
     await repository.commitWorkspace(initial, initial.planner.localData.revision)
-    const successor = createGuestRepository(db), binding = await guestRepositoryBindings(successor)
+    const successor = createDetachedGuestGraph(db), binding = await detachedGuestBindings(successor)
     const snapshot = await captureGuestSnapshot(binding)
     try { expect(snapshot.version).toBe(2); expect(snapshot).toHaveProperty('historicalEvidence.snapshots', []) } finally { await disposeWorkspaceSnapshot(snapshot) }
   } finally { await db.delete() }
@@ -80,7 +76,7 @@ describe('inert originals across exact persisted successor and archive reread', 
   let cleanup: (() => Promise<void>) | undefined
   const prepareOriginal = async () => {
     const { CryKitDatabase } = await import('./database')
-    const { createGuestRepository, guestRepositoryBindings } = await import('../workspace/guest-repository')
+    const { createDetachedGuestGraph, detachedGuestBindings } = await import('../workspace/detached-guest.test-helpers')
     const { captureGuestSnapshot } = await import('../workspace/guest-snapshot')
     const { disposeWorkspaceSnapshot, snapshotMetadata } = await import('../workspace/snapshot')
     const { exportWorkspaceBackup, readWorkspaceBackup } = await import('../interchange/workspace-backup')
@@ -88,17 +84,17 @@ describe('inert originals across exact persisted successor and archive reread', 
     const { createPersonalDefinition } = await import('../domain/local-data')
     const imports = await import('../workspace/guest-evidence-import')
     expect(imports).toHaveProperty('importGuestInheritedEvidence')
-    const db = new CryKitDatabase(`guest-evidence-import-${crypto.randomUUID()}`), repository = createGuestRepository(db)
+    const db = new CryKitDatabase(`guest-evidence-import-${crypto.randomUUID()}`), repository = createDetachedGuestGraph(db)
     const { state } = await editorClosureFixture()
     const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'inert-import', capturedAt: '2026-10-12', revisionVector: { original: 'source' }, state }))
     const expected = JSON.stringify(snapshotMetadata(source))
     cleanup = async () => { if (captured) await disposeWorkspaceSnapshot(captured); await disposeWorkspaceSnapshot(source); await db.delete() }
     originalMetadata = expected
     {
-      const before = await repository.readWorkspace(), binding = await guestRepositoryBindings(repository)
+      const before = await repository.readWorkspace(), binding = await detachedGuestBindings(repository)
       await imports.importGuestInheritedEvidence(binding, source)
       await disposeWorkspaceSnapshot(source)
-      const selected = createGuestRepository(db), after = await selected.readWorkspace()
+      const selected = createDetachedGuestGraph(db), after = await selected.readWorkspace()
       expect(after.planner.localData).toEqual(before.planner.localData)
       expect(after.planner.history).toEqual(before.planner.history)
       expect(after.editorDocuments).toEqual([])
@@ -107,8 +103,8 @@ describe('inert originals across exact persisted successor and archive reread', 
       await selected.undo(saved.localData.revision)
       const edited = await selected.readWorkspace()
       await selected.commitWorkspace(edited, edited.planner.localData.revision)
-      const successor = createGuestRepository(db)
-      captured = await captureGuestSnapshot(await guestRepositoryBindings(successor))
+      const successor = createDetachedGuestGraph(db)
+      captured = await captureGuestSnapshot(await detachedGuestBindings(successor))
     }
   }
   afterAll(async () => { await cleanup?.() })
@@ -136,52 +132,27 @@ describe('inert originals across exact persisted successor and archive reread', 
   })
 })
 
-it('owned file receipts reject an independently valid but changed successor sidecar', async () => {
-  const { CryKitDatabase } = await import('./database')
-  const { createGuestRepository, guestRepositoryBindings } = await import('../workspace/guest-repository')
-  const { commitOwnedFile, newOwnedFileCommand, resolveOwnedFileReceipt } = await import('../workspace/owned-file-command')
-  const { prepareEmptyGuestEvidence, GUEST_EVIDENCE_STORES } = await import('../workspace/guest-evidence')
-  const db = new CryKitDatabase(`guest-evidence-receipt-${crypto.randomUUID()}`), repository = createGuestRepository(db)
-  try {
-    const { readWorkspaceBackup, exportWorkspaceBackup } = await import('../interchange/workspace-backup')
-    const { editorClosureFixture } = await import('../workspace/test-helpers')
-    const { importGuestInheritedEvidence } = await import('../workspace/guest-evidence-import')
-    const { disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
-    const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'receipt-source', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
-    await repository.readWorkspace()
-    try { await importGuestInheritedEvidence(await guestRepositoryBindings(repository), source) } finally { await disposeWorkspaceSnapshot(source) }
-    const current = createGuestRepository(db)
-    const before = await current.readWorkspace()
-    const outcome = await commitOwnedFile(current, before, before, newOwnedFileCommand('apply'))
-    expect(outcome.status).toBe('saved')
-    const selected = createGuestRepository(db), binding = await guestRepositoryBindings(selected)
-    await binding.files.open()
-    // A valid empty graph must not replace the receipt's inherited original set
-    for (const table of Object.keys(GUEST_EVIDENCE_STORES)) await binding.files.table(table).clear()
-    for (const { table, row } of await prepareEmptyGuestEvidence()) await binding.files.table(table).put(row)
-    await expect(resolveOwnedFileReceipt(outcome.receipt!)).rejects.toThrow()
-  } finally { await db.delete() }
-})
-
 it('preserves source saved changes and journal as inert evidence while genuine destination commands remain undoable', async () => {
-  const { readFileSync } = await import('node:fs')
+  const { launchBackupFixtures } = await import('../interchange/workspace-backup.test-helpers')
   const { readWorkspaceBackup } = await import('../interchange/workspace-backup')
   const { memoryBlob } = await import('../workspace/blobs')
   const { disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
   const { CryKitDatabase } = await import('./database')
-  const { createGuestRepository, guestRepositoryBindings } = await import('../workspace/guest-repository')
+  const { createDetachedGuestGraph, detachedGuestBindings } = await import('../workspace/detached-guest.test-helpers')
   const { importGuestInheritedEvidence } = await import('../workspace/guest-evidence-import')
   const { readGuestEvidence, databaseEvidenceRows } = await import('../workspace/guest-evidence')
   const { createPersonalDefinition } = await import('../domain/local-data')
-  const fixture = JSON.parse(readFileSync(new URL('../interchange/workspace-backup-v1.fixtures.json', import.meta.url), 'utf8'))[2]
+  const fixture = (await launchBackupFixtures())[0]
   const source = await readWorkspaceBackup(memoryBlob(Buffer.from(fixture.archive, 'base64')).open())
-  const db = new CryKitDatabase(`guest-evidence-journal-${crypto.randomUUID()}`), repository = createGuestRepository(db)
+  const db = new CryKitDatabase(`guest-evidence-journal-${crypto.randomUUID()}`), repository = createDetachedGuestGraph(db)
   try {
     const before = await repository.readWorkspace()
-    await importGuestInheritedEvidence(await guestRepositoryBindings(repository), source)
+    await importGuestInheritedEvidence(await detachedGuestBindings(repository), source)
     await disposeWorkspaceSnapshot(source)
-    const selected = createGuestRepository(db), binding = await guestRepositoryBindings(selected), state = await selected.readWorkspace()
+    const selected = createDetachedGuestGraph(db), binding = await detachedGuestBindings(selected), state = await selected.readWorkspace()
     const sidecar = await readGuestEvidence(databaseEvidenceRows(binding.files), async () => {})
+    expect(fixture.metadata.state.planner.journal?.checkpoints.length).toBeGreaterThan(0)
+    expect(fixture.metadata.state.planner.savedChanges?.length).toBeGreaterThan(0)
     expect(sidecar.planner.importedJournal).toEqual(fixture.metadata.state.planner.journal)
     expect(sidecar.planner.savedChanges).toEqual(fixture.metadata.state.planner.savedChanges ?? fixture.metadata.state.planner.localData.changes)
     expect(state.planner).not.toHaveProperty('journal')
@@ -191,31 +162,33 @@ it('preserves source saved changes and journal as inert evidence while genuine d
     await selected.undo(saved.localData.revision)
     const next = await selected.readWorkspace()
     await selected.commitWorkspace(next, next.planner.localData.revision)
-    expect((await createGuestRepository(db).readWorkspace()).planner).not.toHaveProperty('journal')
+    expect((await createDetachedGuestGraph(db).readWorkspace()).planner).not.toHaveProperty('journal')
   } finally { await disposeWorkspaceSnapshot(source); await db.delete() }
 })
 
 it('retains property-order originals and account annex streams exactly after independent guest reopening', async () => {
-  const { readFileSync } = await import('node:fs')
+  const { launchBackupFixtures } = await import('../interchange/workspace-backup.test-helpers')
   const { readWorkspaceBackup, exportWorkspaceBackup } = await import('../interchange/workspace-backup')
-  const { memoryBlob } = await import('../workspace/blobs')
+  const { memoryBlob, readBlob } = await import('../workspace/blobs')
   const { disposeWorkspaceSnapshot, snapshotMetadata } = await import('../workspace/snapshot')
-  const { metadataSource, historicalEvidenceId, equalMetadataStreams } = await import('../interchange/workspace-backup-evidence')
+  const { metadataSource, capturedBackupEvidence, historicalEvidenceId, equalMetadataStreams } = await import('../interchange/workspace-backup-evidence')
   const { CryKitDatabase } = await import('./database')
-  const { createGuestRepository, guestRepositoryBindings } = await import('../workspace/guest-repository')
+  const { createDetachedGuestGraph, detachedGuestBindings } = await import('../workspace/detached-guest.test-helpers')
   const { importGuestInheritedEvidence } = await import('../workspace/guest-evidence-import')
   const { readGuestEvidence, databaseEvidenceRows, guestEvidenceSources } = await import('../workspace/guest-evidence')
-  const fixtures = JSON.parse(readFileSync(new URL('../interchange/workspace-backup-v1.fixtures.json', import.meta.url), 'utf8'))
+  const fixtures = (await launchBackupFixtures())
   const db = new CryKitDatabase(`guest-evidence-streams-${crypto.randomUUID()}`), expected = new Map<string, ReturnType<typeof metadataSource>>()
   try {
     for (const index of [0, 1, 0]) {
       const source = await readWorkspaceBackup(memoryBlob(Buffer.from(fixtures[index].archive, 'base64')).open())
       try {
-        const metadata = metadataSource(structuredClone(snapshotMetadata(source)))
+        // Original token order belongs to the captured wire stream, not its normalized runtime projection
+        const captured = capturedBackupEvidence(source).current
+        const metadata = memoryBlob(await readBlob(captured, captured.byteLength))
         expected.set(await historicalEvidenceId(metadata), metadata)
-        const repository = createGuestRepository(db)
+        const repository = createDetachedGuestGraph(db)
         await repository.readWorkspace()
-        await importGuestInheritedEvidence(await guestRepositoryBindings(repository), source)
+        await importGuestInheritedEvidence(await detachedGuestBindings(repository), source)
       } finally { await disposeWorkspaceSnapshot(source) }
     }
     const first = await readWorkspaceBackup(memoryBlob(Buffer.from(fixtures[0].archive, 'base64')).open())
@@ -226,13 +199,15 @@ it('retains property-order originals and account annex streams exactly after ind
     for (const fields of [{ zeta: 'z', alpha: 'a' }, { alpha: 'a', zeta: 'z' }]) {
       const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: raw.snapshotId, capturedAt: raw.capturedAt, revisionVector: raw.revisionVector, state: { ...state, editorDocuments: [{ ...file, unfinished: { ...file.unfinished, fieldState: fields } }] } }))
       try {
-        const metadata = metadataSource(structuredClone(snapshotMetadata(source)))
+        // Original token order belongs to the captured wire stream, not its normalized runtime projection
+        const captured = capturedBackupEvidence(source).current
+        const metadata = memoryBlob(await readBlob(captured, captured.byteLength))
         expected.set(await historicalEvidenceId(metadata), metadata)
-        const repository = createGuestRepository(db)
-        await importGuestInheritedEvidence(await guestRepositoryBindings(repository), source)
+        const repository = createDetachedGuestGraph(db)
+        await importGuestInheritedEvidence(await detachedGuestBindings(repository), source)
       } finally { await disposeWorkspaceSnapshot(source) }
     }
-    const binding = await guestRepositoryBindings(createGuestRepository(db))
+    const binding = await detachedGuestBindings(createDetachedGuestGraph(db))
     const reopened = new GuestFilesDatabase(binding.manifest.files)
     try {
       await reopened.open()
@@ -268,14 +243,14 @@ it('preserves accepted large token pages without splitting their JSON token boun
   const { editorClosureFixture } = await import('../workspace/test-helpers')
   const { exportWorkspaceBackup, readWorkspaceBackup } = await import('../interchange/workspace-backup')
   const { disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
-  const { createGuestRepository, guestRepositoryBindings } = await import('../workspace/guest-repository')
+  const { createDetachedGuestGraph, detachedGuestBindings } = await import('../workspace/detached-guest.test-helpers')
   const { CryKitDatabase } = await import('./database')
   const { importGuestInheritedEvidence } = await import('../workspace/guest-evidence-import')
   const { state, file } = await editorClosureFixture()
   const largeKey = 'x'.repeat(90_000)
   const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'large-key', capturedAt: '2026-10-12', revisionVector: {}, state: { ...state, editorDocuments: [{ ...file, unfinished: { ...file.unfinished, fieldState: { [largeKey]: 'inert' } } }] } }))
-  const db = new CryKitDatabase(`guest-evidence-token-${crypto.randomUUID()}`), repository = createGuestRepository(db)
-  try { await repository.readWorkspace(); await importGuestInheritedEvidence(await guestRepositoryBindings(repository), source) } finally { await disposeWorkspaceSnapshot(source); await db.delete() }
+  const db = new CryKitDatabase(`guest-evidence-token-${crypto.randomUUID()}`), repository = createDetachedGuestGraph(db)
+  try { await repository.readWorkspace(); await importGuestInheritedEvidence(await detachedGuestBindings(repository), source) } finally { await disposeWorkspaceSnapshot(source); await db.delete() }
 })
 
 describe('strict inherited storage graph and frozen identity', () => {
@@ -284,17 +259,17 @@ describe('strict inherited storage graph and frozen identity', () => {
   let snapshot: import('../workspace/snapshot').WorkspaceSnapshot | undefined
   const prepareOriginal = async () => {
     const { CryKitDatabase } = await import('./database')
-    const { createGuestRepository, guestRepositoryBindings } = await import('../workspace/guest-repository')
+    const { createDetachedGuestGraph, detachedGuestBindings } = await import('../workspace/detached-guest.test-helpers')
     const { editorClosureFixture } = await import('../workspace/test-helpers')
     const { exportWorkspaceBackup, readWorkspaceBackup } = await import('../interchange/workspace-backup')
     const { disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
     const { importGuestInheritedEvidence } = await import('../workspace/guest-evidence-import')
     db = new CryKitDatabase(`guest-evidence-corruption-${crypto.randomUUID()}`)
-    const repository = createGuestRepository(db)
+    const repository = createDetachedGuestGraph(db)
     await repository.readWorkspace()
     const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'graph-original', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
-    try { await importGuestInheritedEvidence(await guestRepositoryBindings(repository), source) } finally { await disposeWorkspaceSnapshot(source) }
-    binding = await guestRepositoryBindings(createGuestRepository(db))
+    try { await importGuestInheritedEvidence(await detachedGuestBindings(repository), source) } finally { await disposeWorkspaceSnapshot(source) }
+    binding = await detachedGuestBindings(createDetachedGuestGraph(db))
     const { captureGuestSnapshot } = await import('../workspace/guest-snapshot')
     snapshot = await captureGuestSnapshot(binding)
   }
@@ -340,16 +315,16 @@ describe('strict inherited storage graph and frozen identity', () => {
 it('awaits quota and cancellation cleanup while retaining the selected empty migration and source owner', async () => {
   const { vi } = await import('vitest')
   const { CryKitDatabase } = await import('./database')
-  const { createGuestRepository, guestRepositoryBindings } = await import('../workspace/guest-repository')
+  const { createDetachedGuestGraph, detachedGuestBindings } = await import('../workspace/detached-guest.test-helpers')
   const { editorClosureFixture } = await import('../workspace/test-helpers')
   const { readWorkspaceBackup, exportWorkspaceBackup } = await import('../interchange/workspace-backup')
   const { assertWorkspaceSnapshotCurrent, disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
   const { importGuestInheritedEvidence } = await import('../workspace/guest-evidence-import')
-  const db = new CryKitDatabase(`guest-evidence-failure-${crypto.randomUUID()}`), repository = createGuestRepository(db)
+  const db = new CryKitDatabase(`guest-evidence-failure-${crypto.randomUUID()}`), repository = createDetachedGuestGraph(db)
   const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'quota-source', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
   try {
     await repository.readWorkspace()
-    const binding = await guestRepositoryBindings(repository)
+    const binding = await detachedGuestBindings(repository)
     await (await import('../workspace/guest-workspace')).guestParticipants(binding)
     const before = (await Dexie.getDatabaseNames()).sort(), manifest = await binding.coordinator.active.get('active')
     const abort = new AbortController(); abort.abort()
@@ -369,7 +344,7 @@ it('awaits quota and cancellation cleanup while retaining the selected empty mig
 
 it.each([1, 2])('recovery copies the captured v%s evidence without changing selected or source rows', async version => {
   const { CryKitDatabase } = await import('./database')
-  const { createGuestRepository, guestRepositoryBindings } = await import('../workspace/guest-repository')
+  const { createDetachedGuestGraph, detachedGuestBindings } = await import('../workspace/detached-guest.test-helpers')
   const { readWorkspaceBackup, exportWorkspaceBackup } = await import('../interchange/workspace-backup')
   const { disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
   const { editorClosureFixture } = await import('../workspace/test-helpers')
@@ -382,13 +357,13 @@ it.each([1, 2])('recovery copies the captured v%s evidence without changing sele
   oldFiles.version(1).stores({ documents: 'key', blobs: 'key', chunks: '[key+index], key', meta: 'key' })
   const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'recovery-original', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
   try {
-    let repository = createGuestRepository(db)
+    let repository = createDetachedGuestGraph(db)
     await repository.readWorkspace()
     if (version === 2) {
-      await importGuestInheritedEvidence(await guestRepositoryBindings(repository), source)
-      repository = createGuestRepository(db)
+      await importGuestInheritedEvidence(await detachedGuestBindings(repository), source)
+      repository = createDetachedGuestGraph(db)
     }
-    const sourceBinding = await guestRepositoryBindings(repository), sourceParticipants = await guestParticipants(sourceBinding)
+    const sourceBinding = await detachedGuestBindings(repository), sourceParticipants = await guestParticipants(sourceBinding)
     await oldFiles.open()
     const recovery = await captureLegacyBranch(sourceBinding.coordinator, version === 1 ? sourceParticipants.map(participant => participant.kind === 'files' ? { kind: 'files', database: oldFiles } : participant) : sourceParticipants)
     const frozenRows = []
@@ -400,10 +375,10 @@ it.each([1, 2])('recovery copies the captured v%s evidence without changing sele
       const empty = new GuestFilesDatabase(`guest-recovery-empty-${crypto.randomUUID()}`)
       try { await empty.open(); await (await import('../workspace/guest-evidence')).writeGuestEvidence(sourceBinding.files, await readGuestEvidence(databaseEvidenceRows(empty), async () => {})) } finally { await empty.delete() }
     }
-    const selected = createGuestRepository(db), binding = await guestRepositoryBindings(selected)
+    const selected = createDetachedGuestGraph(db), binding = await detachedGuestBindings(selected)
     const selectedRows = await binding.files.documents.toArray()
     await copyGuestRecovery(binding, recovery, () => true)
-    const reopened = createGuestRepository(db), reopenedState = await reopened.readWorkspace(), recovered = await guestRepositoryBindings(reopened)
+    const reopened = createDetachedGuestGraph(db), reopenedState = await reopened.readWorkspace(), recovered = await detachedGuestBindings(reopened)
     const actualEvidence = await readGuestEvidence(databaseEvidenceRows(recovered.files), async () => {})
     expect(guestEvidenceSources(actualEvidence).members).toHaveLength(version === 1 ? 0 : 1)
     if (version === 1) expect(actualEvidence.planner.savedChanges).toEqual([])
@@ -420,16 +395,16 @@ it.each([1, 2])('recovery copies the captured v%s evidence without changing sele
 it('rejects a changed destination planner copy before publishing inert evidence', async () => {
   const { vi } = await import('vitest')
   const { CryKitDatabase } = await import('./database')
-  const { createGuestRepository, guestRepositoryBindings } = await import('../workspace/guest-repository')
+  const { createDetachedGuestGraph, detachedGuestBindings } = await import('../workspace/detached-guest.test-helpers')
   const { editorClosureFixture } = await import('../workspace/test-helpers')
   const { readWorkspaceBackup, exportWorkspaceBackup } = await import('../interchange/workspace-backup')
   const { disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
   const { importGuestInheritedEvidence } = await import('../workspace/guest-evidence-import')
-  const db = new CryKitDatabase(`guest-evidence-copy-${crypto.randomUUID()}`), repository = createGuestRepository(db)
+  const db = new CryKitDatabase(`guest-evidence-copy-${crypto.randomUUID()}`), repository = createDetachedGuestGraph(db)
   const source = await readWorkspaceBackup(exportWorkspaceBackup({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'copy-source', capturedAt: '2026-10-12', revisionVector: {}, state: (await editorClosureFixture()).state }))
   try {
     await repository.readWorkspace()
-    const binding = await guestRepositoryBindings(repository), manifest = await binding.coordinator.active.get('active')
+    const binding = await detachedGuestBindings(repository), manifest = await binding.coordinator.active.get('active')
     const original = IDBObjectStore.prototype.add
     const fault = vi.spyOn(IDBObjectStore.prototype, 'add').mockImplementation(function (this: IDBObjectStore, ...args) {
       if (this.name === 'localDatas' && this.transaction.db.name.startsWith('crykit-profile-')) args[0] = { ...args[0], revision: args[0].revision + 1 }

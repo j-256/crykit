@@ -1,3 +1,4 @@
+import { syntheticCatalog } from '../workspace/test-helpers'
 import { afterEach, expect, it, vi } from 'vitest'
 import { STARTER_CATALOG } from '../catalog/starter'
 import { addGameSetupRevision, createBlankLocalData } from '../domain/local-data'
@@ -10,7 +11,7 @@ afterEach(() => vi.restoreAllMocks())
 
 it('prepares an exact new effective catalog once for the UI and captured repository without parsing inherited records again', async () => {
   const imported = await previewImport(new TextEncoder().encode(JSON.stringify({ ID: 'synthetic-prepared', EditorVersion: 34, Passives: [{ ID: 9000, Name: 'Synthetic prepared passive', PP: 2 }] })), 'synthetic.json')
-  const baseline = immutableCatalogSnapshot(STARTER_CATALOG), source = immutableCatalogSnapshot(imported.proposed.catalogs[0]!)
+  const baseline = immutableCatalogSnapshot(syntheticCatalog('prepared-baseline', undefined, STARTER_CATALOG.entities)), source = immutableCatalogSnapshot(imported.proposed.catalogs[0]!)
   const catalogs = Object.freeze([baseline, source])
   const data = addGameSetupRevision(createBlankLocalData(), { label: 'Synthetic prepared context', modComposition: { baseline: { catalogId: baseline.id, catalogRevisionId: baseline.revisionId }, layers: [{ catalogId: source.id, catalogRevisionId: source.revisionId, enabled: true }], links: [] } })
   const parse = vi.spyOn(NativeCatalogSnapshotSchema, 'safeParse')

@@ -1,9 +1,13 @@
 import 'fake-indexeddb/auto'
+import '../workspace/guest-managed-monitor.test-helpers'
+import { seedBlankManagedGuest } from '../workspace/managed-guest.test-helpers'
+import { captureGuestSnapshot } from '../workspace/guest-snapshot'
+import { createDetachedGuestGraph, detachedGuestBindings } from '../workspace/detached-guest.test-helpers'
 import Dexie from 'dexie'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createPersonalDefinition } from '../domain'
 import { CryKitDatabase } from './database'
-import { createGuestRepository, guestRepositoryBindings } from '../workspace/guest-repository'
+import { createGuestRepository } from '../workspace/guest-repository'
 import { openAccountRepository } from '../workspace/account-repository'
 import { AccountDatabase } from './account-database'
 import { installProfile, invalidateProfile } from '../account/profile'
@@ -15,16 +19,12 @@ import { readBlob } from '../workspace/blobs'
 import { readEditorContent } from '../workspace/editor-document'
 import { editorClosureFixture } from '../workspace/test-helpers'
 
-// Same-manifest mutation and legacy Inspector layout checks retain their real native storage subject
-vi.mock('../workspace/guest-managed-startup', async importOriginal => {
-  const actual = await importOriginal<typeof import('../workspace/guest-managed-startup')>()
-  const { openGuestBindings } = await import('../workspace/guest-workspace')
-  return { ...actual, prepareGuestStartup: async (original: CryKitDatabase) => ({ kind: 'legacy-recovery', binding: await openGuestBindings(original) }) }
-})
+vi.mock('../catalog/bundled', async importOriginal => ({ ...await importOriginal<typeof import('../catalog/bundled')>(), BUNDLED_CATALOGS: [] }))
 
 async function drain(stream: AsyncIterable<Uint8Array>) { for await (const _ of stream) { /* Consume the final manifest check */ } }
 it('sameGuestManifestPlannerChangeRejectsFinalSnapshot', async () => {
   const database = new CryKitDatabase(`backup-guest-${crypto.randomUUID()}`)
+  await seedBlankManagedGuest(database)
   const repository = createGuestRepository(database)
   const loaded = await repository.load()
   const snapshot = await captureWorkspaceSnapshot(repository)
@@ -32,19 +32,17 @@ it('sameGuestManifestPlannerChangeRejectsFinalSnapshot', async () => {
     const stream = exportWorkspaceBackup(snapshot)[Symbol.asyncIterator]()
     expect((await stream.next()).done).toBe(false)
     await repository.save(createPersonalDefinition(loaded.localData, { kind: 'item', name: 'Concurrent saved change' }), loaded.revision)
-    await expect(drain({ [Symbol.asyncIterator]: () => stream })).rejects.toMatchObject({ code: 'SNAPSHOT_CHANGED' })
+    await expect(drain({ [Symbol.asyncIterator]: () => stream })).rejects.toThrow('The managed workspace changed')
   } finally { await disposeWorkspaceSnapshot(snapshot); await database.delete() }
 })
-it('untouchedLegacyEditorRoundTripsWithoutCacheOrUpgradeWrites', async () => {
+it('detachedTextOnlyEditorRoundTripsWithoutCacheOrUpgradeWrites', async () => {
   const database = new CryKitDatabase(`backup-legacy-${crypto.randomUUID()}`)
-  const repository = createGuestRepository(database)
-  await repository.load()
-  const binding = await guestRepositoryBindings(repository)
+  const binding = await detachedGuestBindings(createDetachedGuestGraph(database))
   const legacy = new Dexie(binding.manifest.inspector)
   legacy.version(1).stores({ drafts: 'id, updatedAt' })
   const row = { schemaVersion: 1, id: 'legacy', revision: 1, filename: 'untouched.json', referenceId: 'reference', createdAt: '2026-10-12', updatedAt: '2026-10-12', originalText: '{"a":1}', draftText: '\ud800invalid draft' }
   await legacy.table('drafts').add(row)
-  const snapshot = await captureWorkspaceSnapshot(repository)
+  const snapshot = await captureGuestSnapshot(binding)
   let restored: Awaited<ReturnType<typeof readWorkspaceBackup>> | undefined
   try {
     restored = await readWorkspaceBackup(exportWorkspaceBackup(snapshot))
@@ -76,7 +74,7 @@ describe('captured account backup', () => {
     if (database) await database.delete()
   })
   // These sequential cases share one captured source; cleanup remains unconditional if a phase fails
-  it('capturesImmutableCurrentWorkspaceAndExactOriginalContent', async () => {
+  async function capturesImmutableCurrentWorkspaceAndExactOriginalContent() {
     const source = await editorClosureFixture()
     const before = await repository.readWorkspace()
     await repository.commitWorkspace({ ...source.state, planner: before.planner, editorDocuments: [source.file] }, before.planner.localData.revision)
@@ -88,8 +86,8 @@ describe('captured account backup', () => {
     expect(await readEditorContent(snapshot.state, source.file)).toMatchObject({ originalText: '\ud800', lastAppliedText: '\ud800', unfinishedText: '\ud800' })
     expect(() => { (snapshot.revisionVector as Record<string, string>).committed = 'changed' }).toThrow()
     expect(() => { (snapshot.state.planner.catalogs as unknown[]).pop() }).toThrow()
-  })
-  it('roundTripsCurrentWorkspaceAndEveryOriginalBodyExactly', async () => {
+  }
+  async function roundTripsCurrentWorkspaceAndEveryOriginalBodyExactly() {
     expect(snapshot).toBeDefined()
     imported = await readWorkspaceBackup(exportWorkspaceBackup(snapshot))
     // Managed captures preserve the complete portable state and exact bodies rather than native-only source-unit wrappers
@@ -99,14 +97,14 @@ describe('captured account backup', () => {
       expect(copy.ref).toEqual(body.ref)
       expect(await readBlob(copy.content, copy.ref.byteLength)).toEqual(await readBlob(body.content, body.ref.byteLength))
     }
-  })
-  it('rejectsNewFenceBeforeExport', async () => {
+  }
+  async function rejectsNewFenceBeforeExport() {
     expect(snapshot).toBeDefined()
     const loaded = await repository.load()
     await repository.save(createPersonalDefinition(loaded.localData, { kind: 'item', name: 'Changed fence' }), loaded.revision)
     await expect(drain(exportWorkspaceBackup(snapshot))).rejects.toThrow('The captured account workspace changed')
-  })
-  it('reexportsImportedSnapshotWithoutSourceProfileKeys', async () => {
+  }
+  async function reexportsImportedSnapshotWithoutSourceProfileKeys() {
     expect(imported).toBeDefined()
     invalidateProfile()
     let bytes = 0, closed = false, aborted = false
@@ -118,6 +116,12 @@ describe('captured account backup', () => {
     expect(bytes).toBeGreaterThan(0)
     expect(closed).toBe(true)
     expect(aborted).toBe(false)
+  }
+  it('preserves the captured account backup through export, invalidation, and independent re-export', async () => {
+    await capturesImmutableCurrentWorkspaceAndExactOriginalContent()
+    await roundTripsCurrentWorkspaceAndEveryOriginalBodyExactly()
+    await rejectsNewFenceBeforeExport()
+    await reexportsImportedSnapshotWithoutSourceProfileKeys()
   })
 })
 

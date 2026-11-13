@@ -98,8 +98,8 @@ describe('native sheet calculations', () => {
   it('resolves imported innates by exact model mapping, including personal class revisions', async () => {
     const imported = await previewImport(new TextEncoder().encode(JSON.stringify({ ID: 'stat-fixture', EditorVersion: 34, Jobs: [{ ...nativeStatRecord(warrior, 'job', resolve), ID: 40, Name: 'Imported fighter', PassiveIDs: [8] }], Passives: [{ ID: 8, Name: 'Imported vitality', IsInnate: true, StatMods: [{ Tag: 0, Value1: 100, Value2: 0 }] }] })), 'fixture.json')
     const catalog = imported.proposed.catalogs[0]!
-    const primary: CatalogRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: 'mod:stat-fixture:class:40' as EntityId }
-    const passive = catalog.entities['mod:stat-fixture:passive:8']!
+    const primary: CatalogRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: Object.values(catalog.entities).find(entity => entity.name === 'Imported fighter')!.id }
+    const passive = Object.values(catalog.entities).find(entity => entity.name === 'Imported vitality')!
     const resolver = (value: EntityRef) => value.kind === 'catalog' && value.catalogId === catalog.id ? catalog.entities[value.entityId] : resolve(value)
     const estimate = calculatePCStats(content(primary), SUGGESTED_BUILD_SLOTS, resolver)
     const without = calculatePCStats(content(primary), SUGGESTED_BUILD_SLOTS, value => value.kind === 'catalog' && value.entityId === passive.id ? { ...passive, fields: { ...passive.fields, 'Crystal Edit source record': { state: 'known', value: { ID: 8, IsInnate: false } } } } : resolver(value))

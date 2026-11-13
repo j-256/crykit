@@ -2,25 +2,21 @@ import 'fake-indexeddb/auto'
 import Dexie from 'dexie'
 import { expect, it, vi } from 'vitest'
 import { CryKitDatabase } from './database'
-import { createGuestRepository, guestRepositoryBindings } from '../workspace/guest-repository'
+import { createDetachedGuestGraph, detachedGuestBindings } from '../workspace/detached-guest.test-helpers'
 import { captureGuestRecovery, checkGuestRecovery } from '../workspace/guest-recovery'
 import * as coordinator from '../workspace/guest-coordinator'
 
-// Exercise retained native recovery before public startup migrates these named stores to managed storage
-vi.mock('../workspace/guest-managed-startup', async importOriginal => {
-  const actual = await importOriginal<typeof import('../workspace/guest-managed-startup')>()
-  const { openGuestBindings } = await import('../workspace/guest-workspace')
-  return { ...actual, prepareGuestStartup: async (original: CryKitDatabase) => ({ kind: 'legacy-recovery', binding: await openGuestBindings(original) }) }
-})
+// These storage graphs use closed blank planners; packaged source retention has dedicated coverage
+vi.mock('../catalog/bundled', async importOriginal => ({ ...await importOriginal<typeof import('../catalog/bundled')>(), BUNDLED_CATALOGS: [] }))
 
 it.each(['notice-first', 'reader-first'] as const)('cancelled notice preserves one complete concurrent repository check: %s', async order => {
   const database = new CryKitDatabase(`recovery-consumers-${crypto.randomUUID()}`)
   let release!: () => void
   const gate = new Promise<void>(resolve => { release = resolve })
   try {
-    const original = createGuestRepository(database), initial = await original.readWorkspace()
+    const original = createDetachedGuestGraph(database), initial = await original.readWorkspace()
     await original.commitWorkspace(initial, initial.planner.localData.revision)
-    const repository = createGuestRepository(database), binding = await guestRepositoryBindings(repository)
+    const repository = createDetachedGuestGraph(database), binding = await detachedGuestBindings(repository)
     const expected = await repository.readWorkspace()
     const toArray = binding.coordinator.journal.toArray.bind(binding.coordinator.journal)
     let started!: () => void
@@ -55,9 +51,9 @@ it('rejects a v2 journal before opening its named planner while the captured v1 
   const absentPlanner = `${database.name}-absent-v2-planner`
   const observedOpens: string[] = []
   try {
-    const original = createGuestRepository(database), initial = await original.readWorkspace()
+    const original = createDetachedGuestGraph(database), initial = await original.readWorkspace()
     await original.commitWorkspace(initial, initial.planner.localData.revision)
-    const repository = createGuestRepository(database), binding = await guestRepositoryBindings(repository)
+    const repository = createDetachedGuestGraph(database), binding = await detachedGuestBindings(repository)
     const previous = (await binding.coordinator.journal.toArray())[0]
     const v2 = { ...previous, version: 2, kind: 'guest-operation', id: '000-v2-stage', localStatus: 'prepared', expected: { ...previous.expected, planner: absentPlanner } }
     const { kind: _kind, ...withoutKind } = v2
@@ -104,9 +100,9 @@ it('rejects an active v2 pointer before a retained v1 journal opens any particip
   const absentPlanner = `${database.name}-v2-planner`
   const observedOpens: string[] = []
   try {
-    const original = createGuestRepository(database), initial = await original.readWorkspace()
+    const original = createDetachedGuestGraph(database), initial = await original.readWorkspace()
     await original.commitWorkspace(initial, initial.planner.localData.revision)
-    const repository = createGuestRepository(database), binding = await guestRepositoryBindings(repository)
+    const repository = createDetachedGuestGraph(database), binding = await detachedGuestBindings(repository)
     expect((await repository.readWorkspace()).planner.localData.id).toBe(initial.planner.localData.id)
     const previous = (await binding.coordinator.journal.toArray())[0]
     const v2 = { version: 2, id: 'selected-v2', revision: binding.manifest.revision + 1, planner: absentPlanner, inspector: `${database.name}-v2-inspector`, files: `${database.name}-v2-files` }
@@ -137,7 +133,7 @@ it('does not start a coalesced scan when its caller aborts during active-pointer
   let release!: () => void, entered!: () => void
   const gate = new Promise<void>(resolve => { release = resolve }), reached = new Promise<void>(resolve => { entered = resolve })
   try {
-    const repository = createGuestRepository(database), binding = await guestRepositoryBindings(repository)
+    const repository = createDetachedGuestGraph(database), binding = await detachedGuestBindings(repository)
     const get = binding.coordinator.active.get.bind(binding.coordinator.active)
     vi.spyOn(binding.coordinator.active, 'get').mockImplementation(((key: string) => { entered(); return Dexie.Promise.resolve(gate).then(() => get(key)) }) as typeof binding.coordinator.active.get)
     const scan = vi.spyOn(binding.coordinator.journal, 'toArray')
@@ -155,9 +151,9 @@ it('rejects every coalesced caller when the captured v1 pointer changes before a
   const gate = new Promise<void>(resolve => { release = resolve }), reached = new Promise<void>(resolve => { entered = resolve })
   const observedOpens: string[] = []
   try {
-    const original = createGuestRepository(database), initial = await original.readWorkspace()
+    const original = createDetachedGuestGraph(database), initial = await original.readWorkspace()
     await original.commitWorkspace(initial, initial.planner.localData.revision)
-    const repository = createGuestRepository(database), binding = await guestRepositoryBindings(repository)
+    const repository = createDetachedGuestGraph(database), binding = await detachedGuestBindings(repository)
     const row = (await binding.coordinator.journal.toArray())[0]
     const toArray = binding.coordinator.journal.toArray.bind(binding.coordinator.journal)
     vi.spyOn(binding.coordinator.journal, 'toArray').mockImplementation(() => { entered(); return Dexie.Promise.resolve(gate).then(() => toArray()) })

@@ -53,11 +53,11 @@ it('rejects unpinned growth references and rolls a failed calculation save back 
   expect((await loadLocalData()).localData).toEqual(before.localData)
 })
 
-it('round-trips native and earlier bundled catalog revisions together without retargeting definitions', async () => {
+it('round-trips native and guide sources together without retargeting definitions', async () => {
   const before = await loadLocalData()
   let data = before.localData
   for (const catalog of BUNDLED_CATALOGS) {
-    const sourceRef: CatalogRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: 'base:job:0' as EntityId }
+    const sourceRef: CatalogRef = { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: Object.values(catalog.entities)[0]!.id }
     data = savedCatalogVersion(data, BUNDLED_CATALOGS, { sourceRef, name: `Synthetic retained ${catalog.revisionId}` }).localData
   }
   await saveLocalData(data, before.revision)

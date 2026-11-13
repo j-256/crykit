@@ -1,3 +1,4 @@
+import { syntheticCatalog } from '../workspace/test-helpers'
 import { savedCatalogVersion } from './legacy-definition.test-helpers'
 import { describe, expect, it } from 'vitest'
 import { validateNativeLocalDataGraph } from '../interchange/native'
@@ -37,7 +38,6 @@ import {
 import type {
   BuildId,
   BuildRevisionId,
-  CatalogId,
   CatalogRef,
   CatalogRevisionId,
   CharacterId,
@@ -53,40 +53,30 @@ import type {
 
 const BASE_REF: CatalogRef = {
   kind: 'catalog',
-  catalogId: asId<CatalogId>('built-in'),
-  catalogRevisionId: asId<CatalogRevisionId>('names-1'),
+  catalogId: syntheticCatalog('definitions').id,
+  catalogRevisionId: syntheticCatalog('definitions').revisionId,
   entityId: asId<EntityId>('sword'),
 }
 
-const CATALOG: CatalogSnapshot = {
-  id: BASE_REF.catalogId,
-  revisionId: BASE_REF.catalogRevisionId,
-  schemaVersion: 'test',
-  checksum: 'synthetic-checksum',
-  importedAt: TEST_NOW,
-  applicability: known('synthetic'),
-  rights: known('synthetic fixture'),
-  entities: {
-    sword: {
-      id: BASE_REF.entityId,
-      kind: 'item',
-      name: 'Sword',
-      aliases: ['Blade'],
-      rawDescription: 'Original description',
-      fields: {
-        category: known('weapon'),
-        unsupported: known({ preserved: true }),
-      },
-      slotKinds: known([HAND_SLOT]),
-      ppCost: known(2),
-      listedContributions: { attack: known({ value: 4, unit: 'displayed' }) },
-      requirements: known([]),
-      grants: known(['equip.sword']),
-      sources: [{ sourceId: 'synthetic' }],
+const CATALOG = syntheticCatalog('definitions', undefined, {
+  sword: {
+    id: BASE_REF.entityId,
+    kind: 'item',
+    name: 'Sword',
+    aliases: ['Blade'],
+    rawDescription: 'Original description',
+    fields: {
+      category: known('weapon'),
+      unsupported: known({ preserved: true }),
     },
+    slotKinds: known([HAND_SLOT]),
+    ppCost: known(2),
+    listedContributions: { attack: known({ value: 4, unit: 'displayed' }) },
+    requirements: known([]),
+    grants: known(['equip.sword']),
+    sources: [{ sourceId: 'synthetic' }],
   },
-  claims: [],
-}
+})
 
 const LOCATION_CLAIMS: Knowledge<JsonValue> = {
   state: 'conflicting',
@@ -96,10 +86,7 @@ const LOCATION_CLAIMS: Knowledge<JsonValue> = {
   ],
 }
 
-const CLAIM_CATALOG: CatalogSnapshot = {
-  ...CATALOG,
-  entities: { sword: { ...CATALOG.entities.sword!, fields: { ...CATALOG.entities.sword!.fields, Location: LOCATION_CLAIMS, Other: LOCATION_CLAIMS } } },
-}
+const CLAIM_CATALOG = syntheticCatalog('definitions', undefined, { sword: { ...CATALOG.entities.sword!, fields: { ...CATALOG.entities.sword!.fields, Location: LOCATION_CLAIMS, Other: LOCATION_CLAIMS } } })
 
 const CUSTOM_REF = personalRef('custom-root')
 

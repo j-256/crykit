@@ -3,7 +3,8 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { STARTER_CATALOG } from '../catalog/starter'
+import { STARTER_CATALOG as NAME_CATALOG } from '../catalog/starter'
+import { syntheticCatalog } from '../workspace/test-helpers'
 import { createBuild, saveBuildRevision } from '../domain/builds'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { saveSharedTeam, teamSlots, withTeamBuildViews } from '../domain/team-checkpoints'
@@ -13,10 +14,12 @@ import { createTestLocalData, TEST_GAME_SETUP_REVISION_ID, TEST_NOW } from '../d
 import type { CatalogRef, LocalData, TeamRevision } from '../domain/types'
 import { validateNativeLocalDataGraph } from '../interchange/native'
 import { DefinitionProvider } from './definitions'
-import { NavigationProvider, type NavigationController } from './navigation'
+import { formatAppRoute, NavigationProvider, type NavigationController } from './navigation'
 import { TeamOverview } from './TeamOverview'
 import { TeamsView } from './TeamsView'
 
+const sourceSword = Object.values(NAME_CATALOG.entities).find(entity => entity.name === 'Broadsword')!
+const STARTER_CATALOG = syntheticCatalog('team-context', undefined, { [sourceSword.id]: sourceSword })
 const lock = { [STARTER_CATALOG.id]: STARTER_CATALOG.revisionId }
 const sword: CatalogRef = { kind: 'catalog', catalogId: STARTER_CATALOG.id, catalogRevisionId: STARTER_CATALOG.revisionId, entityId: Object.values(STARTER_CATALOG.entities).find(entity => entity.name === 'Broadsword')!.id }
 const checkpoint = (data: LocalData): TeamRevision => { const team = data.teams.team!; if (team.kind !== 'shared') throw new Error('Expected shared Team'); return data.teamRevisions[team.latestRevisionId]! }
@@ -41,7 +44,7 @@ async function click(name: string) { const button = [...container.querySelectorA
 for (const retained of [true, false]) it(`preserves the actual editor and member context with a ${retained ? 'retained' : 'compatible'} independently pinned checkpoint`, async () => {
   let data = fixture(retained)
   const before = structuredClone(data)
-  const navigation = { route: { page: { page: 'teams', view: 'edit', teamId: 'team' }, overlays: [], query: {} }, registerBlocker: () => () => undefined, navigate: vi.fn() } as unknown as NavigationController
+  const navigation = { route: { page: { page: 'teams', view: 'edit', teamId: 'team' }, overlays: [], query: {} }, registerBlocker: () => () => undefined, navigate: vi.fn(), href: formatAppRoute } as unknown as NavigationController
   const show = () => root.render(<NavigationProvider controller={navigation}><DefinitionProvider localData={data} catalogs={[STARTER_CATALOG]} onSaveDefinition={async () => { throw new Error('Unexpected definition save') }}><TeamsView localData={data} catalogs={[STARTER_CATALOG]} onDraftChange={() => undefined} onSave={async input => { data = saveTeam(data, input); show(); return 'team' as never }} onSaveMember={async input => { data = saveTeamMember(data, { ...input, revisionId: 'unused' as never }, [STARTER_CATALOG]); show(); return { buildId: 'team' as never, revisionId: teamSlots(data, data.teams.team!)[0]! } }} onSaveAsBuild={async () => undefined} onAdopt={async () => undefined} onDelete={async () => undefined}/></DefinitionProvider></NavigationProvider>)
   await act(async () => show())
   const card = () => container.querySelector('[aria-label="Team slot 1 loadout"]')!

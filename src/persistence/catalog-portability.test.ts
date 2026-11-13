@@ -8,11 +8,12 @@ import { accountLocalId } from '../workspace/account-cache'
 import { prepareAccountWorkspace, openAccountWorkspace } from '../workspace/account-graph'
 import { archiveWorkspaceUnit } from '../workspace/pending-content'
 import { privateRecordKey, type WorkspaceState } from '../workspace/documents'
-import { inspectWorkspaceClosure, WorkspaceUnitIndexSchema } from '../workspace/closure'
-import { blobIdentity, memoryBlob, readBlob } from '../workspace/blobs'
+import { inspectWorkspaceClosure } from '../workspace/closure'
+import { blobIdentity, readBlob } from '../workspace/blobs'
+import { decodeWorkspaceDocument } from '../workspace/document-codec'
 import * as codec from '../workspace/catalog-codec'
 
-it('keeps original pin frames and distinct full catalog artifacts inspectable without package resolution', async () => {
+it('keeps complete catalog bodies inspectable without expanding package-only pins', async () => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   const database = new AccountDatabase(token.accountId)
   try {
@@ -25,22 +26,21 @@ it('keeps original pin frames and distinct full catalog artifacts inspectable wi
     const output = new Map<string, WorkspaceState['blobs'][number]>()
     const started = performance.now(), closure = await archiveWorkspaceUnit(opened, key, output)
     const evidence = output.get(blobIdentity(original.ref))!
-    const originalBytes = await readBlob(opened.payloads.get(key)!, 4096)
-    expect(await readBlob(evidence.content, 4096)).toEqual(originalBytes)
+    const originalBytes = new TextEncoder().encode(JSON.stringify((await decodeWorkspaceDocument(opened.payloads.get(key)!)).value))
+    expect(await readBlob(evidence.content, evidence.ref.byteLength)).toEqual(originalBytes)
     const portable: WorkspaceState = { ...state, planner: { ...state.planner, catalogs: [] }, blobs: [...output.values()] }
-    const resolver = vi.spyOn(codec, 'decodeCatalogPayload').mockImplementation(() => { throw new Error('No packaged snapshot exists at destination') })
+    const decoder = vi.spyOn(codec, 'decodeCatalogPayload')
     const inspected = await inspectWorkspaceClosure(portable, closure)
     expect(inspected.root.kind).toBe('catalog')
-    expect(inspected.root.ref.documentId).not.toBe(original.ref.documentId)
+    expect(inspected.root.ref.documentId).toBe(original.ref.documentId)
+    expect(inspected.root.ref.revisionId).toBe(original.ref.revisionId)
     expect(inspected.value).toEqual(catalog)
-    expect(resolver).not.toHaveBeenCalled()
+    expect(decoder).toHaveBeenCalled()
     const full = output.get(blobIdentity(inspected.root.ref))!
-    expect(full.ref.byteLength).toBeGreaterThan(evidence.ref.byteLength)
-    const relationBlob = [...output.values()].find(blob => blob !== evidence && blob.ref.byteLength < 4096 && blob.ref.documentId !== closure.index.documentId && blob.ref.documentId !== closure.root.documentId)!
-    const relation = WorkspaceUnitIndexSchema.parse(JSON.parse(new TextDecoder().decode(await readBlob(relationBlob.content, 4096))))
-    expect(relation.relation.kind).toBe('catalog-expansion')
-    const changed = { ...relation, relation: { ...relation.relation, checksum: 'different' } }
-    await expect(inspectWorkspaceClosure({ ...portable, blobs: portable.blobs.map(blob => blob === relationBlob ? { ...blob, content: memoryBlob(new TextEncoder().encode(JSON.stringify(changed))) } : blob) }, closure)).rejects.toThrow('association')
+    expect(full).toBe(evidence)
+    const encoded = JSON.parse(new TextDecoder().decode(originalBytes))
+    expect(encoded.kind).toBe('compressed-catalog-snapshot')
+    expect(encoded.pages.length).toBeGreaterThan(0)
     const count = output.size
     await archiveWorkspaceUnit(opened, key, output)
     expect(output.get(blobIdentity(full.ref))).toBe(full)
@@ -56,33 +56,26 @@ it('keeps original pin frames and distinct full catalog artifacts inspectable wi
     expect(dependentResult.refs.has(blobIdentity(full.ref))).toBe(true)
     const contradictory = new Map(output).set(blobIdentity(full.ref), { ...full, ref: { ...full.ref, sha256: '0'.repeat(64) } })
     await expect(archiveWorkspaceUnit(opened, key, contradictory)).rejects.toThrow('Contradictory archived body identity')
-    console.info(JSON.stringify({ proof: 'catalog-pin-portability', originalFrameBytes: evidence.ref.byteLength, fullCatalogBytes: full.ref.byteLength, elapsedMs: Math.round(performance.now() - started) }))
+    console.info(JSON.stringify({ proof: 'complete-catalog-portability', originalFrameBytes: evidence.ref.byteLength, fullCatalogBytes: full.ref.byteLength, elapsedMs: Math.round(performance.now() - started) }))
   } finally { vi.restoreAllMocks(); invalidateProfile(); await database.delete() }
 })
 
-it('closes unavailable effective catalogs with their exact owning setup evidence', async () => {
+it('rejects private compositions with missing exact source bodies before activation', async () => {
   const { createTestLocalData } = await import('../domain/test-helpers')
   const { modCatalogRevision } = await import('../domain/mod-layers')
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   const database = new AccountDatabase(token.accountId)
   try {
     const blank = createBlankLocalData(), base = Object.values(createTestLocalData().gameSetups)[0], catalog = BUNDLED_CATALOGS[0]
-    const checksum = `sha256:${'a'.repeat(64)}`
-    const receipt = { catalogId: 'crystal-edit:missing', catalogRevisionId: `${checksum}:rules-v1:library-v1`, checksum, title: 'Recorded missing source' }
+    const { previewCrystalEdit } = await import('../interchange/crystal-edit')
+    const source = (await previewCrystalEdit(new TextEncoder().encode(JSON.stringify({ ID: 'missing-portable', EditorVersion: 34, Items: [] })), 'missing.json')).proposed.catalogs[0]!
+    const receipt = { catalogId: source.id, catalogRevisionId: source.revisionId, checksum: source.checksum, contentFingerprint: (source.legacy as Record<string, string>).contentFingerprint!, title: 'Recorded missing source' }
     const setup = { ...base, catalogLock: { [catalog.id]: modCatalogRevision(base.id) }, modComposition: { baseline: { catalogId: catalog.id, catalogRevisionId: catalog.revisionId }, layers: [{ catalogId: receipt.catalogId, catalogRevisionId: receipt.catalogRevisionId, enabled: true }], links: [] }, modSourceReceipts: [receipt] } as unknown as typeof base
     const copy = { ...setup, id: 'copied-setup' as typeof setup.id }
     const localData = { ...blank, gameSetups: { [setup.id]: setup, [copy.id]: copy } }
     const state: WorkspaceState = { planner: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: [catalog], sources: [], evidence: [], history: [] }, editorDocuments: [], saveDocuments: [], assets: [], conflicts: [], retainedContent: [], libraryDefaults: { version: 1, layers: [] }, blobs: [] }
-    const prepared = await prepareAccountWorkspace(database, token, state)
-    const output = new Map<string, WorkspaceState['blobs'][number]>()
-    const closure = await archiveWorkspaceUnit(prepared.opened, privateRecordKey('setup', copy.id), output)
-    const portable = { ...state, planner: { ...state.planner, localData: blank, catalogs: [] }, blobs: [...output.values()] }
-    invalidateProfile()
-    const inspected = await inspectWorkspaceClosure(portable, closure)
-    expect(inspected.value).toEqual(copy)
-    expect(inspected.refs.has(blobIdentity(prepared.entries.find(entry => entry.key === privateRecordKey('setup', setup.id))!.ref))).toBe(true)
-    const origin = prepared.entries.find(entry => entry.key === privateRecordKey('setup', setup.id))!
-    await expect(inspectWorkspaceClosure({ ...portable, blobs: portable.blobs.filter(blob => blobIdentity(blob.ref) !== blobIdentity(origin.ref)) }, closure)).rejects.toThrow('Missing')
-    expect([...output.values()].some(blob => blob.ref.documentId.includes(receipt.catalogId))).toBe(false)
+    await expect(prepareAccountWorkspace(database, token, state)).rejects.toThrow('unavailable catalog revision')
+    expect(await database.profileMeta.get('active')).toBeUndefined()
+    expect(await database.encryptedRevisions.count()).toBe(0)
   } finally { invalidateProfile(); await database.delete() }
 })

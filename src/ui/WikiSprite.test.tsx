@@ -1,3 +1,4 @@
+import { CURRENT_CATALOG } from '../catalog/bundled'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { EntityId } from '../domain/types'
@@ -15,7 +16,7 @@ describe('class standing artwork', () => {
   })
 
   it('keeps native artwork quiet while retaining wiki credits and missing-image diagnostics', () => {
-    const props = { catalogId: 'crystal-project-public-starter' }
+    const props = { catalogId: CURRENT_CATALOG.id }
     expect(hasExternalCatalogArtwork(props.catalogId, { id: 'base:job:0' as EntityId, kind: 'class', name: 'Warrior' })).toBe(false)
     expect(hasExternalCatalogArtwork(props.catalogId, { id: 'base:monster:ref-849' as EntityId, kind: 'monster', name: 'Slime' })).toBe(true)
     expect(hasExternalCatalogArtwork(props.catalogId, { id: 'synthetic:missing' as EntityId, kind: 'class', name: 'Missing' })).toBe(false)
@@ -25,7 +26,7 @@ describe('class standing artwork', () => {
   })
 
   it('preserves the full-body display size while using local native frames', () => {
-    const markup = renderToStaticMarkup(<ClassWorldArtwork catalogId="crystal-project-public-starter" detailed entity={{ id: 'base:job:0' as EntityId, kind: 'class', name: 'Warrior' }}/>)
+    const markup = renderToStaticMarkup(<ClassWorldArtwork catalogId={CURRENT_CATALOG.id} detailed entity={{ id: 'base:job:0' as EntityId, kind: 'class', name: 'Warrior' }}/>)
     expect(markup).toContain('data-artwork-source="native"')
     expect(markup).toContain('alt="Warrior game artwork"')
     expect(markup).toContain('width="100"')
@@ -34,7 +35,7 @@ describe('class standing artwork', () => {
   })
 
   it('keeps a placeholder for an unbound class instead of borrowing matching names', () => {
-    const markup = renderToStaticMarkup(<ClassWorldArtwork catalogId="crystal-project-public-starter" detailed entity={{ id: 'synthetic:warrior' as EntityId, kind: 'class', name: 'Warrior' }}/>)
+    const markup = renderToStaticMarkup(<ClassWorldArtwork catalogId={CURRENT_CATALOG.id} detailed entity={{ id: 'synthetic:warrior' as EntityId, kind: 'class', name: 'Warrior' }}/>)
     expect(markup).toContain('Warrior artwork placeholder')
     expect(markup).not.toContain('<img')
   })

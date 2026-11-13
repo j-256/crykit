@@ -7,7 +7,7 @@ import { syntheticModLayers } from '../domain/mod-layers.test-helpers'
 import { compactModCatalog } from '../domain/mod-layers'
 import type { LocalData } from '../domain/types'
 import { CryKitDatabase, setDatabaseForTests } from './database'
-import { exportBackup, loadLocalData, prepareModCatalogs, previewImport, undoLocalDataWithStatus } from './local-data'
+import { loadLocalData, prepareModCatalogs } from './local-data'
 
 const TABLES = { localDatas: 'id, revision, updatedAt', catalogs: 'key, id, revisionId, checksum', evidence: 'id, sourceDigest, group', sources: 'id, digest, format', history: 'id, localDataId, [localDataId+nextRevision]', imports: 'id, sourceDigest, localDataId', meta: 'key' }
 const names: string[] = []
@@ -46,23 +46,18 @@ afterEach(async () => {
   for (const name of names.splice(0)) await Dexie.delete(name)
 })
 
-describe('persisted behavior format migration', () => {
-  it('discards Build classifications from stored data and history while retaining archive visibility', async () => {
+describe('prelaunch planner format rejection', () => {
+  it('rejects classified Builds without rewriting data or undo history', async () => {
     const fixture = await classifiedDatabase()
     const database = new CryKitDatabase(fixture.name)
-    setDatabaseForTests(database)
-    const loaded = await loadLocalData()
-    expect(database.verno).toBe(7)
-    expect(loaded.localData).toEqual(fixture.after)
-    expect((await database.localDatas.get('local-data-record'))?.localData).toEqual(fixture.after)
-    const history = await database.history.get('history')
-    expect(history?.before).toEqual(fixture.before)
-    expect(history?.after).toEqual(fixture.after)
-    const undone = await undoLocalDataWithStatus(loaded.revision)
-    expect(undone.localData.builds.archived!.archived).toBe(false)
-    expect(undone.localData.builds.visible!.tags).toEqual(['template', 'sample'])
-    expect(undone.localData.buildRevisions).toEqual(fixture.before.buildRevisions)
+    await expect(database.open()).rejects.toThrow('Unsupported prelaunch')
     database.close()
+    const original = new Dexie(fixture.name)
+    await original.open()
+    expect(original.verno).toBe(3)
+    expect((await original.table('localDatas').get('local-data-record')).localData).toEqual(classified(fixture.after))
+    expect((await original.table('history').get('history')).before).toEqual(classified(fixture.before))
+    original.close()
   })
 
   it('keeps version 3 data intact if classification cleanup fails', async () => {
@@ -78,27 +73,22 @@ describe('persisted behavior format migration', () => {
     original.close()
   })
 
-  it('upgrades legacy data and undo history transactionally without changing pinned records', async () => {
+  it('rejects legacy data without changing pinned records or undo history', async () => {
     const fixture = await oldDatabase()
     const database = new CryKitDatabase(fixture.name)
-    setDatabaseForTests(database)
-    const loaded = await loadLocalData()
-    expect(database.verno).toBe(7)
-    expect(loaded.localData).toEqual(fixture.after)
-    expect(loaded.canUndo).toBe(true)
-    const history = await database.history.get('history')
-    expect(history?.before).toEqual(fixture.before)
-    expect(history?.after).toEqual(fixture.after)
-    const preview = await previewImport(await exportBackup(), 'migrated.zip')
-    expect(preview.proposed.localData.gameSetups).toEqual(fixture.after.gameSetups)
-    expect(preview.proposed.localData.playthroughs).toEqual(fixture.after.playthroughs)
-    const undone = await undoLocalDataWithStatus(loaded.revision)
-    expect(undone.localData.personalDefinitions).toEqual(fixture.before.personalDefinitions)
-    expect(undone.localData.gameSetups).toEqual(fixture.before.gameSetups)
+    await expect(database.open()).rejects.toThrow('Unsupported prelaunch')
     database.close()
+    const original = new Dexie(fixture.name)
+    await original.open()
+    expect(original.verno).toBe(1)
+    expect((await original.table('localDatas').get('local-data-record')).localData).toEqual(legacy(fixture.after))
+    const history = await original.table('history').get('history')
+    expect(history.before).toEqual(legacy(fixture.before))
+    expect(history.after).toEqual(legacy(fixture.after))
+    original.close()
   })
 
-  it('preserves compact imported mod catalogs and their exact composition pins during upgrade', async () => {
+  it('rejects old storage while preserving compact imported sources and exact composition pins', async () => {
     const fixture = await oldDatabase()
     const { catalogs, composition } = await syntheticModLayers()
     const data = addGameSetupRevision(fixture.after, { label: 'Synthetic layered behavior', modComposition: composition, catalogLock: { [composition.baseline.catalogId]: composition.baseline.catalogRevisionId }, slots: [], activate: false, now: TEST_NOW })
@@ -110,10 +100,12 @@ describe('persisted behavior format migration', () => {
     for (const catalog of prepared) await original.table('catalogs').put({ key: JSON.stringify([catalog.id, catalog.revisionId]), id: catalog.id, revisionId: catalog.revisionId, checksum: catalog.checksum, snapshot: compactModCatalog(catalog) })
     original.close()
     const database = new CryKitDatabase(fixture.name)
-    setDatabaseForTests(database)
-    const loaded = await loadLocalData()
-    expect(loaded.localData).toEqual(data)
-    expect(loaded.catalogs.find(catalog => catalog.revisionId.startsWith('mod-setup:'))?.entities).toEqual(prepared.find(catalog => catalog.revisionId.startsWith('mod-setup:'))?.entities)
+    await expect(database.open()).rejects.toThrow('Unsupported prelaunch')
+    await original.open()
+    expect((await original.table('localDatas').get('local-data-record')).localData).toEqual(legacy(data))
+    expect((await original.table('catalogs').toArray()).map(row => row.snapshot)).toEqual(expect.arrayContaining(prepared.map(compactModCatalog)))
+    expect(original.verno).toBe(1)
+    original.close()
     database.close()
   })
 
@@ -132,7 +124,7 @@ describe('persisted behavior format migration', () => {
     original.close()
   })
 
-  it.each([false, true])('migrates schema 2.3 roots and undo together, with rollback on bad history: %s', async badHistory => {
+  it.each([false, true])('rejects schema 2.3 roots and preserves history, invalid history: %s', async badHistory => {
     const name = `display-receipt-migration-${crypto.randomUUID()}`
     names.push(name)
     const before = addTestBuild(createTestLocalData(), 'migration-build', '', {})
@@ -144,26 +136,18 @@ describe('persisted behavior format migration', () => {
     await original.table('history').put({ id: 'history', localDataId: before.id, command: 'save', previousRevision: before.revision, nextRevision: after.revision, before: old(before), after: badHistory ? { ...old(after), builds: {} } : old(after), recordedAt: TEST_NOW })
     original.close()
     const database = new CryKitDatabase(name)
-    if (badHistory) {
-      await expect(database.open()).rejects.toThrow()
-      database.close()
-      const previous = new Dexie(name)
-      previous.version(5).stores(TABLES)
-      expect((await previous.table('localDatas').get('local-data-record')).localData).toEqual(old(after))
-      expect((await previous.table('history').get('history')).before).toEqual(old(before))
-      expect(previous.verno).toBe(5)
-      previous.close()
-    } else {
-      await database.open()
-      expect((await database.localDatas.get('local-data-record'))!.localData).toEqual(after)
-      const history = (await database.history.get('history'))!
-      expect(history.before).toEqual(before)
-      expect(history.after).toEqual(after)
-      database.close()
-    }
+    await expect(database.open()).rejects.toThrow('Unsupported prelaunch')
+    database.close()
+    const previous = new Dexie(name)
+    previous.version(5).stores(TABLES)
+    expect((await previous.table('localDatas').get('local-data-record')).localData).toEqual(old(after))
+    const history = await previous.table('history').get('history')
+    expect(history.before).toEqual(old(before))
+    expect(history.after).toEqual(badHistory ? { ...old(after), builds: {} } : old(after))
+    expect(previous.verno).toBe(5)
+    previous.close()
   })
 })
-
 
 it('keeps the per-handle journal requirement immutable across options edits and terminal close', async () => {
   const name = `format-requirement-${crypto.randomUUID()}`; names.push(name)
