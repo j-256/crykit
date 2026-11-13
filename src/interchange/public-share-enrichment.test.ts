@@ -12,8 +12,8 @@ import type { PublicSnapshot } from './public-share-schema'
 async function fixture() {
   const { catalogs, first } = await syntheticModLayers()
   const source = catalogs[1]!, entity = modModelEntity(source, 'crystal-edit:Jobs:0')!
-  const ref = { kind: 'catalog' as const, catalogId: catalogs[0]!.id, catalogRevisionId: `composition-v1:sha256:${'a'.repeat(64)}`, entityId: 'base:job:0' }
-  const snapshot: PublicSnapshot = { version: 5, kind: 'build', title: 'Shared', setup: { baseline: { catalogId: catalogs[0]!.id, catalogRevisionId: catalogs[0]!.revisionId }, layers: [{ catalogId: source.id, catalogRevisionId: source.revisionId, checksum: source.checksum, title: 'Layer A' }], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: ref, secondaryClass: null, equipment: [], equipmentGroups: [], passives: [] }], receipts: [{ ref, kind: 'class', name: entity.name, origin: { kind: 'catalog', projectId: source.id, sourceRevisionId: source.revisionId, catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId, modelKey: 'crystal-edit:Jobs:0' } }] }
+  const ref = { kind: 'catalog' as const, catalogId: catalogs[0]!.id, catalogRevisionId: `composition-v2:sha256:${'a'.repeat(64)}`, entityId: 'base:job:0' }
+  const snapshot: PublicSnapshot = { version: 6, dataGeneration: 'catalog-sources-1', kind: 'build', title: 'Shared', setup: { baseline: { catalogId: catalogs[0]!.id, catalogRevisionId: catalogs[0]!.revisionId }, layers: [{ catalogId: source.id, catalogRevisionId: source.revisionId, checksum: source.checksum, title: 'Layer A' }], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: ref, secondaryClass: null, equipment: [], equipmentGroups: [], passives: [] }], receipts: [{ ref, kind: 'class', name: entity.name, origin: { kind: 'catalog', projectId: source.id, sourceRevisionId: source.revisionId, catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId, modelKey: 'crystal-edit:Jobs:0' } }] }
   const localData = createTestLocalData()
   const archive = first.proposed.sources[0]!
   const original = { documentId: 'own-source', revisionId: 'own-revision', byteLength: archive.bytes.length, sha256: archive.digest, encoding: 'bytes' as const }
@@ -27,13 +27,13 @@ it('resolves an unknown kind only from the viewer-owned exact source without rew
   const { snapshot, viewer, entity } = await fixture()
   const unknown = { ...snapshot, receipts: snapshot.receipts.map(receipt => ({ ...receipt, kind: null })) }
   expect(enrichPublicSnapshot(unknown, viewer).entries[0]?.definition).toEqual(entity)
-  expect(enrichPublicSnapshot(unknown, { ...viewer, blobs: [] }).entries[0]?.definition).toBeUndefined()
+  expect(enrichPublicSnapshot(unknown, { ...viewer, blobs: [] }).entries[0]?.definition).toEqual(entity)
   expect(unknown.receipts[0]?.kind).toBeNull()
 })
 
 it('keeps unknown origins unresolved when only matching source files are present', async () => {
   const { snapshot, viewer } = await fixture()
-  const unknown = { ...snapshot, receipts: snapshot.receipts.map(receipt => ({ ...receipt, kind: null, origin: null })) }
+  const unknown = { ...snapshot, receipts: snapshot.receipts.map(receipt => ({ ...receipt, kind: null, origin: null, origins: undefined })) }
   const result = enrichPublicSnapshot(unknown, viewer)
   expect(result.entries[0]?.definition).toBeUndefined()
   expect(result.resolved).toBe(false)
@@ -60,15 +60,14 @@ describe('viewer-owned public enrichment', () => {
     expect(enrichPublicSnapshot(snapshot, withCatalogs(viewer, [wrong])).unresolvedCalculations).toBe(true)
     expect(enrichPublicSnapshot(snapshot, withCatalogs(viewer, [{ ...source, id: 'wrong-project' as never }])).unresolvedCalculations).toBe(true)
   })
-  it('preserves historical pins and reports changed parser projection explicitly', async () => {
+  it('preserves historical pins and refuses a different interpretation', async () => {
     const { snapshot, viewer, source } = await fixture()
     const historical = structuredClone(snapshot)
-    historical.setup.layers[0]!.catalogRevisionId = 'historical:library-v1'
-    historical.receipts[0]!.origin!.sourceRevisionId = 'historical:library-v1'
+    historical.setup.layers[0]!.catalogRevisionId = source.revisionId.replace(/-p1$/, '-p2')
+    historical.receipts[0]!.origin!.sourceRevisionId = source.revisionId.replace(/-p1$/, '-p2')
     const result = enrichPublicSnapshot(historical, viewer)
-    expect(result.entries[0]?.definition).toEqual(modModelEntity(source, 'crystal-edit:Jobs:0'))
-    expect(result.adaptedProjections).toHaveLength(1)
-    expect(historical.receipts[0]!.origin!.sourceRevisionId).toBe('historical:library-v1')
+    expect(result.entries[0]?.definition).toBeUndefined()
+    expect(historical.receipts[0]!.origin!.sourceRevisionId).toBe(source.revisionId.replace(/-p1$/, '-p2'))
   })
   it('personal display receipts remain unknown without exact viewer content', async () => {
     const { snapshot, viewer } = await fixture()
@@ -87,16 +86,16 @@ it('resolves native definitions only with exact baseline and receipt origin', as
   const ref = { kind: 'catalog' as const, catalogId: baseline.id, catalogRevisionId: baseline.revisionId, entityId: entity.id }
   const native: PublicSnapshot = { ...snapshot, setup: { ...snapshot.setup, layers: [] }, slots: [{ ...snapshot.slots[0]!, primaryClass: ref }], receipts: [{ ref, kind: entity.kind, name: entity.name, origin: { kind: 'catalog', projectId: baseline.id, sourceRevisionId: baseline.revisionId, catalogId: baseline.id, catalogRevisionId: baseline.revisionId } }] }
   expect(enrichPublicSnapshot(native, viewer).entries[0]?.definition).toEqual(entity)
-  expect(enrichPublicSnapshot({ ...native, setup: { ...native.setup, baseline: null } }, viewer).resolved).toBe(false)
-  expect(enrichPublicSnapshot({ ...native, receipts: [{ ...native.receipts[0]!, origin: { ...native.receipts[0]!.origin!, sourceRevisionId: 'other' } }] }, viewer).resolved).toBe(false)
+  expect(enrichPublicSnapshot({ ...native, setup: { ...native.setup, baseline: null } }, viewer).unresolvedCalculations).toBe(true)
+  expect(enrichPublicSnapshot({ ...native, receipts: [{ ...native.receipts[0]!, origin: { ...native.receipts[0]!.origin!, sourceRevisionId: 'v999' } }] }, viewer).resolved).toBe(false)
 })
 
 it('does not select between ambiguous matching parser projections by array order', async () => {
   const { snapshot, viewer, source } = await fixture()
   const historical = structuredClone(snapshot)
-  historical.setup.layers[0]!.catalogRevisionId = 'historical:library-v1'
-  historical.receipts[0]!.origin!.sourceRevisionId = 'historical:library-v1'
-  const ambiguous = withCatalogs(viewer, [source, { ...source, revisionId: 'different:library-v2' as never }])
+  historical.setup.layers[0]!.catalogRevisionId = source.revisionId.replace(/-p1$/, '-p2')
+  historical.receipts[0]!.origin!.sourceRevisionId = source.revisionId.replace(/-p1$/, '-p2')
+  const ambiguous = withCatalogs(viewer, [source, { ...source, revisionId: source.revisionId.replace(/-p1$/, '-p3') as never }])
   expect(enrichPublicSnapshot(historical, ambiguous).entries[0]?.definition).toBeUndefined()
   expect(enrichPublicSnapshot(historical, ambiguous).missingReceiptIds).toHaveLength(1)
 })
@@ -147,10 +146,11 @@ it('enriches artwork through the exact source pin without leaking entity-referen
   const ref = { kind: 'catalog' as const, ...pin, entityId: entity.id }
   const asset = { version: 1 as const, id: 'own-artwork', sourceKey: findArtworkBinding(own, pin, 'mod/Equipment/Own.png', 'mod.json'), relativePath: 'mod/Equipment/Own.png', original: { documentId: 'art', revisionId: 'art-version', byteLength: 1, sha256: 'a'.repeat(64), encoding: 'bytes' as const }, mediaType: 'image/png' as const, width: 240, height: 36 }
   const state = { ...own, assets: [asset] }
-  const snapshot: PublicSnapshot = { version: 5, kind: 'build', title: 'Own artwork', setup: { baseline: null, catalogLock: { [catalog.id]: catalog.revisionId }, layers: [{ ...pin, checksum: catalog.checksum, title: 'Own source' }], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [{ slotId: 'hand', ref }], equipmentGroups: [], passives: [] }], receipts: [{ ref, kind: 'item', name: entity.name, origin: { kind: 'catalog', projectId: catalog.id, sourceRevisionId: catalog.revisionId, ...pin, modelKey: 'crystal-edit:Equipment:9' } }] }
+  const snapshot: PublicSnapshot = { version: 6, dataGeneration: 'catalog-sources-1', kind: 'build', title: 'Own artwork', setup: { baseline: null, catalogLock: { [catalog.id]: catalog.revisionId }, layers: [{ ...pin, checksum: catalog.checksum, title: 'Own source' }], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [{ slotId: 'hand', ref }], equipmentGroups: [], passives: [] }], receipts: [{ ref, kind: 'item', name: entity.name, origin: { kind: 'catalog', projectId: catalog.id, sourceRevisionId: catalog.revisionId, ...pin, modelKey: 'crystal-edit:Equipment:9' } }] }
   expect(findPrivateArtwork(state, pin, entity)).toEqual(asset)
   expect(privateArtworkRegion(entity, asset)).toEqual({ x: 2, y: 2, width: 32, height: 32 })
   expect(enrichPublicSnapshot(snapshot, state).entries[0]?.artwork).toEqual(asset)
+  expect(enrichPublicSnapshot(snapshot, state).entries[0]?.artworkSource).toEqual({ ...pin, entity })
   expect(enrichPublicSnapshot(snapshot, { ...state, assets: [asset, { ...asset, id: 'ambiguous-artwork' }] }).entries[0]?.artwork).toBeUndefined()
   expect(enrichPublicSnapshot(snapshot, { ...state, assets: [{ ...asset, sourceKey: asset.sourceKey.replace(catalog.revisionId, 'wrong-source-revision') }] }).entries[0]?.artwork).toBeUndefined()
 })
@@ -211,16 +211,16 @@ async function previewCalculation(snapshot: PublicSnapshot, viewer: WorkspaceSta
 
 it('resolves unknown origins only within the exact captured composition and preserves its calculations', async () => {
   const { snapshot, viewer } = await calculationFixture()
-  const unknown = { ...snapshot, receipts: snapshot.receipts.map(receipt => ({ ...receipt, kind: null, origin: null })) }
+  const unknown = { ...snapshot, receipts: snapshot.receipts.map(receipt => ({ ...receipt, kind: null, origin: null, origins: undefined })) }
   const result = enrichPublicSnapshot(unknown, viewer)
   expect(result.resolved).toBe(true)
   expect(result.unresolvedCalculations).toBe(false)
   expect((await previewCalculation(unknown, viewer)).stats.neutral.HP).toBe(1344)
-  const historical = JSON.parse(JSON.stringify(unknown).replaceAll(snapshot.receipts[0]!.ref.kind === 'catalog' ? snapshot.receipts[0]!.ref.catalogRevisionId : 'unreachable', `composition-v1:sha256:${'b'.repeat(64)}`)) as PublicSnapshot
+  const historical = JSON.parse(JSON.stringify(unknown).replaceAll(snapshot.receipts[0]!.ref.kind === 'catalog' ? snapshot.receipts[0]!.ref.catalogRevisionId : 'unreachable', `composition-v2:sha256:${'b'.repeat(64)}`)) as PublicSnapshot
   historical.setup = snapshot.setup
   expect(enrichPublicSnapshot(historical, viewer).entries[0]?.definition).toBeUndefined()
   expect(enrichPublicSnapshot(historical, viewer).unresolvedCalculations).toBe(true)
-  expect(enrichPublicSnapshot(unknown, { ...viewer, blobs: [] }).resolved).toBe(false)
+  expect(enrichPublicSnapshot(unknown, { ...viewer, blobs: [] }).resolved).toBe(true)
 })
 
 it('resolves unchanged native equipment inside the exact owned composition without an origin receipt', async () => {
@@ -262,9 +262,9 @@ it('keeps calculations unknown when matching files lack the exact captured priva
   expect(result.stats.issues.length).toBeGreaterThan(0)
 })
 
-it.each(['missing-bytes', 'changed-source', 'other-project'] as const)('cannot borrow transitive mechanics from %s despite a captured composition', async availability => {
+it.each(['missing-body', 'changed-source', 'other-project'] as const)('cannot borrow transitive mechanics from %s despite a captured composition', async availability => {
   const { snapshot, viewer, source } = await calculationFixture()
-  const recipient = availability === 'missing-bytes' ? { ...viewer, blobs: [] } : withCatalogs(viewer, viewer.planner.catalogs.map(catalog => catalog !== source ? catalog : availability === 'changed-source' ? { ...catalog, revisionId: 'changed-source' as never, checksum: `sha256:${'b'.repeat(64)}` } : { ...catalog, id: 'other-project' as never }))
+  const recipient = availability === 'missing-body' ? withCatalogs(viewer, viewer.planner.catalogs.filter(catalog => catalog !== source)) : withCatalogs(viewer, viewer.planner.catalogs.map(catalog => catalog !== source ? catalog : availability === 'changed-source' ? { ...catalog, revisionId: 'changed-source' as never, checksum: `sha256:${'b'.repeat(64)}` } : { ...catalog, id: 'other-project' as never }))
   expect(enrichPublicSnapshot(snapshot, recipient).unresolvedCalculations).toBe(true)
   expect((await previewCalculation(snapshot, recipient)).stats.neutral.HP).toBeNull()
 })
@@ -290,11 +290,11 @@ it('keeps colliding added passive, ability, and status IDs in the captured proje
 
 it('requires the exact owned disabled layers that reserve captured composition identities', async () => {
   const { snapshot, viewer, setup } = await calculationFixture({ otherLayer: 'disabled' })
-  expect(snapshot.setup.layers).toHaveLength(1)
+  expect(snapshot.setup.layers.map(layer => layer.enabled)).toEqual([true, false])
   expect((await previewCalculation(snapshot, viewer)).stats.neutral.HP).toBe(1344)
   const disabled = setup.modComposition!.layers.find(layer => !layer.enabled)!
   const recipient = withCatalogs(viewer, viewer.planner.catalogs.filter(catalog => catalog.id !== disabled.catalogId))
-  expect(enrichPublicSnapshot(snapshot, recipient).resolved).toBe(true)
+  expect(enrichPublicSnapshot(snapshot, recipient).resolved).toBe(false)
   expect(enrichPublicSnapshot(snapshot, recipient).unresolvedCalculations).toBe(true)
   expect((await previewCalculation(snapshot, recipient)).stats.neutral.HP).toBeNull()
 })
@@ -304,7 +304,7 @@ it('keeps retained raw-source selections inert before rebinding the active compo
   const receipt = snapshot.receipts.find(receipt => receipt.kind === 'class')!
   const raw = { kind: 'catalog' as const, catalogId: source.id, catalogRevisionId: source.revisionId, entityId: modModelEntity(source, 'crystal-edit:Jobs:0')!.id }
   const retained = JSON.parse(JSON.stringify(snapshot).replaceAll(JSON.stringify(receipt.ref), JSON.stringify(raw))) as PublicSnapshot
-  const inactive = { ...retained, receipts: retained.receipts.map(receipt => receipt.kind === 'class' ? { ...receipt, origin: { ...receipt.origin!, catalogId: raw.catalogId, catalogRevisionId: raw.catalogRevisionId } } : receipt) }
+  const inactive = { ...retained, receipts: retained.receipts.map(receipt => receipt.kind === 'class' ? { ...receipt, origin: { ...receipt.origin!, kind: 'catalog' as const, catalogId: raw.catalogId, catalogRevisionId: raw.catalogRevisionId } } : receipt) }
   const result = await previewCalculation(inactive, viewer), content = result.preview.revisions[0]!.content
   expect(content.primaryClass).toEqual(raw)
   expect(content.retainedSelections?.refs).toContainEqual(raw)
@@ -318,4 +318,13 @@ it('rejects a viewer composition with the same sources but different authored li
   expect(enrichPublicSnapshot(snapshot, recipient).resolved).toBe(true)
   expect(enrichPublicSnapshot(snapshot, recipient).unresolvedCalculations).toBe(true)
   expect((await previewCalculation(snapshot, recipient)).stats.neutral.HP).toBeNull()
+})
+
+it('rejects a contributor claim that disagrees with the exact captured composition', async () => {
+  const { snapshot, viewer } = await calculationFixture()
+  const forged = structuredClone(snapshot), receipt = forged.receipts.find(value => value.kind === 'class')!
+  const baseline = snapshot.setup.baseline!
+  receipt.origins = { mechanical: { kind: 'catalog', ...baseline, entityId: 'base:job:0' }, text: { kind: 'catalog', ...baseline, entityId: 'base:job:0' } }
+  receipt.origin = { kind: 'catalog', projectId: baseline.catalogId, sourceRevisionId: baseline.catalogRevisionId, catalogId: receipt.ref.kind === 'catalog' ? receipt.ref.catalogId : '', catalogRevisionId: receipt.ref.kind === 'catalog' ? receipt.ref.catalogRevisionId : '' }
+  expect(enrichPublicSnapshot(forged, viewer).entries.find(entry => entry.receipt.kind === 'class')?.definition).toBeUndefined()
 })

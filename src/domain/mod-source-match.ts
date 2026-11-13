@@ -10,7 +10,3 @@ export function modSourceMatch(receipt: ModSourceReceipt, catalog: CatalogSnapsh
   if (receipt.contentFingerprint && (!jsonRecord(fulfilled.legacy) || receipt.contentFingerprint !== fulfilled.legacy.contentFingerprint)) return undefined
   return 'payload'
 }
-
-export function modSourceInterpretationMatches(receipt: ModSourceReceipt, catalog: CatalogSnapshot): boolean {
-  return Boolean(modSourceMatch(receipt, catalog))
-}

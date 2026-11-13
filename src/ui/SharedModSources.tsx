@@ -3,7 +3,7 @@ import { jsonRecord } from '../domain/crystal-edit'
 import { entityDefinitionKey } from '../domain/core'
 import { buildModReferences } from '../domain/build-references'
 import { modCatalogRevision } from '../domain/mod-layers'
-import { modSourceInterpretationMatches, modSourceMatch } from '../domain/mod-source-match'
+import { modSourceMatch } from '../domain/mod-source-match'
 import type { BuildReferenceName, CatalogSnapshot, LocalData, ModSourceReceipt } from '../domain/types'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
 import type { ImportPreview } from '../interchange/types'
@@ -43,7 +43,7 @@ export function SharedModSources({ localData, catalogs, importNotice, onImport, 
     {receipts.map(receipt => {
       const matching = catalogs.filter(catalog => modSourceMatch(receipt, catalog))
       const source = matching.find(catalog => catalog.revisionId === receipt.catalogRevisionId) ?? matching[0]
-      const exact = source?.revisionId === receipt.catalogRevisionId
+      const exact = source?.id === receipt.catalogId && source.revisionId === receipt.catalogRevisionId
       const options = source ? buildDefinitionOptions(localData, [source]) : []
       const identities = source && jsonRecord(source.legacy) && jsonRecord(source.legacy.crystalEditIdentities) ? source.legacy.crystalEditIdentities : {}
       // Composed selections keep their setup pin, not the imported source pin
@@ -57,7 +57,7 @@ export function SharedModSources({ localData, catalogs, importNotice, onImport, 
       }).map(entry => [entityDefinitionKey(entry.ref), entry])).values()]
       return <div className="stack" key={JSON.stringify([receipt.catalogId, receipt.catalogRevisionId])}>
         <h3>{receipt.title}</h3>
-        <p>{source ? exact ? 'The saved source revision is available.' : modSourceInterpretationMatches(receipt, source) ? 'Matching content is available in another file revision.' : 'Matching JSON is saved. The original checkpoint uses an older interpretation. See the recovery status for whether these definitions have been applied.' : 'Upload the matching source to restore any unavailable facts this mod changes.'}</p>
+        <p>{source ? 'The exact source and interpretation are available.' : 'Upload the matching source to restore any unavailable facts this mod changes.'}</p>
         <Field label={`Matching JSON for ${receipt.title}`}><input accept=".json,application/json" data-draft-exempt="true" disabled={busy} onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ''; if (file) void importFile(receipt, file) }} type="file"/></Field>
         <details><summary>Source identity</summary><dl className="definition-list"><div><dt>Project</dt><dd>{receipt.catalogId}</dd></div><div><dt>Saved revision</dt><dd>{receipt.catalogRevisionId}</dd></div>{receipt.contentFingerprint && <div><dt>Content fingerprint</dt><dd>{receipt.contentFingerprint}</dd></div>}</dl></details>
         {onArtwork && exact && entries.map(entry => {

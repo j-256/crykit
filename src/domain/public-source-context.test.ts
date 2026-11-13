@@ -1,8 +1,9 @@
+import { syntheticCatalog } from '../workspace/test-helpers'
 import { expect, it } from 'vitest'
 import { createTestLocalData } from './test-helpers'
 import type { WorkspaceState } from '../workspace/documents'
 import { validatePublicSnapshot, type PublicSnapshot } from '../interchange/public-share-schema'
-import { PublicCheckpointContextSchema, PublicCheckpointContextV1Schema } from '../interchange/public-source-context-schema'
+import { PublicCheckpointContextSchema } from '../interchange/public-source-context-schema'
 import { preparePublicSnapshotCopy, publicReadOnlyPreview } from '../interchange/public-share-enrichment'
 import { validateNativeLocalDataGraph } from '../interchange/native'
 import { saveBuildRevision } from './builds'
@@ -14,8 +15,8 @@ import { upgradeBundledReferences } from './bundled-reference-upgrade'
 function fixture(unknownCatalogMetadata = false) {
   const localData = createTestLocalData()
   const state: WorkspaceState = { planner: { localData, catalogs: [], lineage: { rootLocalDataId: localData.id }, sources: [], evidence: [], history: [] }, assets: [], blobs: [], editorDocuments: [], saveDocuments: [], conflicts: [], retainedContent: [], libraryDefaults: { version: 1, layers: [] } }
-  const ref = { kind: 'catalog' as const, catalogId: 'missing-base', catalogRevisionId: 'historical-base', entityId: 'base:item:0' }
-  const knownSnapshot: PublicSnapshot = { version: 5, kind: 'build', title: 'Missing selection', setup: { baseline: { catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId }, catalogLock: { [ref.catalogId]: ref.catalogRevisionId }, layers: [], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [{ slotId: 'removed-slot', ref }], equipmentGroups: [], passives: [] }], receipts: [{ ref, kind: 'item', name: 'Historical item', origin: { kind: 'catalog', projectId: ref.catalogId, sourceRevisionId: ref.catalogRevisionId, catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId } }] }
+  const ref = { kind: 'catalog' as const, catalogId: syntheticCatalog('missing').id, catalogRevisionId: syntheticCatalog('missing').revisionId, entityId: 'base:item:0' }
+  const knownSnapshot: PublicSnapshot = { version: 6, dataGeneration: 'catalog-sources-1', kind: 'build', title: 'Missing selection', setup: { baseline: { catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId }, catalogLock: { [ref.catalogId]: ref.catalogRevisionId }, layers: [], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [{ slotId: 'removed-slot', ref }], equipmentGroups: [], passives: [] }], receipts: [{ ref, kind: 'item', name: 'Historical item', origin: { kind: 'catalog', projectId: ref.catalogId, sourceRevisionId: ref.catalogRevisionId, catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId } }] }
   const snapshot = unknownCatalogMetadata ? validatePublicSnapshot({ ...knownSnapshot, receipts: knownSnapshot.receipts.map(receipt => ({ ...receipt, kind: null, origin: null })) }) : knownSnapshot
   const prepared = preparePublicSnapshotCopy(state, snapshot), data = prepared.state.planner.localData
   const revision = data.buildRevisions[data.builds[prepared.result.buildId!]!.latestRevisionId!]!
@@ -23,7 +24,7 @@ function fixture(unknownCatalogMetadata = false) {
 }
 it('unknown catalog metadata stays explicit through copied context and note-only re-sharing', () => {
   const { data, revision, setup, snapshot } = fixture(true)
-  expect(revision.publicSourceContext?.version).toBe(2)
+  expect(revision.publicSourceContext?.version).toBe(3)
   expect(revision.publicSourceContext?.receipts).toEqual(snapshot.receipts)
   expect(revision.content.equipment['removed-slot']?.ref).toEqual(snapshot.receipts[0]!.ref)
   expect(revision.content.referenceNames).toEqual([{ ref: snapshot.receipts[0]!.ref, name: 'Historical item' }])
@@ -40,20 +41,15 @@ it('unknown catalog metadata stays explicit through copied context and note-only
   expect(shared.notes?.slots[0]).toMatchObject({ rotationNotes: 'Own note with unknown catalog mechanics', checkpoint: 'Own checkpoint' })
 })
 
-it('keeps persisted context v1 concrete while admitting nullable catalog metadata only in v2', () => {
-  const { data, revision } = fixture()
-  expect(revision.publicSourceContext?.version).toBe(1)
+it('rejects prelaunch copied contexts while retaining nullable launch receipts', () => {
+  const { revision } = fixture()
   const concrete = revision.publicSourceContext!
+  expect(concrete.version).toBe(3)
   expect(PublicCheckpointContextSchema.parse(concrete)).toEqual(concrete)
-  expect(PublicCheckpointContextV1Schema.parse(concrete)).toEqual(concrete)
-  expect(PublicCheckpointContextV1Schema.safeParse({ ...concrete, version: 2 }).success).toBe(false)
-  expect(PublicCheckpointContextSchema.parse({ ...concrete, version: 2 })).toEqual({ ...concrete, version: 2 })
+  for (const version of [1, 2]) expect(PublicCheckpointContextSchema.safeParse({ ...concrete, version }).success).toBe(false)
   for (const metadata of [{ kind: null }, { origin: null }, { kind: null, origin: null }]) {
     const receipts = concrete.receipts.map(receipt => ({ ...receipt, ...metadata }))
-    expect(PublicCheckpointContextSchema.safeParse({ ...concrete, receipts }).success).toBe(false)
-    expect(PublicCheckpointContextV1Schema.safeParse({ ...concrete, version: 2, receipts }).success).toBe(false)
-    expect(NativeLocalDataSchema.safeParse({ ...data, buildRevisions: { ...data.buildRevisions, [revision.id]: { ...revision, publicSourceContext: { ...concrete, receipts } } } }).success).toBe(false)
-    expect(PublicCheckpointContextSchema.safeParse({ ...concrete, version: 2, receipts }).success).toBe(true)
+    expect(PublicCheckpointContextSchema.safeParse({ ...concrete, receipts }).success).toBe(true)
   }
 })
 
@@ -64,7 +60,7 @@ it('requires concrete personal metadata even in a context that allows unknown ca
   for (const metadata of [{ kind: null }, { origin: null }, { kind: null, origin: null }]) {
     const receipts = [{ ...receipt, ...metadata }]
     expect(() => validatePublicSnapshot({ ...snapshot, slots: [{ ...snapshot.slots[0]!, equipment: [{ slotId: 'removed-slot', ref }] }], receipts })).toThrow()
-    expect(PublicCheckpointContextSchema.safeParse({ ...revision.publicSourceContext!, version: 2, receipts }).success).toBe(false)
+    expect(PublicCheckpointContextSchema.safeParse({ ...revision.publicSourceContext!, version: 3, receipts }).success).toBe(false)
   }
 })
 
@@ -84,12 +80,12 @@ it('denies foreign setup allowance, active planning, forged context and present 
   expect(() => validateNativeLocalDataGraph({ ...data, planningGameSetupRevisionId: setup.id }, [])).toThrow(/Playthrough/)
   const forged = { ...revision, publicSourceContext: { ...revision.publicSourceContext!, setupDigest: '0'.repeat(64) } }
   expect(() => validateNativeLocalDataGraph({ ...data, buildRevisions: { ...data.buildRevisions, [revision.id]: forged } }, [])).toThrow(/exact setup/)
-  const catalog = { id: 'missing-base' as never, revisionId: 'historical-base' as never, schemaVersion: 'test', checksum: 'synthetic-complete', importedAt: setup.createdAt, applicability: { state: 'unknown' as const }, rights: { state: 'unknown' as const }, entities: {}, claims: [] }
+  const catalog = syntheticCatalog('missing')
   expect(() => validateNativeLocalDataGraph(data, [catalog])).toThrow('A reference points to a missing catalog entity')
 })
 it('public receipt identity survives typed bundled reference upgrades', () => {
   const { data, revision, setup, snapshot } = fixture()
-  const after = upgradeBundledReferences(data, { id: 'missing-base' as never, revisionId: 'historical-base' as never }, new Map([['base:item:0', 'replacement' as never]]))
+  const after = upgradeBundledReferences(data, { id: syntheticCatalog('missing').id, revisionId: syntheticCatalog('missing').revisionId }, new Map([['base:item:0', 'replacement' as never]]))
   expect(after.buildRevisions[revision.id]).toEqual(revision)
   expect(publicSnapshotFromCheckpoint(setup, revision, snapshot.title).setup).toEqual(snapshot.setup)
 })
@@ -155,21 +151,20 @@ it('does not let an ordinary historical setup borrow another copied setup missin
   expect(() => resolvedDomainClosureKeys(forged, new Map([[forged.key, forged]]))).toThrow(/missing catalog/)
 })
 
-for (const kind of ['build', 'team'] as const) for (const availability of ['missing-entity', 'present-entity', 'absent-source', 'partial-withdrawn'] as const) {
+for (const kind of ['build', 'team'] as const) for (const availability of ['missing-entity', 'present-entity', 'absent-source'] as const) {
   it(`checks ${kind} isolated copied archive membership with ${availability}`, async () => {
     const { createBlankLocalData } = await import('./local-data')
-    const { HISTORICAL_BUNDLED_CATALOG } = await import('./withdrawn-catalogs')
     const { privateRecordKey } = await import('../workspace/documents')
     const { memoryBlob, hashBlob } = await import('../workspace/blobs')
     const { inspectWorkspaceClosure, validateWorkspaceClosure } = await import('../workspace/closure')
     const localData = createBlankLocalData()
     const before: WorkspaceState = { planner: { localData, catalogs: [], lineage: { rootLocalDataId: localData.id }, sources: [], evidence: [], history: [] }, assets: [], blobs: [], editorDocuments: [], saveDocuments: [], conflicts: [], retainedContent: [], libraryDefaults: { version: 1, layers: [] } }
-    const ref = { kind: 'catalog' as const, catalogId: 'present-source', catalogRevisionId: 'exact-revision', entityId: 'selected-entity' }
+    const ref = { kind: 'catalog' as const, catalogId: syntheticCatalog('present').id, catalogRevisionId: syntheticCatalog('present').revisionId, entityId: 'selected-entity' }
     const loadout = { primaryClass: null, secondaryClass: null, equipment: [{ slotId: 'hand', ref }], equipmentGroups: [], passives: [] }
-    const snapshot: PublicSnapshot = { version: 5, kind, title: 'Isolated copy', setup: { baseline: { catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId }, catalogLock: { [ref.catalogId]: ref.catalogRevisionId }, layers: [], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [{ id: 'hand', label: 'Hand' }] }, slots: kind === 'build' ? [loadout] : [null, loadout, null, null], receipts: [{ ref, kind: 'item', name: 'Selected item', origin: { kind: 'catalog', projectId: ref.catalogId, sourceRevisionId: ref.catalogRevisionId, catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId } }] }
+    const snapshot: PublicSnapshot = { version: 6, dataGeneration: 'catalog-sources-1', kind, title: 'Isolated copy', setup: { baseline: { catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId }, catalogLock: { [ref.catalogId]: ref.catalogRevisionId }, layers: [], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [{ id: 'hand', label: 'Hand' }] }, slots: kind === 'build' ? [loadout] : [null, loadout, null, null], receipts: [{ ref, kind: 'item', name: 'Selected item', origin: { kind: 'catalog', projectId: ref.catalogId, sourceRevisionId: ref.catalogRevisionId, catalogId: ref.catalogId, catalogRevisionId: ref.catalogRevisionId } }] }
     const prepared = preparePublicSnapshotCopy(before, snapshot), data = prepared.state.planner.localData
     const checkpoint = kind === 'build' ? Object.values(data.buildRevisions)[0]! : Object.values(data.teamRevisions)[0]!
-    const catalog: import('./types').CatalogSnapshot = { id: ref.catalogId as never, revisionId: ref.catalogRevisionId as never, schemaVersion: availability === 'partial-withdrawn' ? 'game-setup-mod-catalog-1' : 'test', checksum: 'synthetic-complete', importedAt: localData.updatedAt, applicability: { state: 'unknown' }, rights: { state: 'unknown' }, entities: availability === 'present-entity' ? { [ref.entityId]: { id: ref.entityId as never, name: 'Selected item', kind: 'item', aliases: [], fields: {}, sources: [] } } : {}, claims: [], ...(availability === 'partial-withdrawn' ? { legacy: { modBaseline: { catalogId: HISTORICAL_BUNDLED_CATALOG.id, catalogRevisionId: HISTORICAL_BUNDLED_CATALOG.revisionId }, crystalEditIdentities: {} } } : {}) }
+    const catalog = syntheticCatalog('present', undefined, availability === 'present-entity' ? { [ref.entityId]: { id: ref.entityId as never, name: 'Selected item', kind: 'item', aliases: [], fields: {}, sources: [] } } : {})
     const catalogs = availability === 'absent-source' ? [] : [catalog]
     if (availability === 'missing-entity') expect(() => validateNativeLocalDataGraph(data, catalogs)).toThrow('A reference points to a missing catalog entity')
     else expect(() => validateNativeLocalDataGraph(data, catalogs)).not.toThrow()

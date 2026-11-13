@@ -21,8 +21,8 @@ async function fixture() {
   const content = buildContentForModSetup({ primaryClass: { kind: 'catalog' as const, catalogId: source.id, catalogRevisionId: source.revisionId, entityId: Object.values(source.entities).find(entity => entity.kind === 'class')!.id }, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: ['Keep draft assumption'], rotationNotes: 'Keep draft rotation' }, setup, catalogs)
   data = saveBuildRevision(data, { buildId, gameSetupRevisionId: setup.id, content })
   data = { ...data, gameSetups: { ...data.gameSetups, [setup.id]: { ...setup, modSourceReceipts: modSourceReceipts(setup, catalogs) } } }
-  // Historical persisted drafts retain the parser and withdrawn baseline pins until recovery
-  const original = JSON.parse(JSON.stringify(data).replaceAll('library-v4', 'library-v2').replaceAll('catalog-v3', 'catalog-v1')) as typeof data
+  // A detached draft keeps the exact source pins captured by its saved checkpoint
+  const original = structuredClone(data) as typeof data
   const revision = original.buildRevisions[original.builds[buildId]!.latestRevisionId!]!
   // An editor draft has a new setup identity while its references retain the saved origin pin
   const draftSetup = { ...original.gameSetups[revision.gameSetupRevisionId]!, id: createId<GameSetupRevisionId>('draftBehavior') }
@@ -30,7 +30,7 @@ async function fixture() {
 }
 
 describe('draft mod definition recovery', () => {
-  it.each([false, true])('rebinds an older interpretation without changing saved data or notes with an explicit empty retained selection field: %s', async explicitEmpty => {
+  it.each([false, true])('rebinds a detached draft composition without changing saved data or notes with an explicit empty retained selection field: %s', async explicitEmpty => {
     const { original, content, draftSetup, catalogs } = await fixture()
     const before = JSON.stringify(original)
     const recovery = prepareBuildModRecovery(explicitEmpty ? { ...content, retainedSelections: undefined } : content, draftSetup, original, catalogs)

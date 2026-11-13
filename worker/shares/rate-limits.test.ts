@@ -10,7 +10,7 @@ const minute = 60_000
 const day = 24 * 60 * minute
 const networkBudget = 60
 const serviceBudget = 1_200
-const snapshot: PublicSnapshot = { version: 5, kind: 'build', title: 'Public read budget', setup: { catalogLock: { 'exact-public-baseline': 'historical-source-v1' }, baseline: null, layers: [], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [], equipmentGroups: [], passives: [] }], receipts: [] }
+const snapshot: PublicSnapshot = { version: 6, dataGeneration: 'catalog-sources-1', kind: 'build', title: 'Public read budget', setup: { catalogLock: { 'crystal-project/guide/synthetic-baseline': 'v1' }, baseline: null, layers: [], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [], equipmentGroups: [], passives: [] }], receipts: [] }
 
 async function setup() {
   const f = await fixture(), owner = await customer(f)

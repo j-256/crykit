@@ -1,5 +1,5 @@
 import { OpaqueIdSchema } from '../../account/protocol'
-import { PUBLIC_SHARE_LIMITS, PUBLIC_SHARE_ROUTE_PREFIX } from '../../interchange/public-share-schema'
+import { PUBLIC_SHARE_LIMITS, PUBLIC_SHARE_ROUTE_PREFIX, PUBLIC_SHARE_VERSION } from '../../interchange/public-share-schema'
 import { type EntityRouteNameResolver, bundledEntityRouteName } from '../entity-route-names'
 import { type AppRoute, type PageRoute, BUILDS_ROUTE } from './types.ts'
 import { unresolved, parsePage, recoveryFor, formatPage } from './pages.ts'
@@ -18,7 +18,7 @@ export function parseAppRoute(hash: string): AppRoute {
     const [rawPath, rawQuery = ''] = hash.slice(1).split('?', 2)
     const segments = rawPath.split('/').filter(Boolean)
     const encoded = segments[2] ?? ''
-    const page: PageRoute = { page: 'share', encoded, version: 5 }
+    const page: PageRoute = { page: 'share', encoded, version: PUBLIC_SHARE_VERSION }
     const params = new URLSearchParams(rawQuery)
     const overlays = parseOverlays(segments, 3, params)
     return /^[A-Za-z0-9_-]+$/.test(encoded) && overlays && overlaysSupported(page, overlays)

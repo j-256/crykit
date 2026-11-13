@@ -200,7 +200,7 @@ it('restoreCannotResurrectRevokedAccess', async () => {
   await initializeRevocationLedger(c)
   const customerOwner = await customer(admin.f, 'restore')
   const publicSnapshot = {
-    version: 5,
+    version: 6, dataGeneration: 'catalog-sources-1',
     kind: 'build',
     title: 'Public recovery snapshot',
     setup: {

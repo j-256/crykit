@@ -31,8 +31,8 @@ export async function editorClosureFixture() {
 }
 
 // Small complete sources keep storage contract fixtures independent of the packaged collection
-export function syntheticCatalog(label: string, legacy?: Record<string, string>): CatalogSnapshot {
+export function syntheticCatalog(label: string, legacy?: Record<string, string>, entities: CatalogSnapshot['entities'] = {}): CatalogSnapshot {
   const digest = checkpointContentDigest(label)
-  const content = { id: `crystal-project/imported/research1-${digest}` as CatalogSnapshot['id'], revisionId: `j1-${digest}-p1` as CatalogSnapshot['revisionId'], schemaVersion: 'synthetic', importedAt: '2026-01-01T00:00:00.000Z' as CatalogSnapshot['importedAt'], applicability: { state: 'unknown' as const }, rights: { state: 'unknown' as const }, entities: {}, claims: [], ...(legacy ? { legacy } : {}) }
+  const content = { id: `crystal-project/imported/research1-${digest}` as CatalogSnapshot['id'], revisionId: `j1-${digest}-p1` as CatalogSnapshot['revisionId'], schemaVersion: 'synthetic', importedAt: '2026-01-01T00:00:00.000Z' as CatalogSnapshot['importedAt'], applicability: { state: 'unknown' as const }, rights: { state: 'unknown' as const }, entities, claims: [], ...(legacy ? { legacy } : {}) }
   return { ...content, checksum: `payload:sha256:${checkpointContentDigest(content)}` }
 }

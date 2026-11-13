@@ -437,12 +437,12 @@ test('a failed v5 copy rolls back and retries without changing the original reco
   expect(repeated.buildRevisions[checkpoint.id]).toEqual(checkpoint)
 })
 
-test('rejects malformed v5 snapshots without writing', async ({ page }) => {
+test('rejects malformed launch snapshots without writing', async ({ page }) => {
   await page.goto('/')
   await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const original = await storedData(page)
-  await page.goto('/#/share/v5/AAA')
+  await page.goto('/#/share/v6/AAA')
   await expect(page.getByText('Shared snapshot unavailable', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Save a copy', exact: true })).toHaveCount(0)
   expect(await storedData(page)).toEqual(original)

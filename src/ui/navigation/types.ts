@@ -1,3 +1,4 @@
+import type { PUBLIC_SHARE_VERSION } from '../../interchange/public-share-schema'
 import { type InventoryPositionId, type CharacterId, type CharacterSnapshotId, type EntityRef, type BuildId, type BuildRevisionId, type ScenarioId, type TeamId, type ProgressRecordId } from '../../domain/types'
 
 export type Destination = 'inventory' | 'characters' | 'builds' | 'teams' | 'progress' | 'reference' | 'mods' | 'map' | 'save-editor'
@@ -76,7 +77,7 @@ export interface UnresolvedPageRoute {
   readonly recovery: Destination
 }
 
-export type PageRoute = InventoryPageRoute | CharactersPageRoute | BuildsPageRoute | TeamsPageRoute | ProgressPageRoute | ReferencePageRoute | SettingsPageRoute | UnresolvedPageRoute | { readonly page: 'hosted-share'; readonly shareId: string } | { readonly page: 'share'; readonly encoded: string; readonly version: 5 } | { readonly page: 'mods'; readonly view: 'library' | 'editor' } | { readonly page: 'map' } | { readonly page: 'save-editor' }
+export type PageRoute = InventoryPageRoute | CharactersPageRoute | BuildsPageRoute | TeamsPageRoute | ProgressPageRoute | ReferencePageRoute | SettingsPageRoute | UnresolvedPageRoute | { readonly page: 'hosted-share'; readonly shareId: string } | { readonly page: 'share'; readonly encoded: string; readonly version: typeof PUBLIC_SHARE_VERSION } | { readonly page: 'mods'; readonly view: 'library' | 'editor' } | { readonly page: 'map' } | { readonly page: 'save-editor' }
 
 export interface SearchOverlay {
   readonly kind: 'search'

@@ -683,7 +683,7 @@ it('keeps a stopped public pointer unavailable after an older snapshot restore',
     owner = await customer(f)
   await initializeRevocationLedger(c)
   const publicSnapshot = {
-    version: 5,
+    version: 6, dataGeneration: 'catalog-sources-1',
     kind: 'build',
     title: 'Recovery share',
     setup: {

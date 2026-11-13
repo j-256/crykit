@@ -1,16 +1,21 @@
-import { act } from 'react'
+import { NavigationProvider, useNavigationController } from './navigation'
+import { act, type ComponentProps } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, expect, it, vi } from 'vitest'
 import { addTestBuild, addTestDefinition, createTestLocalData, personalRef } from '../domain/test-helpers'
 import type { WorkspaceState } from '../workspace/documents'
 import { createPublicSnapshot, encodePublicSnapshot } from '../interchange/public-share'
-import { CopiedPublicCheckpointView, PublicSharedView, HostedSharedView } from './PublicSharedView'
+import { CopiedPublicCheckpointView, PublicSharedView as SharedView, HostedSharedView } from './PublicSharedView'
 import { clearServiceNotice } from '../account/service-notice'
 import { preparePublicSnapshotCopy } from '../interchange/public-share-enrichment'
 import { editCopiedCheckpoint } from '../interchange/public-checkpoint-edit'
 import { createSampleLocalData } from '../domain/sample-data'
 import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
 import { publicRefKey } from '../interchange/public-share-schema'
+function PublicSharedView(props: ComponentProps<typeof SharedView>) {
+  const controller = useNavigationController()
+  return <NavigationProvider controller={controller}><SharedView {...props}/></NavigationProvider>
+}
 const context = vi.hoisted(() => ({ current: undefined as unknown }))
 vi.mock('./WorkspaceProvider', () => ({ useOptionalWorkspace: () => context.current }))
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
@@ -193,7 +198,7 @@ it('requires a completed library read before import and offers recovery after a 
   const { state, encoded } = fixture()
   const { decodePublicSnapshot } = await import('../interchange/public-share')
   const original = decodePublicSnapshot(encoded)
-  const shared = encodePublicSnapshot({ ...original, setup: { ...original.setup, layers: [{ catalogId: 'own-project', catalogRevisionId: 'exact-source', title: 'Required file' }] } })
+  const shared = encodePublicSnapshot({ ...original, setup: { ...original.setup, layers: [{ catalogId: 'crystal-project/mod/synthetic-required', catalogRevisionId: 'v1', title: 'Required file' }] } })
   let rejectRead!: (error: Error) => void
   const readWorkspace = vi.fn().mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectRead = reject })).mockResolvedValue(state)
   context.current = { repository: { readWorkspace, subscribe: () => () => undefined } }
@@ -209,4 +214,11 @@ it('requires a completed library read before import and offers recovery after a 
   expect(readWorkspace).toHaveBeenCalledTimes(2)
   expect(container.querySelector<HTMLInputElement>('input[type=file]')!.disabled).toBe(false)
   expect(container.textContent).toContain('This exact source is missing from your library.')
+})
+
+it('explains an unsupported hosted generation without suggesting source substitution', async () => {
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ error: { code: 'UNSUPPORTED_VERSION', requestId: 'synthetic' } }, { status: 426 }))
+  await act(async () => root.render(<HostedSharedView shareId="AAAAAAAAAAAAAAAAAAAAAA"/>))
+  expect(container.textContent).toContain('unsupported data format')
+  expect(container.textContent).toContain('Ask its owner to create a new link')
 })

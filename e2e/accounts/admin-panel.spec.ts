@@ -16,7 +16,7 @@ const keyedHash = async (secret: string, purpose: string, value: string): Promis
   const key = await crypto.subtle.importKey('raw', Buffer.from(secret, 'base64url'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
   return Buffer.from(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(JSON.stringify([1, purpose, value])))).toString('base64url')
 }
-const snapshot = { version: 5, kind: 'build', title: 'Intentional public snapshot', setup: { catalogLock: {}, baseline: null, layers: [], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [], equipmentGroups: [], passives: [] }], receipts: [] }
+const snapshot = { version: 6, dataGeneration: 'catalog-sources-1', kind: 'build', title: 'Intentional public snapshot', setup: { catalogLock: {}, baseline: null, layers: [], mode: { state: 'unknown' }, ppCostsNonNegative: { state: 'unknown' }, slots: [] }, slots: [{ primaryClass: null, secondaryClass: null, equipment: [], equipmentGroups: [], passives: [] }], receipts: [] }
 test('adminPanelUsesRealSignedServiceAndKeepsCustomerAndPublicGuards', async ({ page, browser }) => {
   const directory = await mkdtemp(join(tmpdir(), 'crykit-c04-browser-'))
   let service: ServiceFixture | undefined

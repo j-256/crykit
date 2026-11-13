@@ -11,5 +11,12 @@ export function publicReceiptSourceSummary(origin: NonNullable<PublicEntityRecei
   const revision = origin.sourceRevisionId === origin.catalogRevisionId
     ? origin.sourceRevisionId
     : `Source ${origin.sourceRevisionId} · Catalog ${origin.catalogRevisionId}`
-  return [project, revision, origin.modelKey].filter(Boolean).join(' · ')
+  return [project, revision, origin.kind === 'catalog' ? origin.modelKey : undefined].filter(Boolean).join(' · ')
+}
+
+export function publicReceiptContributors(receipt: PublicEntityReceipt): string {
+  const origins = receipt.origins
+  if (!origins) return receipt.origin ? publicReceiptSourceSummary(receipt.origin) : 'Source identity unavailable'
+  const label = (ref: typeof origins.mechanical) => `${publicCatalogLabel(ref.catalogId)} · ${ref.catalogRevisionId} · ${ref.entityId}`
+  return JSON.stringify(origins.mechanical) === JSON.stringify(origins.text) ? label(origins.mechanical) : `Mechanics: ${label(origins.mechanical)}; text: ${label(origins.text)}`
 }

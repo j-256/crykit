@@ -20,7 +20,7 @@ afterEach(async () => {
   await Promise.all(fixtures.splice(0).map((f) => f.dispose()))
 })
 const snapshot: PublicSnapshot = {
-  version: 5,
+  version: 6, dataGeneration: 'catalog-sources-1',
   kind: 'build',
   title: 'Intentional public snapshot',
   setup: {

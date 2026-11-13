@@ -18,6 +18,6 @@ describe('public source summaries', () => {
 
   it('does not relabel other catalogs or personal projects', () => {
     expect(publicCatalogLabel('another-project')).toBe('another-project')
-    expect(publicReceiptSourceSummary({ ...origin, kind: 'personal' })).toBe(`${STARTER_CATALOG_ID} · catalog-v3`)
+    expect(publicReceiptSourceSummary({ kind: 'personal', projectId: 'personal-definition-v1', catalogId: 'personal-definition-v1', sourceRevisionId: 'a'.repeat(64), catalogRevisionId: 'a'.repeat(64) })).toBe(`personal-definition-v1 · ${'a'.repeat(64)}`)
   })
 })
