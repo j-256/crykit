@@ -4,8 +4,7 @@ import { chooseTeamCheckpoint, teamCheckpointControl } from './team-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { buildBehavior } from '../src/domain/build-behavior'
 import { importSyntheticLibrary, SYNTHETIC_LIBRARY_ROOTS, SYNTHETIC_LIBRARY_SOURCES } from './mod-library-fixtures'
-import { IMPORTED_RULES_REVISION } from '../src/domain/game-rules'
-import { MOD_LIBRARY_IMPORT_REVISION } from '../src/interchange/crystal-edit'
+import { previewImport } from '../src/interchange/import'
 import { formatAppRoute } from '../src/ui/navigation'
 import { MOBILE_TEST_TAG } from './test-tags'
 
@@ -124,6 +123,7 @@ test('a Team member confirms its mod source and retains class and growth pins af
   const teamTitle = 'Synthetic mod member Team'
   await importSyntheticLibrary(page, true, [SYNTHETIC_LIBRARY_ROOTS[1]!])
   const source = SYNTHETIC_LIBRARY_SOURCES[1]!
+  const catalog = (await previewImport(new TextEncoder().encode(JSON.stringify(SYNTHETIC_LIBRARY_ROOTS[1])), 'synthetic-moonlight.json')).proposed.catalogs[0]!
   await page.goto(`/${NEW_TEAM_ROUTE}`)
   await page.getByRole('combobox', { name: /^Choose shared setup/ }).selectOption({ label: 'Sample starter Game Setup · r1' })
   await page.getByRole('textbox', { name: 'Team name', exact: true }).fill(teamTitle)
@@ -157,7 +157,7 @@ test('a Team member confirms its mod source and retains class and growth pins af
   await expect(dialog).toContainText(`Version ${source.version}`)
   await dialog.getByText('Version details', { exact: true }).click()
   const version = dialog.getByRole('combobox', { name: 'Mod version', exact: true })
-  await expect(version).toHaveValue(`sha256:${source.sha256}:${IMPORTED_RULES_REVISION}:${MOD_LIBRARY_IMPORT_REVISION}`)
+  await expect(version).toHaveValue(catalog.revisionId)
   await expect(version.locator('option:checked')).toHaveText('1 · saved · format 34')
   await expect(version.locator('option:checked')).toContainText(`format ${source.editorVersion}`)
   await confirm.click()
@@ -180,7 +180,7 @@ test('a Team member confirms its mod source and retains class and growth pins af
   expect(saved.builds).toEqual(before.builds)
   expect(saved.buildRevisions).toEqual(before.buildRevisions)
   expect(setup.modComposition!.layers).toHaveLength(1)
-  expect(setup.modComposition!.layers[0]).toMatchObject({ catalogId: `crystal-edit:${source.projectId}`, enabled: true })
+  expect(setup.modComposition!.layers[0]).toMatchObject({ catalogId: catalog.id, enabled: true })
   expect(primaryClass?.kind).toBe('catalog')
   if (primaryClass?.kind === 'catalog') {
     expect(primaryClass.catalogId).toBe(setup.modComposition!.baseline.catalogId)

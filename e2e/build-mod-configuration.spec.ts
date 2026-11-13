@@ -1,3 +1,4 @@
+import { previewImport } from '../src/interchange/import'
 import { readLocalData as storedData } from './local-data-helpers'
 import { modLibraryTest as test } from './mod-library-fixtures'
 import { openStatBreakdown } from './calculation-presentation-helpers'
@@ -164,6 +165,7 @@ test('growth choices confirm their source and subsequent selections from it need
 
 test('legacy format 4 passives confirm the saved source before selection', async ({ page }) => {
   const source = JSON.stringify({ ID: 'synthetic-legacy-prompt', Title: 'Synthetic legacy mod', Version: '1', EditorVersion: 4, Passives: [{ ID: 9001, Name: 'Synthetic old passive', PP: 1, IsInnate: false, IsLearnable: true, StatMods: [] }] })
+  const catalog = (await previewImport(new TextEncoder().encode(source), 'synthetic-legacy.json')).proposed.catalogs[0]!
   await page.goto('/#/mods')
   await page.getByLabel('Import mod JSON', { exact: true }).setInputFiles({ name: 'synthetic-legacy.json', mimeType: 'application/json', buffer: Buffer.from(source) })
   await expect(page.getByRole('region', { name: 'Import mod choices', exact: true })).toBeVisible()
@@ -187,6 +189,6 @@ test('legacy format 4 passives confirm the saved source before selection', async
   const after = await storedData(page)
   const build = Object.values(after.builds).find(build => build.title === 'Untitled build')!
   const revision = after.buildRevisions[build.latestRevisionId!]!
-  expect(after.gameSetups[revision.gameSetupRevisionId]!.modComposition!.layers).toMatchObject([{ catalogId: 'crystal-edit:synthetic-legacy-prompt', enabled: true }])
+  expect(after.gameSetups[revision.gameSetupRevisionId]!.modComposition!.layers).toMatchObject([{ catalogId: catalog.id, enabled: true }])
   expect(after.playthroughs).toEqual(before.playthroughs)
 })
