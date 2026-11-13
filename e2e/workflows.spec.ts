@@ -1,4 +1,5 @@
 import { MOBILE_TEST_TAG } from './test-tags'
+import { modContentFingerprint } from '../src/interchange/mod-content'
 import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData, waitForPlannerReady, choosePlaythrough } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -332,8 +333,9 @@ test('reference facets combine alternatives and keep unknown numeric values as p
   if (isMobile) await page.getByRole('button', { name: /^Filters/ }).click()
   await page.getByRole('button', { name: 'Source', exact: true }).click()
   const sources = page.getByRole('group', { name: 'Reference source filters', exact: true })
-  await page.getByLabel('Search reference sources', { exact: true }).fill('source:sha256')
-  await sources.getByRole('button', { name: /^(source:sha256:[0-9a-f]{64})\. Full source: \1\. \d+ matches$/ }).click()
+  const sourceId = `source:${await modContentFingerprint(new TextEncoder().encode(JSON.stringify(SYNTHETIC_RESEARCH)))}`
+  await page.getByLabel('Search reference sources', { exact: true }).fill(sourceId)
+  await sources.getByRole('button', { name: new RegExp(`^${sourceId}\\. Full source: ${sourceId}\\. \\d+ matches$`) }).click()
   const categories = page.locator('.facet-group').filter({ has: page.getByRole('heading', { name: 'Category', exact: true }) })
   const categorySearch = page.getByLabel('Search reference categories', { exact: true })
   await categorySearch.fill('Staff')

@@ -2,6 +2,7 @@ import { openSavedCatalogVersion, readPlannerData } from './definition-fixtures'
 import { currentReferencePath, referenceUrlPattern } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { LAUNCH_DATA_GENERATION } from '../src/domain/data-generation'
+import { CURRENT_CATALOG } from '../src/catalog/bundled'
 import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData, waitForPlannerReady, readLocalData, choosePlaythrough } from './local-data-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -162,7 +163,7 @@ test('starter picklists and universal search work without importing or inventing
   expect(Object.values(selectedPlaythrough(saved.localData).inventory)).toHaveLength(1)
   expect(Object.values(selectedPlaythrough(saved.localData).inventory)[0]?.observedName).toBe('Potion')
   expect(Object.values(selectedPlaythrough(saved.localData).inventory)[0]?.quantity).toEqual({ kind: 'exact', value: 3 })
-  expect(saved.catalogs.some((catalog) => catalog.id === 'crystal-project-public-starter')).toBe(true)
+  expect(saved.catalogs.some((catalog) => catalog.id === CURRENT_CATALOG.id && catalog.revisionId === CURRENT_CATALOG.revisionId && catalog.checksum === CURRENT_CATALOG.checksum)).toBe(true)
   expect(selectedPlaythrough(saved.localData).characters).toEqual({})
   expect(selectedPlaythrough(saved.localData).progress).toEqual({})
   expect(externalRequests).toEqual([])
