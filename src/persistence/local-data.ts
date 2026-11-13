@@ -141,7 +141,7 @@ async function assertCatalogsImmutable(
 ): Promise<void> {
   for (const catalog of catalogs) {
     const existing = await database.catalogs.get(catalogKey(catalog))
-    if (existing && !jsonEqual(existing.snapshot, catalog)) {
+    if (existing && !guestPlannerValuesEqual(existing.snapshot, catalog)) {
       throw new AppDataError('import-conflict', 'A catalog revision conflicts with immutable local data', {
         recoverable: true,
         details: { catalogId: catalog.id, revisionId: catalog.revisionId },
@@ -154,7 +154,7 @@ function assertStarterCatalogIdentity(catalogs: readonly CatalogSnapshot[]): voi
   for (const catalog of catalogs) {
     const bundled = BUNDLED_CATALOGS.find(entry => catalogKey(entry) === catalogKey(catalog))
     if (!bundled) continue
-    if (jsonEqual(catalog, bundled)) continue
+    if (guestPlannerValuesEqual(catalog, bundled)) continue
     throw new AppDataError('import-conflict', 'A catalog revision conflicts with the built-in starter catalog', {
       recoverable: true,
       details: { catalogId: catalog.id, revisionId: catalog.revisionId },
@@ -165,7 +165,10 @@ function assertStarterCatalogIdentity(catalogs: readonly CatalogSnapshot[]): voi
 // Package availability may add sources, but never replaces a saved revision or its complete body
 function availableSourceSnapshots(stored: readonly CatalogSnapshot[]): readonly CatalogSnapshot[] {
   assertStarterCatalogIdentity(stored)
-  return Object.freeze([...new Map([...BUNDLED_CATALOGS, ...stored.map(immutableCatalogSnapshot)].map(catalog => [catalogKey(catalog), catalog])).values()])
+  // Full value comparison above proves an exact stored body before its packaged object can be reused
+  // This retains the durable body while avoiding repeated schema admission and payload hashing of cloned IDB rows
+  const admitted = stored.map(catalog => BUNDLED_CATALOGS.find(bundled => catalogKey(bundled) === catalogKey(catalog)) ?? immutableCatalogSnapshot(catalog))
+  return Object.freeze([...new Map([...BUNDLED_CATALOGS, ...admitted].map(catalog => [catalogKey(catalog), catalog])).values()])
 }
 
 const INVALID_JOURNALED_PLANNER = 'The journaled planner data is missing or invalid. Keep your draft and reopen the workspace'
