@@ -1,11 +1,13 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { validatePassword } from '../../account/password-policy'
 import { EmailSchema, UsernameSchema } from '../../account/protocol'
 import { PrivacyTermsLink } from '../PrivacyTermsLink'
 
 export interface AccessInput { email: string; password: string; username: string; remember: boolean }
-export function SignInForm({ busy, onSubmit }: { busy: boolean; onSubmit: (input: AccessInput, signup: boolean) => Promise<void> }) {
-  const [signup, setSignup] = useState(false)
+export function SignInForm({ busy, signupAvailable, onSubmit }: { busy: boolean; signupAvailable: boolean; onSubmit: (input: AccessInput, signup: boolean) => Promise<void> }) {
+  const [signupRequested, setSignup] = useState(false)
+  const signup = signupAvailable && signupRequested
+  useEffect(() => { if (!signupAvailable) setSignup(false) }, [signupAvailable])
   const [error, setError] = useState('')
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -27,6 +29,6 @@ export function SignInForm({ busy, onSubmit }: { busy: boolean; onSubmit: (input
     <label className="account-check"><input name="remember" type="checkbox"/>Remember this device</label><p>Only remember a device you trust.</p>
     {signup && <p>Before creating an account, read the <PrivacyTermsLink/>.</p>}
     <button disabled={busy} type="submit">{signup ? 'Create account and send email' : 'Sign in'}</button>
-    <button disabled={busy} type="button" onClick={() => { setSignup(!signup); setError('') }}>{signup ? 'Back to sign in' : 'Create account'}</button>
+    {signupAvailable && <button disabled={busy} type="button" onClick={() => { setSignup(!signup); setError('') }}>{signup ? 'Back to sign in' : 'Create account'}</button>}
   </form></section>
 }
