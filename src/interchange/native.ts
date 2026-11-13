@@ -59,14 +59,20 @@ function freezeCatalogValue(value: unknown): void {
   Object.freeze(value)
 }
 
+// Call only after this format owner has admitted the complete catalog schema
+// Payload integrity and cross-catalog references remain separate validation steps
+function retainSchemaValidatedCatalog(catalog: CatalogSnapshot): CatalogSnapshot {
+  freezeCatalogValue(catalog)
+  validatedImmutableCatalogs.add(catalog)
+  return catalog
+}
+
 export function immutableCatalogSnapshot(catalog: CatalogSnapshot): CatalogSnapshot {
   // Validation may be reused by object identity only after every nested value is frozen
   // A shallow freeze would let later mutation bypass structural checks during rapid saves
   if (validatedImmutableCatalogs.has(catalog)) return catalog
   if (!NativeCatalogSnapshotSchema.safeParse(catalog).success) schemaError('A transformed catalog has an unsupported shape')
-  freezeCatalogValue(catalog)
-  validatedImmutableCatalogs.add(catalog)
-  return catalog
+  return retainSchemaValidatedCatalog(catalog)
 }
 
 // Expansion only selects or combines records from these exact schema-admitted immutable sources
@@ -962,7 +968,9 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
       details: { issues: payloadResult.error.issues.slice(0, 20).map((issue) => `${issue.path.join('.')}: ${issue.message}`) },
     })
   }
-  const allCatalogs = payloadResult.data.catalogs as unknown as readonly CatalogSnapshot[]
+  // NativePayloadSchema has checked every body; retain that admission across the graph checks below
+  // Frozen membership and nested values permit cache reuse without trusting IDs or caller-supplied digests
+  const allCatalogs = Object.freeze(payloadResult.data.catalogs.map(catalog => retainSchemaValidatedCatalog(catalog as unknown as CatalogSnapshot)))
   const catalogs = validateCatalogs(allCatalogs)
   const validationKeys = includeUnavailableModCatalogs(catalogs.keys, unavailableModCatalogKeys([payloadResult.data.localData as unknown as LocalData, ...(payloadResult.data.history ?? []).flatMap(entry => [entry.before, entry.after]) as unknown as LocalData[]], allCatalogs))
   const localData = validateLocalData(payloadResult.data.localData, validationKeys, 'localData', catalogs.entityKinds)

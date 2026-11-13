@@ -3,7 +3,7 @@ import { zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { requirePlaythrough } from '../domain'
 import { addTestCharacter, createTestLocalData } from '../domain/test-helpers'
-import { previewNativeBackup } from './native'
+import { isImmutableCatalogSnapshot, previewNativeBackup } from './native'
 import { GUIDE_CATALOG } from '../catalog/bundled'
 import { catalogSnapshotKey } from './identity'
 import { NativeLocalDataSchema, StoredNativeLocalDataSchema } from './native-schema'
@@ -11,6 +11,24 @@ import { NativeLocalDataSchema, StoredNativeLocalDataSchema } from './native-sch
 const encode = (value: unknown): Uint8Array => new TextEncoder().encode(JSON.stringify(value))
 
 describe('complete source backup payloads', () => {
+  it('retains deeply immutable admitted catalogs without trusting altered archive contents', async () => {
+    const bytes = nativeFixture({ mutatePayload: payload => { payload.catalogs = [GUIDE_CATALOG] } })
+    const preview = await previewNativeBackup(bytes, 'complete.zip')
+    const catalog = preview.proposed.catalogs[0]!
+    expect(isImmutableCatalogSnapshot(catalog)).toBe(true)
+    const entity = Object.values(catalog.entities)[0]!
+    expect(Object.isFrozen(entity)).toBe(true)
+    expect(Object.isFrozen(entity.sources)).toBe(true)
+    expect(() => { (entity as { name: string }).name = 'Altered guide' }).toThrow()
+
+    const changed = structuredClone(GUIDE_CATALOG)
+    const changedEntity = Object.values(changed.entities)[0]! as { name: string }
+    changedEntity.name = 'Altered guide'
+    await expect(previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [changed] } }), 'changed.zip')).rejects.toThrow(/invalid identity, revision, or contents/)
+    const malformed = structuredClone(GUIDE_CATALOG) as unknown as { entities: Record<string, { sources: unknown }> }
+    Object.values(malformed.entities)[0]!.sources = 'Invalid provenance'
+    await expect(previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [malformed] } }), 'malformed.zip')).rejects.toThrow(/unsupported shape/)
+  })
   it('rejects prelaunch package-only manifests and requires complete source bodies', async () => {
     const pin = { id: GUIDE_CATALOG.id, revisionId: GUIDE_CATALOG.revisionId, checksum: GUIDE_CATALOG.checksum }
     for (const version of ['2.0.0', '2.1.0']) await expect(previewNativeBackup(nativeFixture({ version }), 'prelaunch.zip')).rejects.toThrow(/unsupported version/)
