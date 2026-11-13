@@ -56,7 +56,7 @@
     "src/interchange/json.ts": "c088b7277734a09dea984357ada4df1589f5bfc363d6c82682c312deb8069df3",
     "src/interchange/mod-content.ts": "a2bc85bc8e267ca920cbccc01b3e909949d2eef73c779888db4383b89b198f35",
     "src/interchange/normalize-xlsx.ts": "52b3e5877d5c8fd043e6600e824819b5d896c950429308ef67294b7ad76fd08e",
-    "src/interchange/research.ts": "6baa7b5244e257d18618c1961dbf9bed808a9f685d0685b8656520ca4063fa53",
+    "src/interchange/research.ts": "f8f510646ebca543895fc39017f384e78cb0f729a0a2bce2c4a4d58cafe4a208",
     "src/interchange/sha256.ts": "01b0c2f145b976483a3d9fe52de56e6e5f130e92f72381daad79cccf3e33a5db",
     "src/interchange/source-identity.ts": "6a381f0c5fc716226f6a4292e22ed7117f6462c2d8bdce22e118a54a340e6eb7",
     "src/interchange/util.ts": "8916a832f709c3dd8d27f4ba39175c964d4e9ee16aa9a986197a799d6c788f81",
