@@ -1,5 +1,5 @@
 import { openSavedCatalogVersion } from './definition-fixtures'
-import { referencePath } from './reference-helpers'
+import { guideReferencePath, referencePath } from './reference-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
 const WARRIOR_PATH = referencePath('base:job:0')
@@ -42,7 +42,7 @@ test('a personal value retains its evidence without replacing the corroborated s
 })
 
 test('partial mechanic evidence keeps the source disclosure', async ({ page }) => {
-  await page.goto(referencePath('base:mechanic:stat:ref-501'))
+  await page.goto(guideReferencePath('ref-501'))
   await expect(page.getByRole('heading', { name: 'Flat CritResist [X]', exact: true })).toBeVisible()
   const description = page.locator('.reference-description')
   await expect(fact(page, 'Description')).toHaveCount(0)
@@ -50,14 +50,14 @@ test('partial mechanic evidence keeps the source disclosure', async ({ page }) =
   await expect(description.locator('.sources-trigger')).toHaveCount(1)
   await description.getByRole('button', { name: 'Sources for Description', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Sources for Description', exact: true })).toContainText("GEEF's Crystal Project modding guide")
-  await page.goto(referencePath('base:mechanic:stat:ref-464'))
+  await page.goto(guideReferencePath('ref-464'))
   await expect(fact(page, 'Description')).toHaveCount(0)
   await expect(page.locator('.reference-description')).not.toBeEmpty()
   await expect(page.locator('.reference-description .sources-trigger')).toHaveCount(0)
 })
 
 test('a reviewed mechanic replacement leads with native facts and preserves the original guide claim', async ({ page }) => {
-  await page.goto(referencePath('base:mechanic:stat:ref-631'))
+  await page.goto(guideReferencePath('ref-631'))
   await expect(page.getByRole('heading', { name: 'StealChanceUp [X]', exact: true })).toBeVisible()
   await expect(page.locator('.reference-detail .reference-description')).toContainText('100 * (base chance + bonus) / (100 + bonus)')
   await expect(fact(page, 'Description')).toHaveCount(0)
