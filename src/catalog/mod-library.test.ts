@@ -43,5 +43,5 @@ it('decodes original synthetic source bytes and rejects altered size, digest and
   for (const changed of [{ ...packed, sourceBytes: bytes.length + 1 }, { ...packed, sha256: '0'.repeat(64) }, { ...packed, encoding: 'plain' }, { ...packed, data: gzipSync(Buffer.from('{}')).toString('base64') }]) await expect(decodeBundledModSource(mod, changed)).rejects.toThrow('damaged')
   const imported = await previewImport(bytes, 'synthetic.json')
   expect(imported.proposed.sources[0]!.bytes).toEqual(bytes)
-  expect(imported.proposed.catalogs[0]?.id).toBe(mod.id)
+  expect(imported.proposed.catalogs[0]?.id).toMatch(/^crystal-project\/imported\/ce1-[a-f0-9]{64}$/)
 })

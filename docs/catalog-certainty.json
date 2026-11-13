@@ -66,23 +66,21 @@
         "same-definition": 306
       },
       "dispositions": {
-        "mod-source-review": 8,
         "native-identity-review": 270,
         "native-linked": 330,
         "native-geography-review": 113,
-        "article-review": 23,
-        "native-mechanics-review": 301
+        "article-review": 22
       }
     }
   },
-  "catalogId": "crystal-project-public-starter",
-  "revisionId": "catalog-v3",
-  "checksum": "builtin:sha256:a427c8fb1f781ac32fcae7a8b869eecaf8f97049b6d018f316287dd2cae094b8",
+  "catalogId": "crystal-project/vanilla",
+  "revisionId": "v1",
+  "checksum": "builtin:sha256:d19f3e53399ab5afca59da8e7b6c204086a51f2e879927d027780ce969daa073",
   "states": {
-    "known": 98531,
-    "unknown": 930,
-    "conflicting": 520,
-    "notApplicable": 6219
+    "known": 97599,
+    "unknown": 897,
+    "conflicting": 519,
+    "notApplicable": 6185
   },
   "scope": "Catalog definitions only; personal observations and unrecorded Game Setup choices retain their knowledge states",
   "gaps": [
@@ -119,16 +117,6 @@
         "base:equipment:0",
         "base:equipment:11",
         "base:equipment:71"
-      ]
-    },
-    {
-      "state": "conflicting",
-      "kind": "other",
-      "field": "Description",
-      "reason": "Original source claims differ",
-      "count": 1,
-      "examples": [
-        "base:mechanic:ability:ref-385"
       ]
     },
     {
@@ -189,36 +177,6 @@
         "base:ability:ref-1",
         "base:ability:ref-2",
         "base:ability:ref-3"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "class",
-      "field": "grants",
-      "reason": "The wiki description is preserved, but its granted permissions are not normalized for validation",
-      "count": 1,
-      "examples": [
-        "mod:bloodmage:class:ref-1083"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "class",
-      "field": "requirements",
-      "reason": "The wiki description is preserved, but its requirements are not normalized to exact catalog references or permissions",
-      "count": 1,
-      "examples": [
-        "mod:bloodmage:class:ref-1083"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "class",
-      "field": "Wiki coverage",
-      "reason": "No matching detail page or structured row was found in the bundled community wiki snapshot",
-      "count": 1,
-      "examples": [
-        "mod:bloodmage:class:ref-1083"
       ]
     },
     {
@@ -332,42 +290,6 @@
     {
       "state": "unknown",
       "kind": "monster",
-      "field": "Abilities",
-      "reason": "The publisher description does not document boss abilities",
-      "count": 4,
-      "examples": [
-        "mod:additional-boss-yasha-tar:monster:ref-1068",
-        "mod:additional-boss-pinga:monster:ref-1066",
-        "mod:additional-boss-quintar-husk:monster:ref-1067"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "monster",
-      "field": "Associated equipment",
-      "reason": "The publisher description does not name or detail the new equipment",
-      "count": 3,
-      "examples": [
-        "mod:additional-boss-yasha-tar:monster:ref-1068",
-        "mod:additional-boss-pinga:monster:ref-1066",
-        "mod:additional-boss-elder-entities:monster:ref-1065"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "monster",
-      "field": "Drops",
-      "reason": "The publisher description does not document boss drops",
-      "count": 4,
-      "examples": [
-        "mod:additional-boss-yasha-tar:monster:ref-1068",
-        "mod:additional-boss-pinga:monster:ref-1066",
-        "mod:additional-boss-quintar-husk:monster:ref-1067"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "monster",
       "field": "Drops",
       "reason": "The scraped wiki sources do not document drops for this monster",
       "count": 91,
@@ -380,54 +302,6 @@
     {
       "state": "unknown",
       "kind": "monster",
-      "field": "HP",
-      "reason": "The publisher description does not document boss HP",
-      "count": 4,
-      "examples": [
-        "mod:additional-boss-yasha-tar:monster:ref-1068",
-        "mod:additional-boss-pinga:monster:ref-1066",
-        "mod:additional-boss-quintar-husk:monster:ref-1067"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "monster",
-      "field": "Level",
-      "reason": "The publisher description does not document boss level",
-      "count": 4,
-      "examples": [
-        "mod:additional-boss-yasha-tar:monster:ref-1068",
-        "mod:additional-boss-pinga:monster:ref-1066",
-        "mod:additional-boss-quintar-husk:monster:ref-1067"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "monster",
-      "field": "Location",
-      "reason": "The publisher description does not document boss location",
-      "count": 4,
-      "examples": [
-        "mod:additional-boss-yasha-tar:monster:ref-1068",
-        "mod:additional-boss-pinga:monster:ref-1066",
-        "mod:additional-boss-quintar-husk:monster:ref-1067"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "monster",
-      "field": "Steals",
-      "reason": "The publisher description does not document boss steals",
-      "count": 4,
-      "examples": [
-        "mod:additional-boss-yasha-tar:monster:ref-1068",
-        "mod:additional-boss-pinga:monster:ref-1066",
-        "mod:additional-boss-quintar-husk:monster:ref-1067"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "monster",
       "field": "Steals",
       "reason": "The scraped wiki sources do not document steals for this monster",
       "count": 132,
@@ -435,27 +309,6 @@
         "base:monster:ref-643",
         "base:monster:ref-644",
         "base:monster:ref-645"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "other",
-      "field": "Exact bundled revision",
-      "reason": "The publisher description does not expose the bundled mod source revisions",
-      "count": 2,
-      "examples": [
-        "mod:quality-fun:other:ref-1088",
-        "mod:new-challenges:other:ref-1086"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "other",
-      "field": "Nintendo Switch and mod-pack parity",
-      "reason": "The community wiki does not establish complete Nintendo Switch or official mod-pack parity",
-      "count": 1,
-      "examples": [
-        "base:other:ref-913"
       ]
     },
     {

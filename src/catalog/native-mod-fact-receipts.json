@@ -6,9 +6,9 @@
     "checksum": "builtin:sha256:f8744807813cad0a2658640287177a03c47514a8a003d84df5d55bc9b87085aa"
   },
   "equivalent": {
-    "id": "crystal-project-public-starter",
-    "revisionId": "catalog-v3",
-    "checksum": "builtin:sha256:a427c8fb1f781ac32fcae7a8b869eecaf8f97049b6d018f316287dd2cae094b8"
+    "id": "crystal-project/vanilla",
+    "revisionId": "v1",
+    "checksum": "builtin:sha256:d19f3e53399ab5afca59da8e7b6c204086a51f2e879927d027780ce969daa073"
   },
   "nativeRecordEntityIds": [
     "base:job:0",

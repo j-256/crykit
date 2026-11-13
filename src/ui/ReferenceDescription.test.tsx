@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CATALOG } from '../catalog/bundled'
+import { DEFAULT_CATALOG, GUIDE_CATALOG } from '../catalog/bundled'
 import { projectAcquisitionGuidance } from '../catalog/acquisition-guidance'
 import { nativeDescription } from '../catalog/native-description'
 import { nativeFieldFacts } from '../catalog/native-field-facts'
@@ -10,7 +10,10 @@ import { ReferenceDescription, referenceNarrativeDescription } from './Reference
 import { ReferenceSourceDetails } from './ReferenceSourceDetails'
 
 const entity = (id: string) => DEFAULT_CATALOG.entities[id]!
-const sourceDetails = (definition: CatalogEntity) => renderToStaticMarkup(<ReferenceSourceDetails catalog={DEFAULT_CATALOG} entity={definition} guidance={projectAcquisitionGuidance(DEFAULT_CATALOG, definition)} nativeFacts={nativeFieldFacts(DEFAULT_CATALOG, definition)} archivedFacts={definition.fields.Description ? [['Description', definition.fields.Description]] : []} onOpenDefinition={() => undefined}/>)
+const sourceDetails = (definition: CatalogEntity) => {
+  const catalog = GUIDE_CATALOG.entities[definition.id] === definition ? GUIDE_CATALOG : DEFAULT_CATALOG
+  return renderToStaticMarkup(<ReferenceSourceDetails catalog={catalog} entity={definition} guidance={projectAcquisitionGuidance(catalog, definition)} nativeFacts={nativeFieldFacts(catalog, definition)} archivedFacts={definition.fields.Description ? [['Description', definition.fields.Description]] : []} onOpenDefinition={() => undefined}/>)
+}
 
 describe('readable reference descriptions', () => {
   it('shows Dress strategy and directions immediately beside its native effects while retaining attribution separately', () => {
@@ -52,7 +55,7 @@ describe('readable reference descriptions', () => {
     expect(html.split('<section')[0]).not.toContain('sources-trigger')
     expect(html).not.toContain('Recovery: 100% HP')
     expect(sourceDetails(stew)).toContain('Recovery: 100% HP')
-    const mechanic = entity('base:mechanic:stat:ref-495')
+    const mechanic = GUIDE_CATALOG.entities['ref-495']!
     const replacement = nativeMechanic(mechanic)!
     expect(replacement).toBeDefined()
     expect(renderToStaticMarkup(<ReferenceDescription entity={mechanic}/>)).toContain('Value1 (X) is the native ability ID.')
@@ -61,13 +64,13 @@ describe('readable reference descriptions', () => {
   })
 
   it('keeps exactly corroborated descriptions quiet without promoting changed or unsupported prose', () => {
-    const definition = entity('base:mechanic:stat:ref-464')
+    const definition = GUIDE_CATALOG.entities['ref-464']!
     const field = definition.fields.Description
     if (field?.state !== 'known') throw new Error('The description fixture must be known')
-    expect(renderToStaticMarkup(<ReferenceDescription catalog={DEFAULT_CATALOG} entity={definition}/>)).not.toContain('sources-trigger')
+    expect(renderToStaticMarkup(<ReferenceDescription catalog={GUIDE_CATALOG} entity={definition}/>)).not.toContain('sources-trigger')
     const changed = { ...definition, rawDescription: 'Synthetic changed description', fields: { ...definition.fields, Description: { ...field, value: 'Synthetic changed description' } } }
-    expect(renderToStaticMarkup(<ReferenceDescription catalog={DEFAULT_CATALOG} entity={changed}/>)).toContain('Sources for Description')
-    expect(renderToStaticMarkup(<ReferenceDescription catalog={DEFAULT_CATALOG} entity={entity('base:mechanic:stat:ref-501')}/>)).toContain('Sources for Description')
+    expect(renderToStaticMarkup(<ReferenceDescription catalog={GUIDE_CATALOG} entity={changed}/>)).toContain('Sources for Description')
+    expect(renderToStaticMarkup(<ReferenceDescription catalog={GUIDE_CATALOG} entity={GUIDE_CATALOG.entities['ref-501']!}/>)).toContain('Sources for Description')
   })
 
   it('does not repeat authored native prose or add long narrative text to compact descriptions', () => {

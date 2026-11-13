@@ -1,5 +1,4 @@
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library'
-import { SWITCH_MOD_PACKS } from '../catalog/mods'
 import { completeModLibrary, modLibraryCards, MOD_PROJECT_FIELD, type ModCatalogEntry } from '../domain/mod-library'
 import { CRYSTAL_EDIT_CATALOG_SCHEMA } from '../domain/mod-layers'
 import { recordedModNames } from '../domain/mods'
@@ -19,7 +18,7 @@ export function modCatalogEntry(option: DefinitionOption, catalogs: readonly Cat
 }
 
 export function buildModLibraryCards(catalogs: readonly CatalogSnapshot[], options: readonly DefinitionOption[], data: LocalData) {
-  const names = [...SWITCH_MOD_PACKS.flatMap(pack => pack.mods), ...Object.values(data.gameSetups).flatMap(recordedModNames)]
+  const names = Object.values(data.gameSetups).flatMap(recordedModNames)
   const previews = new Set(catalogs.filter(isModSearchPreview).map(catalog => catalog.id))
   return modLibraryCards(completeModLibrary(catalogs, BUNDLED_MOD_LIBRARY), names, options.filter(option => option.preferred && !(option.ref.kind === 'catalog' && previews.has(option.ref.catalogId))).map(option => modCatalogEntry(option, catalogs, data)))
 }

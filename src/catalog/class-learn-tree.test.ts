@@ -79,7 +79,7 @@ describe('class-tree identity supplement', () => {
     const catalog = preview.proposed.catalogs[0]!
     const job = modModelEntity(catalog, 'crystal-edit:Jobs:40')!
     const tree = exportedTree(job)
-    expect(classTreeSkill(job, tree.find(node => node.nodeType === 2)!, catalog)).toMatchObject({ name: 'Synthetic Spark', jp: undefined, definition: { id: 'mod:synthetic-project:ability:8' } })
+    expect(classTreeSkill(job, tree.find(node => node.nodeType === 2)!, catalog)).toMatchObject({ name: 'Synthetic Spark', jp: undefined, definition: { id: modModelEntity(catalog, 'crystal-edit:Abilities:8')!.id } })
     const missing = classTreeSkill(job, tree.find(node => node.nodeType === 3)!, catalog)
     expect(missing.name).toBe('Passive #2')
     expect(missing.jp).toBeUndefined()

@@ -5,7 +5,7 @@ import { fieldIconKey } from './menu-icons'
 
 describe('bundled artwork identity', () => {
   const entity = { id: 'base:equipment:0' as EntityId, kind: 'item' as const }
-  const builtin = 'crystal-project-public-starter'
+  const builtin = 'crystal-project/vanilla'
 
   it('uses native full-body class frames separately from compact catalog artwork', () => {
     const warrior = { id: 'base:job:0' as EntityId, kind: 'class' as const }

@@ -1,22 +1,23 @@
+import { HISTORICAL_VANILLA } from './source-collection.test-helpers'
 import { describe, expect, it } from 'vitest'
 import { createBlankLocalData } from '../domain/local-data'
 import { exportedTree, growthRatings } from '../domain/crystal-edit'
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
 import { catalogContentForChecksum } from '../interchange/catalog-checksum'
 import { sha256 } from '../interchange/util'
-import { BUNDLED_CATALOGS, CURRENT_CATALOG, DEFAULT_CATALOG, PREVIOUS_CATALOG, preferredStarterCatalog } from './bundled'
+import { BUNDLED_CATALOGS, CURRENT_CATALOG, DEFAULT_CATALOG, GUIDE_CATALOG, preferredStarterCatalog } from './bundled'
 import { VANILLA_CATALOG_REVISION_ID } from './vanilla-catalog'
 import { projectSourceSemantics } from './source-semantics'
 import { CONFIRMED_SKILL_MAPS, suggestSkillTreeMap, SWITCH_MOD_PACKS_MAP_SET } from './skill-maps'
 
 describe('bundled catalog assembly', () => {
   it('prefers the current revision when historical catalogs are listed first', () => {
-    expect(preferredStarterCatalog([PREVIOUS_CATALOG, CURRENT_CATALOG])).toBe(CURRENT_CATALOG)
-    expect(preferredStarterCatalog([PREVIOUS_CATALOG])).toBe(PREVIOUS_CATALOG)
+    expect(preferredStarterCatalog([HISTORICAL_VANILLA, CURRENT_CATALOG])).toBe(CURRENT_CATALOG)
+    expect(preferredStarterCatalog([HISTORICAL_VANILLA])).toBeUndefined()
   })
 
   it('retains immutable baseline revisions with canonical identities and no development revision or alias metadata', async () => {
-    expect(BUNDLED_CATALOGS).toEqual([CURRENT_CATALOG, PREVIOUS_CATALOG])
+    expect(BUNDLED_CATALOGS).toEqual([CURRENT_CATALOG, GUIDE_CATALOG])
     expect(DEFAULT_CATALOG).toBe(CURRENT_CATALOG)
     expect(Object.keys(DEFAULT_CATALOG.entities).every(id => /^(base|mod):/.test(id))).toBe(true)
     expect(DEFAULT_CATALOG.legacy).not.toHaveProperty('previousRevisionId')
@@ -36,7 +37,7 @@ describe('bundled catalog assembly', () => {
   })
 
   it('retains contradictory guide descriptions as competing claims', () => {
-    const entity = DEFAULT_CATALOG.entities['base:mechanic:ability:ref-385']!
+    const entity = GUIDE_CATALOG.entities['ref-385']!
     expect(entity.fields.Description).toMatchObject({ state: 'conflicting', claims: [{ value: "The user is instantly KO'd when the ability resolves" }, { value: "The user's HP is reduced to 1 when the ability resolves" }] })
     expect(entity.sources[0]?.locator).not.toEqual(entity.sources[1]?.locator)
   })
@@ -60,7 +61,7 @@ describe('bundled catalog assembly', () => {
     expect(unavailable.mappings).toEqual([])
     const entities = { ...DEFAULT_CATALOG.entities }
     for (const mapping of map.mappings) if (mapping.ref.kind === 'catalog' && !entities[mapping.ref.entityId]) entities[mapping.ref.entityId] = { id: mapping.ref.entityId, kind: mapping.kind, name: 'Synthetic mapped skill', aliases: [], fields: {}, sources: [] }
-    const imported = { ...DEFAULT_CATALOG, revisionId: map.classRef.catalogRevisionId, checksum: 'synthetic-imported-map', entities }
+    const imported = { ...DEFAULT_CATALOG, id: map.classRef.catalogId, revisionId: map.classRef.catalogRevisionId, checksum: 'synthetic-imported-map', entities }
     const restored = suggestSkillTreeMap(createBlankLocalData(), [imported], map.classRef, map.squares.map(square => ({ ...square, state: 'unknown' })), SWITCH_MOD_PACKS_MAP_SET)
     expect(restored.confirmedMap).toBe(map)
     expect(restored.mappings).toEqual(map.mappings)

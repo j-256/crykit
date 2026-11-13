@@ -223,8 +223,8 @@
           "label": "Hobo (level 20)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:53"
           },
           "location": "Jojo Sewers",
@@ -240,8 +240,8 @@
           "label": "Hobo (level 20)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:53"
           },
           "location": "Jojo Sewers",
@@ -269,8 +269,8 @@
           "label": "Hobo (level 20)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:53"
           },
           "location": "Jojo Sewers",
@@ -286,8 +286,8 @@
           "label": "Hobo (level 20)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:53"
           },
           "location": "Jojo Sewers",
@@ -315,8 +315,8 @@
           "label": "Rock Lizard (level 38)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:61"
           },
           "location": "Beaurior Rock",
@@ -332,8 +332,8 @@
           "label": "Rock Lizard (level 38)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:61"
           },
           "location": "Beaurior Rock",
@@ -361,8 +361,8 @@
           "label": "Magic Well (level 41)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:79"
           },
           "location": "Beaurior Rock",
@@ -387,8 +387,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:113"
               }
             },
@@ -397,8 +397,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:4"
               }
             }
@@ -410,8 +410,8 @@
           "label": "Gold Dagger",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:14"
           },
           "price": 3000,
@@ -431,8 +431,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:113"
               }
             },
@@ -441,8 +441,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:4"
               }
             }
@@ -456,8 +456,8 @@
           "label": "Gold Dagger",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:14"
           },
           "price": 3000,
@@ -488,8 +488,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:140"
               }
             },
@@ -498,8 +498,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:5"
               }
             }
@@ -511,8 +511,8 @@
           "label": "Diamond Dagger",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:25"
           },
           "price": 50000,
@@ -532,8 +532,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:140"
               }
             },
@@ -542,8 +542,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:5"
               }
             }
@@ -557,8 +557,8 @@
           "label": "Diamond Dagger",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:25"
           },
           "price": 50000,
@@ -589,8 +589,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:114"
               }
             },
@@ -599,8 +599,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:4"
               }
             }
@@ -612,8 +612,8 @@
           "label": "Gold Rapier",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:15"
           },
           "price": 3000,
@@ -633,8 +633,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:114"
               }
             },
@@ -643,8 +643,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:4"
               }
             }
@@ -658,8 +658,8 @@
           "label": "Gold Rapier",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:15"
           },
           "price": 3000,
@@ -690,8 +690,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:141"
               }
             },
@@ -700,8 +700,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:5"
               }
             }
@@ -713,8 +713,8 @@
           "label": "Diamond Rapier",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:26"
           },
           "price": 50000,
@@ -734,8 +734,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:141"
               }
             },
@@ -744,8 +744,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:5"
               }
             }
@@ -759,8 +759,8 @@
           "label": "Diamond Rapier",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:26"
           },
           "price": 50000,
@@ -791,8 +791,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:115"
               }
             },
@@ -801,8 +801,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:69"
               }
             }
@@ -814,8 +814,8 @@
           "label": "Gold Katana",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:16"
           },
           "price": 3000,
@@ -835,8 +835,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:115"
               }
             },
@@ -845,8 +845,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:69"
               }
             }
@@ -860,8 +860,8 @@
           "label": "Gold Katana",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:16"
           },
           "price": 3000,
@@ -894,8 +894,8 @@
           "label": "The Owlbear (level 47)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:143"
           },
           "location": "Land's End",
@@ -919,8 +919,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:143"
               }
             },
@@ -929,8 +929,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:71"
               }
             }
@@ -942,8 +942,8 @@
           "label": "Diamond Katana",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:27"
           },
           "price": 50000,
@@ -963,8 +963,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:143"
               }
             },
@@ -973,8 +973,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:71"
               }
             }
@@ -988,8 +988,8 @@
           "label": "Diamond Katana",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:27"
           },
           "price": 50000,
@@ -1050,8 +1050,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:116"
               }
             },
@@ -1060,8 +1060,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:69"
               }
             }
@@ -1073,8 +1073,8 @@
           "label": "Gold Spear",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:17"
           },
           "price": 3000,
@@ -1094,8 +1094,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:116"
               }
             },
@@ -1104,8 +1104,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:69"
               }
             }
@@ -1119,8 +1119,8 @@
           "label": "Gold Spear",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:17"
           },
           "price": 3000,
@@ -1151,8 +1151,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:145"
               }
             },
@@ -1161,8 +1161,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:71"
               }
             }
@@ -1174,8 +1174,8 @@
           "label": "Diamond Spear",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:28"
           },
           "price": 50000,
@@ -1195,8 +1195,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:145"
               }
             },
@@ -1205,8 +1205,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:71"
               }
             }
@@ -1220,8 +1220,8 @@
           "label": "Diamond Spear",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:28"
           },
           "price": 50000,
@@ -1254,8 +1254,8 @@
           "label": "Warden (level 27)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:37"
           },
           "location": "Capital Jail",
@@ -1279,8 +1279,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:117"
               }
             },
@@ -1289,8 +1289,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:69"
               }
             }
@@ -1302,8 +1302,8 @@
           "label": "Gold Scythe",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:18"
           },
           "price": 3000,
@@ -1323,8 +1323,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:117"
               }
             },
@@ -1333,8 +1333,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:69"
               }
             }
@@ -1348,8 +1348,8 @@
           "label": "Gold Scythe",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:18"
           },
           "price": 3000,
@@ -1382,8 +1382,8 @@
           "label": "Hermetic (level 55)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:309"
           },
           "location": "Tall, Tall Heights",
@@ -1407,8 +1407,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:147"
               }
             },
@@ -1417,8 +1417,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:71"
               }
             }
@@ -1430,8 +1430,8 @@
           "label": "Diamond Scythe",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:29"
           },
           "price": 50000,
@@ -1451,8 +1451,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:147"
               }
             },
@@ -1461,8 +1461,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:71"
               }
             }
@@ -1476,8 +1476,8 @@
           "label": "Diamond Scythe",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:29"
           },
           "price": 50000,
@@ -1508,8 +1508,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:118"
               }
             },
@@ -1518,8 +1518,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:69"
               }
             }
@@ -1531,8 +1531,8 @@
           "label": "Gold Bow",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:19"
           },
           "price": 3000,
@@ -1552,8 +1552,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:118"
               }
             },
@@ -1562,8 +1562,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:69"
               }
             }
@@ -1577,8 +1577,8 @@
           "label": "Gold Bow",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:19"
           },
           "price": 3000,
@@ -1609,8 +1609,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:149"
               }
             },
@@ -1619,8 +1619,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:71"
               }
             }
@@ -1632,8 +1632,8 @@
           "label": "Diamond Bow",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:30"
           },
           "price": 50000,
@@ -1653,8 +1653,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:149"
               }
             },
@@ -1663,8 +1663,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:71"
               }
             }
@@ -1678,8 +1678,8 @@
           "label": "Diamond Bow",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:30"
           },
           "price": 50000,
@@ -1710,8 +1710,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:119"
               }
             },
@@ -1720,8 +1720,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:70"
               }
             }
@@ -1733,8 +1733,8 @@
           "label": "Gold Staff",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:20"
           },
           "price": 3000,
@@ -1754,8 +1754,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:119"
               }
             },
@@ -1764,8 +1764,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:70"
               }
             }
@@ -1779,8 +1779,8 @@
           "label": "Gold Staff",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:20"
           },
           "price": 3000,
@@ -1811,8 +1811,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:151"
               }
             },
@@ -1821,8 +1821,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:72"
               }
             }
@@ -1834,8 +1834,8 @@
           "label": "Diamond Staff",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:31"
           },
           "price": 50000,
@@ -1855,8 +1855,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:151"
               }
             },
@@ -1865,8 +1865,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:72"
               }
             }
@@ -1880,8 +1880,8 @@
           "label": "Diamond Staff",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:31"
           },
           "price": 50000,
@@ -1914,8 +1914,8 @@
           "label": "Canal Beast (level 12)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:18"
           },
           "location": "Draft Shaft Conduit",
@@ -1940,8 +1940,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:120"
               }
             },
@@ -1950,8 +1950,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:70"
               }
             }
@@ -1963,8 +1963,8 @@
           "label": "Gold Wand",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:21"
           },
           "price": 3000,
@@ -1984,8 +1984,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:120"
               }
             },
@@ -1994,8 +1994,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:70"
               }
             }
@@ -2009,8 +2009,8 @@
           "label": "Gold Wand",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:21"
           },
           "price": 3000,
@@ -2082,8 +2082,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:153"
               }
             },
@@ -2092,8 +2092,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:72"
               }
             }
@@ -2105,8 +2105,8 @@
           "label": "Diamond Wand",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:32"
           },
           "price": 50000,
@@ -2126,8 +2126,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:153"
               }
             },
@@ -2136,8 +2136,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:72"
               }
             }
@@ -2151,8 +2151,8 @@
           "label": "Diamond Wand",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:32"
           },
           "price": 50000,
@@ -2183,8 +2183,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:121"
               }
             },
@@ -2193,8 +2193,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:70"
               }
             }
@@ -2206,8 +2206,8 @@
           "label": "Gold Pages",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:22"
           },
           "price": 3000,
@@ -2227,8 +2227,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:121"
               }
             },
@@ -2237,8 +2237,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:70"
               }
             }
@@ -2252,8 +2252,8 @@
           "label": "Gold Pages",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:22"
           },
           "price": 3000,
@@ -2313,8 +2313,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:155"
               }
             },
@@ -2323,8 +2323,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:72"
               }
             }
@@ -2336,8 +2336,8 @@
           "label": "Diamond Pages",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:33"
           },
           "price": 50000,
@@ -2357,8 +2357,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:155"
               }
             },
@@ -2367,8 +2367,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:72"
               }
             }
@@ -2382,8 +2382,8 @@
           "label": "Diamond Pages",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:33"
           },
           "price": 50000,
@@ -2414,8 +2414,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:509"
               }
             },
@@ -2424,8 +2424,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:69"
               }
             }
@@ -2439,8 +2439,8 @@
           "label": "Gold Helm",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:46"
           },
           "price": 3000,
@@ -2460,8 +2460,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:509"
               }
             },
@@ -2470,8 +2470,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:69"
               }
             }
@@ -2483,8 +2483,8 @@
           "label": "Gold Helm",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:46"
           },
           "price": 3000,
@@ -2517,8 +2517,8 @@
           "label": "Doom Spike (level 60)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:263"
           },
           "location": "The New World",
@@ -2545,8 +2545,8 @@
           "label": "Watchman (level 57)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:195"
           },
           "location": "Castle Sequoia",
@@ -2571,8 +2571,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:511"
               }
             },
@@ -2581,8 +2581,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:69"
               }
             }
@@ -2596,8 +2596,8 @@
           "label": "Gold Mail",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:47"
           },
           "price": 3000,
@@ -2617,8 +2617,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:511"
               }
             },
@@ -2627,8 +2627,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:69"
               }
             }
@@ -2640,8 +2640,8 @@
           "label": "Gold Mail",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:47"
           },
           "price": 3000,
@@ -2674,8 +2674,8 @@
           "label": "Akamanto (level 58)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:201"
           },
           "location": "Castle Sequoia",
@@ -2700,8 +2700,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:513"
               }
             },
@@ -2710,8 +2710,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:4"
               }
             }
@@ -2725,8 +2725,8 @@
           "label": "Gold Cap",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:48"
           },
           "price": 3000,
@@ -2746,8 +2746,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:513"
               }
             },
@@ -2756,8 +2756,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:4"
               }
             }
@@ -2769,8 +2769,8 @@
           "label": "Gold Cap",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:48"
           },
           "price": 3000,
@@ -2831,8 +2831,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:515"
               }
             },
@@ -2841,8 +2841,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:4"
               }
             }
@@ -2856,8 +2856,8 @@
           "label": "Gold Vest",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:49"
           },
           "price": 3000,
@@ -2877,8 +2877,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:515"
               }
             },
@@ -2887,8 +2887,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:4"
               }
             }
@@ -2900,8 +2900,8 @@
           "label": "Gold Vest",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:49"
           },
           "price": 3000,
@@ -2932,8 +2932,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:517"
               }
             },
@@ -2942,8 +2942,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:70"
               }
             }
@@ -2957,8 +2957,8 @@
           "label": "Gold Crown",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:50"
           },
           "price": 3000,
@@ -2978,8 +2978,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:517"
               }
             },
@@ -2988,8 +2988,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:70"
               }
             }
@@ -3001,8 +3001,8 @@
           "label": "Gold Crown",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:50"
           },
           "price": 3000,
@@ -3033,8 +3033,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:519"
               }
             },
@@ -3043,8 +3043,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:70"
               }
             }
@@ -3058,8 +3058,8 @@
           "label": "Gold Robe",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:51"
           },
           "price": 3000,
@@ -3079,8 +3079,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:519"
               }
             },
@@ -3089,8 +3089,8 @@
               "count": 3,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:70"
               }
             }
@@ -3102,8 +3102,8 @@
           "label": "Gold Robe",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:51"
           },
           "price": 3000,
@@ -3136,8 +3136,8 @@
           "label": "Kuromanto (level 29)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:63"
           },
           "location": "Okimoto N.S.",
@@ -3162,8 +3162,8 @@
               "count": 2,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:28"
               }
             },
@@ -3172,8 +3172,8 @@
               "count": 10,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:168"
               }
             },
@@ -3182,8 +3182,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:493"
               }
             }
@@ -3195,8 +3195,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:167"
               }
             }
@@ -3208,8 +3208,8 @@
           "label": "Fursuit",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:36"
           },
           "price": 2000,
@@ -3239,8 +3239,8 @@
               "count": 2,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:28"
               }
             },
@@ -3249,8 +3249,8 @@
               "count": 10,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:168"
               }
             },
@@ -3259,8 +3259,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:equipment:493"
               }
             }
@@ -3272,8 +3272,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:167"
               }
             }
@@ -3285,8 +3285,8 @@
           "label": "Fursuit",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:recipe:36"
           },
           "price": 2000,
@@ -3376,8 +3376,8 @@
           "label": "Quintar Enthusiast (level 60)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:213"
           },
           "location": "Rolling Quintar Fields",
@@ -3403,8 +3403,8 @@
           "label": "Quintar Enthusiast (level 60)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:213"
           },
           "location": "Rolling Quintar Fields",
@@ -3429,8 +3429,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:197"
               }
             }
@@ -3441,8 +3441,8 @@
               "count": 1,
               "ref": {
                 "kind": "catalog",
-                "catalogId": "crystal-project-public-starter",
-                "catalogRevisionId": "catalog-v3",
+                "catalogId": "crystal-project/vanilla",
+                "catalogRevisionId": "v1",
                 "entityId": "base:item:197"
               }
             }
@@ -3741,8 +3741,8 @@
           "label": "Red Guardian (level 49)",
           "ref": {
             "kind": "catalog",
-            "catalogId": "crystal-project-public-starter",
-            "catalogRevisionId": "catalog-v3",
+            "catalogId": "crystal-project/vanilla",
+            "catalogRevisionId": "v1",
             "entityId": "base:monster:224"
           },
           "location": "Slip Glide Ride",

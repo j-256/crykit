@@ -8,8 +8,13 @@ import { parseArgs } from 'node:util'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const INDEX = 'src/catalog/bundled-mod-index.json'
-const VANILLA_RECEIPT = 'src/catalog/vanilla-catalog-v3.json'
-const VANILLA_PACKED = 'src/catalog/vanilla-catalog-v3.packed.json'
+const VANILLA_RECEIPT = 'src/catalog/vanilla-current.json'
+const VANILLA_PACKED = 'src/catalog/vanilla-current.packed.json'
+const GUIDE_RECEIPT = 'src/catalog/guide-modding-current.json'
+const GUIDE_PACKED = 'src/catalog/guide-modding-current.packed.json'
+const REVISION_RECEIPTS = 'src/catalog/source-revisions.json'
+const GUIDE_IDS = 'src/catalog/guide-source-entity-ids.json'
+const SOURCE_IDS = 'src/catalog/bundled-source-entity-ids.json'
 const GENERATED_AT = '1970-01-01T00:00:00.000Z'
 const MAX_SOURCE_BYTES = 96 * 1024 * 1024
 const GZIP_OS_OFFSET = 9
@@ -20,8 +25,8 @@ Generate a compact search catalog for every directory-bundled Crystal Edit sourc
 using the application's import interpreter. Preserve full originals unchanged.
 Read src/catalog/bundled-mod-sources.json, digest-named gzip/base64 source assets,
 native databases and attributed reference sources. Write the mod search index,
-independent vanilla catalog snapshot and checksum receipt. Requires Node >=22.12
-and npm ci dependencies. No
+independent vanilla and guide snapshots, immutable revision receipts, and the
+vanilla identity crosswalk. Requires Node >=22.12 and npm ci dependencies. No
 environment variables, private inputs, or network requests are used.
   -c, --check  Verify generated outputs without writing
   -h, --help   Show help
@@ -37,20 +42,41 @@ function packedJson(value) {
   return `${JSON.stringify({ schemaVersion: 1, encoding: 'gzip-base64', sha256: digest(json), data: compressed.toString('base64') })}\n`
 }
 
+export function recordSourceRevision(receipts, receipt) {
+  const previous = receipts.find(entry => entry.id === receipt.id && entry.revisionId === receipt.revisionId)
+  // Source revisions are immutable receipts, not aliases for whichever body is packaged
+  if (previous && previous.checksum !== receipt.checksum) throw new Error(`Immutable source revision differs: ${receipt.id}@${receipt.revisionId}; allocate a new revision`)
+  return previous ? receipts : [...receipts, receipt]
+}
+
 export async function generateModIndex({ check = false } = {}) {
   const { createServer } = await import('vite')
   const server = await createServer({ root: ROOT, configFile: false, logLevel: 'error', server: { middlewareMode: true, hmr: false }, appType: 'custom' })
   try {
     const manifest = JSON.parse(await readFile(join(ROOT, 'src/catalog/bundled-mod-sources.json'), 'utf8'))
-    const { vanillaCatalog } = await server.ssrLoadModule('/src/catalog/vanilla-catalog.ts')
+    const { vanillaCatalog, vanillaSourceCatalog } = await server.ssrLoadModule('/src/catalog/vanilla-catalog.ts')
+    const { referenceSupplements } = await server.ssrLoadModule('/src/catalog/reference-supplements.ts')
+    const { guideCatalog } = await server.ssrLoadModule('/src/catalog/guide-catalog.ts')
+    const { compiledEntityId } = await server.ssrLoadModule('/src/domain/catalog-identities.ts')
+    const allocations = JSON.parse(await readFile(join(ROOT, 'src/catalog/supplemental-entity-ids.json'), 'utf8')).ids
+    const { crystalEditSourceKey } = await server.ssrLoadModule('/src/interchange/source-identity.ts')
     const { catalogContentForChecksum } = await server.ssrLoadModule('/src/interchange/catalog-checksum.ts')
     const { immutableCatalogSnapshot } = await server.ssrLoadModule('/src/interchange/native.ts')
     const { previewCrystalEdit } = await server.ssrLoadModule('/src/interchange/crystal-edit.ts')
     const { modSearchCatalog } = await server.ssrLoadModule('/src/domain/mod-search.ts')
-    const { checksum: _checksum, ...content } = vanillaCatalog('')
-    const checksum = `builtin:sha256:${digest(catalogContentForChecksum(content))}`
-    const vanilla = `${JSON.stringify({ schemaVersion: 1, checksum }, null, 2)}\n`
-    const vanillaPacked = packedJson(immutableCatalogSnapshot({ ...content, checksum }))
+    const receipts = JSON.parse(await readFile(join(ROOT, REVISION_RECEIPTS), 'utf8'))
+    const outputs = []
+    for (const [factory, receiptPath, packedPath] of [[vanillaCatalog, VANILLA_RECEIPT, VANILLA_PACKED], [guideCatalog, GUIDE_RECEIPT, GUIDE_PACKED]]) {
+      const { checksum: _checksum, ...content } = factory('')
+      const checksum = `builtin:sha256:${digest(catalogContentForChecksum(content))}`
+      const receipt = { id: content.id, revisionId: content.revisionId, checksum }
+      receipts.sources = recordSourceRevision(receipts.sources, receipt)
+      outputs.push([receiptPath, `${JSON.stringify({ schemaVersion: 1, ...receipt }, null, 2)}\n`], [packedPath, packedJson(immutableCatalogSnapshot({ ...content, checksum }))])
+    }
+    outputs.push([REVISION_RECEIPTS, `${JSON.stringify(receipts, null, 2)}\n`])
+    const sourceIds = Object.fromEntries(Object.values(vanillaSourceCatalog().entities).map(entity => [entity.id, compiledEntityId(entity, allocations)]))
+    outputs.push([GUIDE_IDS, `${JSON.stringify(Object.fromEntries(Object.keys(referenceSupplements('guide').entities).map(id => [id, `ref-${allocations[id]}`])), null, 2)}\n`])
+    outputs.push([SOURCE_IDS, `${JSON.stringify(sourceIds, null, 2)}\n`])
     const catalogs = []
     const seenProjects = new Set()
     for (const source of manifest.mods) {
@@ -61,12 +87,12 @@ export async function generateModIndex({ check = false } = {}) {
       if (bytes.length !== source.sourceBytes || digest(bytes) !== source.sha256) throw new Error(`Bundled source integrity differs: ${source.title}`)
       const preview = await previewCrystalEdit(new Uint8Array(bytes), `${source.title}.json`, GENERATED_AT)
       const catalog = preview.proposed.catalogs[0]
-      if (catalog?.id !== `crystal-edit:${source.projectId}`) throw new Error(`Bundled project identity differs: ${source.title}`)
+      if (catalog?.id !== `crystal-project/imported/${await crystalEditSourceKey(source.projectId)}`) throw new Error(`Bundled project identity differs: ${source.title}`)
       catalogs.push(modSearchCatalog(catalog))
     }
     const json = JSON.stringify({ schemaVersion: 1, catalogs })
     const index = packedJson({ schemaVersion: 1, catalogs })
-    for (const [path, text] of [[INDEX, index], [VANILLA_RECEIPT, vanilla], [VANILLA_PACKED, vanillaPacked]]) {
+    for (const [path, text] of [[INDEX, index], ...outputs]) {
       if (check) { if (await readFile(join(ROOT, path), 'utf8') !== text) throw new Error(`Generated output differs: ${path}`) }
       else await writeFile(join(ROOT, path), text)
     }

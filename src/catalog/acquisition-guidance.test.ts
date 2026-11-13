@@ -1,5 +1,6 @@
+import { HISTORICAL_VANILLA } from './source-collection.test-helpers'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CATALOG, PREVIOUS_CATALOG } from './bundled'
+import { DEFAULT_CATALOG } from './bundled'
 import { nativeItemAcquisition, projectAcquisitionGuidance } from './acquisition-guidance'
 import receipts from './acquisition-guidance-receipts.json' with { type: 'json' }
 import conditions from './acquisition-condition-facts.json' with { type: 'json' }
@@ -13,13 +14,13 @@ const entity = (id: string): CatalogEntity => DEFAULT_CATALOG.entities[id]!
 
 describe('reviewed native acquisition presentation', () => {
   it('keeps another revision\'s prose visible while native acquisition routes remain available', () => {
-    const before = JSON.stringify(PREVIOUS_CATALOG)
-    const result = projectAcquisitionGuidance(PREVIOUS_CATALOG, PREVIOUS_CATALOG.entities['base:equipment:227']!)
+    const before = JSON.stringify(HISTORICAL_VANILLA)
+    const result = projectAcquisitionGuidance(HISTORICAL_VANILLA, HISTORICAL_VANILLA.entities['base:equipment:227']!)
     expect(result.acquisition.routes.map(route => route.kind)).toEqual(['drop', 'steal'])
     expect(result.replacedFields).toEqual([])
     expect(result.originalGuides).toEqual([])
     expect(result.retainedGuides).toEqual(result.acquisition.guides)
-    expect(JSON.stringify(PREVIOUS_CATALOG)).toBe(before)
+    expect(JSON.stringify(HISTORICAL_VANILLA)).toBe(before)
   })
 
   it('binds every reviewed condition meaning to a condition retained in its pinned world entity', () => {

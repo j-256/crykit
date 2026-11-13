@@ -4,8 +4,8 @@ import { asId, entityDefinitionKey } from '../domain/core'
 import { definitionLineageRootRef, preferredDefinitionRef, resolveDefinition, sameLogicalEntity } from '../domain/definitions'
 import { findSkillTreeLayout, skillTreeShape, squareKey } from '../domain/skill-trees'
 import type { CatalogRef, CatalogSnapshot, EntityId, EntityRef, LearnedNodeKind, LocalData, GameSetupRevision, GameSetupRevisionId, SkillSquare, SkillTreeMapping } from '../domain/types'
-import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './catalog-ids'
-import { compileBundledSourceId } from './bundled'
+import observationIds from './observed-skill-entity-ids.json' with { type: 'json' }
+import observationReceipt from './native-mod-fact-receipts.json' with { type: 'json' }
 
 export const SWITCH_MOD_PACKS_MAP_SET = CONFIRMED_SWITCH_MOD_SETUP.id
 export const CONFIRMED_SKILL_MAP_SETS = Object.freeze([CONFIRMED_SWITCH_MOD_SETUP])
@@ -19,7 +19,11 @@ export interface ConfirmedSkillMap {
 }
 
 function starterRef(id: string): CatalogRef {
-  return { kind: 'catalog', catalogId: STARTER_CATALOG_ID, catalogRevisionId: STARTER_CATALOG_REVISION_ID, entityId: asId<EntityId>(compileBundledSourceId(id)) }
+  // Confirmed Switch observations retain the original source pin and identity allocation
+  // Rebinding them to a packaged PC revision would invent platform equivalence
+  const entityId = (observationIds as Readonly<Record<string, string>>)[id]
+  if (!entityId) throw new Error(`Missing observed source identity: ${id}`)
+  return { kind: 'catalog', catalogId: asId(observationReceipt.source.id), catalogRevisionId: asId(observationReceipt.source.revisionId), entityId: asId<EntityId>(entityId) }
 }
 
 function confirmedClassMap(className: string, assignments: readonly (readonly [number, number, LearnedNodeKind, string])[], unresolved: readonly (readonly [number, number])[] = [], classId = `base:class:${className}`): ConfirmedSkillMap {

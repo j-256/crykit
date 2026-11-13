@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CATALOG } from './bundled'
+import { GUIDE_CATALOG, DEFAULT_CATALOG } from './bundled'
 import { corroboratedFact } from './source-corroboration'
 import { DefinitionFactsPanel } from '../ui/DefinitionDetailSections'
 import { SourceReferences } from '../ui/KnowledgeValue'
@@ -53,11 +53,11 @@ describe('game-code field corroboration', () => {
   })
 
   it('keeps partial and conflicting mechanic descriptions visible', () => {
-    const full = DEFAULT_CATALOG.entities['base:mechanic:stat:ref-464']!
-    const partial = DEFAULT_CATALOG.entities['base:mechanic:stat:ref-631']!
-    expect(corroboratedFact({ catalog: DEFAULT_CATALOG, entity: full }, 'Description', full.fields.Description!)).toBe(true)
-    expect(corroboratedFact({ catalog: DEFAULT_CATALOG, entity: partial }, 'Description', partial.fields.Description!)).toBe(false)
-    const conflicting = DEFAULT_CATALOG.entities['base:mechanic:ability:ref-385']!
-    expect(corroboratedFact({ catalog: DEFAULT_CATALOG, entity: conflicting }, 'Description', conflicting.fields.Description!)).toBe(false)
+    const full = GUIDE_CATALOG.entities['ref-464']!
+    const partial = GUIDE_CATALOG.entities['ref-631']!
+    expect(corroboratedFact({ catalog: GUIDE_CATALOG, entity: full }, 'Description', full.fields.Description!)).toBe(true)
+    expect(corroboratedFact({ catalog: GUIDE_CATALOG, entity: partial }, 'Description', partial.fields.Description!)).toBe(false)
+    const conflicting = GUIDE_CATALOG.entities['ref-385']!
+    expect(corroboratedFact({ catalog: GUIDE_CATALOG, entity: conflicting }, 'Description', conflicting.fields.Description!)).toBe(false)
   })
 })

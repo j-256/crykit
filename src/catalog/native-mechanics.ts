@@ -1,6 +1,6 @@
 import factsJson from './native-mechanics.json' with { type: 'json' }
 import codeEvidence from './game-code-evidence.json' with { type: 'json' }
-import { BUNDLED_CATALOGS, BUNDLED_SOURCE_ENTITY_IDS } from './bundled'
+import { GUIDE_CATALOG, GUIDE_SOURCE_ENTITY_IDS } from './bundled'
 import { NATIVE_GAME_DATA } from './native-game'
 import { sameValue } from '../domain/definition-values'
 import { nativeGameplayScopeLabel } from '../domain/native-game'
@@ -30,7 +30,8 @@ export interface NativeMechanic {
 const facts = factsJson as unknown as { readonly source: typeof codeEvidence.source; readonly files: Readonly<Record<string, string>>; readonly entries: readonly NativeMechanicReceipt[] }
 const reviewedFiles: Readonly<Record<string, string>> = codeEvidence.files
 const sourceMatches = facts.source.executableSha256 === NATIVE_GAME_DATA.source.executable.sha256 && facts.source.executableSha256 === codeEvidence.source.executableSha256 && facts.source.systemDataSha256 === codeEvidence.source.systemDataSha256 && facts.source.gameVersion === NATIVE_GAME_DATA.source.gameVersion && facts.source.platform === NATIVE_GAME_DATA.source.platform && Object.entries(facts.files).every(([path, digest]) => reviewedFiles[path] === digest)
-const receipts = new Map(facts.entries.map(receipt => [receipt.entityId, receipt]))
+// Translate reviewed source keys through the guide allocation without rewriting native evidence
+const receipts = new Map(facts.entries.map(receipt => [GUIDE_SOURCE_ENTITY_IDS.get(receipt.sourceId), receipt]))
 const FORMULA_REFERENCE_SOURCE_ID = 'base:mechanic:growth-and-damage'
 const VERIFIED_FORMULA_SCOPE_PHRASE = 'verified Windows PC 1.6.9 calculation package'
 
@@ -38,8 +39,8 @@ export function nativeMechanic(entity: CatalogEntity | PersonalDefinition): Nati
   if (!sourceMatches || 'revision' in entity) return undefined
   const receipt = receipts.get(entity.id)
   if (!receipt) return undefined
-  const baseline = BUNDLED_CATALOGS.map(catalog => catalog.entities[entity.id]).find(original => original && entity.kind === original.kind && sameValue(entity.fields, original.fields) && sameValue(entity.sources, original.sources))
-  if (!receipt || !baseline || BUNDLED_SOURCE_ENTITY_IDS.get(receipt.sourceId) !== entity.id || entity.kind !== baseline.kind || entity.name !== baseline.name || entity.rawDescription !== receipt.expectedDescription || !sameValue(entity.fields, receipt.expectedFields) || !sameValue(entity.fields, baseline.fields) || !sameValue(entity.sources, baseline.sources)) return undefined
+  const baseline = GUIDE_CATALOG.entities[entity.id]
+  if (!receipt || !baseline || GUIDE_SOURCE_ENTITY_IDS.get(receipt.sourceId) !== entity.id || entity.kind !== baseline.kind || entity.name !== baseline.name || entity.rawDescription !== receipt.expectedDescription || !sameValue(entity.fields, receipt.expectedFields) || !sameValue(entity.fields, baseline.fields) || !sameValue(entity.sources, baseline.sources)) return undefined
   const scope = nativeGameplayScopeLabel(facts.source.platform, facts.source.gameVersion)
   // Project only the pinned formula receipt's scope phrase; source receipts stay immutable
   const description = receipt.sourceId === FORMULA_REFERENCE_SOURCE_ID && scope === 'PC 1.6.9.0' ? receipt.description.replace(VERIFIED_FORMULA_SCOPE_PHRASE, `verified ${scope} calculation package`) : receipt.description

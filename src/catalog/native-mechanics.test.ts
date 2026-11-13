@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CATALOG, compileBundledSourceId } from './bundled'
+import { GUIDE_CATALOG, compileGuideSourceId } from './bundled'
 import { nativeMechanic } from './native-mechanics'
 import facts from './native-mechanics.json' with { type: 'json' }
 import code from './game-code-evidence.json' with { type: 'json' }
@@ -7,7 +7,7 @@ import { NATIVE_GAME_DATA } from './native-game'
 import { calculateCombat } from '../domain/combat-calculations'
 import combatRules from '../calculations/combat-v1.json' with { type: 'json' }
 
-const entry = (sourceId: string) => DEFAULT_CATALOG.entities[compileBundledSourceId(sourceId)]!
+const entry = (sourceId: string) => GUIDE_CATALOG.entities[compileGuideSourceId(sourceId)]!
 const FLAT_AP_COST = 'base:mechanic:stat:Flat%20AbilityAPCost%20%5BX%5D%20%5BY%5D'
 const ATTRIBUTE_RATE = 'base:mechanic:ability:AttributeDamageRate%20%5BX%5D%20%5BY%5D'
 const STEAL_BONUS = 'base:mechanic:stat:StealChanceUp%20%5BX%5D'
@@ -15,7 +15,7 @@ const FORMULA_REFERENCE = 'base:mechanic:growth-and-damage'
 
 describe('native mechanic reference replacements', () => {
   it('requires matching native code pins and preserves the complete original claims without changing catalogs', () => {
-    const before = JSON.stringify(DEFAULT_CATALOG)
+    const before = JSON.stringify(GUIDE_CATALOG)
     expect(facts.source.executableSha256).toBe(NATIVE_GAME_DATA.source.executable.sha256)
     for (const [path, digest] of Object.entries(facts.files)) expect((code.files as Record<string, string>)[path]).toBe(digest)
     for (const [path, digest] of Object.entries(facts.calculationFiles)) expect((combatRules.source.files as Record<string, string>)[path]).toBe(digest)
@@ -27,7 +27,7 @@ describe('native mechanic reference replacements', () => {
       expect(projected?.originalDescription).toBe(original.rawDescription)
       for (const field of projected!.replacedFields) expect(projected?.originalFields[field]).toBe(original.fields[field])
     }
-    expect(JSON.stringify(DEFAULT_CATALOG)).toBe(before)
+    expect(JSON.stringify(GUIDE_CATALOG)).toBe(before)
   })
 
   it('uses the native parameter order and calculation behavior for AP costs and secondary resource damage', () => {
