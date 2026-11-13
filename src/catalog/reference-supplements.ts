@@ -2,20 +2,29 @@ import { createReferenceSupplementCatalog } from './starter'
 import { addCrystalEditFacts } from './crystal-edit'
 import { addModdingGuideFacts } from './modding-guide'
 import { addTravelUnlockDefinitions } from './travel-unlocks'
-import defaults from './mod-defaults.json' with { type: 'json' }
-import type { CatalogSnapshot } from '../domain/types'
+import type { CatalogEntity, CatalogSnapshot } from '../domain/types'
 
-const SOURCE_MOD_NAMES = new Set([...defaults.projects.flatMap(project => project.names), 'Tempest', 'Forcemage', 'Barbarian', 'Doge Shield'].map(name => name.trim().toLowerCase()))
-const SOURCE_MOD_SCOPES = new Set([...defaults.projects.map(project => project.key), 'tempest', 'forcemage', 'barbarian', 'doge-shield'])
+export type AuthoredSourceClass = 'vanilla' | 'guide' | 'excluded-mod' | 'excluded-coverage'
 
-export function referenceSupplements(): CatalogSnapshot {
-  const authored = addTravelUnlockDefinitions(addModdingGuideFacts(addCrystalEditFacts(createReferenceSupplementCatalog())))
-  // Keep the base snapshot independent of which exact source versions the library provides
-  // Source-backed mods belong to their exact library revisions, not the base catalog's supplemental facts
-  const entities = Object.fromEntries(Object.entries(authored.entities).filter(([id, entity]) => {
+export function authoredReferenceSources(): CatalogSnapshot {
+  return addTravelUnlockDefinitions(addModdingGuideFacts(addCrystalEditFacts(createReferenceSupplementCatalog())))
+}
+
+export function classifyAuthoredSource(entity: CatalogEntity): AuthoredSourceClass {
+  // Authored namespaces carry source ownership; display names cannot decide provenance
+  if (entity.id.startsWith('mod:')) return 'excluded-mod'
+  if (entity.id === 'base:other:catalog-coverage-gaps') return 'excluded-coverage'
+  if (entity.id.startsWith('base:mechanic:')) return 'guide'
+  if (entity.id.startsWith('base:')) {
     const mod = entity.fields['Source mod']
-    const [scope, project] = id.split(':')
-    return !(scope === 'mod' && project && SOURCE_MOD_SCOPES.has(project)) && !(mod?.state === 'known' && typeof mod.value === 'string' && SOURCE_MOD_NAMES.has(mod.value.trim().toLowerCase()))
-  }))
+    if (mod?.state === 'known' && mod.value !== 'Base Game') throw new Error(`Unclassified mod ownership in vanilla namespace: ${entity.id}`)
+    return 'vanilla'
+  }
+  throw new Error(`Unclassified authored source: ${entity.id}`)
+}
+
+export function referenceSupplements(classification: 'vanilla' | 'guide' = 'vanilla'): CatalogSnapshot {
+  const authored = authoredReferenceSources()
+  const entities = Object.fromEntries(Object.entries(authored.entities).filter(([, entity]) => classifyAuthoredSource(entity) === classification))
   return { ...authored, entities, claims: authored.claims.filter(claim => entities[claim.entityId]) }
 }

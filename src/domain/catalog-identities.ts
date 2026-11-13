@@ -1,3 +1,4 @@
+import { parseCatalogSourceId } from './source-identity'
 import { bundledModEntityId, bundledModIdentity } from './bundled-mods'
 import { nativeEntityId, nativeIdentity, nativeRecord } from './native-game'
 import type { CatalogEntity, CatalogRef, CatalogSnapshot, EntityId, EntityRef, JsonValue } from './types'
@@ -21,7 +22,13 @@ export function compiledEntityId(entity: CatalogEntity, supplementalIds: Supplem
 export function compileCatalogIdentities(source: CatalogSnapshot, supplementalIds: SupplementalEntityIds): CatalogSnapshot {
   const allocations = Object.values(supplementalIds)
   if (allocations.some(id => !Number.isSafeInteger(id) || id <= 0) || new Set(allocations).size !== allocations.length) throw new Error('Supplemental identity allocations must be unique positive integers')
-  const ids = new Map(Object.values(source.entities).map(entity => [entity.id as string, compiledEntityId(entity, supplementalIds)]))
+  const guide = parseCatalogSourceId(source.id)?.origin === 'guide'
+  const ids = new Map(Object.values(source.entities).map(entity => {
+    if (!guide) return [entity.id as string, compiledEntityId(entity, supplementalIds)] as const
+    const allocation = supplementalIds[entity.id]
+    if (!Number.isSafeInteger(allocation) || allocation! <= 0 || nativeIdentity(entity) || bundledModIdentity(entity)) throw new Error(`Invalid guide identity allocation: ${entity.id}`)
+    return [entity.id as string, `ref-${allocation}` as EntityId] as const
+  }))
   if (new Set(ids.values()).size !== ids.size) throw new Error('Source definitions compile to conflicting catalog identities')
   const targetId = (id: string): EntityId => {
     const target = ids.get(id)

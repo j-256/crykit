@@ -5,8 +5,7 @@ import { nativeIdentity, nativeRelationships, nativeSourceRecord } from '../doma
 import { exportedTree } from '../domain/crystal-edit'
 import { LEARNABLE_INNATE_FIELD } from './switch'
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
-import { STARTER_SOURCE_URLS } from './data'
-import { CURRENT_CATALOG } from './bundled'
+import { CURRENT_CATALOG, GUIDE_CATALOG } from './bundled'
 
 const SYNTHETIC_CHECKSUM = `builtin:sha256:${'0'.repeat(64)}`
 
@@ -35,12 +34,10 @@ it('retains attributed supplemental facts while source-backed mods stay in their
   const catalog = vanillaCatalog(SYNTHETIC_CHECKSUM)
   const definitions = Object.values(catalog.entities)
   expect(definitions.some(entity => entity.name === 'Doge Shield')).toBe(false)
-  const pack = definitions.find(entity => entity.name === 'Mod Pack 2: New Challenges')!
-  expect(pack.sources).toContainEqual(expect.objectContaining({ sourceId: STARTER_SOURCE_URLS['nintendo-mod-pack-2'] }))
-  expect(pack.fields.Contents).toMatchObject({ state: 'known', value: expect.arrayContaining(['Doge Shield']) })
+  expect(definitions.some(entity => entity.name === 'Mod Pack 2: New Challenges')).toBe(false)
   const mounts = definitions.find(entity => entity.name === 'Mounts')!
   expect(mounts.sources).toContainEqual(expect.objectContaining({ sourceId: 'https://crystal-project.fandom.com/wiki/Mounts?oldid=5937' }))
-  const mechanic = catalog.entities['base:mechanic:ability:ref-385']!
+  const mechanic = GUIDE_CATALOG.entities['ref-385']!
   expect(mechanic.fields.Description).toMatchObject({ state: 'conflicting', claims: [{ value: "The user is instantly KO'd when the ability resolves" }, { value: "The user's HP is reduced to 1 when the ability resolves" }] })
   expect(Object.keys(catalog.entities).some(id => id.startsWith('mod:equipment-expansion:equipment:'))).toBe(false)
   expect(catalog.entities['mod:moonlight-project:class:25']).toBeUndefined()

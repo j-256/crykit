@@ -32,9 +32,10 @@ describe('reviewed native reference links', () => {
     expect(nativeReferenceAlternatives(BUNDLED_CATALOG, 'base:job:0')).toEqual([nativeReferenceLink(BUNDLED_CATALOG, 'base:command:ref-28')])
   })
 
-  it('retains unresolved identities, mod scopes, and conflicting variants for review', () => {
+  it('retains unresolved native identities and excludes mod records from native review', () => {
     expect(nativeReferenceLink(BUNDLED_CATALOG, 'mod:additional-boss-pinga:monster:ref-1066')).toBeUndefined()
-    expect(nativeReferenceDisposition(BUNDLED_CATALOG, 'mod:additional-boss-pinga:monster:ref-1066')).toBe('mod-source-review')
+    expect(BUNDLED_CATALOG.entities['mod:additional-boss-pinga:monster:ref-1066']).toBeUndefined()
+    expect(nativeReferenceDisposition(BUNDLED_CATALOG, 'mod:additional-boss-pinga:monster:ref-1066')).toBeUndefined()
     expect(nativeReferenceLink(BUNDLED_CATALOG, 'base:monster:ref-795')).toBeUndefined()
     expect(nativeReferenceDisposition(BUNDLED_CATALOG, 'base:monster:ref-795')).toBe('native-identity-review')
     expect(nativeReferenceLink(BUNDLED_CATALOG, 'base:status:ref-965')).toBeUndefined()

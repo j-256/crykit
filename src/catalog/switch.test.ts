@@ -10,7 +10,7 @@ import { definitionModAvailability } from './mods'
 import { starterEntitySourceLabel } from './provenance'
 import { CONFIRMED_SKILL_MAPS } from './skill-maps'
 import { STARTER_CATALOG } from './starter'
-import { BUNDLED_SOURCE_ENTITY_IDS, compileBundledSourceId } from './bundled'
+import observationIds from './observed-skill-entity-ids.json'
 import {
   isPotentiallyLearnableInnate,
   LEARNABLE_INNATE_FIELD,
@@ -20,10 +20,13 @@ import {
   SWITCH_PASSIVE_PP_SOURCE,
 } from './switch'
 
-const observations = referenceObservationFixture(STARTER_CATALOG, BUNDLED_SOURCE_ENTITY_IDS)
+const observedIds = new Map(Object.entries(observationIds).map(([id, target]) => [id, target as CatalogRef['entityId']]))
+const observationId = (id: string) => (observedIds.get(id) ?? id) as CatalogRef['entityId']
+
+const observations = referenceObservationFixture(STARTER_CATALOG, observedIds)
 
 function ref(id: string): CatalogRef {
-  return { kind: 'catalog', catalogId: observations.id, catalogRevisionId: observations.revisionId, entityId: compileBundledSourceId(id) }
+  return { kind: 'catalog', catalogId: observations.id, catalogRevisionId: observations.revisionId, entityId: observationId(id) }
 }
 
 describe('confirmed Switch skill identities', () => {
@@ -74,16 +77,16 @@ describe('confirmed Switch skill identities', () => {
     const characterId = asId<CharacterId>('synthetic-switch-class-character')
     let localData = createCharacter(createTestLocalData(), { id: characterId, name: 'Rowan' })
     for (const className of ['barbarian', 'tempest']) {
-      const map = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === compileBundledSourceId(`mod:${className}:class:${className}`))!
+      const map = CONFIRMED_SKILL_MAPS.find(map => map.classRef.entityId === observationId(`mod:${className}:class:${className}`))!
       localData = importSkillTrees(localData, [observations], [{ characterId, classRef: { ...map.classRef, catalogId: observations.id, catalogRevisionId: observations.revisionId }, sourceDigest: className === 'barbarian' ? 'a'.repeat(64) : 'b'.repeat(64), filename: `synthetic-${className}.png`, squares: map.squares.map(square => ({ ...square, state: 'learned' })), mappings: map.mappings.map(mapping => ({ ...mapping, ref: { ...mapping.ref, catalogId: observations.id, catalogRevisionId: observations.revisionId } })), reviewed: true }], localData.revision)
     }
     const learned = Object.values(requirePlaythrough(localData).characters[characterId].learnedNodes)
     expect(learned.some(node => node.kind === 'innate')).toBe(false)
-    expect(learned.find(node => node.ref.kind === 'catalog' && node.ref.entityId === compileBundledSourceId('mod:tempest:passive:preparation'))?.kind).toBe('passive')
+    expect(learned.find(node => node.ref.kind === 'catalog' && node.ref.entityId === observationId('mod:tempest:passive:preparation'))?.kind).toBe('passive')
     for (const id of ['mod:tempest:innate:squall', 'mod:barbarian:innate:toughness']) {
       expect(STARTER_CATALOG.entities[id].kind).toBe('innate')
       expect(STARTER_CATALOG.entities[id].fields['Learnable from this skill tree']).toMatchObject({ state: 'known', value: false })
-      expect(learned.some(node => node.ref.kind === 'catalog' && node.ref.entityId === compileBundledSourceId(id))).toBe(false)
+      expect(learned.some(node => node.ref.kind === 'catalog' && node.ref.entityId === observationId(id))).toBe(false)
     }
     expect(STARTER_CATALOG.entities['mod:tempest:passive:preparation'].aliases).not.toContain('Squall')
   })

@@ -82,7 +82,7 @@ export async function auditSources({ check = false, reference } = {}) {
   for (const mechanic of Object.values(evidence.mechanics)) if (!['corroborated', 'partial'].includes(mechanic.status) || mechanic.evidence.some(id => !Object.hasOwn(evidence.symbols, id))) throw new Error('Mechanic review has invalid evidence')
   const server = await createServer({ root: ROOT, configFile: false, server: { middlewareMode: true }, appType: 'custom', logLevel: 'error' })
   try {
-    const { BUNDLED_CATALOGS, compileBundledSourceBindings } = await server.ssrLoadModule('/src/catalog/bundled.ts')
+    const { BUNDLED_CATALOGS, GUIDE_CATALOG, compileGuideSourceBindings, compileBundledSourceBindings } = await server.ssrLoadModule('/src/catalog/bundled.ts')
     const { assessCatalogField } = await server.ssrLoadModule('/src/catalog/source-corroboration-rules.ts')
     const trees = JSON.parse(await readFile(join(ROOT, 'src/catalog/class-tree-identities.json'), 'utf8'))
     const identities = Object.fromEntries(Object.entries(snapshot.identityBindings).map(([key, id]) => { const [database, databaseId] = key.split(':'); return [id, { database, databaseId: Number(databaseId) }] }))
@@ -99,7 +99,7 @@ export async function auditSources({ check = false, reference } = {}) {
       identities[node.entityId] = identity
     }
     for (const id of ambiguousIdentities) delete identities[id]
-    const context = { snapshot, identities: compileBundledSourceBindings(identities), mechanics: compileBundledSourceBindings(evidence.mechanics) }
+    const context = { snapshot, identities: compileBundledSourceBindings(identities), mechanics: compileGuideSourceBindings(evidence.mechanics) }
     const inventory = new Map()
     const source = id => {
       if (!inventory.has(id)) inventory.set(id, { ...sourceCategory(id), files: new Set(), catalogs: new Set(), outcomes: { corroborated: 0, partial: 0, retained: 0 }, reasons: new Set() })
@@ -117,7 +117,7 @@ export async function auditSources({ check = false, reference } = {}) {
           const refs = sourcesFor(knowledge)
           if (!refs.length) continue
           const nativeOnly = knowledge.state === 'known' && refs.every(ref => ref.sourceId.startsWith('native-game:'))
-          const assessment = nativeOnly ? { status: 'corroborated', reason: 'Direct normalized native database evidence', evidence: [] } : assessCatalogField(context, entity, field, knowledge)
+          const assessment = nativeOnly ? { status: 'corroborated', reason: 'Direct normalized native database evidence', evidence: [] } : assessCatalogField({ ...context, mechanics: catalog.id === GUIDE_CATALOG.id ? context.mechanics : {} }, entity, field, knowledge)
           if (!nativeOnly && assessment.status === 'corroborated') {
             fields[entity.id] ??= {}
             const proofKey = JSON.stringify(assessment.evidence)
@@ -147,7 +147,9 @@ export async function auditSources({ check = false, reference } = {}) {
     }
     const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' }).split('\0').filter(file => file && !OUTPUTS.has(file) && /\.(?:ts|tsx|mjs|json|md|css|txt|html|yaml|yml)$/.test(file) && !/(?:\.test\.|\.spec\.|^e2e\/|package-lock\.json$)/.test(file))
     for (const file of new Set(files)) {
-      const content = await readFile(join(ROOT, file), 'utf8')
+      // Git's cached inventory includes files deleted in the working tree
+      const content = await readFile(join(ROOT, file), 'utf8').catch(error => { if (error.code === 'ENOENT') return undefined; throw error })
+      if (content === undefined) continue
       for (const match of content.matchAll(/https?:\/\/[^\s"'<>`\\]+/g)) {
         let id = match[0].replace(/[.,;\]}]+$/, '')
         while (id.endsWith(')') && [...id].filter(c => c === '(').length < [...id].filter(c => c === ')').length) id = id.slice(0, -1)
