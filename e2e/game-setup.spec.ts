@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../src/domain/data-generation'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -169,7 +170,7 @@ test('applying a saved setup recovers a failed save without changing historical 
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic apply failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic apply failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })
@@ -193,7 +194,7 @@ test('unrelated edits preserve unresolved knowledge and backup round trips', asy
   const source = { ...fixture.gameSetups[id]!, platform: { state: 'conflicting' as const, claims: [{ value: 'Windows', sources: [{ sourceId: 'synthetic-a' }] }, { value: 'Nintendo Switch', sources: [{ sourceId: 'synthetic-b' }] }] }, gameVersion: { state: 'unknown' as const, reason: 'Synthetic missing version' }, mode: { state: 'notApplicable' as const, reason: 'Synthetic scope' }, difficulty: { version: 1 as const, selection: { state: 'unknown' as const, reason: 'Synthetic missing difficulty', sources: [{ sourceId: 'synthetic-context' }] } }, ppLimit: { state: 'unknown' as const, reason: 'Synthetic missing budget' }, ppCostsNonNegative: { state: 'conflicting' as const, claims: [{ value: true, sources: [{ sourceId: 'synthetic-a' }] }, { value: false, sources: [{ sourceId: 'synthetic-b' }] }] } }
   const localData = { ...fixture, gameSetups: { ...fixture.gameSetups, [id]: source }, changes: [] }
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
-  const archive = zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: '2026-01-01T00:00:00.000Z', payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }) })
+  const archive = zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '3.0.0', dataGeneration: LAUNCH_DATA_GENERATION, exportedAt: '2026-01-01T00:00:00.000Z', payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }) })
   await page.goto('/#/settings/data')
   const panel = settings(page)
   await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-unresolved.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
@@ -235,7 +236,7 @@ test('a failed new setup save retries inside the panel and survives offline relo
   await page.evaluate(() => {
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { IDBObjectStore.prototype.put = put; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })

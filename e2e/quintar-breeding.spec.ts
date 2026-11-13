@@ -219,7 +219,7 @@ test('a failed tile save rolls back and can be retried in place', { tag: MOBILE_
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function(value: unknown, key?: IDBValidKey) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') {
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') {
         IDBObjectStore.prototype.put = original
         throw new DOMException('Synthetic quota failure', 'QuotaExceededError')
       }

@@ -1,5 +1,5 @@
-import { STARTER_CATALOG } from '../src/catalog/starter'
-import { referenceObservationFixture } from '../src/catalog/mod.test-helpers'
+import { syntheticCatalog } from '../src/workspace/test-helpers'
+import { LAUNCH_DATA_GENERATION } from '../src/domain/data-generation'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { skipInitialModSetup, applySavedGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openGameSetupSection, openSwitchModPacks, replacePlannerData, choosePlaythrough, waitForPlannerReady } from './local-data-helpers'
@@ -7,7 +7,7 @@ import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
-import { DEFAULT_CATALOG, PREVIOUS_CATALOG, BUNDLED_SOURCE_ENTITY_IDS } from '../src/catalog/bundled'
+import { DEFAULT_CATALOG, BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import { MOONLIGHT_PROJECT_MOD, CONFIRMED_SWITCH_MOD_SETUP, SWITCH_MOD_PACKS } from '../src/catalog/mods'
 import { asId, captureCharacter, createCharacter, setPlaythroughGameSetup, updateGameSetupRevision } from '../src/domain'
 import { addTestBuild, createTestLocalData, HAND_SLOT, known, TEST_NOW, TEST_GAME_SETUP_REVISION_ID } from '../src/domain/test-helpers'
@@ -15,18 +15,19 @@ import type { CatalogRef, CharacterId, EntityId, LocalData } from '../src/domain
 
 const CHARACTER = asId<CharacterId>('synthetic-mod-rowan')
 const NATIVE_BACKUP_PREVIEW_TIMEOUT_MS = 15_000
-const BUNDLED_DOGE_SHIELD_SOURCE_ID = `${PREVIOUS_CATALOG.id} · revision ${PREVIOUS_CATALOG.revisionId}`
-const allObservations = referenceObservationFixture(STARTER_CATALOG, BUNDLED_SOURCE_ENTITY_IDS)
-const OBSERVATIONS = { ...allObservations, entities: Object.fromEntries(Object.entries(allObservations.entities).filter(([id]) => ['mod:doge-shield:', 'mod:equipment-expansion:', 'mod:barbarian:'].some(prefix => id.startsWith(prefix)))), claims: [] }
-const SHIELD: CatalogRef = { kind: 'catalog', catalogId: OBSERVATIONS.id, catalogRevisionId: OBSERVATIONS.revisionId, entityId: asId<EntityId>('mod:doge-shield:item:ref-1084') }
-const BACKBREAKER: CatalogRef = { kind: 'catalog', catalogId: OBSERVATIONS.id, catalogRevisionId: OBSERVATIONS.revisionId, entityId: asId<EntityId>('mod:equipment-expansion:equipment:617') }
+// Synthetic observations exercise mod labels without depending on packaged mod definitions
+const OBSERVATIONS = syntheticCatalog('browser-mod-observations', undefined, Object.fromEntries([
+  ['shield', 'Doge Shield', 'item', 'Doge Shield'],
+  ['blade', 'Heavy Edge', 'item', 'Equipment Expansion'],
+  ['bloodmage', 'Bloodmage', 'class', 'Bloodmage'],
+  ['barbarian', 'Barbarian', 'class', 'Barbarian'],
+].map(([id, name, kind, mod]) => [id, { id: asId<EntityId>(id), kind: kind as 'item' | 'class', name, aliases: [], fields: { 'Source mod': known(mod) }, sources: [] }])))
+const SHIELD: CatalogRef = { kind: 'catalog', catalogId: OBSERVATIONS.id, catalogRevisionId: OBSERVATIONS.revisionId, entityId: asId<EntityId>('shield') }
+const BACKBREAKER: CatalogRef = { kind: 'catalog', catalogId: OBSERVATIONS.id, catalogRevisionId: OBSERVATIONS.revisionId, entityId: asId<EntityId>('blade') }
 
 function backup(localData: LocalData): Uint8Array {
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
-  // These journeys need both exact base revisions, not repeated embedded copies of the packaged catalogs
-  // Native backup pins resolve the complete offline snapshots and still reject missing or changed revisions
-  const bundledCatalogs = [DEFAULT_CATALOG, PREVIOUS_CATALOG].map(({ id, revisionId, checksum }) => ({ id, revisionId, checksum }))
-  return zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.1.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [OBSERVATIONS], bundledCatalogs, evidence: [], history: [] }) })
+  return zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '3.0.0', dataGeneration: LAUNCH_DATA_GENERATION, exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [...BUNDLED_CATALOGS, OBSERVATIONS], evidence: [], history: [] }) })
 }
 
 async function dataPanel(page: Page) {
@@ -169,8 +170,8 @@ test('Reference and pickers retain non-enabled mods at the bottom while recorded
   await picker.getByRole('searchbox').fill('Doge Shield')
   const shieldResults = picker.locator('[data-definition-result="true"]').filter({ hasText: 'Doge Shield' })
   await expect(shieldResults).toHaveCount(1)
-  const bundledShield = shieldResults.filter({ hasText: BUNDLED_DOGE_SHIELD_SOURCE_ID })
-  // Base revisions follow the exact setup pin; the private observation retains its own identity
+  const bundledShield = shieldResults.filter({ hasText: `${DEFAULT_CATALOG.id} · revision ${DEFAULT_CATALOG.revisionId}` })
+  // An imported observation must never masquerade as a packaged vanilla definition
   await expect(bundledShield).toHaveCount(0)
   const disabledShield = shieldResults.filter({ hasText: `${OBSERVATIONS.id} · revision ${OBSERVATIONS.revisionId}` })
   await expect(disabledShield).toHaveCount(1)
@@ -279,7 +280,7 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })

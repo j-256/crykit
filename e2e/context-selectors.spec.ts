@@ -195,7 +195,7 @@ test('failed selection remains recoverable and can be retried and reopened offli
   await page.evaluate(() => {
     const originalPut = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof originalPut>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = originalPut; throw new DOMException('Synthetic context save failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { IDBObjectStore.prototype.put = originalPut; throw new DOMException('Synthetic context save failure', 'QuotaExceededError') }
       return originalPut.apply(this, args)
     }
   })

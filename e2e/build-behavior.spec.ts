@@ -9,7 +9,6 @@ import { prepareModCatalogs } from '../src/persistence/local-data'
 import { readManagedGuestPlanner } from './guest-planner-reader'
 import { expectOfflineReady } from './offline-helpers'
 import { CURRENT_CATALOG } from '../src/catalog/bundled'
-import { HISTORICAL_BUNDLED_CATALOG } from '../src/domain/withdrawn-catalogs'
 
 async function installFixtureCopy(page: Page, original: LocalData, records: LocalData, revisionId: BuildRevisionId): Promise<void> {
   const revision = records.buildRevisions[revisionId]!
@@ -21,7 +20,7 @@ async function installFixtureCopy(page: Page, original: LocalData, records: Loca
   const catalogs = await prepareModCatalogs(savedSetup.localData, viewer.catalogs)
   const previousSetup = original.gameSetups[revision.gameSetupRevisionId]!
   const content = mapBuildModReferences(buildContentForModSetup(revision.content, savedSetup.setup, catalogs, previousSetup), ref => ref?.kind === 'catalog' && ref.catalogRevisionId === previousSetup.catalogLock[ref.catalogId] && savedSetup.setup.catalogLock[ref.catalogId] ? { ...ref, catalogRevisionId: savedSetup.setup.catalogLock[ref.catalogId]! } : ref)
-  const next = saveBuildRevision(savedSetup.localData, { buildId: copy.id, gameSetupRevisionId: savedSetup.setup.id, content })
+  const next = saveBuildRevision({ ...savedSetup.localData, ...(records.unavailableDefinitions ? { unavailableDefinitions: records.unavailableDefinitions } : {}) }, { buildId: copy.id, gameSetupRevisionId: savedSetup.setup.id, content })
   await replacePlannerFixture(page, next)
   await page.goto(`/#/builds/library/${copy.id}`)
 }
@@ -98,7 +97,7 @@ test('retains behavior and loadout after a failed save, and an older checkpoint 
     const put = IDBObjectStore.prototype.put
     let failOnce = true
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1' && failOnce) { failOnce = false; throw new DOMException('Synthetic behavior save failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator' && failOnce) { failOnce = false; throw new DOMException('Synthetic behavior save failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })
@@ -155,48 +154,13 @@ test('a preset without a configured layout keeps suggested slots usable and pres
   expect(saved.playthroughs).toEqual(original.playthroughs)
 })
 
-test('unavailable mod layers retain unchanged native loadout definitions @mobile', async ({ page, baseURL }) => {
-  const { original } = await openBuild(page)
-  const build = Object.values(original.builds).find(build => {
-    const revision = original.buildRevisions[build.latestRevisionId!]
-    return revision?.content.passives.some(selection => selection.ref.kind === 'catalog' && selection.ref.entityId === 'base:passive:20') && Object.values(revision.content.equipment).some(selection => selection?.ref.kind === 'catalog' && selection.ref.entityId === 'base:equipment:41')
-  })!
-  const before = original.buildRevisions[build.latestRevisionId!]!
-  const payload = { records: original }
-  const setup = payload.records.gameSetups[before.gameSetupRevisionId]!
-  // Force a missing source revision even if a future library contains this project's definitions
-  const checksum = `sha256:${'0'.repeat(64)}`
-  const sourceRevision = `${checksum}:rules-v2:library-v2` as CatalogRevisionId
-  const unavailableSetup = { ...setup, modComposition: { ...setup.modComposition!, layers: setup.modComposition!.layers.map(layer => ({ ...layer, catalogRevisionId: sourceRevision })) }, modSourceReceipts: setup.modSourceReceipts!.map(({ contentFingerprint: _fingerprint, ...receipt }) => ({ ...receipt, checksum, catalogRevisionId: sourceRevision })) }
-  const unavailable = { ...payload, records: { ...payload.records, gameSetups: { ...payload.records.gameSetups, [setup.id]: unavailableSetup } } }
-  await installFixtureCopy(page, original, unavailable.records, before.id)
-  const validity = page.getByRole('region', { name: 'Build validity', exact: true })
-  const expectNativeSelections = async () => {
-    for (const label of ['Main hand', 'Head', 'Equipped passive 1', 'Equipped passive 3']) await expect(validity.getByText(`${label}: definition is unavailable`, { exact: false })).toHaveCount(0)
-    await expect(validity.getByText('Equipped passive 2: definition is unavailable', { exact: false })).toHaveCount(1)
-  }
-  await expect(validity).toBeVisible()
-  await expectNativeSelections()
-  await page.reload()
-  await expect(validity).toBeVisible()
-  await expectNativeSelections()
-  await expect(page.getByRole('combobox', { name: 'Main hand', exact: true })).toHaveValue('Eclipse')
-  await expect(page.getByRole('combobox', { name: 'Equipped passive 1', exact: true })).toHaveValue('Pocket Sand')
-  await expect(page.getByRole('combobox', { name: 'Equipped passive 3', exact: true })).toHaveValue('Perfect Vision')
-  expect((await storedData(page)).buildRevisions[before.id]).toEqual(before)
-})
-
-test('native command facts stay usable independently of an unused modded innate learning node @mobile', async ({ page, baseURL }) => {
-  const { original } = await openBuild(page)
-  const build = Object.values(original.builds).find(build => {
-    const ref = original.buildRevisions[build.latestRevisionId!]!.content.secondaryClass
-    return ref?.kind === 'catalog' && ref.entityId === 'base:job:2'
-  })!
-  const before = original.buildRevisions[build.latestRevisionId!]!
+test('native command facts stay usable without selecting its class innate @mobile', async ({ page, baseURL }) => {
+  const { original, before } = await openBuild(page)
   const payload = { records: original }
   const { calculation: _calculation, ...content } = before.content
-  const primary = { ...before.content.secondaryClass!, entityId: 'base:job:0' as EntityId }
-  const revision = { ...payload.records.buildRevisions[before.id]!, content: { ...content, primaryClass: primary, equipment: {}, passives: [], referenceNames: content.referenceNames?.filter(entry => entry.ref.entityId === 'base:job:2') } }
+  const primary = { kind: 'catalog' as const, catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId, entityId: 'base:job:0' as EntityId }
+  const secondary = { ...primary, entityId: 'base:job:2' as EntityId }
+  const revision = { ...payload.records.buildRevisions[before.id]!, content: { ...content, primaryClass: primary, secondaryClass: secondary, equipment: {}, passives: [], referenceNames: content.referenceNames?.filter(entry => entry.ref.entityId === 'base:job:2') } }
   const native = { ...payload, records: { ...payload.records, buildRevisions: { ...payload.records.buildRevisions, [before.id]: revision } } }
   await installFixtureCopy(page, original, native.records, before.id)
   const validity = page.getByRole('region', { name: 'Build validity', exact: true })
@@ -212,10 +176,9 @@ test('validity review targets unavailable passives without changing the saved ch
   const { original, before } = await openBuild(page)
   const payload = { records: original }
   const revision = payload.records.buildRevisions[before.id]!
-  const passives = Array.from({ length: 3 }, (_, index) => ({ ref: { ...revision.content.primaryClass!, entityId: `synthetic:unavailable-passive:${index}` as EntityId }, observedName: `Synthetic unavailable passive ${index + 1}` }))
+  const passives = Array.from({ length: 3 }, (_, index) => ({ ref: { kind: 'personal' as const, definitionId: `synthetic-unavailable-passive-${index}` as import('../src/domain/types').PersonalDefinitionId }, observedName: `Synthetic unavailable passive ${index + 1}` }))
   const synthetic = { ...payload, records: { ...payload.records, buildRevisions: { ...payload.records.buildRevisions, [before.id]: { ...revision, content: { ...revision.content, passives } } } } }
-  // Missing entities in a complete available catalog are invalid; a withdrawn snapshot retains unresolved selections
-  const unavailable = JSON.parse(JSON.stringify(synthetic).replaceAll(JSON.stringify(CURRENT_CATALOG.revisionId), JSON.stringify(HISTORICAL_BUNDLED_CATALOG.revisionId))) as typeof payload
+  const unavailable = { ...synthetic, records: { ...synthetic.records, unavailableDefinitions: passives.map(selection => ({ ref: selection.ref, kind: 'passive' as const, name: selection.observedName })) } }
   await installFixtureCopy(page, original, unavailable.records, before.id)
   const saved = await storedData(page)
   const copy = Object.values(saved.builds).find(build => !original.builds[build.id])!

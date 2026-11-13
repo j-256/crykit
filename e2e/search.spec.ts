@@ -1,8 +1,7 @@
 import { openSavedCatalogVersion, readPlannerData } from './definition-fixtures'
 import { currentReferencePath, referenceUrlPattern } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
-import { resolveBundledCatalogPins } from '../src/interchange/native'
+import { LAUNCH_DATA_GENERATION } from '../src/domain/data-generation'
 import { saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, createBlankPlaythrough, openGameSetupSection, replacePlannerData, waitForPlannerReady, readLocalData, choosePlaythrough } from './local-data-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -29,10 +28,11 @@ async function exportLocalData(page: Page) {
   if (!path) throw new Error('Expected a completed backup download')
   const bytes = await readFile(path)
   const entries = unzipSync(bytes)
-  const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData; catalogs: readonly CatalogSnapshot[]; bundledCatalogs?: readonly Pick<CatalogSnapshot, 'id' | 'revisionId' | 'checksum'>[] }
+  const bundle = JSON.parse(strFromU8(entries['bundle.json']!)) as { localData: LocalData; catalogs: readonly CatalogSnapshot[] }
   await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
-  expect(JSON.parse(strFromU8(entries['manifest.json']!)).formatVersion).toBe('2.1.0')
-  return { ...bundle, catalogs: [...bundle.catalogs, ...resolveBundledCatalogPins(bundle.bundledCatalogs ?? [], BUNDLED_CATALOGS)], bytes }
+  expect(JSON.parse(strFromU8(entries['manifest.json']!))).toMatchObject({ formatVersion: '3.0.0', dataGeneration: LAUNCH_DATA_GENERATION })
+  expect(bundle).not.toHaveProperty('bundledCatalogs')
+  return { ...bundle, bytes }
 }
 
 async function search(page: Page, query: string, shortcut = 'Control+k') {

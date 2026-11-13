@@ -26,32 +26,27 @@ import { readManagedGuestPlanner } from './guest-planner-reader'
 
 const MAX_SHARE_URL_LENGTH = PUBLIC_SHARE_LIMITS.url
 
-for (const title of ['Judite', 'Marco', 'Prudence', 'Marcy']) test(`shares and copies ${title} with missing definitions`, { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('copies a synthetic shared Build with unavailable exact sources', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
   await skipInitialModSetup(page)
   const before = await storedData(page)
-  const card = page.locator('.build-card').filter({ has: page.getByRole('button', { name: title, exact: true }) })
-  await card.getByRole('button', { name: 'Share build', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Share build', exact: true })
-  expect(await dialog.locator('.share-preview').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-  const url = await dialog.getByLabel('Share URL', { exact: true }).inputValue()
-  const snapshot = decodePublicSnapshot(new URL(url).hash.split('/')[3]!)
-  expect(snapshot.receipts.some(receipt => receipt.kind === null)).toBe(true)
-  await expect(dialog.getByRole('button', { name: 'Copy link', exact: true })).toBeEnabled()
+  const { payload: snapshot } = await portableModFixture()
+  const title = snapshot.title
+  const url = createPublicShareUrl(snapshot, `${baseURL}/`)
   await page.goto(url)
   await expect(page.getByRole('heading', { name: title, exact: true }).first()).toBeVisible()
   await expect(page.getByText('Calculations unavailable', { exact: true })).toBeVisible()
   await openShareSources(page)
-  await page.getByRole('region', { name: 'Your matching definitions', exact: true }).locator('details').first().locator('summary').click()
+  await page.getByRole('region', { name: 'Your matching definitions', exact: true }).locator('details').filter({ has: page.locator('summary', { hasText: /^Synthetic Portable Class/ }) }).locator('summary').click()
   await expect(page.getByRole('region', { name: 'Your matching definitions', exact: true }).getByText('Definition unavailable. The saved name supplies no mechanics.').first()).toBeVisible()
   await page.getByRole('button', { name: 'Save a copy', exact: true }).click()
   await expect(page.getByText('Independent saved copy', { exact: true })).toBeVisible()
   const copied = await storedData(page)
   const build = Object.values(copied.builds).find(candidate => !before.builds[candidate.id])!
   const checkpoint = copied.buildRevisions[build.latestRevisionId!]!
-  expect(checkpoint.publicSourceContext?.version).toBe(2)
+  expect(checkpoint.publicSourceContext?.version).toBe(3)
   expect(checkpoint.publicSourceContext?.receipts).toEqual(snapshot.receipts)
   expect(copied.playthroughs).toEqual(before.playthroughs)
   await page.reload()
@@ -370,7 +365,7 @@ test('shares four ordered team slots and copies independent immutable checkpoint
   } finally { await recipientContext.close() }
 })
 
-test('survives a v5 link near the URL budget on reload without leaking the fragment to HTTP', async ({ page, baseURL }) => {
+test('survives a v6 link near the URL budget on reload without leaking the fragment to HTTP', async ({ page, baseURL }) => {
   const requests: string[] = []
   page.on('request', request => requests.push(request.url()))
   await page.goto('/')
@@ -400,7 +395,7 @@ test('survives a v5 link near the URL budget on reload without leaking the fragm
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
-test('a failed v5 copy rolls back and retries without changing the original records', async ({ page, baseURL }) => {
+test('a failed v6 copy rolls back and retries without changing the original records', async ({ page, baseURL }) => {
   await page.goto('/')
   await skipInitialModSetup(page)
   const original = await storedData(page)
@@ -414,7 +409,7 @@ test('a failed v5 copy rolls back and retries without changing the original reco
     const put = IDBObjectStore.prototype.put
     let failOnce = true
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1' && failOnce) { failOnce = false; throw new DOMException('Synthetic share save failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator' && failOnce) { failOnce = false; throw new DOMException('Synthetic share save failure', 'QuotaExceededError') }
       return put.apply(this, args)
     }
   })
@@ -448,7 +443,7 @@ test('rejects malformed launch snapshots without writing', async ({ page }) => {
   expect(await storedData(page)).toEqual(original)
 })
 
-async function portableModFixture(historical: boolean, completePermissions = false) {
+async function portableModFixture(completePermissions = false) {
   let text = '{"ID":"synthetic-portable-build","Title":"Synthetic Portable Mod","Jobs":[{"ID":24,"Name":"Synthetic Portable Class","Description":"Local-only description","AbilitiesName":"Synthetic Command","AbilityIDs":[]}],"Passives":[{"ID":10000,"Name":"Synthetic Passive One","PP":1,"IsInnate":false,"IsLearnable":true},{"ID":10001,"Name":"Synthetic Passive Two","PP":1,"IsInnate":false,"IsLearnable":true},{"ID":10002,"Name":"Synthetic Passive Three","PP":1,"IsInnate":false,"IsLearnable":true}]}'
   if (completePermissions) text = text.replace('"Description":"Local-only description"', '"Description":"Local-only description","EquipmentTypes":[2,13],"PassiveIDs":[]')
   const source = (await previewCrystalEdit(new TextEncoder().encode(text), 'original.json')).proposed.catalogs[0]!
@@ -468,31 +463,12 @@ async function portableModFixture(historical: boolean, completePermissions = fal
   const content = buildContentForModSetup({ primaryClass: classRef, secondaryClass: nativeRef('base:job:2'), equipment: { 'plan-main-hand': { ref: nativeRef('base:equipment:41') }, 'plan-head': { ref: nativeRef('base:equipment:481') } }, passives, contextAssumptions: [] }, setup, catalogs)
   data = saveBuildRevision(data, { buildId, gameSetupRevisionId: setup.id, content })
   const prepared = await prepareModCatalogs(data, catalogs)
-  let payload = createPublicSnapshot({ planner: { localData: data, catalogs: prepared } }, { kind: 'build', revisionId: data.builds[buildId]!.latestRevisionId! }, { includeNotes: false })
-  if (historical) payload = JSON.parse(JSON.stringify(payload).replaceAll('library-v4', 'library-v2')) as PublicSnapshot
+  const payload = createPublicSnapshot({ planner: { localData: data, catalogs: prepared } }, { kind: 'build', revisionId: data.builds[buildId]!.latestRevisionId! }, { includeNotes: false })
   return { text, source, payload, data }
 }
 
-async function installMissingModFixture(page: Page) {
-  const fixture = await portableModFixture(true, true)
-  await page.goto('/')
-  await skipInitialModSetup(page)
-  const before = await storedData(page)
-  // The verified withdrawn baseline preserves unchanged native facts while mod definitions remain unavailable
-  const historical = JSON.parse(JSON.stringify(fixture.data).replaceAll('library-v4', 'library-v2')) as LocalData
-  const build = historical.builds[asId<BuildId>('portable-build')]!
-  const revision = historical.buildRevisions[build.latestRevisionId!]!
-  const setup = historical.gameSetups[revision.gameSetupRevisionId]!
-  const { identityMappings: _mappings, ...composition } = setup.modComposition!
-  const oldSetup = { ...setup, modComposition: { ...composition, version: 2 as const, baseline: { ...composition.baseline, catalogRevisionId: asId<CatalogRevisionId>('catalog-v1') } } }
-  const native = { ...before, gameSetups: { ...before.gameSetups, ...historical.gameSetups, [setup.id]: oldSetup }, builds: { ...before.builds, ...historical.builds }, buildRevisions: { ...before.buildRevisions, ...historical.buildRevisions, [revision.id]: revision } }
-  await replacePlannerFixture(page, native)
-  await page.goto('/#/builds/library/portable-build')
-  return fixture
-}
-
-for (const historical of [false, true]) test(`v5 mod receipts require viewer-owned matching content ${historical ? 'with explicit parser adaptation' : 'at current pins'}`, { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
-  const { text, payload } = await portableModFixture(historical)
+test('v6 mod receipts require viewer-owned exact content and interpretation', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
+  const { text, payload } = await portableModFixture()
   const url = createPublicShareUrl(payload, `${baseURL}/`)
   for (const privateValue of ['Local-only description', 'original.json', 'data:image', 'blob:']) expect(JSON.stringify(payload)).not.toContain(privateValue)
   await page.goto(url)
@@ -514,7 +490,7 @@ for (const historical of [false, true]) test(`v5 mod receipts require viewer-own
     const put = IDBObjectStore.prototype.put
     Object.assign(window, { restoreModImportWrite: () => { IDBObjectStore.prototype.put = put } })
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') throw new DOMException('Synthetic mod import write failed', 'QuotaExceededError')
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') throw new DOMException('Synthetic mod import write failed', 'QuotaExceededError')
       return put.apply(this, args)
     }
   })
@@ -529,7 +505,6 @@ for (const historical of [false, true]) test(`v5 mod receipts require viewer-own
   await expect(page.getByText('All selected definitions are available.', { exact: true })).toBeAttached()
   await openShareSources(page)
   await expect(page.getByText('All selected definitions are available.', { exact: true })).toBeVisible()
-  if (historical) await expect(page.getByText('Adapted interpretation', { exact: true })).toBeVisible()
   if (await classDefinition.getAttribute('open') === null) await classDefinition.locator('summary').click()
   await expect(classDefinition.getByText('Local-only description', { exact: true })).toBeVisible()
   const imported = await storedData(page)
@@ -550,125 +525,16 @@ for (const historical of [false, true]) test(`v5 mod receipts require viewer-own
   await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toHaveCount(0)
 })
 
-test('missing display names block sharing while calculation locks offer local JSON recovery', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
-  const { text } = await installMissingModFixture(page)
-  const original = await storedData(page)
-  const build = Object.values(original.builds).find(candidate => candidate.title === 'Portable mod build')!
-  const checkpoint = original.buildRevisions[build.latestRevisionId!]!
-  const primaryClass = { ...checkpoint.content.secondaryClass!, entityId: asId<EntityId>('base:job:0') }
-  const content = { ...checkpoint.content, primaryClass, equipment: {}, passives: [], referenceNames: checkpoint.content.referenceNames?.filter(entry => entry.ref.entityId === 'base:job:2'), calculation: defaultCalculation(primaryClass) }
-  await replacePlannerFixture(page, { ...original, buildRevisions: { ...original.buildRevisions, [checkpoint.id]: { ...checkpoint, content } } })
-  await page.goto(`/#/builds/library/${build.id}`)
-  const before = await storedData(page)
-  const modFiles = page.getByRole('region', { name: 'Build mod files', exact: true })
-  await expect(modFiles).toBeInViewport()
-  await expect(modFiles).toContainText('Upload matching JSON for: Synthetic Portable Mod.')
-  const explanation = 'Upload the matching mod JSON to show more item and skill details and enable calculations that need them. You can still view and share this build. Imported JSON is saved in this browser.'
-  await expect(modFiles).toContainText(explanation)
-  const disclosure = page.getByRole('region', { name: 'Build validity', exact: true }).locator('.build-validity__details')
-  if (await disclosure.count()) await expect(disclosure).not.toHaveAttribute('open')
-  await expect(page.getByRole('region', { name: 'Build validity', exact: true })).toContainText('No known loadout conflicts')
-  await page.getByRole('button', { name: 'Share build', exact: true }).click()
-  const sharing = page.getByRole('dialog', { name: 'Share build', exact: true })
-  // Unknown catalog metadata is shareable, but the primary class has no saved display name here
-  await expect(sharing.getByRole('button', { name: 'Copy link', exact: true })).toBeDisabled()
-  await expect(sharing).toContainText('A selected entry needs its exact saved display receipt before sharing')
-  await sharing.getByRole('button', { name: 'Close', exact: true }).click()
-  await modFiles.getByRole('button', { name: 'Upload mod JSON', exact: true }).click()
-  let dialog = page.getByRole('dialog', { name: 'Restore mod definitions', exact: true })
-  await expect(dialog.getByLabel('Matching JSON for Synthetic Portable Mod', { exact: true })).toBeVisible()
-  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  const stats = page.getByRole('region', { name: 'Calculated stats', exact: true })
-  const lock = stats.getByRole('group', { name: 'Calculations need mod JSON', exact: true })
-  await expect(lock).toBeVisible()
-  expect(await lock.getByRole('button', { name: 'Upload mod JSON', exact: true }).evaluate(button => getComputedStyle(button).fontWeight)).toBe('400')
-  await lock.getByRole('button', { name: 'Upload mod JSON', exact: true }).click()
-  dialog = page.getByRole('dialog', { name: 'Restore mod definitions', exact: true })
-  await dialog.getByLabel('Matching JSON for Synthetic Portable Mod', { exact: true }).setInputFiles({ name: 'matching.json', mimeType: 'application/json', buffer: Buffer.from(text) })
-  await expect(dialog.getByRole('status')).toContainText('Matching definitions applied to this draft')
-  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  await expect(lock).toHaveCount(0)
-  await expect(modFiles).toContainText('Matching JSON is available in this browser.')
-  await expect(modFiles).not.toContainText(explanation)
-  await expect(stats.getByRole('table', { name: 'Calculated character stats', exact: true })).toBeVisible()
-  expect((await storedData(page)).buildRevisions).toEqual(before.buildRevisions)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-})
-
-test('validity warnings restore missing mod definitions inside the editor without losing unsaved edits', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
-  const { text } = await installMissingModFixture(page)
-  const before = await storedData(page)
-  const build = Object.values(before.builds).find(build => build.title === 'Portable mod build')!
-  const checkpoint = before.buildRevisions[build.latestRevisionId!]!
-  const validity = page.getByRole('region', { name: 'Build validity', exact: true })
-  await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
-  await page.getByRole('textbox', { name: 'Rotation or use notes', exact: true }).fill('Keep this unsaved rotation')
-  const mechanics = page.getByRole('region', { name: 'Build mechanics', exact: true })
-  await expect(mechanics.getByRole('list', { name: 'Equipment findings' })).toContainText('Restore the missing class and passive definitions')
-  await mechanics.getByRole('button', { name: 'Review solutions', exact: true }).click()
-  await expect(validity).toBeFocused()
-  await expect(validity.locator('.build-validity__details')).toHaveAttribute('open')
-  const editorPermission = validity.getByRole('listitem').filter({ hasText: 'Dagger permission is unresolved' })
-  await editorPermission.getByRole('button', { name: 'Review Class', exact: true }).click()
-  await expect(page.locator('[data-field-key="primary-class"]')).toBeFocused()
-  await page.locator('[data-field-key="slot:plan-main-hand"]').getByRole('button', { name: 'Review solutions', exact: true }).click()
-  await expect(validity).toBeFocused()
-  await editorPermission.getByRole('button', { name: 'Upload mod JSON', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Restore mod definitions', exact: true })
-  const input = dialog.getByLabel('Matching JSON for Synthetic Portable Mod', { exact: true })
-  const { importCounts: imports } = await storedShareState(page)
-  await input.setInputFiles({ name: 'changed.json', mimeType: 'application/json', buffer: Buffer.from(text.replace('Synthetic Portable Class', 'Changed Class')) })
-  await expect(dialog.getByText('This JSON does not match the saved mod content and project identity.', { exact: false })).toBeVisible()
-  await expectStoredShareUnchanged(page, before, imports)
-  await page.evaluate(() => {
-    const put = IDBObjectStore.prototype.put
-    // Fail the actual managed head publication without changing source preparation or owned draft input
-    IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { sessionStorage.setItem('synthetic-warning-fault-fired', 'true'); throw new DOMException('Synthetic warning import write failed', 'QuotaExceededError') }
-      return put.apply(this, args)
-    }
-    ;(window as unknown as { restoreWarningImport: () => void }).restoreWarningImport = () => { IDBObjectStore.prototype.put = put }
-  })
-  await input.setInputFiles({ name: 'matching.json', mimeType: 'application/json', buffer: Buffer.from(text) })
-  await expect(dialog.getByText('Mod not imported', { exact: true })).toBeVisible()
-  expect(await page.evaluate(() => sessionStorage.getItem('synthetic-warning-fault-fired'))).toBe('true')
-  await expectStoredShareUnchanged(page, before, imports)
-  await page.evaluate(() => (window as unknown as { restoreWarningImport: () => void }).restoreWarningImport())
-  await input.setInputFiles({ name: 'matching.json', mimeType: 'application/json', buffer: Buffer.from(text) })
-  await expect(dialog.getByRole('status')).toContainText('Matching definitions applied to this draft')
-  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  await expect(validity.getByText('definition is unavailable', { exact: false })).toHaveCount(0)
-  await expect(validity.getByText('permission is unresolved', { exact: false })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
-  await expect(page.getByRole('textbox', { name: 'Rotation or use notes', exact: true })).toHaveValue('Keep this unsaved rotation')
-  expect((await storedData(page)).buildRevisions[checkpoint.id]).toEqual(checkpoint)
-  await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
-  await expect(page.getByText('Saved locally', { exact: true })).toBeVisible()
-  const saved = await storedData(page)
-  const revision = saved.buildRevisions[saved.builds[build.id]!.latestRevisionId!]!
-  expect(revision.id).not.toBe(checkpoint.id)
-  expect(revision.content.rotationNotes).toBe('Keep this unsaved rotation')
-  expect(saved.buildRevisions[checkpoint.id]).toEqual(checkpoint)
-  expect(saved.gameSetups[revision.gameSetupRevisionId]!.modComposition!.baseline.catalogRevisionId).toBe(CURRENT_CATALOG.revisionId)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-})
-
-test('canceling a recovered source-only draft preserves the saved checkpoint', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
-  const { text } = await installMissingModFixture(page)
-  const before = await storedData(page)
-  await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
-  await page.getByRole('textbox', { name: 'Rotation or use notes', exact: true }).fill('Cancel this unsaved recovery note')
-  const validity = page.getByRole('region', { name: 'Build validity', exact: true })
-  await validity.locator('.build-validity__details > summary').click()
-  await validity.getByRole('listitem').filter({ hasText: 'Dagger permission is unresolved' }).getByRole('button', { name: 'Upload mod JSON', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Restore mod definitions', exact: true })
-  await dialog.getByLabel('Matching JSON for Synthetic Portable Mod', { exact: true }).setInputFiles({ name: 'matching.json', mimeType: 'application/json', buffer: Buffer.from(text) })
-  await expect(dialog.getByRole('status')).toContainText('Matching definitions applied to this draft')
-  await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click()
-  await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
-  await expect(page.getByRole('textbox', { name: 'Rotation or use notes', exact: true })).toHaveValue('Cancel this unsaved recovery note')
-  await page.getByRole('button', { name: 'Discard edits', exact: true }).click()
-  expect((await storedData(page)).buildRevisions).toEqual(before.buildRevisions)
-  await page.reload()
-  expect((await storedData(page)).buildRevisions).toEqual(before.buildRevisions)
+test('changed interpretation receipts refuse same-content imports without changing local records', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
+  const { text, payload, source } = await portableModFixture()
+  const changed = JSON.parse(JSON.stringify(payload).replaceAll(source.revisionId, source.revisionId.replace(/-p1$/, '-p2'))) as PublicSnapshot
+  await page.goto(createPublicShareUrl(changed, `${baseURL}/`))
+  await expect(page.getByRole('heading', { name: payload.title, exact: true }).first()).toBeVisible()
+  await openShareSources(page)
+  const { localData: before, importCounts } = await storedShareState(page)
+  await page.getByRole('button', { name: 'Add matching files', exact: true }).click()
+  await page.getByLabel('Matching JSON for Synthetic Portable Mod', { exact: true }).setInputFiles({ name: 'same-content.json', mimeType: 'application/json', buffer: Buffer.from(text) })
+  await expect(page.getByText('This file does not match the saved project and content. Choose the exact shared source version.', { exact: true })).toBeVisible()
+  await expectStoredShareUnchanged(page, before, importCounts)
+  await expect(page.getByText('Calculations unavailable', { exact: true })).toBeVisible()
 })

@@ -213,7 +213,7 @@ test('import previews before writing and native restore keeps original source by
   const restore = await openData(page)
   await restore.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-backup.zip', mimeType: 'application/zip', buffer: bytes })
   await restore.getByText('File details and source notices', { exact: true }).click()
-  await expect(restore.getByText('native-backup-2.1.0', { exact: true })).toBeVisible()
+  await expect(restore.getByText('native-backup-3.0.0', { exact: true })).toBeVisible()
   await replacePlannerData(restore)
   await expect(restore).not.toBeVisible()
   const restored = await exportPayload(page)
@@ -467,7 +467,7 @@ test('a quota failure keeps the draft exportable and leaves persisted observatio
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') throw new DOMException('Synthetic storage limit', 'QuotaExceededError')
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') throw new DOMException('Synthetic storage limit', 'QuotaExceededError')
       return original.apply(this, args)
     }
   })
@@ -496,7 +496,7 @@ test('retry persists one retained observation after a transient storage failure'
     const original = IDBObjectStore.prototype.put
     let failOnce = true
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof original>) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1' && failOnce) {
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator' && failOnce) {
         failOnce = false
         throw new DOMException('Synthetic temporary storage failure', 'QuotaExceededError')
       }

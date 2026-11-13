@@ -18,7 +18,7 @@
 .mod-library__secondary-actions { padding-top: .65rem; border-top: 1px solid var(--line); }
 .mod-library__card small { display: block; overflow-wrap: anywhere; }
 .mod-library__summary { margin: .3rem 0 0; color: var(--muted); }
-.mod-library__feedback { --reference-feedback-clearance: 16px; scroll-margin-block-start: calc(var(--desktop-header-height) + var(--reference-feedback-alert-height, 0px) + var(--reference-feedback-clearance)); }
+.mod-library__feedback { --reference-feedback-clearance: 16px; scroll-margin-block-end: var(--reference-feedback-clearance); scroll-margin-block-start: calc(var(--desktop-header-height) + var(--reference-feedback-alert-height, 0px) + var(--reference-feedback-clearance)); }
 .mod-library__versions > .stack { margin-top: .75rem; }
 .mod-library__revision { border-top: 1px solid var(--line); padding-top: .75rem; }
 .mod-library__revision > div > .badge { margin-inline-end: .5rem; }

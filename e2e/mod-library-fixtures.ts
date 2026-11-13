@@ -1,3 +1,7 @@
+import { referenceLibraryWithMod } from '../src/domain/reference-library'
+import { syntheticCatalog } from '../src/workspace/test-helpers'
+import { asId } from '../src/domain/core'
+import { readLocalData, replacePlannerFixture } from './local-data-helpers'
 import { canonicalModJson } from '../src/interchange/mod-content'
 import { IMPORT_INTERPRETATION } from '../src/interchange/import-interpretations'
 import { referencePath } from './reference-helpers'
@@ -6,6 +10,10 @@ import { createHash } from 'node:crypto'
 import { expect, test as base, type BrowserContext, type Page } from '@playwright/test'
 
 const job = { ID: 0, Name: 'Warrior', HPRating: 80, MPRating: 30, StrRating: 80, VitRating: 80, DexRating: 80, AgiRating: 80, MndRating: 80, SpiRating: 80, SpdRating: 80, LckRating: 80, EquipmentTypes: [0], AbilityIDs: [], PassiveIDs: [], LearnTree: [], IsUnselectableJob: false, IsUnselectableSubJob: false }
+export const SYNTHETIC_LIBRARY_OBSERVATIONS = syntheticCatalog('library-observations', undefined, Object.fromEntries([
+  ['bloodmage', 'Bloodmage', 'Bloodmage'],
+  ['pinga', 'Synthetic Pinga', 'Additional Boss: Pinga'],
+].map(([id, name, mod]) => [id, { id: asId(id), kind: 'class' as const, name, aliases: [], fields: { 'Source mod': { state: 'known' as const, value: mod } }, sources: [] }])))
 export const SYNTHETIC_LIBRARY_ROOTS = [
   { ID: 'synthetic-equipment', Title: 'Synthetic Equipment', Version: '1', EditorVersion: 34, SteamWorkshopFileID: 123456, Equipment: [{ ID: 0, Name: 'Synthetic Blade', EquipmentType: 0, IsTwoHanded: false, StatMods: [] }, { ID: 9002, Name: 'Synthetic Axe', EquipmentType: 1, StatMods: [] }, { ID: 9000, Name: 'Synthetic Charm', EquipmentType: 18, StatMods: [] }] },
   { ID: 'synthetic-moonlight', Title: 'Synthetic Moonlight', Version: '1', EditorVersion: 34, Jobs: [{ ...job, ID: 26, Name: 'Synthetic Class', AbilitiesName: 'Synthetic Arts', AbilityIDs: [9002], LearnTree: [[{ NodeType: 2, DataID: 9002, LP: 4, PrereqLeft: false, PrereqMiddle: false, PrereqRight: false }]] }, { ...job, ID: 27, Name: 'Synthetic Second Class', AbilitiesName: 'Synthetic Combo' }], Abilities: [{ ID: 9002, Name: 'Synthetic Technique', Description: 'Synthetic action', JP: 400, IsMAbil: true, IsPAbil: false, HPCost: 0, MPCost: 0, APCost: 0, CTCost: 0, CDCost: 0, AbilityMods: [] }] },
@@ -52,6 +60,8 @@ export const modLibraryTest = base.extend<{}, { importedLibraryState: ImportedLi
       page.on('pageerror', error => pageErrors.push(error.message))
       page.on('request', request => { if (new URL(request.url()).origin !== origin) externalRequests.push(request.url()) })
       await importSyntheticLibrary(page)
+      const localData = await readLocalData(page)
+      await replacePlannerFixture(page, { ...localData, referenceLibrary: referenceLibraryWithMod(localData.referenceLibrary, 'name:bloodmage', false) }, [SYNTHETIC_LIBRARY_OBSERVATIONS])
       state = await context.storageState({ indexedDB: true })
     } finally { await context.close() }
     console.info(JSON.stringify({ fixture: 'synthetic-mod-library', project: workerInfo.project.name, durationMs: Date.now() - started }))

@@ -182,7 +182,7 @@ test('saved picker import keeps keyboard recovery available after the picker clo
     // Observe durable publication, not optional hints, before the captured form acknowledges its successor
     IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
       const value = args[0] as { manifest?: { version?: number } }
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1' && value?.manifest?.version === 3) {
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator' && value?.manifest?.version === 3) {
         restore()
         this.transaction.addEventListener('complete', () => {
           const input = document.querySelector<HTMLInputElement>('input[aria-label="Build title"]')!

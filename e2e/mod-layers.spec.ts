@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../src/domain/data-generation'
 import { savedCatalogVersion } from '../src/domain/legacy-definition.test-helpers'
 import { skipInitialModSetup, openBuildGameSetup, saveAndApplyGameSetup, openCurrentGameSetup, openGameSetupSection, replacePlannerData, choosePlaythrough } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
@@ -121,7 +122,7 @@ test('changing layers requires an explicit personal override decision and label 
   const localData = setPlaythroughGameSetup(pinned, { gameSetupRevisionId: pinned.planningGameSetupRevisionId! })
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   const archive = zipSync({
-    'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: localData.updatedAt, payload: 'bundle.json', sources: [] }),
+    'manifest.json': encode({ format: 'crykit-backup', formatVersion: '3.0.0', dataGeneration: LAUNCH_DATA_GENERATION, exportedAt: localData.updatedAt, payload: 'bundle.json', sources: [] }),
     'bundle.json': encode({ localData: { ...localData, changes: [] }, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }),
   })
   await page.goto('/')

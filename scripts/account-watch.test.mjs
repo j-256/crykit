@@ -21,7 +21,7 @@ test('watch rebuilds bundle-only Worker changes before rerunning the fixture', {
     await cp(join(root, 'worker'), join(directory, 'worker'), { recursive: true })
     for (const path of ['package.json', 'package-lock.json', 'wrangler.local.jsonc', 'wrangler.alerts.example.jsonc', 'scripts/build-account-tests.mjs', 'scripts/opaque-worker-module.mjs']) await cp(join(root, path), join(directory, path))
     // Include the Worker's shared runtime schemas so its real bundle can reach the watch assertions
-    for (const path of ['src/account/protocol.ts', 'src/account/admin-protocol.ts', 'src/account/deletion-protocol.ts', 'src/account/storage-protocol.ts', 'src/account/shares-protocol.ts', 'src/interchange/public-share-schema.ts']) {
+    for (const path of ['src/account/protocol.ts', 'src/account/admin-protocol.ts', 'src/account/deletion-protocol.ts', 'src/account/storage-protocol.ts', 'src/account/shares-protocol.ts', 'src/interchange/public-share-schema.ts', 'src/domain/data-generation.ts', 'src/domain/source-identity.ts', 'src/domain/limits.ts']) {
       await mkdir(dirname(join(directory, path)), { recursive: true })
       await cp(join(root, path), join(directory, path))
     }

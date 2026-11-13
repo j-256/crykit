@@ -602,7 +602,7 @@ test('cancels brush gestures on Escape and camera changes, and recovers failed s
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
       const request = put.apply(this, args)
-      if (this.transaction.db.name === 'crykit-guest-coordinator-v1' && this.name === 'active' && sessionStorage.getItem('synthetic-reject-brush-write') === 'true') { sessionStorage.setItem('synthetic-reject-brush-write-fired', 'true'); this.transaction.abort() }
+      if (this.transaction.db.name === 'crykit-catalog-sources-1-coordinator' && this.name === 'active' && sessionStorage.getItem('synthetic-reject-brush-write') === 'true') { sessionStorage.setItem('synthetic-reject-brush-write-fired', 'true'); this.transaction.abort() }
       return request
     }
   })
@@ -717,7 +717,7 @@ test('retains failed map saves for recovery and retries the exact authored draft
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args: Parameters<typeof put>) {
       const request = put.apply(this, args)
-      if (this.transaction.db.name === 'crykit-guest-coordinator-v1' && this.name === 'active' && sessionStorage.getItem('synthetic-reject-map-write') === 'true') { sessionStorage.setItem('synthetic-reject-map-write-fired', 'true'); this.transaction.abort() }
+      if (this.transaction.db.name === 'crykit-catalog-sources-1-coordinator' && this.name === 'active' && sessionStorage.getItem('synthetic-reject-map-write') === 'true') { sessionStorage.setItem('synthetic-reject-map-write-fired', 'true'); this.transaction.abort() }
       return request
     }
   })

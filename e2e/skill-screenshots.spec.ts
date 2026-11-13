@@ -1,3 +1,8 @@
+import { syntheticCatalog } from '../src/workspace/test-helpers'
+import { CONFIRMED_SKILL_MAPS } from '../src/catalog/skill-maps'
+import { skillTreeShape } from '../src/domain/skill-trees'
+import { replacePlannerFixture, readLocalData as storedData } from './local-data-helpers'
+import { LAUNCH_DATA_GENERATION } from '../src/domain/data-generation'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { skipInitialModSetup, saveAndApplyGameSetup, openCurrentGameSetup, selectedPlaythrough, openSwitchModPacks, replacePlannerData, choosePlaythrough } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
@@ -13,7 +18,8 @@ import { addTestDefinition, TEST_NOW } from '../src/domain/test-helpers'
 import type { LocalData } from '../src/domain/types'
 
 // The helper supplies every observed map; unrelated catalog records are not inputs to these screenshot journeys
-const DEFAULT_CATALOG = observedSkillMapCatalogFixture({ ...CURRENT_CATALOG, entities: {}, claims: [] })
+const OBSERVED_ENTITIES = observedSkillMapCatalogFixture({ ...CURRENT_CATALOG, entities: {}, claims: [] }).entities
+const DEFAULT_CATALOG = syntheticCatalog('reviewed-screenshot-observations', undefined, Object.fromEntries(Object.entries(OBSERVED_ENTITIES).map(([id, entity]) => [id, { ...entity, name: entity.kind === 'class' ? `Lab ${entity.name}` : entity.name }])))
 
 async function dataPanel(page: Page) {
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
@@ -26,11 +32,11 @@ async function loadFixture(page: Page, localData: LocalData = { ...screenshotTes
   await page.goto('/')
   await skipInitialModSetup(page)
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
-  const archive = zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }) })
+  const archive = zipSync({ 'manifest.json': encode({ format: 'crykit-backup', formatVersion: '3.0.0', dataGeneration: LAUNCH_DATA_GENERATION, exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }), 'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }) })
   const panel = await dataPanel(page)
   await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-learning.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await panel.getByText('File details and source notices', { exact: true }).click()
-  await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()
+  await expect(panel.getByText('native-backup-3.0.0', { exact: true })).toBeVisible()
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
   await choosePlaythrough(page, selectedPlaythrough(localData).label)
@@ -124,26 +130,33 @@ async function useConfirmedSwitchSetup(page: Page) {
   await saveAndApplyGameSetup(panel)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
+  const localData = await storedData(page)
+  // These mappings model explicit user review for this synthetic imported source
+  // Historical built-in maps retain their original pin and cannot authorize a new source by name
+  const sourceRef = (ref: typeof CONFIRMED_SKILL_MAPS[number]['classRef']) => ({ ...ref, catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId })
+  const layouts = Object.fromEntries(CONFIRMED_SKILL_MAPS.map(map => [map.id, { id: map.id, classRef: sourceRef(map.classRef), gameSetupRevisionId: localData.planningGameSetupRevisionId!, shape: skillTreeShape(map.squares.map(square => ({ ...square, state: 'unknown' as const }))), mappings: map.mappings.map(mapping => ({ ...mapping, ref: sourceRef(mapping.ref as typeof map.classRef) })) }]))
+  await replacePlannerFixture(page, { ...localData, skillTreeLayouts: layouts })
 }
 
 for (const ambiguous of [false, true]) {
   test(`class recognition ${ambiguous ? 'leaves equally close classes unselected' : 'suggests a unique OCR match'} and requires review`, async ({ page }) => {
-    const localData = ambiguous ? addTestDefinition(screenshotTestLocalData(), 'Minka', { kind: 'class' }) : screenshotTestLocalData()
+    const localData = ambiguous ? addTestDefinition(screenshotTestLocalData(), 'Lab Minka', { kind: 'class' }) : screenshotTestLocalData()
     await loadFixture(page, { ...localData, changes: [] })
     await useConfirmedSwitchSetup(page)
-    const pixels = await syntheticScreenshot(page, 'Learn', 'Rowen', 'ninja', 'Min ja')
+    const pixels = await syntheticScreenshot(page, 'Learn', 'Rowen', 'ninja', 'Lab Min ja')
     const dialog = await openImport(page, [{ name: 'synthetic-ocr-noise.png', mimeType: 'image/png', buffer: pixels }])
     const classChoice = dialog.getByRole('combobox', { name: 'Screenshot class', exact: true })
     if (ambiguous) {
       await expect(classChoice).toHaveValue('')
       await expect(dialog.getByText(/More than one class matches/)).toBeVisible()
       await expect(dialog.getByRole('button', { name: 'Save reviewed screenshots', exact: true })).toBeDisabled()
-      await classChoice.selectOption({ label: 'Ninja' })
+      await classChoice.selectOption({ label: 'Lab Ninja' })
     } else {
       await expect(classChoice).toHaveValue(/base:job:18/)
-      await expect(dialog.getByText(/Suggested Ninja; check it against the screenshot/)).toBeVisible()
+      await expect(dialog.getByText(/Suggested Lab Ninja; check it against the screenshot/)).toBeVisible()
     }
-    await expect(dialog.getByText('Ninja names filled', { exact: true })).toBeVisible()
+    await expect(dialog.getByText('Ninja names filled', { exact: true })).toHaveCount(0)
+    await expect(dialog.getByText('Review square names', { exact: true })).toBeVisible()
     await expect(dialog.getByText('Screenshot reads: Rowen', { exact: true })).toBeVisible()
     await expect(dialog.getByRole('combobox', { name: 'Screenshot character', exact: true })).toHaveValue('')
     const review = dialog.getByLabel('I reviewed this character, class, square states, and assigned names', { exact: true })
@@ -151,11 +164,11 @@ for (const ambiguous of [false, true]) {
     await dialog.getByRole('combobox', { name: 'Screenshot character', exact: true }).selectOption({ label: 'Rowan' })
     await expect(dialog.getByRole('button', { name: 'Save reviewed screenshots', exact: true })).toBeDisabled()
     await review.check()
-    await classChoice.selectOption({ label: 'Monk' })
+    await classChoice.selectOption({ label: 'Lab Monk' })
     await expect(review).not.toBeChecked()
     await expect(dialog.getByRole('button', { name: 'Save reviewed screenshots', exact: true })).toBeDisabled()
-    await classChoice.selectOption({ label: 'Ninja' })
-    await expect(dialog.getByText(/Suggested Ninja;/)).not.toBeVisible()
+    await classChoice.selectOption({ label: 'Lab Ninja' })
+    await expect(dialog.getByText(/Suggested Lab Ninja;/)).not.toBeVisible()
     await review.check()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await dialog.getByRole('button', { name: 'Save reviewed screenshots', exact: true }).click()
@@ -220,7 +233,7 @@ test('failed screenshot writes retain review and recover through Retry save', as
   await page.evaluate(() => {
     const original = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
-      if (this.name === 'active' && this.transaction.db.name === 'crykit-guest-coordinator-v1') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
+      if (this.name === 'active' && this.transaction.db.name === 'crykit-catalog-sources-1-coordinator') { IDBObjectStore.prototype.put = original; throw new DOMException('Synthetic storage failure', 'QuotaExceededError') }
       return original.apply(this, args)
     }
   })
@@ -240,7 +253,7 @@ for (const fixture of [
   { squareCount: 14, mappedCount: 14, className: 'Warrior', layout: 'warrior', labels: ['2. Fighter Learned', '5. Equip Sword Learned'], learned: [['Fighter', 'innate'], ['Equip Sword', 'passive']], unresolvedLearned: [] },
   { squareCount: 23, mappedCount: 22, className: 'Scholar', layout: 'scholar', labels: ['1. Learning Learned', '3. Studious Learned', '12. Unresolved ability Learned'], learned: [['Learning', 'innate'], ['Studious', 'innate']], unresolvedLearned: [{ row: 3, column: 0, state: 'learned' }] },
 ] as const) {
-  test(`confirmed ${fixture.className} positions fill names from the saved Switch mod configuration`, { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+  test(`reviewed ${fixture.className} positions retain exact imported mappings under the saved Switch configuration`, { tag: MOBILE_TEST_TAG }, async ({ page }) => {
     await loadFixture(page)
     await useConfirmedSwitchSetup(page)
     await page.goto(`/#/characters/${CHARACTER}/current`)
@@ -261,7 +274,8 @@ for (const fixture of [
     await expect(scope.getByText(`Disabled: ${CONFIRMED_SWITCH_MOD_SETUP.disabledMods.join(', ')}`, { exact: true })).toBeVisible()
     expect((await maps.boundingBox())!.y).toBeLessThan((await dialog.getByLabel('Skill screenshots', { exact: true }).boundingBox())!.y)
     await dialog.getByLabel('Skill screenshots', { exact: true }).setInputFiles({ name: `synthetic-${fixture.layout}.png`, mimeType: 'image/png', buffer: pixels })
-    await expect(dialog.getByText(`${fixture.className} ${fixture.squareCount === fixture.mappedCount ? 'names filled' : 'known names filled'}`, { exact: true })).toBeVisible()
+    await dialog.getByRole('combobox', { name: 'Screenshot class', exact: true }).selectOption({ label: `Lab ${fixture.className}` })
+    await expect(dialog.getByText('Review square names', { exact: true })).toBeVisible()
     const compiled = dialog.getByRole('group', { name: 'Compiled learning observations', exact: true })
     await expect(compiled.getByRole('button')).toHaveCount(fixture.squareCount)
     if (fixture.squareCount === fixture.mappedCount) await expect(compiled).not.toContainText('Unresolved ability')
@@ -275,7 +289,7 @@ for (const fixture of [
     const saved = await exportLocalData(page)
     const learned = Object.values(selectedPlaythrough(saved).characters[CHARACTER].learnedNodes).filter(node => node.learned.state === 'known' && node.learned.value)
     expect(learned.map(node => [resolveDefinition(saved, [DEFAULT_CATALOG], node.ref)?.name, node.kind])).toEqual(fixture.learned)
-    expect(Object.values(saved.skillTreeLayouts!)[0].mappings).toHaveLength(fixture.mappedCount)
+    expect(Object.values(saved.skillTreeLayouts!).find(layout => resolveDefinition(saved, [DEFAULT_CATALOG], layout.classRef)?.name === `Lab ${fixture.className}`)?.mappings).toHaveLength(fixture.mappedCount)
     const capture = Object.values(selectedPlaythrough(saved).skillTreeCaptures!)[0]
     expect(capture.squares.filter(square => square.state === 'learned' && !capture.mappings.some(mapping => mapping.row === square.row && mapping.column === square.column))).toEqual(fixture.unresolvedLearned)
     expect(saved.gameSetups[saved.planningGameSetupRevisionId!].disabledMods).toEqual({ state: 'known', value: CONFIRMED_SWITCH_MOD_SETUP.disabledMods })

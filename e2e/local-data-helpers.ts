@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { expect, type Locator, type Page } from '@playwright/test'
-import type { LocalData, Playthrough } from '../src/domain'
+import type { CatalogSnapshot, LocalData, Playthrough } from '../src/domain'
 import { readManagedGuestPlanner } from './guest-planner-reader'
 
 export async function waitForPlannerReady(page: Page): Promise<void> {
@@ -11,7 +11,7 @@ export async function waitForPlannerReady(page: Page): Promise<void> {
 
 export async function selectedGuestPlannerName(page: Page): Promise<string> {
   return page.evaluate(async () => {
-    const name = 'crykit-guest-coordinator-v1'
+    const name = 'crykit-catalog-sources-1-coordinator'
     if (!(await indexedDB.databases()).some(database => database.name === name)) return 'crykit'
     return new Promise<string>((resolve, reject) => {
       const request = indexedDB.open(name)
@@ -95,7 +95,7 @@ export async function replacePlannerData(panel: Locator): Promise<void> {
 }
 
 // Use the supported native import boundary instead of writing a retired planner database
-export async function replacePlannerFixture(page: Page, localData: LocalData): Promise<LocalData> {
+export async function replacePlannerFixture(page: Page, localData: LocalData, additionalCatalogs: readonly CatalogSnapshot[] = []): Promise<LocalData> {
   const previousUrl = page.url()
   await page.goto('/#/settings/data')
   const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
@@ -107,7 +107,7 @@ export async function replacePlannerFixture(page: Page, localData: LocalData): P
   const files = unzipSync(await readFile(path))
   const bundle = JSON.parse(strFromU8(files['bundle.json']!))
   // Preserve exact exported catalog/source receipts; the import records its own native command
-  files['bundle.json'] = new TextEncoder().encode(JSON.stringify({ ...bundle, localData: { ...localData, changes: [] }, history: [] }))
+  files['bundle.json'] = new TextEncoder().encode(JSON.stringify({ ...bundle, catalogs: [...bundle.catalogs, ...additionalCatalogs], localData: { ...localData, changes: [] }, history: [] }))
   await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-planner-fixture.zip', mimeType: 'application/zip', buffer: Buffer.from(zipSync(files)) })
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()

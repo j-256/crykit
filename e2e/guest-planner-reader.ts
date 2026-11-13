@@ -6,7 +6,7 @@ import type { BlobSource, WorkspaceState } from '../src/workspace/documents'
 import { GuestManagedManifestSchema } from '../src/workspace/guest-managed-contract'
 import { admitLocalRoot, type LocalRecordRef, type LocalStoreAdapter } from '../src/workspace/local-root'
 
-const GUEST_COORDINATOR_NAME = 'crykit-guest-coordinator-v1'
+const GUEST_COORDINATOR_NAME = 'crykit-catalog-sources-1-coordinator'
 const READ_BATCH_RECORDS = 32
 const READ_BATCH_BYTES = 1024 * 1024
 interface CapturedRecord {

@@ -1,3 +1,4 @@
+import { LAUNCH_DATA_GENERATION } from '../src/domain/data-generation'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Locator, type Page } from '@playwright/test'
@@ -68,13 +69,13 @@ function syntheticOverview(): LocalData {
 async function importLocalData(page: Page, localData: LocalData) {
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   const archive = zipSync({
-    'manifest.json': encode({ format: 'crykit-backup', formatVersion: '2.0.0', exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
+    'manifest.json': encode({ format: 'crykit-backup', formatVersion: '3.0.0', dataGeneration: LAUNCH_DATA_GENERATION, exportedAt: TEST_NOW, payload: 'bundle.json', sources: [] }),
     'bundle.json': encode({ localData, lineage: { rootLocalDataId: localData.id }, catalogs: [DEFAULT_CATALOG], evidence: [], history: [] }),
   })
   const panel = await openData(page)
   await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-overview.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await panel.getByText('File details and source notices', { exact: true }).click()
-  await expect(panel.getByText('native-backup-2.0.0', { exact: true })).toBeVisible()
+  await expect(panel.getByText('native-backup-3.0.0', { exact: true })).toBeVisible()
   await replacePlannerData(panel)
   await expect(panel).not.toBeVisible()
   await choosePlaythrough(page, selectedPlaythrough(localData).label)
