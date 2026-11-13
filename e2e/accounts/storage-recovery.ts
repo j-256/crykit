@@ -4,6 +4,8 @@ import { expect, type Page, type TestInfo } from './test-fixture'
 // Native storage, backup downloads and device removal remain real browser assertions
 // Compose them after an already verified cloud drain instead of preparing the workspace again
 export async function assertAccountStorageRecovery(page: Page, testInfo: TestInfo): Promise<void> {
+  // Workspace replacement rechecks readiness; a refresh during that check intentionally stays local
+  await expect(page.getByRole('region', { name: 'Online account availability' }).getByText('Online accounts are available.', { exact: true })).toBeVisible()
   const storage = page.getByRole('region', { name: 'Storage and recovery' })
   await storage.getByRole('button', { name: 'Refresh storage', exact: true }).focus()
   await page.keyboard.press('Enter')
