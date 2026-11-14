@@ -29,7 +29,9 @@ import type { WorkspaceRepository } from '../workspace/repository'
 import { ErrorBoundary } from './ErrorBoundary'
 import { GuestRecoveryNotice } from './GuestRecoveryNotice'
 import { AccountView } from './account/AccountView'
-import { LoadingScreen } from './components'
+import { Button, LoadingScreen } from './components'
+
+class GuestReopeningBlockedError extends Error {}
 
 interface ReferenceRetry { readonly cardId: string; readonly included: boolean; readonly message: string }
 interface ModLibraryResult { readonly saved: { readonly title: string; readonly unchanged: boolean; readonly warnings: readonly string[] }; readonly futureDefault: boolean }
@@ -40,6 +42,7 @@ function isAccountEntryRoute(): boolean {
 const copyModLibraryResult = (value: ModLibraryResult): ModLibraryResult => ({ saved: { title: value.saved.title, unchanged: value.saved.unchanged, warnings: [...value.saved.warnings] }, futureDefault: value.futureDefault })
 interface WorkspaceContextValue extends EditorWorkspaceActions, SaveWorkspaceActions, BuildInputActions {
   readonly repository: WorkspaceRepository
+  readonly notices: ReactNode
   readonly localCopy: ReturnType<typeof createGuestCopyService>
   readonly token?: ProfileToken
   openAccount(token: ProfileToken): Promise<void>
@@ -144,12 +147,14 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
     return () => { unsubscribe(); stop(); unregister() }
   }, [selection])
   const [successorPending, setSuccessorPending] = useState(false)
+  const [guestRefreshError, setGuestRefreshError] = useState<string>()
   const guestRefresh = useRef<{ repository: WorkspaceRepository; run: (preserveReferenceRetry?: boolean, completedModImport?: ModLibraryResult) => Promise<boolean> }>(undefined)
   const registerDraftPresence = useCallback((read: (exceptOwner?: symbol) => boolean) => {
     draftReaders.current.add(read)
     return () => { draftReaders.current.delete(read) }
   }, [])
   useEffect(() => {
+    setGuestRefreshError(undefined)
     if (selection.kind !== 'guest' || repository.kind !== 'guest' || accountEntry) return
     let live = true
     const generation = version.current
@@ -165,8 +170,7 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
       // Activation events carry no authority; a late guest result cannot replace a selected account
       if (!live || version.current !== generation || current.current.kind !== 'guest' || !guestPlannerValuesEqual(confirmed, nextBinding.manifest)) throw new Error('The selected workspace changed during reopening')
       if (filePending.current || draftPresence.current() || editorSession.controller.snapshot().dirty || saveSession.controller.snapshot().dirty || buildInputSession.controller.snapshot().dirty) {
-        setSuccessorPending(true)
-        throw new Error('Finish or recover open drafts before reopening the selected workspace')
+        throw new GuestReopeningBlockedError('Finish or recover open drafts before reopening the selected workspace')
       }
       // Only the explicit update action carries this inert requested choice; no callback survives reopening
       const retry = preserveRetry ? referenceRetry.current : undefined
@@ -187,8 +191,19 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
       if (completedModImport) completedImport = copyModLibraryResult(completedModImport)
       // A publication hint and its awaiting bulk caller share one complete successor admission
       if (pending) return pending
-      const attempt = refreshSelection().catch(error => {
-        if (live && version.current === generation && current.current.kind === 'guest') setSuccessorPending(true)
+      const attempt = refreshSelection().then(changed => {
+        if (live && version.current === generation && current.current.kind === 'guest') {
+          setGuestRefreshError(undefined)
+          setSuccessorPending(false)
+        }
+        return changed
+      }).catch(error => {
+        if (live && version.current === generation && current.current.kind === 'guest') {
+          // A failed read proves neither a successor nor a draft; only the confirmed pointer and draft guard do
+          const blocked = error instanceof GuestReopeningBlockedError
+          setSuccessorPending(blocked)
+          setGuestRefreshError(blocked ? undefined : error instanceof Error ? error.message : 'The workspace selection could not be read.')
+        }
         throw error
       })
       const completed = attempt.finally(() => { if (pending === completed) { pending = undefined; preserveRetry = false; completedImport = undefined } })
@@ -827,5 +842,12 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
   if (selection.kind === 'opening') return <LoadingScreen detail="Opening saved workspace..."/>
   if (selection.kind === 'locked') return <main className="panel"><h1>Account workspace locked</h1><p>Unlock your account to reopen its saved data.</p><AccountView onOpenWorkspace={openAccount} onContinueLocal={continueLocal} localCopy={localCopy}/></main>
   if (selection.kind === 'guest' && accountEntry) return <main className="panel"><AccountView onOpenWorkspace={openAccount} onContinueLocal={continueLocal} localCopy={localCopy}/></main>
-  return <WorkspaceContext.Provider value={{ repository, localCopy, ...(selection.kind === 'account' ? { token: selection.token } : {}), openAccount, continueLocal, reopenGuest, reopenAccount, readReferenceRetry: () => { if (!isCurrent()) throw new Error('The Reference retry owner was retired'); return referenceRetry.current }, rememberReferenceRetry: value => { if (!isCurrent()) throw new Error('The Reference retry owner was retired'); referenceRetry.current = value && { ...value } }, readModLibraryResult: () => { if (!isCurrent()) throw new Error('The mod import result owner was retired'); return modLibraryResult.current && copyModLibraryResult(modLibraryResult.current) }, clearModLibraryResult: () => { if (!isCurrent()) throw new Error('The mod import result owner was retired'); modLibraryResult.current = undefined }, registerDraftPresence, flushSync, syncState, retrySync, ...editorActions, ...saveActions, ...buildActions }}>{selection.kind === 'guest' && successorPending && <section className="panel" role="alert"><h2>A newer local workspace is ready</h2><p>Your open draft is still attached to its original workspace. Export or discard it before reopening the selected workspace.</p><button onClick={() => window.dispatchEvent(new Event(GUEST_ACTIVATED_EVENT))}>Reopen selected workspace</button></section>}{selection.kind === 'guest' && <GuestRecoveryNotice repository={repository} canReplace={() => current.current === selection && current.current.kind === 'guest' && !draftPresence.current()}/>}<ErrorBoundary key={`${workspaceSelectionKey(selection)}:${ownedGeneration}`} recoveryDownload={() => downloadCapturedWorkspace(repository)}>{children}</ErrorBoundary></WorkspaceContext.Provider>
+  // The loaded planner shell owns these notices; startup failures must present one recovery decision
+  // Mounting the retained-branch monitor before admission also mistakes startup errors for older edits
+  const notices = selection.kind === 'guest' ? <div className="workspace-notices">
+    {successorPending && <section className="panel guest-recovery-notice" role="alert"><h2>A newer local workspace is ready</h2><p>Open drafts or pending file changes still belong to the original workspace. Finish or recover them before reopening the selected workspace.</p><Button tone="secondary" onClick={() => window.dispatchEvent(new Event(GUEST_ACTIVATED_EVENT))}>Reopen selected workspace</Button></section>}
+    {guestRefreshError && <section className="panel guest-recovery-notice" role="alert"><h2>Could not check for a newer workspace</h2><p>{guestRefreshError}</p><p>Your open workspace has been kept.</p><Button tone="secondary" onClick={() => window.dispatchEvent(new Event(GUEST_ACTIVATED_EVENT))}>Retry workspace check</Button></section>}
+    <GuestRecoveryNotice repository={repository} canReplace={() => current.current === selection && current.current.kind === 'guest' && !draftPresence.current()}/>
+  </div> : null
+  return <WorkspaceContext.Provider value={{ repository, localCopy, notices, ...(selection.kind === 'account' ? { token: selection.token } : {}), openAccount, continueLocal, reopenGuest, reopenAccount, readReferenceRetry: () => { if (!isCurrent()) throw new Error('The Reference retry owner was retired'); return referenceRetry.current }, rememberReferenceRetry: value => { if (!isCurrent()) throw new Error('The Reference retry owner was retired'); referenceRetry.current = value && { ...value } }, readModLibraryResult: () => { if (!isCurrent()) throw new Error('The mod import result owner was retired'); return modLibraryResult.current && copyModLibraryResult(modLibraryResult.current) }, clearModLibraryResult: () => { if (!isCurrent()) throw new Error('The mod import result owner was retired'); modLibraryResult.current = undefined }, registerDraftPresence, flushSync, syncState, retrySync, ...editorActions, ...saveActions, ...buildActions }}><ErrorBoundary key={`${workspaceSelectionKey(selection)}:${ownedGeneration}`} recoveryDownload={() => downloadCapturedWorkspace(repository)}>{children}</ErrorBoundary></WorkspaceContext.Provider>
 }
