@@ -11,6 +11,12 @@ const BASE64_SLICE_BYTES = 32 * 1024
 const CompressedCatalogSchema = z.strictObject({ version: z.literal(1), kind: z.literal('compressed-catalog-snapshot'), encoding: z.literal('deflate-json-pages-v1'), byteLength: z.number().int().positive().max(maxDocumentBytes), pages: z.array(z.string().min(1).max(SOURCE_PAGE_BYTES * 2)).min(1).max(Math.ceil(maxDocumentBytes / SOURCE_PAGE_BYTES)) })
 type CompressedCatalog = z.infer<typeof CompressedCatalogSchema>
 const encodedCatalogs = new WeakMap<CatalogSnapshot, CompressedCatalog>()
+const DECODED_CATALOG_CACHE_LIMIT = 16
+// Bound the lookup handles without keeping retired catalog bodies alive
+const decodedCatalogs: WeakRef<CatalogSnapshot>[] = []
+function sameEncodedCatalog(left: CompressedCatalog, right: CompressedCatalog): boolean {
+  return left.byteLength === right.byteLength && left.pages.length === right.pages.length && left.pages.every((page, index) => page === right.pages[index])
+}
 function base64(bytes: Uint8Array): string {
   let binary = ''
   for (let at = 0; at < bytes.length; at += BASE64_SLICE_BYTES) binary += String.fromCharCode(...bytes.subarray(at, at + BASE64_SLICE_BYTES))
@@ -32,7 +38,7 @@ function sameCatalogJson(left: unknown, right: unknown): boolean {
   const other = Object.entries(right).filter(([, value]) => value !== undefined)
   return entries.length === other.length && entries.every(([key, value]) => Object.hasOwn(right, key) && sameCatalogJson(value, (right as Record<string, unknown>)[key]))
 }
-export function encodeCatalogPayload(snapshot: CatalogSnapshot): unknown {
+export function encodeCatalogPayload(snapshot: CatalogSnapshot): CompressedCatalog {
   const exact = BUNDLED_CATALOGS.find(value => value.id === snapshot.id && value.revisionId === snapshot.revisionId && value.checksum === snapshot.checksum)
   if (exact && snapshot !== exact && !corroborated.has(snapshot)) {
     if (!sameCatalogJson(snapshot, exact)) throw new Error('Packaged catalog identity has conflicting contents')
@@ -59,8 +65,17 @@ export function decodeCatalogPayload(value: unknown): unknown {
   // Exact compressed byte equality permits reuse of a packaged object, never a package-only read
   // The self-contained decoder below remains authoritative when the package no longer has that body
   for (const snapshot of BUNDLED_CATALOGS) {
+    // Cold starts have no prior writer; computing the canonical bytes avoids inflating and readmitting the same body
+    const known = encodedCatalogs.get(snapshot) ?? encodeCatalogPayload(snapshot)
+    if (sameEncodedCatalog(encoded, known)) return snapshot
+  }
+  // Repeated roots and history can share an immutable decoded body only after comparing every encoded byte
+  // Each storage read still owns authentication and current-root/profile checks; this cache grants none
+  for (let index = decodedCatalogs.length - 1; index >= 0; index--) {
+    const snapshot = decodedCatalogs[index]!.deref()
+    if (!snapshot) { decodedCatalogs.splice(index, 1); continue }
     const known = encodedCatalogs.get(snapshot)
-    if (known && encoded.byteLength === known.byteLength && encoded.pages.length === known.pages.length && encoded.pages.every((page, index) => page === known.pages[index])) return snapshot
+    if (known && sameEncodedCatalog(encoded, known)) return snapshot
   }
   const chunks = encoded.pages.map((page, index) => {
     const bytes = decodeBackupPage(unbase64(page))
@@ -72,5 +87,7 @@ export function decodeCatalogPayload(value: unknown): unknown {
   const snapshot = immutableCatalogSnapshot(parseBoundedJson(bytes, 'catalog snapshot', NATIVE_BACKUP_JSON_LIMITS) as unknown as CatalogSnapshot)
   Object.freeze(encoded.pages); Object.freeze(encoded)
   encodedCatalogs.set(snapshot, encoded)
+  decodedCatalogs.push(new WeakRef(snapshot))
+  if (decodedCatalogs.length > DECODED_CATALOG_CACHE_LIMIT) decodedCatalogs.shift()
   return snapshot
 }
