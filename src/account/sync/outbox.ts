@@ -1,3 +1,4 @@
+import { readReviewedReplacement, reviewedRemoteMatches, pauseReviewedReplacement, bindReviewedPublication, completeReviewedPublication, installReviewedPublication } from '../../workspace/reviewed-replacement'
 import { captureAccountSyncWorkspace } from '../../workspace/account-sync-capture'
 import { prepareManagedAccountProjection } from '../../workspace/account-managed-projection'
 import { retirePendingContent } from '../../workspace/pending-content'
@@ -198,7 +199,7 @@ export class EncryptedOutbox {
   }
 }
 
-const OperationSchema = z.strictObject({ version: z.literal(1), kind: z.literal('publication-operation'), intentId: z.string().optional(), intentRef: z.strictObject({ documentId: z.string(), revisionId: z.string() }).optional(), commands: z.strictObject({ documentId: z.string(), revisionId: z.string() }), bindings: z.strictObject({ documentId: z.string(), revisionId: z.string() }), offset: z.number().int().nonnegative(), finalMutationId: z.string(), accepted: z.boolean(), bulk: z.boolean(), lineageId: z.string().optional(), newLineageId: z.string(), target: z.strictObject({ documentId: z.string(), revisionId: z.string() }).optional(), conflicted: z.boolean().optional(), readinessOffset: z.number().int().nonnegative().default(0), revivalMutationId: z.string().optional() })
+export const PublicationOperationSchema = z.strictObject({ version: z.literal(1), kind: z.literal('publication-operation'), intentId: z.string().optional(), intentRef: z.strictObject({ documentId: z.string(), revisionId: z.string() }).optional(), commands: z.strictObject({ documentId: z.string(), revisionId: z.string() }), bindings: z.strictObject({ documentId: z.string(), revisionId: z.string() }), offset: z.number().int().nonnegative(), finalMutationId: z.string(), accepted: z.boolean(), bulk: z.boolean(), lineageId: z.string().optional(), newLineageId: z.string(), target: z.strictObject({ documentId: z.string(), revisionId: z.string() }).optional(), conflicted: z.boolean().optional(), readinessOffset: z.number().int().nonnegative().default(0), revivalMutationId: z.string().optional() })
 const guards = new Map<string, () => boolean>()
 export function registerSyncProjectionGuard(token: ProfileToken, mayReplace: () => boolean): () => void {
   const id = `${token.accountId}:${token.generation}`
@@ -224,7 +225,24 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
     const outbox = new EncryptedOutbox(database, token)
     if ((await database.outbox.toArray()).some(row => row.status === 'unmapped-local')) await captureLocal()
     await outbox.assertMapped()
-    let operation = await readSyncState(database, token, 'publication', OperationSchema)
+    let operation = await readSyncState(database, token, 'publication', PublicationOperationSchema)
+    let reviewed = await readReviewedReplacement(database, token)
+    if (reviewed?.value.state === 'paused') return { state: 'paused', moreWork: false }
+    if (reviewed?.value.state === 'active' && operation?.value.conflicted) {
+      await pauseReviewedReplacement(database, token, reviewed, 'head-conflict')
+      return { state: 'paused', moreWork: false }
+    }
+    if (reviewed?.value.state === 'active' && operation && (operation.value.intentId !== reviewed.value.intentId || operation.value.finalMutationId !== reviewed.value.final?.mutationId)) throw new SyncError('LOCAL_INTEGRITY_FAILED')
+    if (reviewed?.value.state === 'active' && operation && !operation.value.accepted && !operation.value.conflicted) {
+      const final = await outbox.read(operation.value.finalMutationId)
+      if (!final) throw new SyncError('LOCAL_INTEGRITY_FAILED')
+      if (final.receipt || await client.receipt(operation.value.finalMutationId)) {
+        const accepted = await outbox.advance(operation.value.finalMutationId, client, budget)
+        if (!accepted) throw new SyncError('INTEGRITY_FAILED')
+        operation.value.accepted = true
+        operation.row = await writeSyncState(database, token, 'publication', operation.value, operation.row, [operation.value.commands, operation.value.bindings, ...(operation.value.target ? [operation.value.target] : []), ...(operation.value.intentRef ? [operation.value.intentRef] : [])])
+      }
+    }
     if (operation && !operation.value.accepted && !operation.value.conflicted) {
       const commands = await readPublicationPages(database, token, operation.value.commands, commandPages, entry => [entry.ref])
       const selected = commands[operation.value.offset]
@@ -241,12 +259,20 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
         return { state: 'syncing', moreWork: true }
       }
       let receipt: CommitReceipt | null
-      try { receipt = await outbox.advance(selected.mutationId, client, budget) }
+      try {
+        if (reviewed?.value.state === 'active') await bindReviewedPublication(token, reviewed)
+        receipt = await outbox.advance(selected.mutationId, client, budget)
+      }
       catch (error) {
         if (!(error instanceof SyncError && error.code === 'HEAD_CONFLICT')) throw error
+        if (reviewed?.value.state === 'active' && !error.remoteResponse) throw error
         // Only a definitive rejection releases an attempt; uncertain results retry their exact receipt identity
         operation.value.conflicted = true
         operation.row = await writeSyncState(database, token, 'publication', operation.value, operation.row, [operation.value.commands, operation.value.bindings, ...(operation.value.target ? [operation.value.target] : []), ...(operation.value.intentRef ? [operation.value.intentRef] : [])])
+        if (reviewed?.value.state === 'active') {
+          await pauseReviewedReplacement(database, token, reviewed, 'head-conflict')
+          return { state: 'paused', moreWork: false }
+        }
         const retry = claimBulkRebase(token)
         return { state: retry ? 'syncing' : 'paused', moreWork: retry }
       }
@@ -256,6 +282,7 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
       operation.row = await writeSyncState(database, token, 'publication', operation.value, operation.row, [operation.value.commands, operation.value.bindings, ...(operation.value.target ? [operation.value.target] : []), ...(operation.value.intentRef ? [operation.value.intentRef] : [])])
       if (!operation.value.accepted) return { state: 'syncing', moreWork: true }
     }
+    if (reviewed?.value.state === 'active' && operation?.value.accepted) reviewed = await completeReviewedPublication(database, token, reviewed)
     const previousRemote = await readRemoteState(database, token)
     let remote: Awaited<ReturnType<typeof openRemoteProjection>> = null
     const candidate = await stagePull(database, token, client, async heads => {
@@ -268,6 +295,10 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
       remote = next
     }, budget)
     if (!candidate) return { state: 'syncing', moreWork: true }
+    if (reviewed?.value.state === 'active' && !reviewedRemoteMatches(reviewed.value, candidate.state.publicationEpoch, candidate.heads)) {
+      await pauseReviewedReplacement(database, token, reviewed, 'remote-advanced')
+      return { state: 'paused', moreWork: false }
+    }
     const local = await captureLocal()
     // The validator callback has completed before the candidate can be returned
     const projection = remote as Awaited<ReturnType<typeof openRemoteProjection>>
@@ -347,7 +378,7 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
     const bindingPages = publicationPageSchema(z.strictObject({ body: z.strictObject({ documentId: z.string(), revisionId: z.string() }), publication: z.strictObject({ documentId: z.string(), revisionId: z.string() }) }), 'local-publication-bindings')
     const acceptedBindings = operation?.value.accepted ? await readPublicationPages(database, token, operation.value.bindings, bindingPages, entry => [entry.body, entry.publication]) : []
     if (prepared && local.managed) managedProjection = await prepareManagedAccountProjection(database, token, local.fence, prepared, newEvidenceIntent)
-    await activatePulledState(database, token, committedCandidate, local.fence, prepared, completedRow && operation ? { intent: completedRow, publication: operation.row } : undefined, operation?.value.accepted && !completedRow ? operation.row : undefined, assertMayActivate, acceptedBindings.map(entry => entry.body.revisionId), newEvidenceIntent, managedProjection?.prepared)
+    await activatePulledState(database, token, committedCandidate, local.fence, prepared, completedRow && operation ? { intent: completedRow, publication: operation.row } : undefined, operation?.value.accepted && !completedRow ? operation.row : undefined, assertMayActivate, acceptedBindings.map(entry => entry.body.revisionId), newEvidenceIntent, managedProjection?.prepared, reviewed?.row)
     if (prepared && typeof window !== 'undefined') window.dispatchEvent(new Event('crykit-account-sync-applied'))
     if (needsEvidencePublication) return { state: 'syncing', moreWork: true }
     const settledState = state.conflicts.some(conflict => conflict.disposition.kind === 'unresolved' && !projection?.supersededConflictIds.has(conflict.id)) ? 'conflict' as const : 'synced' as const
@@ -378,6 +409,9 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
         for (const entry of await readPublicationPages(database, token, snapshot.effective.units, pages, entry => [entry.body, entry.publication])) { if ((await import('./lineage-publication')).isPersonalLineageKey(entry.key)) anchorParents.set(entry.key, entry.publication); else parents.set(entry.body.revisionId, entry.publication) }
       }
     }
+    // Renewed review authorizes this exact remote branch, including a competing bulk lineage
+    // Ordinary mapped intents keep their captured lineage and never inherit this exception
+    if (reviewed?.value.state === 'active' && first?.row.id === reviewed.value.intentId) capturedLineage = projection?.lineageId
     // Prepared/uncertain commands reconcile above; only an unaccepted or definitively rejected intent reaches this admission
     const firstAllocationCapture = !!(first && projection && capturedLineage !== projection.lineageId && !first.value.conflictResolution && await (await import('./mapping-admission')).admitFirstAllocationComparison(database, token, mappingBase, projection, target, changes!, first.value.mode))
     if (operation?.value.conflicted && operation.value.lineageId && operation.value.lineageId !== projection?.lineageId && !firstAllocationCapture) throw new SyncError('HEAD_CONFLICT')
@@ -407,9 +441,9 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
         }
         return saved
       }
-      const accepted: { value: z.infer<typeof OperationSchema>; intent: z.infer<typeof MappedWorkspaceIntentSchema> | undefined }[] = []
+      const accepted: { value: z.infer<typeof PublicationOperationSchema>; intent: z.infer<typeof MappedWorkspaceIntentSchema> | undefined }[] = []
       for (const row of await database.syncState.toArray()) if (row.id.startsWith('accepted:')) {
-        const value = await openAccountJson(database, token, row.ref, OperationSchema)
+        const value = await openAccountJson(database, token, row.ref, PublicationOperationSchema)
         if (!value.accepted || !value.target) continue
         const command = await outbox.read(value.finalMutationId)
         if (!command?.receipt || command.receipt.mutationId !== value.finalMutationId) continue
@@ -442,7 +476,7 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
       capturedLineage = projection.lineageId
     }
     for (const change of changes ?? []) if (change.kind !== 'workspace-identity' && change.before && projection?.units.has(change.key) && !parents.has(change.before.revisionId)) {
-      const binding = await readSyncState(database, token, `binding:${change.before.revisionId}`, OperationSchema)
+      const binding = await readSyncState(database, token, `binding:${change.before.revisionId}`, PublicationOperationSchema)
       if (!binding?.value.accepted || capturedLineage && capturedLineage !== binding.value.newLineageId) throw new SyncError('HEAD_CONFLICT')
       capturedLineage ??= binding.value.newLineageId
       const entries = await readPublicationPages(database, token, binding.value.bindings, bindingPages, entry => [entry.body, entry.publication])
@@ -520,6 +554,10 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
     }
     const attempt = await preparePublicationAttempt(database, token, publicationTarget, projection, candidate.heads, candidate.state.publicationEpoch, installingLineages ? [] : publicationChanges, first?.value.mode, capturedLineage ? { lineageId: convergence ? projection!.lineageId : capturedLineage, parents: publicationParents } : undefined, installingLineages ? { installLineages: true } : convergence ? { authorities: convergence.authorities, resolutionParents, mappingResolutions, initialTombstones: convergence.initialTombstones } : undefined)
 
+    if (reviewed?.value.state === 'active') {
+      if (!first || first.row.id !== reviewed.value.intentId || !publishFirst) throw new SyncError('LOCAL_INTEGRITY_FAILED')
+      Object.assign(attempt.final, { recoveryOperationId: reviewed.value.recoveryOperationId, expectedPublicationEpoch: reviewed.value.reviewedEpoch })
+    }
     const commands = []
     for (const input of [...attempt.registrations, attempt.final]) {
       await outbox.prepare(input)
@@ -528,12 +566,14 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
     }
     const commandIndex = await stagePublicationPages(database, token, 'local-command-index', commands, entry => [entry.ref])
     const bindingIndex = await stagePublicationPages(database, token, 'local-publication-bindings', [...attempt.bindings, ...(convergence?.archivedBindings ?? [])], entry => [entry.body, entry.publication])
-    const value = OperationSchema.parse({ version: 1, kind: 'publication-operation', ...(publishFirst ? { intentId: first!.row.id, intentRef: first!.row.ref } : {}), commands: commandIndex, bindings: bindingIndex, offset: 0, finalMutationId: attempt.final.mutationId, accepted: false, bulk: attempt.bulk, newLineageId: attempt.lineageId, target: target.head, ...(projection ? { lineageId: projection.lineageId } : {}) })
+    const value = PublicationOperationSchema.parse({ version: 1, kind: 'publication-operation', ...(publishFirst ? { intentId: first!.row.id, intentRef: first!.row.ref } : {}), commands: commandIndex, bindings: bindingIndex, offset: 0, finalMutationId: attempt.final.mutationId, accepted: false, bulk: attempt.bulk, newLineageId: attempt.lineageId, target: target.head, ...(projection ? { lineageId: projection.lineageId } : {}) })
     if (operation?.value.conflicted) {
       // Keep losing attempt envelopes and original-base bindings available to conflict inspection
       await database.syncState.put({ id: `attempt:${operation.row.ref.revisionId}`, ref: operation.row.ref })
     }
-    await writeSyncState(database, token, 'publication', value, operation?.row, [commandIndex, bindingIndex, target.head, ...(publishFirst ? [first!.row.ref] : [])])
+    const publicationDependencies = [commandIndex, bindingIndex, target.head, ...(publishFirst ? [first!.row.ref] : [])]
+    if (reviewed?.value.state === 'active') await installReviewedPublication(database, token, reviewed, attempt.final, value, operation?.row, publicationDependencies)
+    else await writeSyncState(database, token, 'publication', value, operation?.row, publicationDependencies)
     // A pending journal is durable before the first upload; staging cannot be reported as synchronized
     return { state: 'syncing', moreWork: true }
   } finally {

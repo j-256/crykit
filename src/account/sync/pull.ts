@@ -299,8 +299,9 @@ export async function stagePull(database: AccountDatabase, token: ProfileToken, 
   return { previous: remote?.row, scanRow: saved.row, state, heads }
 }
 
-export async function activatePulledState(database: AccountDatabase, token: ProfileToken, candidate: PullCandidate, expected: import('../../persistence/account-database').AccountFence, prepared?: import('../../workspace/account-graph').PreparedAccountWorkspace, completed?: { readonly intent: import('../../persistence/account-database').AccountIntentRecord; readonly publication: EncryptedSyncState }, publicationOnly?: EncryptedSyncState, assertMayActivate: () => void = () => {}, acceptedBodies: readonly string[] = [], newIntent?: { readonly id: string; readonly ref: CipherRef; readonly records: readonly CipherRecord[] }, managed?: import('../../persistence/account-database').PreparedLocalActivation): Promise<void> {
+export async function activatePulledState(database: AccountDatabase, token: ProfileToken, candidate: PullCandidate, expected: import('../../persistence/account-database').AccountFence, prepared?: import('../../workspace/account-graph').PreparedAccountWorkspace, completed?: { readonly intent: import('../../persistence/account-database').AccountIntentRecord; readonly publication: EncryptedSyncState }, publicationOnly?: EncryptedSyncState, assertMayActivate: () => void = () => {}, acceptedBodies: readonly string[] = [], newIntent?: { readonly id: string; readonly ref: CipherRef; readonly records: readonly CipherRecord[] }, managed?: import('../../persistence/account-database').PreparedLocalActivation, reviewedAuthority?: EncryptedSyncState): Promise<void> {
   // Ignore opened functions and caller owner claims; only this captured envelope can publish
+  reviewedAuthority = structuredClone(reviewedAuthority)
   candidate = structuredClone(candidate)
   expected = structuredClone(expected)
   const selected = managed ? structuredClone({ head: managed.head, records: managed.records }) : prepared ? structuredClone({ head: prepared.head, records: prepared.records }) : undefined
@@ -328,6 +329,7 @@ export async function activatePulledState(database: AccountDatabase, token: Prof
       if (JSON.stringify(await database.profileMeta.get('active')) !== JSON.stringify(expected)
         || JSON.stringify(await database.syncState.get('remote')) !== JSON.stringify(candidate.previous)
         || JSON.stringify(await database.syncState.get('scan')) !== JSON.stringify(candidate.scanRow)) throw new SyncError('LOCAL_REVISION_CONFLICT')
+      if (JSON.stringify(await database.syncState.get('reviewed-replacement')) !== JSON.stringify(reviewedAuthority)) throw new SyncError('LOCAL_REVISION_CONFLICT')
       const publication = completed?.publication ?? publicationOnly
       if (publication && JSON.stringify(await database.syncState.get('publication')) !== JSON.stringify(publication)) throw new SyncError('LOCAL_REVISION_CONFLICT')
       if (completed && JSON.stringify(await database.outbox.get(completed.intent.id)) !== JSON.stringify(completed.intent)) throw new SyncError('LOCAL_REVISION_CONFLICT')

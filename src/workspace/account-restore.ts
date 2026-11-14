@@ -23,6 +23,7 @@ interface PreviewAuthority {
   readonly database: AccountDatabase
   readonly token: ProfileToken
   readonly snapshot: WorkspaceSnapshot
+  readonly branch?: object
   readonly expected: AccountFence
 }
 interface StageAuthority extends PreviewAuthority {
@@ -36,17 +37,18 @@ interface StageAuthority extends PreviewAuthority {
 const previews = new WeakMap<AccountRestorePreview, PreviewAuthority>()
 const stages = new WeakMap<AccountRestoreStage, StageAuthority>()
 
-async function assertSettled(database: AccountDatabase, token: ProfileToken): Promise<void> {
+async function assertSettled(database: AccountDatabase, token: ProfileToken, branch?: object): Promise<void> {
+  if (branch) return (await import('./reviewed-replacement')).assertReviewedBranch(database, token, branch)
   assertActiveProfile(token)
   if (await database.outbox.count() || await database.syncState.get('publication')) throw new Error('Finish syncing before restoring this account')
   assertActiveProfile(token)
 }
 
-export async function previewAccountWorkspaceRestore(database: AccountDatabase, token: ProfileToken, snapshot: WorkspaceSnapshot): Promise<AccountRestorePreview> {
+export async function previewAccountWorkspaceRestore(database: AccountDatabase, token: ProfileToken, snapshot: WorkspaceSnapshot, branch?: object): Promise<AccountRestorePreview> {
   await assertOwnedWorkspaceSnapshot(snapshot)
   await validateWorkspaceSnapshot(snapshot)
   if (database.accountId !== token.accountId) throw new Error('Foreign account restore target')
-  await assertSettled(database, token)
+  await assertSettled(database, token, branch)
   const expected = await database.profileMeta.get('active')
   if (!expected) throw new Error('The selected account workspace is unavailable')
   if (await isManagedAccountHead(database, token, expected)) {
@@ -61,7 +63,7 @@ export async function previewAccountWorkspaceRestore(database: AccountDatabase, 
     privateBytes: state.blobs.reduce((sum, blob) => sum + blob.ref.byteLength, 0) + (snapshot.version === 2 ? snapshot.historicalEvidence.blobs.reduce((sum, ref) => sum + ref.byteLength, 0) : 0),
     effect: 'replace-selected-profile',
   })
-  previews.set(preview, { database, token, snapshot, expected })
+  previews.set(preview, { database, token, snapshot, expected, branch })
   return preview
 }
 
@@ -70,10 +72,10 @@ export function releaseAccountWorkspaceRestorePreview(preview: AccountRestorePre
 export async function stageAccountWorkspaceRestore(preview: AccountRestorePreview): Promise<AccountRestoreStage> {
   const authority = previews.get(preview)
   if (!authority) throw new Error('A validated account restore preview is required')
-  const { database, token, snapshot, expected } = authority
+  const { database, token, snapshot, expected, branch } = authority
   assertActiveProfile(token)
   await assertOwnedWorkspaceSnapshot(snapshot)
-  await assertSettled(database, token)
+  await assertSettled(database, token, branch)
   if (JSON.stringify(await database.profileMeta.get('active')) !== JSON.stringify(expected)) throw new Error('The selected account workspace changed after restore preview')
   // Retain the backup's current originals as inert history even when destination graph IDs differ
   // A later account export can then reproduce every exact original across devices
@@ -116,14 +118,14 @@ export async function stageAccountWorkspaceRestore(preview: AccountRestorePrevie
   } finally { await captured?.dispose() }
 }
 
-export async function activateAccountWorkspaceRestore(stage: AccountRestoreStage, assertMayActivate: () => void = () => {}): Promise<AccountFence> {
+export async function activateAccountWorkspaceRestore(stage: AccountRestoreStage, assertMayActivate: () => void = () => {}, attachment?: import('../persistence/account-activation-attachments').AccountActivationAttachment): Promise<AccountFence> {
   const authority = stages.get(stage)
   if (!authority) throw new Error('A staged account restore is required')
   await assertOwnedWorkspaceSnapshot(authority.snapshot)
   await assertOwnedWorkspaceSnapshot(authority.normalized)
   await authority.evidence.check()
   assertActiveProfile(authority.token)
-  return activateLocalAccountCommit(authority.database, authority.token, authority.prepared, assertMayActivate)
+  return activateLocalAccountCommit(authority.database, authority.token, authority.prepared, assertMayActivate, attachment)
 }
 
 export async function releaseAccountWorkspaceRestoreStage(stage: AccountRestoreStage): Promise<void> {
