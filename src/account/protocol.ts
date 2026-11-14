@@ -92,7 +92,7 @@ export const RevisionDescriptorSchema = RevisionContextSchema.extend({
 export type RevisionDescriptor = z.infer<typeof RevisionDescriptorSchema>
 const PublicationHeadsSchema = z.array(HeadSchema).max(maxChangedHeads).refine(heads => unique(heads, head => head.documentId)).readonly()
 export const CommitRequestSchema = z.strictObject({
-  version: z.literal(wireVersion), mutationId: OpaqueIdSchema, expectedPublicationEpoch: uint.optional(),
+  version: z.literal(wireVersion), mutationId: OpaqueIdSchema, expectedPublicationEpoch: uint.optional(), recoveryOperationId: OpaqueIdSchema.optional(),
   expected: z.array(z.strictObject({ documentId: OpaqueIdSchema, revisionId: OpaqueIdSchema.nullable() })).max(maxChangedHeads).refine(heads => unique(heads, head => head.documentId)).readonly(),
   heads: PublicationHeadsSchema,
   revisions: z.array(RevisionDescriptorSchema).max(maxChangedHeads).refine(revisions => unique(revisions, revision => revision.revisionId)).readonly(),

@@ -83,7 +83,9 @@ export async function writeFencedChunk(principal: CustomerPrincipal, generation:
 
 // Later deletion/snapshot owners compose their own service authority with these predicates
 // Accepted journal pins stay effective without a deadline until explicit safe retention removal
-export const generationUnpinnedSql = `NOT EXISTS (SELECT 1 FROM service_snapshot_pins sp JOIN service_snapshots ss ON ss.id=sp.snapshot_id WHERE sp.generation=g.id AND ss.state NOT IN ('expired','paused')) AND NOT EXISTS (SELECT 1 FROM publication_pins p JOIN publication_work w ON w.account_id = p.account_id AND w.mutation_id = p.mutation_id WHERE p.generation = g.id AND (w.state IN ('complete','validating') OR (w.state = 'accepted' AND p.retained = 1))) AND NOT EXISTS (SELECT 1 FROM publication_work w WHERE w.account_id = g.account_id AND w.state IN ('validating','complete')) AND NOT EXISTS (SELECT 1 FROM scan_leases l WHERE l.account_id = g.account_id AND l.expires_at > ?)`
+const otherGenerationPinsAbsentSql = `NOT EXISTS (SELECT 1 FROM service_snapshot_pins sp JOIN service_snapshots ss ON ss.id=sp.snapshot_id WHERE sp.generation=g.id AND ss.state NOT IN ('expired','paused')) AND NOT EXISTS (SELECT 1 FROM publication_pins p JOIN publication_work w ON w.account_id = p.account_id AND w.mutation_id = p.mutation_id WHERE p.generation = g.id AND (w.state IN ('complete','validating') OR (w.state = 'accepted' AND p.retained = 1))) AND NOT EXISTS (SELECT 1 FROM publication_work w WHERE w.account_id = g.account_id AND w.state IN ('validating','complete')) AND NOT EXISTS (SELECT 1 FROM scan_leases l WHERE l.account_id = g.account_id AND l.expires_at > ?)`
+// A seal pins only complete generations; incomplete transport still expires and can revive
+export const generationUnpinnedSql = `${otherGenerationPinsAbsentSql} AND NOT EXISTS(SELECT 1 FROM recovery_revisions r JOIN account_recoveries p ON p.account_id=r.account_id AND p.operation_id=r.operation_id WHERE r.generation=g.id AND p.sealed=1 AND p.state IN ('pending','completed'))`
 export async function claimGenerationCleanup(accountId: string, generation: string, context: ServiceContext): Promise<boolean> {
   const db = context.env.DB!
   try {
@@ -110,6 +112,12 @@ export async function fenceGeneration(generation: string, context: ServiceContex
     // Release only displaced payload plus seed; permanent marker and opaque metadata remain charged
     await runGuardedBatch(db, { sql: "SELECT state IN ('closing','closed') AND NOT EXISTS (SELECT 1 FROM storage_generations WHERE id = ? AND state = 'unsafe') FROM upload_chunks WHERE generation = ? AND chunk_index = ?", bindings: [generation, generation, row.chunk_index] }, [
       db.prepare("UPDATE quota_counters SET payload_bytes = payload_bytes - ? WHERE (scope = 'global' OR scope = ?) AND EXISTS (SELECT 1 FROM upload_chunks WHERE generation = ? AND chunk_index = ? AND released = 0)").bind(row.cipher_bytes + controlBodyBytes, row.account_id, generation, row.chunk_index),
+      // An unsealed recovery still owes retryable ciphertext; move displaced bytes into its reservation
+      // Keep old markers charged, and let revival separately admit the new generation's marker overhead
+      db.prepare(`UPDATE recovery_revisions SET staging_reserve=staging_reserve+? WHERE account_id=?
+        AND upload_id IN (SELECT g.upload_id FROM storage_generations g JOIN upload_reservations u ON u.account_id=g.account_id AND u.upload_id=g.upload_id AND u.generation=g.id WHERE g.id=?)
+        AND EXISTS(SELECT 1 FROM account_recoveries p WHERE p.account_id=recovery_revisions.account_id AND p.operation_id=recovery_revisions.operation_id AND p.sealed=0 AND p.state='pending')
+        AND EXISTS(SELECT 1 FROM upload_chunks WHERE generation=? AND chunk_index=? AND released=0)`).bind(row.cipher_bytes + controlBodyBytes, row.account_id, generation, generation, row.chunk_index),
       db.prepare("UPDATE upload_chunks SET state = 'closed', released = 1 WHERE generation = ? AND chunk_index = ?").bind(generation, row.chunk_index),
     ])
     context.checkpoint('sync.marker.accounted')

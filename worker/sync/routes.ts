@@ -1,3 +1,5 @@
+import { RecoverySupersessionSchema, RecoveryBindingSchema, RecoveryReserveSchema } from '../../src/account/recovery-protocol'
+import { supersedeRecoveryPublication, cancelRecoveryPreparation, removeRecovery, bindRecoveryPublication, completeRecovery, recoveryChunk, listRecoveries, reserveRecovery, sealRecovery } from './recovery'
 import { z } from 'zod'
 import { MutationTransitionDocumentsSchema, maxMutationTransitionQueryBytes, CommitRequestSchema, maxCommitJsonBytes, OpaqueIdSchema, UploadStartSchema, maxChangePageRevisions } from '../../src/account/protocol'
 import { requireCustomer } from '../auth/session'
@@ -15,6 +17,35 @@ export async function syncRoute(request: Request, context: ServiceContext): Prom
   const url = new URL(request.url)
   if (!url.pathname.startsWith('/api/v1/sync/')) return null
   const principal = await requireCustomer(request,context), path = url.pathname.slice('/api/v1/sync/'.length)
+  if (path === 'recoveries' && request.method === 'GET') return jsonResponse(await listRecoveries(principal, context))
+  if (path === 'recoveries' && request.method === 'POST') {
+    const input = await readJson(request, RecoveryReserveSchema, maxCommitJsonBytes)
+    await admitCloudWork(principal, cloudWorkCost.uploadReservation + input.revisions.length, context)
+    return jsonResponse(await reserveRecovery(principal, input, context))
+  }
+  const recovery = /^recoveries\/([^/]+)\/(seal|bind|complete|remove|cancel|supersede)$/.exec(path)
+  if (recovery && OpaqueIdSchema.safeParse(recovery[1]).success && request.method === 'POST') {
+    if (recovery[2] === 'supersede') {
+      const input = await readJson(request, RecoverySupersessionSchema, 1024)
+      if (input.operationId !== recovery[1]) throw new ApiFailure('INVALID_REQUEST')
+      await admitCloudWork(principal, cloudWorkCost.finishUpload, context)
+      return jsonResponse(await supersedeRecoveryPublication(principal, input, context))
+    }
+    if (recovery[2] === 'bind') {
+      const input = await readJson(request, RecoveryBindingSchema, maxCommitJsonBytes)
+      if (input.operationId !== recovery[1]) throw new ApiFailure('INVALID_REQUEST')
+      await admitCloudWork(principal, cloudWorkCost.finishUpload, context)
+      return jsonResponse(await bindRecoveryPublication(principal, input, context))
+    }
+    await readJson(request, FinishSchema, 32)
+    await admitCloudWork(principal, cloudWorkCost.finishUpload, context)
+    return jsonResponse(await (recovery[2] === 'seal' ? sealRecovery : recovery[2] === 'remove' ? removeRecovery : recovery[2] === 'cancel' ? cancelRecoveryPreparation : completeRecovery)(principal, recovery[1], context))
+  }
+  const recoveryRead = /^recoveries\/([^/]+)\/revisions\/([^/]+)\/chunks\/(\d+)$/.exec(path)
+  if (recoveryRead && request.method === 'GET' && OpaqueIdSchema.safeParse(recoveryRead[1]).success && OpaqueIdSchema.safeParse(recoveryRead[2]).success && Number.isSafeInteger(Number(recoveryRead[3]))) {
+    const bytes = await recoveryChunk(principal, recoveryRead[1], recoveryRead[2], Number(recoveryRead[3]), context)
+    return new Response(bytes, { headers: { 'content-type': 'application/octet-stream', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' } })
+  }
   if (path === 'uploads' && request.method === 'POST') {
     const input = await readJson(request, UploadStartSchema, maxCommitJsonBytes)
     await admitCloudWork(principal, cloudWorkCost.uploadReservation + input.chunks.length, context)

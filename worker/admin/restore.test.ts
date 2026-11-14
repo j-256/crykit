@@ -437,6 +437,7 @@ it('restoresExactLegacyJobTuplesAndOriginalCiphertextWithoutRewritingTheSnapshot
       delete legacy[table]
   legacy.email_jobs = legacy.email_jobs.slice(0, 17)
   legacy.service_jobs = legacy.service_jobs.slice(0, 15)
+  legacy.upload_reservations = legacy.upload_reservations.slice(0, 8)
   for (const table of Object.keys(recoveryProjection)) {
     if (!legacy[table]) await f.db.prepare('DELETE FROM recovery_source_stats WHERE name=?').bind(table).run()
     else
@@ -506,6 +507,7 @@ it('restoresExactLegacyJobTuplesAndOriginalCiphertextWithoutRewritingTheSnapshot
   expect(
     await target.db.prepare('SELECT admin_revision FROM service_jobs LIMIT 1').first('admin_revision'),
   ).toBe(1)
+  expect(await target.db.prepare('SELECT recovery_operation_id FROM upload_reservations WHERE upload_id=?').bind(upload.input.uploadId).first('recovery_operation_id')).toBeNull()
   expect(await (await f.backups.get(locator))!.text()).toBe(before)
 }, 90000)
 

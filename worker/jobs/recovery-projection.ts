@@ -52,7 +52,12 @@ export const recoveryProjection = {
     'request_json',
     'generation',
     'descriptor_reserve',
+    'recovery_operation_id',
   ],
+  superseded_recoveries: ['account_id','operation_id','request_digest','successor_operation_id','successor_mutation_id','created_at'],
+  cancelled_recoveries: ['account_id','operation_id','request_digest','created_at'],
+  account_recoveries: ['account_id','operation_id','request_digest','state','sealed','reserved_bytes','admitted_bytes','created_at','completed_at','expires_at','binding_json','mutation_id','accepted_at'],
+  recovery_revisions: ['account_id','operation_id','upload_id','revision_id','descriptor','generation','staging_reserve'],
   storage_generations: ['account_id', 'id', 'upload_id', 'expires_at', 'state'],
   upload_chunks: [
     'account_id',
@@ -213,6 +218,7 @@ export const recoveryTables = Object.keys(recoveryProjection) as RecoveryTable[]
 
 const legacyJobTupleWidths = Object.freeze({ email_jobs: 17, service_jobs: 15 })
 const initialAdminRevision = 1
+const legacyUploadReservationTupleWidth = 8
 
 // Version 1 snapshots predate the separate job revision columns
 // Only the exact original tuples gain the migration's default; immutable backup bytes stay untouched
@@ -220,6 +226,8 @@ export function normalizeRecoveryTuple(table: RecoveryTable, value: unknown): (s
   const columns: readonly string[] = recoveryProjection[table]
   if (!Array.isArray(value)) throw new ApiFailure('INTEGRITY_FAILED')
   const legacyWidth = table === 'email_jobs' || table === 'service_jobs' ? legacyJobTupleWidths[table] : null
+  // Exact legacy uploads predate recovery ownership; never rewrite their immutable snapshot bytes
+  if (table === 'upload_reservations' && value.length === legacyUploadReservationTupleWidth) return normalizeRecoveryTuple(table, [...value, null])
   const values = legacyWidth !== null && value.length === legacyWidth ? [...value, initialAdminRevision] : value
   if (
     values.length !== columns.length ||

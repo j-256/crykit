@@ -275,7 +275,7 @@ async function install(row: Restore, manifest: RecoveryManifest, context: Servic
   if (table === 'publication_work' && ['validating', 'complete'].includes(String(data.state))) data.state = 'abandoned'
   if (table === 'publication_certificates') data.state = 'invalidated'
   if (table === 'storage_generations') data.id = await generation(String(data.id), row, context)
-  if (table === 'upload_reservations' || table === 'publication_pins')
+  if (table === 'upload_reservations' || table === 'publication_pins' || table === 'recovery_revisions')
     if (data.generation) data.generation = await generation(String(data.generation), row, context)
   const extra = []
   if (table === 'upload_chunks') {
