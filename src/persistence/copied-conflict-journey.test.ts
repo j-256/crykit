@@ -140,3 +140,55 @@ describe.each(['copy', 'restore'] as const)('registersPortableComparisonsAndReso
     }, COPY_STEP_TIMEOUT_MS)
   })
 })
+
+it('merges sign-in Progress as an exact resolvable comparison on a second device while backups retain original IDs', async () => {
+  const { progress, now } = await import('../workspace/signin-merge.test-helpers')
+  const { captureWorkspaceSnapshot, openHistoricalSnapshot, disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
+  const { exportWorkspaceBackup, readWorkspaceBackup } = await import('../interchange/workspace-backup')
+  const source = progress('local-observation', false), destination = progress('account-observation')
+  const original = source.planner.localData.playthroughs.play.progress['local-observation']
+  const server = await conflictService()
+  try {
+    const first = await server.device(0, destination)
+    expect((await first.settle()).state).toBe('synced')
+    const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'signin-original', capturedAt: now, revisionVector: {}, state: source }, { async check() {}, async dispose() {} }))
+    const preview = await service.previewSigninMerge(first.token)
+    expect(preview.problems).toEqual([])
+    await service.commitGuestCopy(first.token, preview)
+    expect((await first.settle()).state).toBe('conflict')
+    await service.dispose()
+    const second = await server.device(1)
+    expect((await second.settle()).state).toBe('conflict')
+    const repository = await second.open(), state = await repository.readWorkspace()
+    expect(state.planner.localData.playthroughs.play.progress).toEqual(destination.planner.localData.playthroughs.play.progress)
+    const conflict = state.conflicts.find(value => value.unit.privateKey === '["progress","play","account-observation"]')!
+    expect(conflict).toBeDefined()
+    expect(conflict.progressIdentity).toMatchObject({ version: 1, sourceKey: '["progress","play","local-observation"]', destinationKey: '["progress","play","account-observation"]' })
+    const versions = await Promise.all(conflict.branches.map(branch => inspectWorkspaceClosure(state, branch.closure)))
+    expect(versions.map(value => (value.value as { unlocked: unknown }).unlocked)).toEqual([{ state: 'unknown', reason: 'Check later' }, { state: 'known', value: true }])
+    const capture = await captureWorkspaceSnapshot(repository)
+    const backup = await readWorkspaceBackup(exportWorkspaceBackup(capture))
+    try {
+      expect(backup.version).toBe(2)
+      expect(backup.state.conflicts[0].progressIdentity).toEqual(conflict.progressIdentity)
+      let exactObservation = false, exactSource = false
+      if (backup.version === 2) for (const member of backup.historicalEvidence.snapshots) {
+        const value = await openHistoricalSnapshot(backup, member.id)
+        try {
+          exactObservation ||= JSON.stringify(value.state.planner.localData.playthroughs.play?.progress['local-observation']) === JSON.stringify(original)
+          exactSource ||= value.snapshotId === 'signin-original' && !value.state.planner.localData.playthroughs.play.progress['account-observation']
+        } finally { await disposeWorkspaceSnapshot(value) }
+      }
+      expect(exactObservation).toBe(true)
+      expect(exactSource).toBe(true)
+    } finally { await disposeWorkspaceSnapshot(backup); await disposeWorkspaceSnapshot(capture) }
+    await resolveConflict(second.token, conflict.id, 'this', state.planner.localData.revision)
+    expect((await second.settle()).state).toBe('synced')
+    const resolvedState = await (await second.open()).readWorkspace()
+    expect(resolvedState.conflicts.find(value => value.id === conflict.id)!.progressIdentity).toEqual(conflict.progressIdentity)
+    const resolved = resolvedState.planner.localData.playthroughs.play.progress
+    expect(Object.keys(resolved)).toEqual(['account-observation'])
+    expect(resolved['account-observation'].unlocked).toEqual({ state: 'unknown', reason: 'Check later' })
+    expect(source.planner.localData.playthroughs.play.progress['local-observation']).toEqual(original)
+  } finally { await server.dispose() }
+}, COPY_STEP_TIMEOUT_MS)

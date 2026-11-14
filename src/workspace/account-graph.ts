@@ -424,7 +424,14 @@ async function prepareWorkspace(database: AccountDatabase, token: ProfileToken, 
     let source = retainedHistory?.source ?? workspaceDocumentSource(document), digest = retainedHistory?.entry.digest ?? await hashBlob(source)
     const old = retainedHistory?.entry ?? prior.get(document.key), semanticDigest = await playthroughSemanticDigest(original)
     const oldSemanticDigest = old && semanticDigest !== undefined ? old.semanticDigest ?? await playthroughSemanticDigest((await previous!.readCaptured(old.ref)).document) : undefined
-    const reuse = old && (old.digest === digest || semanticDigest !== undefined && semanticDigest === oldSemanticDigest)
+    // Inert archived bytes can acquire live typed edges when a copied comparison is activated
+    // Equal bytes cannot reuse an envelope that lacks those expanded retention dependencies
+    const sameRetention = !old || original.kind !== 'blob' || old.digest !== digest || sameCipherRefs((await previous!.readCaptured(old.ref)).dependencies, references(original).map(portable => {
+      const binding = bindings.get(blobIdentity(portable))
+      if (!binding) throw new Error('Missing encrypted workspace body binding')
+      return binding
+    }))
+    const reuse = old && sameRetention && (old.digest === digest || semanticDigest !== undefined && semanticDigest === oldSemanticDigest)
     let ref: CipherRef, retainingIndex = old?.retainingIndex
     let sourceBookkeeping = reuse ? old.sourceBookkeeping : undefined
     if (reuse) { ref = { ...old.ref }; digest = old.digest; source = retainedHistory?.source ?? previous!.payloads.get(document.key)! }

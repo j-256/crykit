@@ -12,6 +12,7 @@ export interface WorkspaceConflict {
   readonly unit: WorkspaceConflictUnit
   readonly commonAncestor: WorkspaceConflictAncestor
   readonly branches: readonly [WorkspaceConflictBranch, WorkspaceConflictBranch]
+  readonly progressIdentity?: { readonly version: 1; readonly sourceKey: string; readonly destinationKey: string; readonly sourceIdentity: string; readonly sourceDigest: string; readonly sourceMetadata: WorkspaceBlobRef }
   readonly disposition: WorkspaceConflictDisposition
 }
 export interface WorkspaceConflictClosureEntry {
