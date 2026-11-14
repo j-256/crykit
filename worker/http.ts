@@ -15,7 +15,8 @@ export function errorResponse(error: unknown, requestId: string): Response {
   if (failure.retryAfterSeconds !== undefined) response.headers.set('retry-after', String(failure.retryAfterSeconds))
   return response
 }
-export async function readJson<T>(request: Request, schema: z.ZodType<T>, maxBytes: number): Promise<T> {
+const DEFAULT_API_VERSIONS = Object.freeze([1])
+export async function readJson<T>(request: Request, schema: z.ZodType<T>, maxBytes: number, acceptedVersions: readonly number[] = DEFAULT_API_VERSIONS): Promise<T> {
   if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) throw new ApiFailure('INVALID_REQUEST')
   const length = request.headers.get('content-length')
   if (length && !/^\d+$/.test(length)) throw new ApiFailure('INVALID_REQUEST')
@@ -43,7 +44,8 @@ export async function readJson<T>(request: Request, schema: z.ZodType<T>, maxByt
   for (const part of parts) { bytes.set(part, offset); offset += part.byteLength }
   let value: unknown
   try { value = JSON.parse(new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(bytes)) } catch { throw new ApiFailure('INVALID_REQUEST') }
-  if (value && typeof value === 'object' && 'version' in value && value.version !== 1) throw new ApiFailure('UNSUPPORTED_VERSION')
+  // A route must explicitly opt into a new envelope version; its strict schema still owns the shape
+  if (value && typeof value === 'object' && 'version' in value && !acceptedVersions.some(version => value.version === version)) throw new ApiFailure('UNSUPPORTED_VERSION')
   const parsed = schema.safeParse(value)
   if (!parsed.success) throw new ApiFailure('INVALID_REQUEST')
   return parsed.data

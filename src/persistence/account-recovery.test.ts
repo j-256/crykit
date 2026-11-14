@@ -9,7 +9,7 @@ import * as recovery from '../workspace/account-recovery'
 import { editorClosureFixture } from '../workspace/test-helpers'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { exportWorkspaceBackup, readWorkspaceBackup } from '../interchange/workspace-backup'
-import { disposeWorkspaceSnapshot, snapshotMetadata, type WorkspaceSnapshot } from '../workspace/snapshot'
+import { disposeWorkspaceSnapshot, projectWorkspaceSnapshotV1, snapshotMetadata, type WorkspaceSnapshot } from '../workspace/snapshot'
 import { readBlob } from '../workspace/blobs'
 
 let service: ServiceFixture | undefined
@@ -168,11 +168,11 @@ it('concurrent preparations install one durable identity and reject another sour
   await expect(right.prepare(operationId, await source('another original'))).rejects.toThrow('IDEMPOTENCY_MISMATCH')
 })
 
-it('independent successor validation rejects an otherwise valid archive that omits the original', async () => {
+it.each(['bound', 'unbound'] as const)('independent successor validation rejects an archive that omits the %s original', async binding => {
   const { token } = await setup(), original = await source('original'), displaced = await source('displaced')
   const api = recovery.createAccountRecoveryService(token), old = await api.prepare(accountLocalId(), original)
   const target = await prepared(token)
-  await api.bind(old.operationId, { ...command([target.descriptor]), expectedPublicationEpoch: 0, recoveryOperationId: old.operationId })
+  if (binding === 'bound') await api.bind(old.operationId, { ...command([target.descriptor]), expectedPublicationEpoch: 0, recoveryOperationId: old.operationId })
   const evidence = await import('../interchange/workspace-backup-evidence'), inherit = evidence.inheritWorkspaceSnapshot
   vi.spyOn(evidence, 'inheritWorkspaceSnapshot').mockImplementation((current, _sources, options) => inherit(current, [], options))
   const existing = await database!.encryptedRevisions.count()
@@ -354,10 +354,10 @@ it('does not supersede an accepted original and lets a fresh instance complete i
   expect(await api.list()).toHaveLength(1)
 })
 
-it('independently rejects a successor producer that retains the original but replaces newly displaced current data', async () => {
+it.each(['bound', 'unbound'] as const)('independently rejects a successor that retains the %s original but replaces newly displaced data', async binding => {
   const { token } = await setup(), api = recovery.createAccountRecoveryService(token), before = await source('original'), after = await source('displaced')
   const old = await api.prepare(accountLocalId(), before), target = await prepared(token)
-  await api.bind(old.operationId, { ...command([target.descriptor]), expectedPublicationEpoch: 0, recoveryOperationId: old.operationId })
+  if (binding === 'bound') await api.bind(old.operationId, { ...command([target.descriptor]), expectedPublicationEpoch: 0, recoveryOperationId: old.operationId })
   const evidence = await import('../interchange/workspace-backup-evidence'), inherit = evidence.inheritWorkspaceSnapshot
   vi.spyOn(evidence, 'inheritWorkspaceSnapshot').mockImplementation((current, sources, options) => sources.length ? inherit(sources[0], sources, options) : inherit(current, sources, options))
   await expect(api.prepareSuccessor(accountLocalId(), after, old.operationId)).rejects.toThrow('LOCAL_INTEGRITY_FAILED')
@@ -511,4 +511,81 @@ it('carries every previously inherited original into the next self-contained suc
     try { names.push(historical.snapshotId); expect(await readBlob(historical.state.blobs[0].content, 2)).toEqual(new Uint8Array([0, 216])) } finally { await disposeWorkspaceSnapshot(historical) }
   }
   expect(names.sort()).toEqual(['earliest original', 'previous current'])
+})
+
+it('preserves complete unbound predecessor sources through acknowledged successor binding and lost supersession replay', async () => {
+  const { token, request } = await setup(), api = recovery.createAccountRecoveryService(token)
+  const before = await source('unbound original'), current = await source('new displaced state')
+  const old = await api.prepare(accountLocalId(), before)
+  const operationId = accountLocalId()
+  const next = await api.prepareSuccessor(operationId, current, old.operationId)
+  expect(next.sealed).toBe(true)
+  expect((await api.prepareSuccessor(operationId, current, old.operationId)).revisions).toEqual(next.revisions)
+  const restored = await api.capture(next.operationId); snapshots.push(restored)
+  expect(snapshotMetadata(projectWorkspaceSnapshotV1(restored))).toEqual(snapshotMetadata(current))
+  expect(await readBlob(restored.state.blobs[0].content, 2)).toEqual(await readBlob(current.state.blobs[0].content, 2))
+  if (restored.version !== 2) throw new Error('Missing originals')
+  const { openHistoricalSnapshot } = await import('../workspace/snapshot')
+  const original = await openHistoricalSnapshot(restored, restored.historicalEvidence.snapshots[0].id)
+  try { expect(snapshotMetadata(original)).toEqual(snapshotMetadata(before)); expect(await readBlob(original.state.blobs[0].content, 2)).toEqual(new Uint8Array([0, 216])) } finally { await disposeWorkspaceSnapshot(original) }
+  await expect(api.supersede(operationId)).rejects.toThrow('LOCAL_INTEGRITY_FAILED')
+  const target = await prepared(token), publication = { ...command([target.descriptor]), expectedPublicationEpoch: 0, recoveryOperationId: operationId }
+  let loseBinding = true, loseSupersession = true
+  vi.stubGlobal('fetch', async (path: string, init: RequestInit) => {
+    const response = await request(path, init)
+    if (path.endsWith('/bind') && loseBinding) { loseBinding = false; throw new Error('lost binding') }
+    if (path.endsWith('/supersede') && loseSupersession) { loseSupersession = false; throw new Error('lost supersession') }
+    return response
+  })
+  await expect(api.bind(operationId, publication)).rejects.toThrow('lost binding')
+  await expect(api.supersede(operationId)).rejects.toThrow('LOCAL_INTEGRITY_FAILED')
+  await api.bind(operationId, publication)
+  await expect(api.supersede(operationId)).rejects.toThrow('lost supersession')
+  const fresh = recovery.createAccountRecoveryService(token)
+  expect(await fresh.supersede(operationId)).toEqual({ version: 1, operationId: old.operationId, successorOperationId: operationId, successorMutationId: publication.mutationId })
+  expect((await fresh.prepareSuccessor(operationId, current, old.operationId)).revisions).toEqual(next.revisions)
+  expect((await fresh.list()).map(point => point.operationId)).toEqual([operationId])
+  const { SyncClient } = await import('../account/sync/client'), client = new SyncClient(token, new AbortController().signal)
+  await client.commit(publication)
+  expect((await fresh.complete(operationId, publication.mutationId)).state).toBe('completed')
+})
+
+it.each([false, true])('rejects an unbound predecessor that acquired a binding before handoff, accepted=%s', async accepted => {
+  const { token } = await setup(), api = recovery.createAccountRecoveryService(token)
+  const old = await api.prepare(accountLocalId(), await source('unbound'))
+  const next = await api.prepareSuccessor(accountLocalId(), await source('displaced'), old.operationId)
+  const target = await prepared(token), publication = { ...command([target.descriptor]), expectedPublicationEpoch: 0, recoveryOperationId: next.operationId }
+  await api.bind(next.operationId, publication)
+  const late = { ...publication, mutationId: accountLocalId(), recoveryOperationId: old.operationId }
+  await api.bind(old.operationId, late)
+  if (accepted) {
+    const { SyncClient } = await import('../account/sync/client')
+    await new SyncClient(token, new AbortController().signal).commit(late)
+  }
+  await expect(api.supersede(next.operationId)).rejects.toThrow('LOCAL_INTEGRITY_FAILED')
+  expect(await api.list()).toHaveLength(2)
+})
+
+it.each(['predecessor', 'successor', 'unknown-version'] as const)('rejects altered %s evidence in encrypted unbound coverage', async target => {
+  const { token } = await setup(), api = recovery.createAccountRecoveryService(token)
+  const old = await api.prepare(accountLocalId(), await source('original'))
+  const next = await api.prepareSuccessor(accountLocalId(), await source('displaced'), old.operationId)
+  const publicationTarget = await prepared(token)
+  await api.bind(next.operationId, { ...command([publicationTarget.descriptor]), expectedPublicationEpoch: 0, recoveryOperationId: next.operationId })
+  const { z } = await import('zod'), { RevisionDescriptorSchema } = await import('../account/protocol')
+  const { openAccountJson, stageAccountJson, cipherRef } = await import('../workspace/account-cache')
+  const row = (await database!.syncState.get(`recovery:${next.operationId}`))!
+  const journal = await openAccountJson(database!, token, row.ref, z.looseObject({ coverage: z.looseObject({ version: z.literal(2), predecessor: z.looseObject({ revisions: z.array(RevisionDescriptorSchema) }), successor: RevisionDescriptorSchema }) }))
+  const coverage = target === 'predecessor'
+    ? { ...journal.coverage, predecessor: { ...journal.coverage.predecessor, revisions: [{ ...journal.coverage.predecessor.revisions[0], revisionId: accountLocalId() }] } }
+    : target === 'successor' ? { ...journal.coverage, successor: { ...journal.coverage.successor, revisionId: accountLocalId() } } : { ...journal.coverage, version: 3 }
+  // Authenticate deliberately inconsistent local evidence to exercise semantic checks after decryption
+  const changed = await stageAccountJson(database!, token, { ...journal, coverage }, [])
+  await database!.transaction('rw', [database!.encryptedRevisions, database!.syncState], async () => {
+    await database!.encryptedRevisions.add(changed)
+    await database!.syncState.put({ id: row.id, ref: cipherRef(changed) })
+  })
+  await expect(api.supersede(next.operationId)).rejects.toThrow()
+  expect((await api.list()).map(point => point.operationId).sort()).toEqual([old.operationId, next.operationId].sort())
+  expect(await service!.db.prepare('SELECT COUNT(*) n FROM superseded_recoveries').first('n')).toBe(0)
 })

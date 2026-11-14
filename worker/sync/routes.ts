@@ -1,4 +1,4 @@
-import { RecoverySupersessionSchema, RecoveryBindingSchema, RecoveryReserveSchema } from '../../src/account/recovery-protocol'
+import { RECOVERY_SUPERSESSION_VERSIONS, RecoverySupersessionSchema, RecoveryBindingSchema, RecoveryReserveSchema } from '../../src/account/recovery-protocol'
 import { recoveryOperationStatus, supersedeRecoveryPublication, cancelRecoveryPreparation, removeRecovery, bindRecoveryPublication, completeRecovery, recoveryChunk, listRecoveries, reserveRecovery, sealRecovery } from './recovery'
 import { z } from 'zod'
 import { MutationTransitionDocumentsSchema, maxMutationTransitionQueryBytes, CommitRequestSchema, maxCommitJsonBytes, OpaqueIdSchema, UploadStartSchema, maxChangePageRevisions } from '../../src/account/protocol'
@@ -28,7 +28,7 @@ export async function syncRoute(request: Request, context: ServiceContext): Prom
   const recovery = /^recoveries\/([^/]+)\/(seal|bind|complete|remove|cancel|supersede)$/.exec(path)
   if (recovery && OpaqueIdSchema.safeParse(recovery[1]).success && request.method === 'POST') {
     if (recovery[2] === 'supersede') {
-      const input = await readJson(request, RecoverySupersessionSchema, 1024)
+      const input = await readJson(request, RecoverySupersessionSchema, 1024, RECOVERY_SUPERSESSION_VERSIONS)
       if (input.operationId !== recovery[1]) throw new ApiFailure('INVALID_REQUEST')
       await admitCloudWork(principal, cloudWorkCost.finishUpload, context)
       return jsonResponse(await supersedeRecoveryPublication(principal, input, context))

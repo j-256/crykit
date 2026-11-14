@@ -273,16 +273,21 @@ export async function supersedeRecoveryPublication(principal: CustomerPrincipal,
   }
   // The server proves publication impossibility and sealed successor ownership, not encrypted content
   // The client must verify that the successor contains the original sources plus newly displaced data
-  try {
-    await syncBatch(principal, `EXISTS(SELECT 1 FROM account_recoveries old JOIN account_recoveries successor ON successor.account_id=old.account_id
-      WHERE old.account_id=? AND old.operation_id=? AND old.state='pending' AND old.sealed=1 AND old.mutation_id=? AND old.accepted_at IS NULL
-        AND successor.operation_id=? AND successor.sealed=1 AND successor.mutation_id=? AND successor.binding_json IS NOT NULL
-        AND (successor.accepted_at IS NULL OR successor.accepted_at+?>?)
+  // A concurrent bind must lose to the same atomic null predicate that retires unbound ownership
+  const predecessorGuard = input.version === 1
+    ? `old.mutation_id=?
         AND json_extract(successor.binding_json,'$.expectedPublicationEpoch')>json_extract(old.binding_json,'$.expectedPublicationEpoch')
         AND COALESCE((SELECT publication_epoch FROM account_sequences WHERE account_id=old.account_id),0)>json_extract(old.binding_json,'$.expectedPublicationEpoch')
-        AND NOT EXISTS(SELECT 1 FROM mutation_receipts m WHERE m.account_id=old.account_id AND m.mutation_id=old.mutation_id))
+        AND NOT EXISTS(SELECT 1 FROM mutation_receipts m WHERE m.account_id=old.account_id AND m.mutation_id=old.mutation_id)`
+    : 'old.mutation_id IS NULL AND old.binding_json IS NULL'
+  try {
+    await syncBatch(principal, `EXISTS(SELECT 1 FROM account_recoveries old JOIN account_recoveries successor ON successor.account_id=old.account_id
+      WHERE old.account_id=? AND old.operation_id=? AND old.state='pending' AND old.sealed=1 AND old.accepted_at IS NULL
+        AND successor.operation_id=? AND successor.sealed=1 AND successor.mutation_id=? AND successor.binding_json IS NOT NULL
+        AND (successor.accepted_at IS NULL OR successor.accepted_at+?>?)
+        AND ${predecessorGuard})
       AND NOT EXISTS(SELECT 1 FROM superseded_recoveries WHERE account_id=? AND operation_id=?)`,
-    [accountId, input.operationId, input.mutationId, input.successorOperationId, input.successorMutationId, RECOVERY_RETENTION_MS, context.now(), accountId, input.operationId], [
+    [accountId, input.operationId, input.successorOperationId, input.successorMutationId, RECOVERY_RETENTION_MS, context.now(), ...(input.version === 1 ? [input.mutationId] : []), accountId, input.operationId], [
       db.prepare('INSERT INTO superseded_recoveries(account_id,operation_id,request_digest,successor_operation_id,successor_mutation_id,created_at) VALUES(?,?,?,?,?,?)').bind(accountId, input.operationId, requestDigest, input.successorOperationId, input.successorMutationId, context.now()),
       db.prepare('UPDATE storage_generations SET expires_at=MIN(expires_at,?) WHERE id IN (SELECT generation FROM recovery_revisions WHERE account_id=? AND operation_id=?)').bind(context.now(), accountId, input.operationId),
       db.prepare('DELETE FROM recovery_revisions WHERE account_id=? AND operation_id=?').bind(accountId, input.operationId),

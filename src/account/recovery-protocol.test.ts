@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { RecoveryBindingSchema, RecoveryPointSchema, RecoveryReserveSchema } from './recovery-protocol'
+import { RecoveryBindingSchema, RecoveryPointSchema, RecoveryReserveSchema, RecoverySupersessionSchema, RecoverySupersessionReceiptSchema } from './recovery-protocol'
 
 const id='AAAAAAAAAAAAAAAAAAAAAA',other='BBBBBBBBBBBBBBBBBBBBBA'
 const revision={format:1,accountId:id,documentId:id,revisionId:id,uploadId:id,parents:[],dependencies:[],protected:false,plainBytes:16,keyEnvelope:{version:1,algorithm:'xchacha20poly1305-ietf',nonce:'A'.repeat(32),ciphertext:'A'.repeat(64)},streamHeader:'A'.repeat(32),chunks:[{index:0,cipherBytes:33,cipherDigest:'A'.repeat(43)}]}
@@ -20,4 +20,14 @@ it('rejectsImpossibleRecoveryLifecyclesAndRetentionDatesInResponses',()=>{
   const completed={...pending,state:'completed',sealed:true,mutationId:other,acceptedAt:100,completedAt:100,expiresAt:2592000100}
   expect(RecoveryPointSchema.safeParse(completed).success).toBe(true)
   for(const value of [{...pending,acceptedAt:100},{...pending,mutationId:other},{...pending,expiresAt:100},{...completed,sealed:false},{...completed,completedAt:101},{...completed,expiresAt:2592000101}]) expect(RecoveryPointSchema.safeParse(value).success).toBe(false)
+})
+
+it('keeps bound supersession strict while admitting an explicit sealed-unbound version', () => {
+  const common = { operationId: id, successorOperationId: other, successorMutationId: other }
+  const bound = { version: 1, ...common, mutationId: id }
+  const unbound = { version: 2, ...common, predecessor: { kind: 'sealed-unbound' } }
+  expect(RecoverySupersessionSchema.parse(bound)).toEqual(bound)
+  expect(RecoverySupersessionSchema.safeParse(unbound).success).toBe(true)
+  for (const input of [{ ...bound, predecessor: unbound.predecessor }, { ...unbound, mutationId: id }, { ...unbound, predecessor: { kind: 'bound' } }, { ...unbound, successorOperationId: id }, { ...unbound, version: 3 }]) expect(RecoverySupersessionSchema.safeParse(input).success).toBe(false)
+  expect(RecoverySupersessionReceiptSchema.parse({ version: 1, ...common })).toEqual({ version: 1, ...common })
 })
