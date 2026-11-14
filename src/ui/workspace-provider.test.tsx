@@ -78,8 +78,22 @@ function Probe() {
   const [draft, setDraft] = useState('clean')
   const currentDraft = useRef(draft); currentDraft.current = draft
   useLayoutEffect(() => workspace.registerDraftPresence(() => currentDraft.current !== 'clean'), [workspace.registerDraftPresence])
-  return <button onClick={() => setDraft('private draft')}>{workspace.repository.kind}:{draft}</button>
+  return <>{workspace.notices}<button onClick={() => setDraft('private draft')}>{workspace.repository.kind}:{draft}</button></>
 }
+
+it('reports a failed selection check without inventing a successor or an open draft', async () => {
+  const read = vi.spyOn(guest, 'guestRepositorySelection').mockRejectedValue(new Error('Synthetic selection read failure'))
+  await act(async () => root.render(<WorkspaceProvider><Probe/></WorkspaceProvider>))
+  await vi.waitFor(() => expect(container.textContent).toContain('Could not check for a newer workspace'))
+  expect(container.textContent).not.toContain('Your open draft')
+  expect(container.textContent).not.toContain('A newer local workspace is ready')
+  expect(container.textContent).toContain('Synthetic selection read failure')
+  read.mockRestore()
+  const retry = [...container.querySelectorAll('button')].find(button => button.textContent === 'Retry workspace check')!
+  await act(async () => retry.click())
+  await vi.waitFor(() => expect(container.textContent).not.toContain('Could not check for a newer workspace'))
+  expect(container.textContent).toContain('guest:clean')
+})
 beforeEach(async () => {
   vi.stubGlobal('TextEncoder', FixtureTextEncoder)
   await sameRealmIndexedDb(false)
@@ -456,6 +470,7 @@ it('retains a dirty captured guest form when an activation hint arrives and perm
   await vi.waitFor(async () => { await act(async () => {}); expect(container.textContent).toContain('A newer local workspace is ready') })
   expect(selectedRepository).toBe(original)
   expect(container.textContent).toContain('guest:private draft')
+  expect(container.textContent).not.toContain('Could not check for a newer workspace')
   await act(async () => { await expect(reopenGuest()).rejects.toThrow('Finish or recover open drafts') })
   await expect(original.save(state.planner.localData, state.planner.localData.revision)).rejects.toThrow('retired')
   const backup = await observe(() => original.exportPlannerBackup(state.planner.localData))
