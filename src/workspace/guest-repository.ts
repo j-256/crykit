@@ -1,5 +1,5 @@
 import { GuestManagedManifestSchema } from './guest-managed-contract'
-import { prepareGuestStartup } from './guest-managed-startup'
+import { prepareExistingGuestStartup, prepareGuestStartup } from './guest-managed-startup'
 import { recordWorkspaceStartup, WORKSPACE_STARTUP_PHASE } from '../diagnostics/workspace-startup'
 import { openGuestManagedRepository, managedGuestSelection, managedGuestRecoveryNotices, observeManagedGuestRecovery, inspectManagedGuestRecovery, exportManagedGuestRecovery, copyManagedGuestRecovery } from './guest-managed-repository'
 import { registerDeferredOwnedFileCommitter } from './owned-file-command'
@@ -115,4 +115,19 @@ export async function readGuestSaveRecovery(repository: WorkspaceRepository, exp
   const content = await readSaveContent(snapshot.state, expected)
   try { await check(); return content }
   catch (error) { content.originalBytes.fill(0); content.workingBytes.fill(0); throw error }
+}
+
+export async function captureExistingGuestWorkspaceForSignin(): Promise<GuestCopySource | undefined> {
+  const profile = captureGuestWorkspaceEpoch()
+  const startup = await prepareExistingGuestStartup(getDatabase())
+  profile.assertCurrent()
+  if (!startup) return undefined
+  try {
+    const repository = await openGuestManagedRepository(startup.coordinator, startup.manifest)
+    profile.assertCurrent()
+    const { captureWorkspaceSnapshot } = await import('./snapshot')
+    const snapshot = await captureWorkspaceSnapshot(repository)
+    profile.assertCurrent()
+    return Object.freeze({ snapshot })
+  } catch (error) { startup.coordinator.close(); throw error }
 }
