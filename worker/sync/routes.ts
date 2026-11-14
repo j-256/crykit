@@ -1,5 +1,5 @@
 import { RecoverySupersessionSchema, RecoveryBindingSchema, RecoveryReserveSchema } from '../../src/account/recovery-protocol'
-import { supersedeRecoveryPublication, cancelRecoveryPreparation, removeRecovery, bindRecoveryPublication, completeRecovery, recoveryChunk, listRecoveries, reserveRecovery, sealRecovery } from './recovery'
+import { recoveryOperationStatus, supersedeRecoveryPublication, cancelRecoveryPreparation, removeRecovery, bindRecoveryPublication, completeRecovery, recoveryChunk, listRecoveries, reserveRecovery, sealRecovery } from './recovery'
 import { z } from 'zod'
 import { MutationTransitionDocumentsSchema, maxMutationTransitionQueryBytes, CommitRequestSchema, maxCommitJsonBytes, OpaqueIdSchema, UploadStartSchema, maxChangePageRevisions } from '../../src/account/protocol'
 import { requireCustomer } from '../auth/session'
@@ -23,6 +23,8 @@ export async function syncRoute(request: Request, context: ServiceContext): Prom
     await admitCloudWork(principal, cloudWorkCost.uploadReservation + input.revisions.length, context)
     return jsonResponse(await reserveRecovery(principal, input, context))
   }
+  const recoveryStatus = /^recoveries\/([^/]+)\/status$/.exec(path)
+  if (recoveryStatus && request.method === 'GET' && OpaqueIdSchema.safeParse(recoveryStatus[1]).success) return jsonResponse(await recoveryOperationStatus(principal, recoveryStatus[1], context))
   const recovery = /^recoveries\/([^/]+)\/(seal|bind|complete|remove|cancel|supersede)$/.exec(path)
   if (recovery && OpaqueIdSchema.safeParse(recovery[1]).success && request.method === 'POST') {
     if (recovery[2] === 'supersede') {

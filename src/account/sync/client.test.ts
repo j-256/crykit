@@ -168,3 +168,15 @@ it('rejectsRecoveryResultsWhenTheSessionChangesDuringParsing', async () => {
   })
   await expect(client.sealRecovery(accountId)).rejects.toThrow('PROFILE_SESSION_CHANGED')
 })
+
+it('acceptsTerminalRecoveryProofOnlyForTheRequestedOperationAndKnownProtocolState', async () => {
+  const token = installProfile(accountId, new Uint8Array(32), session), client = new SyncClient(token, new AbortController().signal)
+  const request = vi.spyOn(globalThis, 'fetch')
+  for (const value of [{ version: 1, operationId: documentId, status: 'retired' }, { version: 1, operationId: accountId, status: 'missing' }, { version: 2, operationId: accountId, status: 'retired' }]) {
+    request.mockResolvedValueOnce(Response.json(value))
+    await expect(client.recoveryOperationStatus(accountId)).rejects.toThrow('INTEGRITY_FAILED')
+  }
+  request.mockResolvedValueOnce(Response.json({ version: 1, operationId: accountId, status: 'retired' }))
+  await expect(client.recoveryOperationStatus(accountId)).resolves.toEqual({ version: 1, operationId: accountId, status: 'retired' })
+  expect(request).toHaveBeenLastCalledWith(`/api/v1/sync/recoveries/${accountId}/status`, expect.objectContaining({ method: 'GET' }))
+})

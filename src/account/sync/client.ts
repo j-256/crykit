@@ -1,4 +1,4 @@
-import { RecoverySupersessionSchema, RecoverySupersessionReceiptSchema, type RecoverySupersession, MAX_RECOVERY_RESPONSE_BYTES, RECOVERY_CONTROL_BYTES, RecoveryBindingSchema, RecoveryListSchema, RecoveryPointSchema, RecoveryRemovalSchema, RecoveryReserveSchema, type RecoveryBinding, type RecoveryPoint, type RecoveryReserve } from '../recovery-protocol'
+import { RecoveryOperationStatusSchema, RecoverySupersessionSchema, RecoverySupersessionReceiptSchema, type RecoverySupersession, MAX_RECOVERY_RESPONSE_BYTES, RECOVERY_CONTROL_BYTES, RecoveryBindingSchema, RecoveryListSchema, RecoveryPointSchema, RecoveryRemovalSchema, RecoveryReserveSchema, type RecoveryBinding, type RecoveryPoint, type RecoveryReserve } from '../recovery-protocol'
 import { CleanupPreviewSchema, CleanupResultSchema, type CleanupRequest } from '../storage-protocol'
 import { z } from 'zod'
 import { serviceNoticeRequest } from '../service-notice'
@@ -103,6 +103,14 @@ export class SyncClient {
     return withProfileSession(this.token, async () => {
       const result = await this.json('recoveries', RecoveryListSchema, 'GET', undefined, MAX_RECOVERY_RESPONSE_BYTES)
       if (result.points.some(point => point.revisions.some(r => r.accountId !== this.token.accountId))) throw new SyncError('INTEGRITY_FAILED')
+      this.signal.throwIfAborted()
+      return result
+    })
+  }
+  async recoveryOperationStatus(operationId: string) {
+    return withProfileSession(this.token, async () => {
+      const result = await this.json(`recoveries/${OpaqueIdSchema.parse(operationId)}/status`, RecoveryOperationStatusSchema)
+      if (result.operationId !== operationId) throw new SyncError('INTEGRITY_FAILED')
       this.signal.throwIfAborted()
       return result
     })
