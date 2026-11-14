@@ -246,15 +246,21 @@ export function inspectZip(
   return { entries, compressedBytes: bytes.byteLength, totalUncompressedBytes }
 }
 
+const CRC32_POLYNOMIAL = 0xedb88320
+const CRC32_INITIAL = 0xffffffff
+const BITS_PER_BYTE = 8
+const BYTE_MASK = 0xff
+// ZIP uses the reflected polynomial; the table replaces the same bit updates without skipping payload bytes
+// Retain independent checksum verification after inflation, including for stored entries
+const CRC32_TABLE = Uint32Array.from({ length: BYTE_MASK + 1 }, (_, value) => {
+  for (let bit = 0; bit < BITS_PER_BYTE; bit += 1) value = (value >>> 1) ^ (value & 1 ? CRC32_POLYNOMIAL : 0)
+  return value
+})
+
 function crc32(data: Uint8Array): number {
-  let crc = 0xffffffff
-  for (const value of data) {
-    crc ^= value
-    for (let bit = 0; bit < 8; bit += 1) {
-      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0)
-    }
-  }
-  return (crc ^ 0xffffffff) >>> 0
+  let crc = CRC32_INITIAL
+  for (let index = 0; index < data.length; index += 1) crc = (crc >>> BITS_PER_BYTE) ^ CRC32_TABLE[(crc ^ data[index]!) & BYTE_MASK]!
+  return (crc ^ CRC32_INITIAL) >>> 0
 }
 
 export interface SafeUnzipResult {

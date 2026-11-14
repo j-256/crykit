@@ -6,6 +6,20 @@ import { inspectZip, safeUnzip } from './zip'
 const bytes = (value: string): Uint8Array => new TextEncoder().encode(value)
 
 describe('safe ZIP handling', () => {
+  it.each([0, 6] as const)('preserves standard CRC values for empty and binary entries at compression level %s', level => {
+    const values = [
+      { name: 'empty.bin', data: new Uint8Array(), crc: 0 },
+      { name: 'check.txt', data: bytes('123456789'), crc: 0xcbf43926 },
+      { name: 'bytes.bin', data: Uint8Array.from({ length: 256 }, (_, index) => index), crc: 0x29058c73 },
+    ]
+    const archive = zipSync(Object.fromEntries(values.map(value => [value.name, value.data])), { level })
+    const result = safeUnzip(archive)
+    for (const value of values) {
+      expect(result.directory.entries.find(entry => entry.name === value.name)?.crc32).toBe(value.crc)
+      expect(result.files.get(value.name)).toEqual(value.data)
+    }
+  })
+
   it('checks metadata before extracting and verifies CRC output', () => {
     const archive = zipSync({ 'data/value.txt': bytes('synthetic value') }, { level: 0 })
     const directory = inspectZip(archive)
