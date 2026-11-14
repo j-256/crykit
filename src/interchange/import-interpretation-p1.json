@@ -62,6 +62,6 @@
     "src/interchange/util.ts": "8916a832f709c3dd8d27f4ba39175c964d4e9ee16aa9a986197a799d6c788f81",
     "src/interchange/xlsx.ts": "beda94cfe04a84ea216c05ef92136986cd2a5051230350190bc6b3c1c76ed548",
     "src/interchange/xml.ts": "18ed4d7510388e670a7dd18df82f3283e15633dda282e997774a6c92f3671212",
-    "src/interchange/zip.ts": "5b197675a6f270a1f5b7cdce48b8968ec9c03a1488a7b096a647db0141f18ebf"
+    "src/interchange/zip.ts": "4b89804c750ef1036dee6a01ed2aa72b9f299025803b9dec50e611cc592aba36"
   }
 }
