@@ -5,6 +5,15 @@ import { sourcePayloadValid } from '../domain/source-fulfillment'
 
 afterEach(() => { vi.doUnmock('../catalog/bundled'); vi.resetModules() })
 
+it('corroborates complete saved bytes against a packaged body after a cold start', async () => {
+  const saved = JSON.parse(JSON.stringify(encodeCatalogPayload(CURRENT_CATALOG)))
+  vi.resetModules()
+  const { CURRENT_CATALOG: packaged } = await import('../catalog/bundled')
+  const { decodeCatalogPayload } = await import('./catalog-codec')
+  expect(decodeCatalogPayload(saved)).toBe(packaged)
+  expect(() => decodeCatalogPayload({ ...saved, pages: [...saved.pages.slice(0, -1), '!!!!'] })).toThrow()
+})
+
 it('retains exact saved definitions after the application package removes their bodies', async () => {
   const saved = JSON.parse(JSON.stringify(encodeCatalogPayload(CURRENT_CATALOG)))
   vi.doMock('../catalog/bundled', () => ({ BUNDLED_CATALOGS: [] }))
@@ -13,6 +22,10 @@ it('retains exact saved definitions after the application package removes their 
   const reopened = decodeCatalogPayload(saved) as typeof CURRENT_CATALOG
   expect(reopened).toEqual(CURRENT_CATALOG)
   expect(sourcePayloadValid(reopened)).toBe(true)
+  // Separate durable reads retain the same admitted body only after exact compressed-byte comparison
+  expect(decodeCatalogPayload(JSON.parse(JSON.stringify(saved)))).toBe(reopened)
+  expect(Object.isFrozen(reopened.entities)).toBe(true)
+  expect(() => decodeCatalogPayload({ ...saved, pages: [...saved.pages.slice(0, -1), '!!!!'] })).toThrow()
 })
 
 it('rejects package-only prelaunch records even when their source is installed', async () => {
