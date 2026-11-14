@@ -389,3 +389,87 @@ it('atomicallyFencesADelayedReserveWhenCancellingNeverAdmittedWork', async () =>
   expect(await f.db.prepare('SELECT COUNT(*) FROM cancelled_recoveries').first('COUNT(*)')).toBe(1)
   expect((await post(f, 'sync/recoveries', item.input, signed.headers)).status).toBe(404)
 })
+
+it('supersedesASealedUnboundPointWithExactTerminalReplayAndBlocksDelayedBinding', async () => {
+  const f = await fixture(), signed = await customer(f), old = await sealed(f, signed), next = await sealed(f, signed), target = await prepared(f, signed)
+  const publication = { ...command([target.descriptor]), expectedPublicationEpoch: 0, recoveryOperationId: next.input.operationId }
+  expect((await post(f, `sync/recoveries/${next.input.operationId}/bind`, { version: 1, operationId: next.input.operationId, publication }, signed.headers)).status).toBe(200)
+  const input = { version: 2, operationId: old.input.operationId, predecessor: { kind: 'sealed-unbound' }, successorOperationId: next.input.operationId, successorMutationId: publication.mutationId }
+  const supersede = () => post(f, `sync/recoveries/${old.input.operationId}/supersede`, input, signed.headers)
+  f.failNext('sync.recovery.superseded')
+  expect((await supersede()).status).toBe(503)
+  const receipt = { version: 1, operationId: input.operationId, successorOperationId: input.successorOperationId, successorMutationId: input.successorMutationId }
+  expect(await (await supersede()).json()).toEqual(receipt)
+  expect(await (await supersede()).json()).toEqual(receipt)
+  expect((await post(f, `sync/recoveries/${old.input.operationId}/supersede`, { ...input, successorMutationId: id() }, signed.headers)).status).toBe(409)
+  expect((await post(f, `sync/recoveries/${old.input.operationId}/bind`, { version: 1, operationId: old.input.operationId, publication: { ...publication, mutationId: id(), recoveryOperationId: old.input.operationId } }, signed.headers)).status).toBe(404)
+  expect((await post(f, 'sync/recoveries', old.input, signed.headers)).status).toBe(404)
+  expect(await (await f.request(`/api/v1/sync/recoveries/${old.input.operationId}/status`, { headers: signed.headers })).json()).toMatchObject({ status: 'retired' })
+  expect(await f.db.prepare('SELECT operation_id FROM account_recoveries WHERE operation_id=?').bind(old.input.operationId).first()).toBeNull()
+  expect(await f.db.prepare('SELECT sealed,mutation_id FROM account_recoveries WHERE operation_id=?').bind(next.input.operationId).first()).toEqual({ sealed: 1, mutation_id: publication.mutationId })
+})
+
+it.each(['bind', 'supersede'] as const)('sealedUnboundHandoffFencesAConcurrent%sWinner', async winner => {
+  const f = await fixture(), signed = await customer(f), old = await sealed(f, signed), next = await sealed(f, signed), target = await prepared(f, signed), { context, principal } = await direct(f, signed)
+  const { bindRecoveryPublication, supersedeRecoveryPublication } = await import('./recovery')
+  const publication = { ...command([target.descriptor]), expectedPublicationEpoch: 0, recoveryOperationId: next.input.operationId }
+  await bindRecoveryPublication(principal, { version: 1, operationId: next.input.operationId, publication }, context)
+  const binding = { version: 1 as const, operationId: old.input.operationId, publication: { ...publication, mutationId: id(), recoveryOperationId: old.input.operationId } }
+  const input = { version: 2 as const, operationId: old.input.operationId, predecessor: { kind: 'sealed-unbound' as const }, successorOperationId: next.input.operationId, successorMutationId: publication.mutationId }
+  let batches = 0
+  const db = new Proxy(f.db, { get(target, key) {
+    if (key === 'batch') return async (...args: Parameters<typeof target.batch>) => {
+      // Supersession first authenticates in a separate read-only batch; race its mutation batch
+      if (++batches === (winner === 'bind' ? 2 : 1)) {
+        if (winner === 'bind') await bindRecoveryPublication(principal, binding, context)
+        else await supersedeRecoveryPublication(principal, input, context)
+      }
+      return target.batch(...args)
+    }
+    const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value
+  } })
+  const competing = { ...context, env: { ...context.env, DB: db } }
+  await expect(winner === 'bind' ? supersedeRecoveryPublication(principal, input, competing) : bindRecoveryPublication(principal, binding, competing)).rejects.toMatchObject({ code: 'HEAD_CONFLICT' })
+  expect(await f.db.prepare('SELECT mutation_id FROM account_recoveries WHERE operation_id=?').bind(old.input.operationId).first()).toEqual(winner === 'bind' ? { mutation_id: binding.publication.mutationId } : null)
+  expect(await f.db.prepare('SELECT COUNT(*) n FROM superseded_recoveries WHERE operation_id=?').bind(old.input.operationId).first('n')).toBe(winner === 'bind' ? 0 : 1)
+})
+
+it.each(['bound-old', 'accepted-old', 'unsealed-old', 'unsealed-successor', 'unbound-successor', 'foreign-successor', 'wrong-successor-mutation'] as const)('sealedUnboundHandoffRetainsOwnershipFor%s', async condition => {
+  const f = await fixture(), signed = await customer(f), other = condition === 'foreign-successor' ? await customer(f, 'foreign') : signed
+  const old = condition === 'unsealed-old' ? snapshot(signed.accountId) : await sealed(f, signed)
+  if (condition === 'unsealed-old') expect((await post(f, 'sync/recoveries', old.input, signed.headers)).status).toBe(200)
+  const next = condition === 'unsealed-successor' ? snapshot(other.accountId) : await sealed(f, other)
+  if (condition === 'unsealed-successor') expect((await post(f, 'sync/recoveries', next.input, other.headers)).status).toBe(200)
+  const target = await prepared(f, other), publication = { ...command([target.descriptor]), expectedPublicationEpoch: 0, recoveryOperationId: next.input.operationId }
+  if (!['unsealed-successor', 'unbound-successor'].includes(condition)) expect((await post(f, `sync/recoveries/${next.input.operationId}/bind`, { version: 1, operationId: next.input.operationId, publication }, other.headers)).status).toBe(200)
+  if (condition === 'bound-old' || condition === 'accepted-old') {
+    const prior = { ...publication, mutationId: id(), recoveryOperationId: old.input.operationId }
+    expect((await post(f, `sync/recoveries/${old.input.operationId}/bind`, { version: 1, operationId: old.input.operationId, publication: prior }, signed.headers)).status).toBe(200)
+    if (condition === 'accepted-old') expect((await post(f, 'sync/commits', prior, signed.headers)).status).toBe(200)
+  }
+  const input = { version: 2, operationId: old.input.operationId, predecessor: { kind: 'sealed-unbound' }, successorOperationId: next.input.operationId, successorMutationId: condition === 'wrong-successor-mutation' ? id() : publication.mutationId }
+  expect((await post(f, `sync/recoveries/${old.input.operationId}/supersede`, input, signed.headers)).status).toBe(409)
+  expect(await f.db.prepare('SELECT COUNT(*) n FROM account_recoveries').first('n')).toBe(2)
+  expect(await f.db.prepare('SELECT COUNT(*) n FROM superseded_recoveries').first('n')).toBe(0)
+})
+
+it('preservesLegacySupersessionDigestOrderAcrossTheVersionedReader', async () => {
+  const f = await fixture(), signed = await customer(f)
+  const input = { version: 1, operationId: id(), mutationId: id(), successorOperationId: id(), successorMutationId: id() }
+  // Seed the pre-extension canonical bytes independently of the new parser
+  const legacy = `{"version":1,"operationId":"${input.operationId}","mutationId":"${input.mutationId}","successorOperationId":"${input.successorOperationId}","successorMutationId":"${input.successorMutationId}"}`
+  await f.db.prepare('INSERT INTO superseded_recoveries(account_id,operation_id,request_digest,successor_operation_id,successor_mutation_id,created_at) VALUES(?,?,?,?,?,?)').bind(signed.accountId, input.operationId, createHash('sha256').update(legacy).digest('base64url'), input.successorOperationId, input.successorMutationId, 1_800_000_000_000).run()
+  const response = await post(f, `sync/recoveries/${input.operationId}/supersede`, { successorMutationId: input.successorMutationId, successorOperationId: input.successorOperationId, mutationId: input.mutationId, operationId: input.operationId, version: 1 }, signed.headers)
+  expect(response.status).toBe(200)
+  expect(await response.json()).toEqual({ version: 1, operationId: input.operationId, successorOperationId: input.successorOperationId, successorMutationId: input.successorMutationId })
+})
+
+it('limitsVersionTwoAdmissionToTheStrictSupersessionEndpoint', async () => {
+  const f = await fixture(), signed = await customer(f), operationId = id()
+  const input = { version: 2, operationId, predecessor: { kind: 'sealed-unbound' }, successorOperationId: id(), successorMutationId: id() }
+  expect((await post(f, `sync/recoveries/${operationId}/supersede`, { ...input, version: 3 }, signed.headers)).status).toBe(426)
+  for (const malformed of [{ ...input, mutationId: id() }, { ...input, predecessor: { kind: 'bound' } }, { ...input, successorMutationId: 'bad-id' }]) expect((await post(f, `sync/recoveries/${operationId}/supersede`, malformed, signed.headers)).status).toBe(400)
+  expect((await post(f, 'sync/recoveries', { ...snapshot(signed.accountId).input, version: 2 }, signed.headers)).status).toBe(426)
+  expect((await post(f, `sync/recoveries/${operationId}/seal`, { version: 2 }, signed.headers)).status).toBe(426)
+  expect((await post(f, `sync/recoveries/${operationId}/seal`, { version: 1, extra: true }, signed.headers)).status).toBe(400)
+})

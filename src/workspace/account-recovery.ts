@@ -15,7 +15,14 @@ import { assertOwnedWorkspaceSnapshot, assertWorkspaceSnapshotCurrent, backupMet
 
 const RecordSchema = z.strictObject({ revisionId: OpaqueIdSchema, payloadId: OpaqueIdSchema, descriptor: RevisionDescriptorSchema })
 const PredecessorSchema = z.strictObject({ operationId: OpaqueIdSchema, mutationId: OpaqueIdSchema, revisions: z.array(RevisionDescriptorSchema).readonly() })
-const CoverageSchema = z.strictObject({ version: z.literal(1), predecessor: PredecessorSchema, successor: RevisionDescriptorSchema, metadataDigest: z.string() })
+const BoundCoverageSchema = z.strictObject({ version: z.literal(1), predecessor: PredecessorSchema, successor: RevisionDescriptorSchema, metadataDigest: z.string() })
+// Version 1 always means an exact bound mutation; only this variant admits no publication identity
+const UnboundCoverageSchema = z.strictObject({
+  version: z.literal(2),
+  predecessor: z.strictObject({ kind: z.literal('sealed-unbound'), operationId: OpaqueIdSchema, revisions: z.array(RevisionDescriptorSchema).readonly() }),
+  successor: RevisionDescriptorSchema, metadataDigest: z.string(),
+})
+const CoverageSchema = z.union([BoundCoverageSchema, UnboundCoverageSchema])
 const BindingSchema = z.strictObject({ version: z.literal(1), publication: CommitRequestSchema })
 const JournalSchema = z.strictObject({ version: z.literal(1), kind: z.literal('account-recovery'), operationId: OpaqueIdSchema, sourceIdentity: z.string(), archive: RecordSchema, coverage: CoverageSchema.optional() })
 type Journal = z.infer<typeof JournalSchema>
@@ -214,8 +221,12 @@ export function createAccountRecoveryService(token: ProfileToken) {
       try {
         await validateCoverage(authenticated, snapshot, false)
         if (predecessor && predecessorSnapshot) {
-          if (!predecessor.mutationId || !predecessor.sealed) throw integrity()
-          coverage = { version: 1, predecessor: { operationId: predecessor.operationId, mutationId: predecessor.mutationId, revisions: predecessor.revisions }, successor: RevisionDescriptorSchema.parse(archive.descriptor), metadataDigest: await validateCoverage(authenticated, predecessorSnapshot) }
+          if (!predecessor.sealed || predecessor.acceptedAt !== null) throw integrity()
+          const identity = { operationId: predecessor.operationId, revisions: predecessor.revisions }
+          const validated = { successor: RevisionDescriptorSchema.parse(archive.descriptor), metadataDigest: await validateCoverage(authenticated, predecessorSnapshot) }
+          coverage = predecessor.mutationId === null
+            ? { version: 2, predecessor: { kind: 'sealed-unbound', ...identity }, ...validated }
+            : { version: 1, predecessor: { ...identity, mutationId: predecessor.mutationId }, ...validated }
         }
       } finally { await disposeWorkspaceSnapshot(authenticated) }
       const value: Journal = { version: 1, kind: 'account-recovery', operationId, sourceIdentity, archive, ...(coverage ? { coverage } : {}) }
@@ -259,7 +270,7 @@ export function createAccountRecoveryService(token: ProfileToken) {
       return useDatabase(database => resumeIn(database, operationId))
     }
     const predecessor = await find(predecessorPointId)
-    if (!predecessor?.sealed || !predecessor.mutationId || predecessor.acceptedAt !== null) throw integrity()
+    if (!predecessor?.sealed || predecessor.acceptedAt !== null) throw integrity()
     const original = await capturePoint(predecessor)
     try { return await prepare(operationId, snapshot, predecessor, original) } finally { await disposeWorkspaceSnapshot(original) }
   }
@@ -305,8 +316,11 @@ export function createAccountRecoveryService(token: ProfileToken) {
     const predecessor = await find(coverage.predecessor.operationId)
     // Absence can mean a lost supersession acknowledgment; the server's permanent terminal
     // link must replay exactly. A changed or accepted predecessor never passes this client check
-    if (predecessor && (!predecessor.sealed || predecessor.mutationId !== coverage.predecessor.mutationId || predecessor.acceptedAt !== null || !exact(predecessor.revisions, coverage.predecessor.revisions))) throw integrity()
-    return client.supersedeRecoveryPublication({ version: 1, operationId: coverage.predecessor.operationId, mutationId: coverage.predecessor.mutationId, successorOperationId: successorPointId, successorMutationId: publication.mutationId })
+    if (predecessor && (!predecessor.sealed || predecessor.mutationId !== (coverage.version === 1 ? coverage.predecessor.mutationId : null) || predecessor.acceptedAt !== null || !exact(predecessor.revisions, coverage.predecessor.revisions))) throw integrity()
+    const link = { operationId: coverage.predecessor.operationId, successorOperationId: successorPointId, successorMutationId: publication.mutationId }
+    return client.supersedeRecoveryPublication(coverage.version === 1
+      ? { version: 1, ...link, mutationId: coverage.predecessor.mutationId }
+      : { version: 2, ...link, predecessor: { kind: 'sealed-unbound' } })
   })
   const cancelPreparation = (operationId: string) => useDatabase(async database => {
     const stored = await readJournal(database, operationId)

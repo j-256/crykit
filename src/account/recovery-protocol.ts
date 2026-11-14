@@ -42,10 +42,19 @@ export type RecoveryPoint = z.infer<typeof RecoveryPointSchema>
 export const RecoveryListSchema = z.strictObject({ version: z.literal(1), points: z.array(RecoveryPointSchema).max(MAX_RECOVERY_POINTS) })
 export const RecoveryRemovalSchema = z.strictObject({ version: z.literal(1), state: z.enum(['complete', 'pending', 'blocked']) })
 
-export const RecoverySupersessionSchema = z.strictObject({
+export const RECOVERY_SUPERSESSION_VERSIONS = Object.freeze([1, 2])
+const BoundRecoverySupersessionSchema = z.strictObject({
   version: z.literal(1), operationId: OpaqueIdSchema, mutationId: OpaqueIdSchema,
   successorOperationId: OpaqueIdSchema, successorMutationId: OpaqueIdSchema,
 }).refine(input => input.operationId !== input.successorOperationId && input.mutationId !== input.successorMutationId)
+// An unbound predecessor has no publication identity to supersede; keep that proof distinct
+// from version 1's definitive rejection at an advanced publication epoch
+const UnboundRecoverySupersessionSchema = z.strictObject({
+  version: z.literal(2), operationId: OpaqueIdSchema,
+  predecessor: z.strictObject({ kind: z.literal('sealed-unbound') }),
+  successorOperationId: OpaqueIdSchema, successorMutationId: OpaqueIdSchema,
+}).refine(input => input.operationId !== input.successorOperationId)
+export const RecoverySupersessionSchema = z.union([BoundRecoverySupersessionSchema, UnboundRecoverySupersessionSchema])
 export type RecoverySupersession = z.infer<typeof RecoverySupersessionSchema>
 export const RecoverySupersessionReceiptSchema = z.strictObject({
   version: z.literal(1), operationId: OpaqueIdSchema, successorOperationId: OpaqueIdSchema, successorMutationId: OpaqueIdSchema,
