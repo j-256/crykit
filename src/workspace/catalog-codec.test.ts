@@ -25,7 +25,12 @@ it('retains exact saved definitions after the application package removes their 
   // Separate durable reads retain the same admitted body only after exact compressed-byte comparison
   expect(decodeCatalogPayload(JSON.parse(JSON.stringify(saved)))).toBe(reopened)
   expect(Object.isFrozen(reopened.entities)).toBe(true)
-  expect(() => decodeCatalogPayload({ ...saved, pages: [...saved.pages.slice(0, -1), '!!!!'] })).toThrow()
+  const compression = await import('../interchange/workspace-backup-compression')
+  const inflate = vi.spyOn(compression, 'decodeBackupPage')
+  try {
+    for (const tail of ['!!!!', 'AA', 'AA=A', 'AB==', 'AAB=']) expect(() => decodeCatalogPayload({ ...saved, pages: [...saved.pages.slice(0, -1), tail] })).toThrow()
+    expect(inflate.mock.calls.length).toBe(0)
+  } finally { inflate.mockRestore() }
 })
 
 it('rejects package-only prelaunch records even when their source is installed', async () => {

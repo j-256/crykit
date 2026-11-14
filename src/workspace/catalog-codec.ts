@@ -8,7 +8,17 @@ import { immutableCatalogSnapshot, isImmutableCatalogSnapshot } from '../interch
 
 const SOURCE_PAGE_BYTES = 1024 * 1024
 const BASE64_SLICE_BYTES = 32 * 1024
-const CompressedCatalogSchema = z.strictObject({ version: z.literal(1), kind: z.literal('compressed-catalog-snapshot'), encoding: z.literal('deflate-json-pages-v1'), byteLength: z.number().int().positive().max(maxDocumentBytes), pages: z.array(z.string().min(1).max(SOURCE_PAGE_BYTES * 2)).min(1).max(Math.ceil(maxDocumentBytes / SOURCE_PAGE_BYTES)) })
+const BASE64_GROUP_CHARACTERS = 4
+const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+const BASE64_PADDING_MASKS = [0, 0b11, 0b1111] as const
+// Validate every encoded page before any inflation, including unused bits in padded final symbols
+// A malformed tail must not make the reader inflate and recompress all preceding source pages
+const EncodedCatalogPageSchema = z.string().min(1).max(SOURCE_PAGE_BYTES * 2).regex(/^[A-Za-z0-9+/]*={0,2}$/).refine(value => {
+  const padding = value.endsWith('==') ? 2 : value.endsWith('=') ? 1 : 0
+  const last = BASE64_ALPHABET.indexOf(value.at(-padding - 1) ?? '=')
+  return value.length % BASE64_GROUP_CHARACTERS === 0 && last >= 0 && (last & BASE64_PADDING_MASKS[padding]) === 0
+}, 'Noncanonical compressed catalog page')
+const CompressedCatalogSchema = z.strictObject({ version: z.literal(1), kind: z.literal('compressed-catalog-snapshot'), encoding: z.literal('deflate-json-pages-v1'), byteLength: z.number().int().positive().max(maxDocumentBytes), pages: z.array(EncodedCatalogPageSchema).min(1).max(Math.ceil(maxDocumentBytes / SOURCE_PAGE_BYTES)) })
 type CompressedCatalog = z.infer<typeof CompressedCatalogSchema>
 const encodedCatalogs = new WeakMap<CatalogSnapshot, CompressedCatalog>()
 const DECODED_CATALOG_CACHE_LIMIT = 16
