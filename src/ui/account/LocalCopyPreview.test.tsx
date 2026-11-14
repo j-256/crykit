@@ -9,7 +9,7 @@ import type { GuestCopyPreview } from '../../workspace/guest-copy'
 let container: HTMLDivElement, root: Root
 beforeEach(() => { Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true }); container = document.createElement('div'); document.body.append(container); root = createRoot(container) })
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); invalidateProfile() })
-const recoveryMethods = () => ({ listSavedGuestCopies: vi.fn(async () => []), keepSavedCopyAndRepreview: vi.fn(async () => ({ activated: false })), withSavedGuestCopy: vi.fn() })
+const recoveryMethods = () => ({ previewSigninMerge: vi.fn(), listSavedGuestCopies: vi.fn(async () => []), keepSavedCopyAndRepreview: vi.fn(async () => ({ activated: false })), withSavedGuestCopy: vi.fn() })
 const button = (text: string) => [...container.querySelectorAll('button')].find(button => button.textContent === text)!
 it('requiresPreviewAndExplicitSampleSelectionAndDisclosesDependencies', async () => {
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))

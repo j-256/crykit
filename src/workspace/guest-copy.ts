@@ -1,3 +1,5 @@
+import { classifySigninLocalData } from './signin-local-data'
+import { signinDocumentsEqual, signinProgressCorrespondence } from './signin-progress'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { guestEvidenceForCopy, type CapturedGuestEvidence } from './guest-evidence'
 import { GuestCopyJournalSchema as JournalSchema, PENDING_COPY, PreviewSchema, SAVED_COPY_PREFIX, type GuestCopyJournal as Journal, type GuestCopyPreview } from './guest-copy-journal'
@@ -106,7 +108,20 @@ async function copyPreviewState(database: AccountDatabase, token: ProfileToken, 
   } finally { await store.dispose() }
 }
 
-async function selectSnapshot(snapshot: WorkspaceSnapshot, selection: readonly string[]) {
+// Domain archive edges omit reverse ownership to stay acyclic; a live selected workspace
+// additionally needs checkpoint owners and a Build's setup even before its first checkpoint
+function copyDependencyKeys(document: WorkspaceDocument, documents: ReadonlyMap<string, WorkspaceDocument>): readonly string[] {
+  const dependencies = new Set(resolvedDomainClosureKeys(document, documents))
+  if (document.kind === 'build-checkpoint') dependencies.add(privateRecordKey('build', (document.value as unknown as { buildId: string }).buildId))
+  if (document.kind === 'team-checkpoint') dependencies.add(privateRecordKey('team', (document.value as unknown as { teamId: string }).teamId))
+  if (document.kind === 'build') {
+    const build = document.value as unknown as { gameSetupId: string }
+    for (const setup of documents.values()) if (setup.kind === 'setup' && (setup.value as unknown as { gameSetupId: string }).gameSetupId === build.gameSetupId) dependencies.add(setup.key)
+  }
+  return [...dependencies]
+}
+
+async function selectSnapshot(snapshot: WorkspaceSnapshot, selection: readonly string[], signin = false) {
   const documents = new Map(splitWorkspace(snapshot.state).map(document => [document.key, document]))
   const sampleConsents: { conflictKey: string; key: string; document: WorkspaceDocument }[] = []
   const archivedSamples = new Set<string>()
@@ -133,7 +148,7 @@ async function selectSnapshot(snapshot: WorkspaceSnapshot, selection: readonly s
   // A renamed sample owner still carries its original child/source provenance
   for (const [id, playthrough] of Object.entries(snapshot.state.planner.localData.playthroughs)) if (sampleEvidence(playthrough)) samples.add(privateRecordKey('playthrough', id))
   for (const team of Object.values(snapshot.state.planner.localData.teams)) if ((team.kind === 'shared' ? snapshot.state.planner.localData.teamRevisions[team.latestRevisionId]!.slots.map((slot, index) => slot ? checkpointBuildView(snapshot.state.planner.localData, { kind: 'team-slot', teamRevisionId: team.latestRevisionId, slot: index as 0 | 1 | 2 | 3 }) : undefined) : team.slots.map(id => id ? snapshot.state.planner.localData.buildRevisions[id] : undefined)).some(revision => revision && samples.has(privateRecordKey('build', revision.buildId)))) samples.add(privateRecordKey('team', team.id))
-  const records = [...documents.values()].filter(document => ROOT_KINDS.has(document.kind) && !(document.kind === 'library-defaults' && snapshot.state.libraryDefaults.layers.length === 0)).map(document => describe(document, samples.has(document.key)))
+  const records = [...documents.values()].filter(document => (ROOT_KINDS.has(document.kind) || signin && ['workspace-preferences', 'retained-content'].includes(document.kind)) && !(document.kind === 'library-defaults' && snapshot.state.libraryDefaults.layers.length === 0)).map(document => describe(document, samples.has(document.key)))
   for (const consent of sampleConsents) if (!documents.has(consent.key)) records.push({ ...describe(consent.document, true), key: consent.key, label: `Original accepted sample: ${describe(consent.document).label}` })
   const inherited = !!snapshot.sourceEvidence || snapshot.version === 2 && snapshot.historicalEvidence.snapshots.length > 0
   if (inherited) records.push({ key: HISTORY_KEY, kind: 'history', label: 'Exact inherited workspace originals (all original records, including unchecked records and samples)', sample: true })
@@ -160,13 +175,13 @@ async function selectSnapshot(snapshot: WorkspaceSnapshot, selection: readonly s
       const id = (JSON.parse(key) as string[])[1]
       for (const child of documents.values()) if (['character', 'progress', 'goal', 'scenario', 'inventory', 'quintar-breeding', 'skill-capture'].includes(child.kind) && (JSON.parse(child.key) as string[])[1] === id) include(child.key)
     }
-    for (const dependency of resolvedDomainClosureKeys(document, documents)) include(dependency)
+    for (const dependency of copyDependencyKeys(document, documents)) include(dependency)
     for (const ref of archiveTypedReferences(document.kind, document.value)) includeBlob(blobIdentity(ref))
   }
   for (const key of selection) if (key !== HISTORY_KEY && !sampleConsents.some(consent => consent.key === key && !documents.has(key))) include(key)
   for (const consent of sampleConsents) {
     if (selected.has(consent.key) && !documents.has(consent.key) && !included.has(consent.conflictKey)) problems.push('Select the comparison for this exact original sample.')
-    if (included.has(consent.conflictKey) && !selected.has(consent.key)) problems.push(`Explicitly select the required sample record: ${describe(consent.document).label}`)
+    if (!signin && included.has(consent.conflictKey) && !selected.has(consent.key)) problems.push(`Explicitly select the required sample record: ${describe(consent.document).label}`)
   }
   const plannerSelected = selection.some(key => PLANNER_KINDS.has(documents.get(key)?.kind ?? ''))
   if (plannerSelected) for (const history of histories) if (!selected.has(privateRecordKey('history', history.id))) problems.push('Select the exact planner history to preserve earlier versions. Its old records are copied only as history.')
@@ -188,7 +203,7 @@ async function selectSnapshot(snapshot: WorkspaceSnapshot, selection: readonly s
     }
   }
   // Imported accepted dependencies are also live candidates and must pass the same sample consent gate
-  for (const key of included) if (samples.has(key) && offered.has(key) && !selected.has(key) && !sampleConsents.some(consent => consent.document.key === key && selected.has(consent.key) && jsonEqual(consent.document.value, base.get(key)?.value))) problems.push(`Explicitly select the required sample record: ${records.find(record => record.key === key)!.label}`)
+  for (const key of included) if (!signin && samples.has(key) && offered.has(key) && !selected.has(key) && !sampleConsents.some(consent => consent.document.key === key && selected.has(consent.key) && jsonEqual(consent.document.value, base.get(key)?.value))) problems.push(`Explicitly select the required sample record: ${records.find(record => record.key === key)!.label}`)
   const state = assembleWorkspace([...base.values()], 0)
   const selectedSnapshot = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: `${snapshot.snapshotId}:selection`, capturedAt: snapshot.capturedAt, revisionVector: snapshot.revisionVector, state }, { check: () => assertOwnedWorkspaceSnapshot(snapshot), async dispose() {} })
   await validateWorkspaceSnapshot(selectedSnapshot)
@@ -199,7 +214,7 @@ async function selectSnapshot(snapshot: WorkspaceSnapshot, selection: readonly s
 async function additiveCopyState(previous: WorkspaceState, selected: WorkspaceSnapshot, preview: GuestCopyPreview): Promise<WorkspaceState> {
   const documents = new Map(splitWorkspace(previous).map(document => [document.key, document]))
   const incoming = new Map(splitWorkspace(selected.state).map(document => [document.key, document]))
-  const blocked = new Set(preview.conflicts)
+  const blocked = new Set([...preview.conflicts, ...(preview.signin?.progressMappings.map(mapping => mapping.sourceKey) ?? [])])
   for (const [key, chain] of personalLineageChains(selected.state.planner.localData)) if (blocked.has(key)) for (const definition of chain) blocked.add(privateRecordKey('personal-definition', definition.id))
   // A pin to an incompatible immutable value cannot become active by copying its owner separately
   // Keep that dependent group in the exact selected source until its comparison is resolved
@@ -208,15 +223,14 @@ async function additiveCopyState(previous: WorkspaceState, selected: WorkspaceSn
     expanded = false
     for (const document of incoming.values()) {
       if (blocked.has(document.key)) continue
-      const buildOwner = document.kind === 'build-checkpoint' ? privateRecordKey('build', (document.value as unknown as { buildId: string }).buildId) : undefined
-      if (buildOwner && blocked.has(buildOwner)) { blocked.add(document.key); expanded = true; continue }
-      if (resolvedDomainClosureKeys(document, incoming).some(key => blocked.has(key))) { blocked.add(document.key); expanded = true }
+      if (copyDependencyKeys(document, incoming).some(key => blocked.has(key))) { blocked.add(document.key); expanded = true }
     }
   }
   for (const document of incoming.values()) {
     if (blocked.has(document.key)) continue
-    if (document.kind === 'conflict' || INFRASTRUCTURE.has(document.kind) || document.kind === 'library-defaults' && !preview.selectedKeys.includes(document.key)) continue
+    if (document.kind === 'conflict' || INFRASTRUCTURE.has(document.kind) && !(document.kind === 'workspace-preferences' && preview.selectedKeys.includes(document.key)) || document.kind === 'library-defaults' && !preview.selectedKeys.includes(document.key)) continue
     const prior = documents.get(document.key)
+    if (document.kind === 'workspace-preferences' && emptyPreferences(prior?.value)) { documents.set(document.key, document); continue }
     if (prior && !isBlobSource(document.value) && !jsonEqual(prior.value, document.value)) continue
     if (!prior) documents.set(document.key, document)
   }
@@ -225,6 +239,11 @@ async function additiveCopyState(previous: WorkspaceState, selected: WorkspaceSn
   const state = { ...assembled, planner: { ...planner, localData: preserveLocalSelections(planner.localData, previous.planner.localData) } }
   await validateWorkspaceClosure(state)
   return state
+}
+
+function emptyPreferences(value: unknown): boolean {
+  const preferences = value as { modSetup?: unknown; unavailableDefinitions?: readonly unknown[] } | undefined
+  return !preferences?.modSetup && !preferences?.unavailableDefinitions?.length
 }
 
 export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot | GuestCopySource>, assertMayActivate: () => void = () => {}) {
@@ -236,15 +255,19 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
   let busy = false
   let generation = 0
   const dispose = async () => { generation++; const prior = captured; captured = undefined; await Promise.all([...originalReaders].map(reader => reader.dispose())); originalReaders.clear(); retainedPreviews.clear(); for (const database of inspectionDatabases) database.close(); inspectionDatabases.clear(); if (prior) await disposeWorkspaceSnapshot(prior.snapshot) }
-  async function previewGuestCopy(token: ProfileToken, selection: readonly string[] = []): Promise<GuestCopyPreview> {
+  async function previewGuestCopy(token: ProfileToken, selection: readonly string[] = [], signin = false, savedCopyId?: string): Promise<GuestCopyPreview> {
     assertActiveProfile(token); assertMayActivate()
     if (busy) throw new Error('A local copy is already being prepared')
     const database = new AccountDatabase(token.accountId)
     try {
-      const pending = await database.syncState.get(PENDING_COPY)
+      const pending = await database.syncState.get(savedCopyId !== undefined ? `${SAVED_COPY_PREFIX}${savedCopyId}` : PENDING_COPY)
+      if (savedCopyId !== undefined && !pending) throw new Error('The saved sign-in copy is unavailable')
+      // A new sign-in decision must not inherit a manual selection or an older source capture
+      if (signin && savedCopyId === undefined && pending) throw new Error('A pending copy must be resumed by its saved operation ID or kept before starting a new sign-in merge')
       if (pending) {
         const journal = await openAccountJson(database, token, pending.ref, JournalSchema)
         if (journal.preview.accountId !== token.accountId) throw new Error('The saved copy belongs to another account')
+        if (savedCopyId !== undefined && (journal.preview.copyId !== savedCopyId || !journal.preview.signin)) throw new Error('The saved sign-in copy identity is unsupported')
         // A committed receipt outranks the old fence when only the UI acknowledgment was lost
         const activated = await hasMatchingActivation(database, token, journal)
         const advanced = !activated && !jsonEqual(await database.profileMeta.get('active'), journal.expected)
@@ -262,14 +285,17 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
       const started = generation
       await assertOwnedWorkspaceSnapshot(captured.snapshot)
       await validateWorkspaceSnapshot(captured.snapshot)
-      const chosen = await selectSnapshot(captured.snapshot, selection)
+      if (signin) {
+        selection = [...new Set([...classifySigninLocalData(captured.snapshot.state).rootKeys, ...captured.snapshot.state.planner.history.map(history => privateRecordKey('history', history.id)), ...(captured.snapshot.state.planner.journal?.checkpoints ?? []).map(history => privateRecordKey('history', history.id)), ...(captured.snapshot.sourceEvidence || captured.snapshot.version === 2 && captured.snapshot.historicalEvidence.snapshots.length ? [HISTORY_KEY] : [])])]
+      }
+      const chosen = await selectSnapshot(captured.snapshot, selection, signin)
       let expected = await database.profileMeta.get('active')
       if (!expected) {
         expected = await initializeAccountWorkspace(database, token, blankState())
       }
       const target = await copyPreviewState(database, token, expected)
       const existing = new Map(splitWorkspace(target).map(document => [document.key, document]))
-      const conflicts = splitWorkspace(chosen.selectedSnapshot.state).filter(document => !INFRASTRUCTURE.has(document.kind) && !isBlobSource(document.value) && !(document.kind === 'library-defaults' && !selection.includes(document.key)) && existing.has(document.key) && !jsonEqual(existing.get(document.key)!.value, document.value)).map(document => document.key)
+      const conflicts = splitWorkspace(chosen.selectedSnapshot.state).filter(document => (!INFRASTRUCTURE.has(document.kind) || document.kind === 'workspace-preferences' && selection.includes(document.key) && !emptyPreferences(existing.get(document.key)?.value)) && !isBlobSource(document.value) && !(document.kind === 'library-defaults' && !selection.includes(document.key)) && existing.has(document.key) && !(signin ? signinDocumentsEqual(existing.get(document.key)!, document) : jsonEqual(existing.get(document.key)!.value, document.value))).map(document => document.key)
       const incomingLineages = personalLineageChains(chosen.selectedSnapshot.state.planner.localData)
       const existingLineages = personalLineageChains(target.planner.localData)
       for (const [key, chain] of incomingLineages) {
@@ -281,8 +307,10 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
         }
         conflicts.push(key)
       }
+      const correspondence = signin ? signinProgressCorrespondence(chosen.selectedSnapshot.state, target) : { mappings: [], problems: [] }
+      for (const mapping of correspondence.mappings) if (!mapping.equivalent) conflicts.push(mapping.destinationKey)
       const estimatedBytes = chosen.selectedSnapshot.state.blobs.reduce((sum, blob) => sum + blob.ref.byteLength, 0) + new TextEncoder().encode(JSON.stringify({ ...chosen.selectedSnapshot.state, blobs: [] })).length + (chosen.inherited && captured.snapshot.version === 2 ? captured.snapshot.historicalEvidence.blobs.reduce((sum, ref) => sum + ref.byteLength, 0) : 0)
-      const preview = frozenPreview({ copyId: captured.copyId, snapshotId: await backupMetadataDigest({ id: captured.snapshot.snapshotId, vector: captured.snapshot.revisionVector }), accountId: token.accountId, records: chosen.records, selectedKeys: [...selection], closure: chosen.closure, estimatedBytes, conflicts, problems: chosen.problems, resumable: false })
+      const preview = frozenPreview({ copyId: captured.copyId, snapshotId: await backupMetadataDigest({ id: captured.snapshot.snapshotId, vector: captured.snapshot.revisionVector }), accountId: token.accountId, records: chosen.records, selectedKeys: [...selection], closure: chosen.closure, estimatedBytes, conflicts, problems: [...chosen.problems, ...correspondence.problems], resumable: false, ...(signin ? { signin: { version: 1 as const, requiredCompanionKeys: chosen.closure.filter(record => record.sample && !selection.includes(record.key)).map(record => record.key), progressMappings: correspondence.mappings } } : {}) })
       if (started !== generation) throw new Error('Local copy preview was cancelled')
       authorities.set(preview, { token, generation, expected, snapshot: captured.snapshot, selected: chosen.selectedSnapshot, originals: captured.originals })
       assertActiveProfile(token); assertMayActivate(); return preview
@@ -306,7 +334,7 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
         await assertOwnedWorkspaceSnapshot(snapshot)
         if (!jsonEqual(await database.profileMeta.get('active'), authority.expected)) throw new Error('The account changed after preview. Preview again before copying.')
         if (await isManagedAccountHead(database, token, authority.expected) && !preview.conflicts.length && !selected.state.conflicts.length) {
-          const includeOriginals = preview.selectedKeys.includes(HISTORY_KEY)
+          const includeOriginals = !!preview.signin || preview.selectedKeys.includes(HISTORY_KEY)
           const incoming = await guestEvidenceForCopy(selected, includeOriginals ? snapshot : undefined, includeOriginals ? authority.originals : undefined)
           staged = await stageManagedGuestCopy(database, token, preview, authority.expected, incoming, before => additiveCopyState(before, selected, preview), assertCopyActive)
           journal = staged.journal
@@ -315,14 +343,14 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
           const previous = { ...capturedPrevious.workspace, state: { ...capturedPrevious.workspace.state, planner: capturedPrevious.operativePlanner }, inheritedEvidence: capturedPrevious.inheritedEvidence }
           await capturedPrevious.dispose()
           const state = await additiveCopyState(previous.state, selected, preview)
-          const normalized = await inheritWorkspaceSnapshot(selected, preview.selectedKeys.includes(HISTORY_KEY) ? [selected, snapshot] : [selected])
+          const normalized = await inheritWorkspaceSnapshot(selected, (preview.signin || preview.selectedKeys.includes(HISTORY_KEY)) ? [selected, snapshot] : [selected])
           const operation = createAccountInheritedEvidencePreparation(database, token)
           const base = previous.inheritedEvidence ? await openAccountInheritedEvidence(database, token, previous.inheritedEvidence) : undefined
           try {
             const evidence = await operation.prepare({ base, additions: [normalized] })
             const prepared = await prepareAccountWorkspaceWithEvidence(database, token, state, evidence, previous)
             const source = preview.conflicts.length || selected.state.conflicts.length ? await prepareAccountWorkspaceWithEvidence(database, token, selected.state, evidence) : undefined
-            const registrations = source ? await prepareCopiedConflicts(database, token, { operationId: preview.copyId, source: source.opened, destination: previous, keys: preview.conflicts.filter(key => JSON.parse(key)[0] !== 'conflict'), owner: evidence.owner, evidence, snapshot: selected, mode: 'additive' }) : undefined
+            const registrations = source ? await prepareCopiedConflicts(database, token, { operationId: preview.copyId, source: source.opened, destination: previous, keys: preview.conflicts.filter(key => JSON.parse(key)[0] !== 'conflict'), owner: evidence.owner, evidence, snapshot: selected, mode: 'additive', progressMappings: preview.signin?.progressMappings.filter(mapping => !mapping.equivalent) }) : undefined
             const intent = await stageMappedWorkspaceIntent(database, token, { version: 1, kind: 'mapped-workspace-intent', operationId: preview.copyId, portableGroupId: accountLocalId(), operation: 'workspace-command', mode: 'additive', original: { base: authority.expected.head, target: prepared.head }, base: previous.head, target: prepared.head, localRevision: authority.expected.headRevision + 1, changes: mappedChanges(previous, prepared.opened), ...(registrations ? { copiedConflicts: registrations.root } : {}) }, evidence.owner)
             journal = JournalSchema.parse({ version: 1, kind: 'guest-copy', preview, expected: authority.expected, target: prepared.head, intent: cipherRef(intent.record) })
             const saved = await stageAccountJson(database, token, journal, [previous.head, prepared.head, cipherRef(intent.record)], undefined, evidence.owner)
@@ -541,7 +569,7 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
       requestSync(token, 'save')
     } finally { await owner.abandon(); busy = false; database.close() }
   }
-  return { previewGuestCopy, commitGuestCopy, keepSavedCopyAndRepreview, listSavedGuestCopies, withSavedGuestCopy, inspectCopiedComparisons, previewRetainedComparison, continueCopiedComparisons, dispose }
+  return { previewGuestCopy, previewSigninMerge: (token: ProfileToken, savedCopyId?: string) => previewGuestCopy(token, [], true, savedCopyId), commitGuestCopy, keepSavedCopyAndRepreview, listSavedGuestCopies, withSavedGuestCopy, inspectCopiedComparisons, previewRetainedComparison, continueCopiedComparisons, dispose }
 }
 const defaultService = createGuestCopyService(() => captureGuestWorkspaceForCopy())
 export const previewGuestCopy = defaultService.previewGuestCopy

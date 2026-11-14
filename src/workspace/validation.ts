@@ -62,6 +62,7 @@ export function validateWorkspace(state: WorkspaceState): void {
   const closure = (value: { version: 1; root: WorkspaceBlobRef; index: WorkspaceBlobRef }) => { if (value.version !== 1) throw new Error('Unsupported closure'); requireRef(value.root); requireRef(value.index) }
   for (const conflict of state.conflicts) {
     if (conflict.version !== 1 || conflict.branches.length !== 2 || conflict.branches[0].role !== 'local-pending' || conflict.branches[1].role !== 'accepted-cloud') throw new Error('Unsupported conflict')
+    if (conflict.progressIdentity) requireRef(conflict.progressIdentity.sourceMetadata)
     if (conflict.commonAncestor.kind === 'present') closure(conflict.commonAncestor.closure)
     for (const branch of conflict.branches) closure(branch.closure)
     if (conflict.disposition.kind === 'resolved') closure(conflict.disposition.result)

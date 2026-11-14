@@ -1,3 +1,4 @@
+import { validateSigninProgressIdentity } from './signin-progress-evidence'
 import { decodeCatalogPayload } from './catalog-codec'
 import { MappingRelationSchema, MappingFrameRelationSchema, mappingRoots, inspectMappingFrames, type MappingRelation } from './mapping-closure'
 import { PersonalLineageRelationSchema, validatePersonalLineage, type PersonalLineageRelation } from './lineage-closure'
@@ -36,7 +37,7 @@ export function archiveTypedReferences(kind: WorkspaceDocument['kind'], value: u
   if (kind === 'conflict') {
     const conflict = WorkspaceConflictSchema.parse(value)
     const closures = [...(conflict.commonAncestor.kind === 'present' ? [conflict.commonAncestor.closure] : []), ...conflict.branches.map(branch => branch.closure), ...(conflict.disposition.kind === 'resolved' ? [conflict.disposition.result] : [])]
-    return closures.flatMap(closure => [closure.root, closure.index])
+    return [...closures.flatMap(closure => [closure.root, closure.index]), ...(conflict.progressIdentity ? [conflict.progressIdentity.sourceMetadata] : [])]
   }
   if (kind === 'retained-content') {
     const retained = WorkspaceRetainedContentSchema.parse(value)
@@ -395,6 +396,7 @@ async function retentionEdges(state: WorkspaceState, legacyLocal = false, checke
     while (id) { if (seen.has(id)) throw new Error('Cyclic conflict comparison'); seen.add(id); id = successors.get(id) }
   }
   for (const conflict of state.conflicts) {
+    if (conflict.progressIdentity) await validateSigninProgressIdentity(state, conflict, (await inspect(conflict.branches[0].closure)).documents, (await inspect(conflict.branches[1].closure)).documents)
     if (conflict.unit.kind === 'directory-mapping' && conflict.disposition.kind === 'resolved' && (conflict.disposition.choice === 'both' || JSON.stringify(conflict.disposition.result) !== JSON.stringify(conflict.branches[conflict.disposition.choice === 'this' ? 0 : 1].closure))) throw new Error('Mapping result must retain the exact selected original closure')
     const closures = [...(conflict.commonAncestor.kind === 'present' ? [conflict.commonAncestor.closure] : []), ...conflict.branches.map(branch => branch.closure), ...(conflict.disposition.kind === 'resolved' ? [conflict.disposition.result] : [])]
     for (const closure of closures) {
