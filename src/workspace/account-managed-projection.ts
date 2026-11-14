@@ -15,7 +15,7 @@ import { readIncrementalAccountEvidence } from './account-local-mapping'
 
 // Bulk pull/restore keeps one authoritative local pointer while retaining the exact native mapping target
 // This preparation owns no activation authority until the existing transaction rechecks both captured views
-export async function prepareManagedAccountProjection(database: AccountDatabase, token: ProfileToken, input: AccountFence, native: PreparedAccountWorkspace, intent?: { readonly id: string; readonly ref: CipherRef; readonly records: readonly CipherRecord[] }, requireSettledSync?: true) {
+export async function prepareManagedAccountProjection(database: AccountDatabase, token: ProfileToken, input: AccountFence, native: PreparedAccountWorkspace, intent?: { readonly id: string; readonly ref: CipherRef; readonly records: readonly CipherRecord[] }, requireSettledSync?: true, reviewedSelection?: object) {
   const expected = structuredClone(input), store = createAccountLocalStore(database, token), operationId = intent?.id ?? accountLocalId()
   const check = async () => {
     assertActiveProfile(token)
@@ -26,15 +26,16 @@ export async function prepareManagedAccountProjection(database: AccountDatabase,
   let inherited: Awaited<ReturnType<typeof openAccountInheritedEvidence>> | undefined
   try {
     await check()
+    if (reviewedSelection) (await import('./reviewed-replacement')).assertReviewedBranchSelection(database, token, expected, reviewedSelection)
     const previous = await admitLocalRoot(store.adapter, expected.head, store.lifetime)
-    let evidenceRef = previous.root.inheritedEvidence
+    let evidenceRef = reviewedSelection ? undefined : previous.root.inheritedEvidence
     if (native.opened.inheritedEvidence) {
       inherited = native.validatedEvidence ?? await openAccountInheritedEvidence(database, token, native.opened.inheritedEvidence)
-      const mapped = await readIncrementalAccountEvidence(database, token, evidenceRef)
-      if (guestPlannerValuesEqual(mapped, native.opened.inheritedEvidence)) {
+      const mapped = await readIncrementalAccountEvidence(database, token, previous.root.inheritedEvidence)
+      if (!reviewedSelection && guestPlannerValuesEqual(mapped, native.opened.inheritedEvidence)) {
         // This authenticated association already binds both exact archives; the incoming native graph is validated above
         // Retain the local control and payloads without consuming their history again or granting cleanup authority
-        await checkLocalEvidenceRoot(store.adapter, evidenceRef, check)
+        await checkLocalEvidenceRoot(store.adapter, evidenceRef!, check)
         await inherited.check()
       } else {
         snapshot = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: accountLocalId(), capturedAt: native.opened.state.planner.localData.updatedAt, revisionVector: { projection: JSON.stringify(native.head) }, state: native.opened.state }, { check, dispose: async () => {} })
@@ -42,7 +43,7 @@ export async function prepareManagedAccountProjection(database: AccountDatabase,
         const evidence = await guestEvidenceFromSnapshot(snapshot, emptyPlannerEvidence())
         evidenceRef = await prepareLocalEvidence(store.adapter, operationId, evidence)
       }
-    } else if (await readLocalEvidence(store.adapter, evidenceRef, check)) throw new Error('A native projection cannot discard managed historical originals')
+    } else if (!reviewedSelection && await readLocalEvidence(store.adapter, evidenceRef!, check)) throw new Error('A native projection cannot discard managed historical originals')
     const result = await prepareLocalWorkspace(store.adapter, operationId, native.opened.state, store.lifetime, undefined, evidenceRef)
     // Native admission already accepts this exact live handle; retain that proof within this preparation
     const admittedNative = inherited ? { ...native, validatedEvidence: inherited } : native

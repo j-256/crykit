@@ -1,3 +1,4 @@
+import { accountAttachmentCheck, type AccountActivationAttachment } from './account-activation-attachments'
 import Dexie, { type EntityTable, type Table, type Transaction } from 'dexie'
 import { OpaqueIdSchema, RevisionDescriptorSchema, type RevisionDescriptor } from '../account/protocol'
 import { assertActiveProfile, profileSignal, type ProfileToken } from '../account/profile'
@@ -44,7 +45,7 @@ export interface PreparedLocalActivation {
   readonly managedAdmission?: object
 }
 
-export async function activateLocalAccountCommit(database: AccountDatabase, token: ProfileToken, prepared: PreparedLocalActivation, assertMayActivate: () => void = () => {}): Promise<AccountFence> {
+export async function activateLocalAccountCommit(database: AccountDatabase, token: ProfileToken, prepared: PreparedLocalActivation, assertMayActivate: () => void = () => {}, attachment?: AccountActivationAttachment): Promise<AccountFence> {
   assertActiveProfile(token)
   assertMayActivate()
   if (database.accountId !== token.accountId || prepared.version !== 1) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'The prepared operation belongs to another workspace.')
@@ -59,6 +60,7 @@ export async function activateLocalAccountCommit(database: AccountDatabase, toke
   const { prepareSelectedV1Check } = await import('../workspace/account-selection')
   const managedSelection = managedAdmission ? (await import('../workspace/account-local-store')).accountLocalActivationCheck(database, token, prepared) : undefined
   const selection = managedSelection ?? await prepareSelectedV1Check(database, token, { ...prepared, validatedEvidence })
+  const attached = accountAttachmentCheck(database, token, prepared, attachment)
   const signal = profileSignal(token)
   const fence: AccountFence = { key: 'active', headRevision: (prepared.expected?.headRevision ?? -1) + 1, head: prepared.head }
   if (!Number.isSafeInteger(fence.headRevision)) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'The local revision limit has been reached.')
@@ -72,6 +74,7 @@ export async function activateLocalAccountCommit(database: AccountDatabase, toke
       assertActiveProfile(token)
       const active = await database.profileMeta.get('active')
       if (JSON.stringify(active) !== JSON.stringify(prepared.expected)) throw new WorkspaceError('LOCAL_REVISION_CONFLICT', 'This account changed in another tab. Reload before saving.')
+      await attached?.recheckAndRetireInTransaction()
       if (prepared.requireSettledSync && (await database.outbox.count() || await database.syncState.get('publication'))) throw new WorkspaceError('LOCAL_REVISION_CONFLICT', 'Finish syncing before restoring this account.')
       await managedSelection?.installInlineInTransaction()
       for (const record of prepared.records) {
@@ -112,6 +115,7 @@ export async function activateLocalAccountCommit(database: AccountDatabase, toke
         await database.syncState.add(capture)
       }
       await selection.recheckSourceCapturesInTransaction()
+      await attached?.installInTransaction()
       assertActiveProfile(token)
       await database.documentHeads.put(prepared.head)
       if (prepared.intent) {

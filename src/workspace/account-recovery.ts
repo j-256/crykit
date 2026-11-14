@@ -341,5 +341,6 @@ export function createAccountRecoveryService(token: ProfileToken) {
     await reconcilePoint(completed)
     return completed
   }
-  return { prepare: (operationId: string, snapshot: WorkspaceSnapshot) => prepare(operationId, snapshot), prepareSuccessor, bind, supersede, cancelPreparation, complete, resume: (operationId: string) => useDatabase(database => resumeIn(database, operationId)), list, capture }
+  const hasPreparation = (operationId: string) => useDatabase(async database => !!await readJournal(database, operationId))
+  return { hasPreparation, prepare: (operationId: string, snapshot: WorkspaceSnapshot) => prepare(operationId, snapshot), prepareSuccessor, bind, supersede, cancelPreparation, complete, resume: (operationId: string) => useDatabase(database => resumeIn(database, operationId)), list, capture }
 }
