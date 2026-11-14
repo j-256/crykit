@@ -235,3 +235,35 @@ it.each(['interrupted','late-writer'] as const)('finishes the original partial s
   expect(events.filter(value=>value.kind==='share-stopped')).toEqual([event])
   expect(await f.db.prepare('SELECT id FROM accounts WHERE id=?').bind(owner.accountId).first()).toBeNull()
 })
+
+it('deletionRemovesPendingRecoveryOwnershipAndCancelledPreparationMarkers',async()=>{
+  const {id}=await import('../sync/testing')
+  const f=await fixture(),signed=await customer(f),item=await prepared(f,signed),operationId=id(),capability=token()
+  expect((await post(f,'sync/recoveries',{version:1,operationId,revisions:[item.descriptor],reservedBytes:33},signed.headers)).status).toBe(200)
+  expect((await post(f,`sync/recoveries/${operationId}/seal`,{version:1},signed.headers)).status).toBe(200)
+  const cancelled=id(),unused={...item.descriptor,uploadId:id(),revisionId:id(),documentId:id()}
+  expect((await post(f,'sync/recoveries',{version:1,operationId:cancelled,revisions:[unused],reservedBytes:33},signed.headers)).status).toBe(200)
+  expect((await post(f,`sync/recoveries/${cancelled}/cancel`,{version:1},signed.headers)).status).toBe(200)
+  await f.request('/__accounts/control/initialize-revocations',{method:'POST',headers:{'content-type':'application/json'},body:'{}'})
+  expect((await start(f,signed,capability)).status).toBe(202)
+  expect(await drain(f,capability)).toEqual({state:'complete',phase:'complete'})
+  for(const table of ['account_recoveries','recovery_revisions','cancelled_recoveries','upload_reservations']) expect(await f.db.prepare(`SELECT COUNT(*) n FROM ${table} WHERE account_id=?`).bind(signed.accountId).first('n')).toBe(0)
+  expect((await f.objects.list()).objects.map(object=>object.size)).toEqual([32])
+})
+
+it('resumesALegacyMetadataCursorWithoutSkippingPreexistingAccountOwnership',async()=>{
+  const f=await fixture(),signed=await customer(f),item=await prepared(f,signed),capability=token()
+  expect((await post(f,'sync/commits',command([item.descriptor]),signed.headers)).status).toBe(200)
+  await f.request('/__accounts/control/initialize-revocations',{method:'POST',headers:{'content-type':'application/json'},body:'{}'})
+  expect((await start(f,signed,capability)).status).toBe(202)
+  f.failNext('deletion.metadata.before')
+  for(let step=0;step<80 && !(await f.events()).some(event=>event.stage==='deletion.metadata.before');step++){await f.runJobs();f.advance(60_000)}
+  expect(await f.db.prepare("SELECT phase FROM service_jobs WHERE type='deletion'").first('phase')).toBe('metadata')
+  // Model a pre-migration cursor after the original first five ownership tables were removed
+  for(const table of ['publication_borrows','publication_certificates','publication_pins','publication_progress','publication_work']) await f.db.prepare(`DELETE FROM ${table} WHERE account_id=?`).bind(signed.accountId).run()
+  await f.db.prepare("UPDATE service_jobs SET cursor='5' WHERE type='deletion'").run()
+  expect(await f.db.prepare('SELECT COUNT(*) n FROM mutation_receipts WHERE account_id=?').bind(signed.accountId).first('n')).toBe(1)
+  expect(await drain(f,capability)).toEqual({state:'complete',phase:'complete'})
+  for(const table of ['mutation_receipts','sync_revisions','upload_reservations','account_recoveries','recovery_revisions','cancelled_recoveries','superseded_recoveries']) expect(await f.db.prepare(`SELECT COUNT(*) n FROM ${table} WHERE account_id=?`).bind(signed.accountId).first('n')).toBe(0)
+  expect(await f.db.prepare('SELECT id FROM accounts WHERE id=?').bind(signed.accountId).first()).toBeNull()
+})

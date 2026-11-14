@@ -1,3 +1,4 @@
+import { recoveryPublicationGuard } from './recovery'
 import type { CommitRequest, CommitReceipt, RevisionDescriptor } from '../../src/account/protocol'
 import { uploadReservationMs, CommitRequestSchema, CommitContinuationSchema } from '../../src/account/protocol'
 import { randomId } from '../auth/identity'
@@ -36,6 +37,7 @@ async function validateDescriptors(principal: CustomerPrincipal, input: CommitRe
   }
   for (const revision of input.revisions) {
     if (revision.accountId !== principal.accountId) throw new ApiFailure('NOT_FOUND')
+    if (await context.env.DB!.prepare('SELECT 1 FROM upload_reservations WHERE account_id=? AND upload_id=? AND recovery_operation_id IS NOT NULL').bind(principal.accountId, revision.uploadId).first()) throw new ApiFailure('INTEGRITY_FAILED')
     visit(revision.revisionId)
     const old = await context.env.DB!.prepare('SELECT descriptor FROM sync_revisions WHERE account_id = ? AND revision_id = ?').bind(principal.accountId, revision.revisionId).first<RevisionRow>()
     if (old && old.descriptor !== JSON.stringify(revision)) throw new ApiFailure('IDEMPOTENCY_MISMATCH')
@@ -82,7 +84,9 @@ async function prepareClosure(principal: CustomerPrincipal, input: CommitRequest
       AND NOT EXISTS (SELECT 1 FROM publication_borrows WHERE account_id = ? AND mutation_id = ?)`
     const initializationGuard = work ? `${abandonedGuard} AND ${emptyProof}` : 'NOT EXISTS (SELECT 1 FROM publication_work WHERE account_id = ? AND mutation_id = ?)'
     const initializationBindings = work ? [...abandonedBindings, accountId, input.mutationId, accountId, input.mutationId] : [accountId, input.mutationId]
-    await syncBatch(principal, initializationGuard, initializationBindings, statements, context, 'SERVICE_UNAVAILABLE')
+    // Claim sync ownership atomically before recovery can adopt an otherwise unpublished upload
+    const ownershipGuard = `NOT EXISTS(SELECT 1 FROM json_each(?) j JOIN recovery_revisions r ON r.account_id=? AND r.revision_id=json_extract(j.value,'$.revisionId')) AND NOT EXISTS(SELECT 1 FROM json_each(?) j JOIN upload_reservations u ON u.account_id=? AND u.revision_id=json_extract(j.value,'$.revisionId') WHERE u.recovery_operation_id IS NOT NULL)`
+    await syncBatch(principal, `${initializationGuard} AND ${ownershipGuard}`, [...initializationBindings, JSON.stringify(roots), accountId, JSON.stringify(roots), accountId], statements, context, 'SERVICE_UNAVAILABLE')
     work = (await readWork())!
   }
   if (!work.work_id) {
@@ -141,6 +145,8 @@ export async function commitRevisions(principal: CustomerPrincipal, input: Commi
   const prior = await db.prepare('SELECT digest,receipt FROM mutation_receipts WHERE account_id = ? AND mutation_id = ?').bind(accountId, input.mutationId).first<{ digest: string; receipt: string }>()
   // Reconcile accepted identity before applying a later CAS or renewing an expired upload
   if (prior) { if (prior.digest !== requestDigest) throw new ApiFailure('IDEMPOTENCY_MISMATCH'); return JSON.parse(prior.receipt) as CommitReceipt }
+  const recoveryGuard = recoveryPublicationGuard(accountId, input, requestDigest)
+  if (!await db.prepare(`SELECT ${recoveryGuard.sql} AS ok`).bind(...recoveryGuard.bindings).first('ok')) throw new ApiFailure('INTEGRITY_FAILED')
   await validateDescriptors(principal, input, context)
   const completedWork = await prepareClosure(principal, input, requestDigest, context)
   for (const head of input.heads) {
@@ -161,12 +167,13 @@ export async function commitRevisions(principal: CustomerPrincipal, input: Commi
     statements.push(db.prepare('INSERT INTO head_history(account_id,document_id,sequence,revision_id) SELECT ?,?,sequence,? FROM account_sequences WHERE account_id = ? AND NOT EXISTS (SELECT 1 FROM sync_documents WHERE account_id = ? AND document_id = ? AND head = ?)').bind(accountId, head.documentId, head.revisionId, accountId, accountId, head.documentId, head.revisionId), db.prepare('INSERT INTO sync_documents(account_id,document_id,head,first_sequence) SELECT ?,?,?,sequence FROM account_sequences WHERE account_id = ? ON CONFLICT(account_id,document_id) DO UPDATE SET head = excluded.head').bind(accountId, head.documentId, head.revisionId, accountId))
   }
   statements.push(db.prepare(`INSERT INTO mutation_receipts(account_id,mutation_id,digest,sequence,receipt,group_json) SELECT ?,?,?,sequence,json_object('version',1,'mutationId',?,'sequence',sequence,'publicationEpoch',publication_epoch,'heads',json(?)),json_object('sequence',sequence,'mutationId',?,'revisions',json_extract(?,'$.revisions'),'heads',json_extract(?,'$.heads')) FROM account_sequences WHERE account_id = ?`).bind(accountId, input.mutationId, requestDigest, input.mutationId, JSON.stringify(input.heads), input.mutationId, commandJson, commandJson, accountId), db.prepare('UPDATE publication_work SET state = ? WHERE account_id = ? AND mutation_id = ?').bind(input.heads.length ? 'accepted' : 'abandoned', accountId, input.mutationId))
+  if (input.recoveryOperationId) statements.push(db.prepare('UPDATE account_recoveries SET accepted_at=? WHERE account_id=? AND operation_id=? AND mutation_id=? AND accepted_at IS NULL').bind(context.now(), accountId, input.recoveryOperationId, input.mutationId))
   if (input.heads.length === 1) statements.push(issueCertificate(db, completedWork, input.heads[0]))
   // Pending work bars cleanup, so completed immutable closure pins stay ready until this
   // transaction activates them; rescanning the graph here would make publication unbounded
   context.checkpoint('sync.commit.before')
   try {
-    await syncBatch(principal, `NOT EXISTS (SELECT 1 FROM json_each(?) r LEFT JOIN upload_reservations u ON u.account_id = ? AND u.upload_id = json_extract(r.value,'$.uploadId') LEFT JOIN storage_generations g ON g.id = u.generation LEFT JOIN sync_revisions existing ON existing.account_id = u.account_id AND existing.revision_id = json_extract(r.value,'$.revisionId') WHERE g.state IS NOT 'ready' OR (existing.descriptor IS NOT NULL AND existing.descriptor <> r.value)) AND ${headMatch} AND (? IS NULL OR COALESCE((SELECT publication_epoch FROM account_sequences WHERE account_id = ?),0) = ?) AND COALESCE((SELECT sequence FROM account_sequences WHERE account_id = ?),0) < ? AND COALESCE((SELECT publication_epoch FROM account_sequences WHERE account_id = ?),0) < ? AND EXISTS (SELECT 1 FROM publication_work WHERE account_id = ? AND mutation_id = ? AND digest = ? AND state = 'complete') AND ${workIdentityGuard} AND NOT EXISTS (SELECT 1 FROM mutation_receipts WHERE account_id = ? AND mutation_id = ?)`, [JSON.stringify(input.revisions), accountId, JSON.stringify(input.expected), accountId, input.expectedPublicationEpoch ?? null, accountId, input.expectedPublicationEpoch ?? null, accountId, Number.MAX_SAFE_INTEGER, accountId, Number.MAX_SAFE_INTEGER, accountId, input.mutationId, requestDigest, ...workIdentityBindings(completedWork), accountId, input.mutationId], statements, context, 'HEAD_CONFLICT')
+    await syncBatch(principal, `${recoveryGuard.sql} AND NOT EXISTS(SELECT 1 FROM publication_pins p JOIN upload_reservations u ON u.account_id=p.account_id AND u.revision_id=p.revision_id WHERE p.account_id=? AND p.mutation_id=? AND u.recovery_operation_id IS NOT NULL) AND NOT EXISTS (SELECT 1 FROM json_each(?) r LEFT JOIN upload_reservations u ON u.account_id = ? AND u.upload_id = json_extract(r.value,'$.uploadId') LEFT JOIN storage_generations g ON g.id = u.generation LEFT JOIN sync_revisions existing ON existing.account_id = u.account_id AND existing.revision_id = json_extract(r.value,'$.revisionId') WHERE g.state IS NOT 'ready' OR (existing.descriptor IS NOT NULL AND existing.descriptor <> r.value)) AND ${headMatch} AND (? IS NULL OR COALESCE((SELECT publication_epoch FROM account_sequences WHERE account_id = ?),0) = ?) AND COALESCE((SELECT sequence FROM account_sequences WHERE account_id = ?),0) < ? AND COALESCE((SELECT publication_epoch FROM account_sequences WHERE account_id = ?),0) < ? AND EXISTS (SELECT 1 FROM publication_work WHERE account_id = ? AND mutation_id = ? AND digest = ? AND state = 'complete') AND ${workIdentityGuard} AND NOT EXISTS (SELECT 1 FROM mutation_receipts WHERE account_id = ? AND mutation_id = ?)`, [...recoveryGuard.bindings, accountId, input.mutationId, JSON.stringify(input.revisions), accountId, JSON.stringify(input.expected), accountId, input.expectedPublicationEpoch ?? null, accountId, input.expectedPublicationEpoch ?? null, accountId, Number.MAX_SAFE_INTEGER, accountId, Number.MAX_SAFE_INTEGER, accountId, input.mutationId, requestDigest, ...workIdentityBindings(completedWork), accountId, input.mutationId], statements, context, 'HEAD_CONFLICT')
   } catch (error) {
     const won = await db.prepare('SELECT digest,receipt FROM mutation_receipts WHERE account_id = ? AND mutation_id = ?').bind(accountId, input.mutationId).first<{ digest: string; receipt: string }>()
     if (won?.digest === requestDigest) return JSON.parse(won.receipt) as CommitReceipt

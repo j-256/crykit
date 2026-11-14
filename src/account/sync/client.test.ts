@@ -143,3 +143,28 @@ it('distinguishes structured remote upload failure from malformed local response
     await expect(client.finishUpload(accountId)).rejects.toMatchObject({ code: 'INTEGRITY_FAILED', remoteResponse: false })
   }
 })
+
+const recoveryDescriptor = { format: 1 as const, accountId, documentId, revisionId: documentId, parents: [], dependencies: [], protected: false, plainBytes: 16, keyEnvelope: { version: 1 as const, algorithm: 'xchacha20poly1305-ietf' as const, nonce: 'A'.repeat(32), ciphertext: 'A'.repeat(64) }, streamHeader: 'A'.repeat(32), uploadId: documentId, chunks: [{ index: 0, cipherBytes: 33, cipherDigest: 'A'.repeat(43) }] }
+const recoveryPoint = { version: 1, operationId: accountId, state: 'pending', sealed: false, reservedBytes: 33, admittedBytes: 18000, revisions: [recoveryDescriptor], createdAt: 1, completedAt: null, expiresAt: null, mutationId: null, acceptedAt: null }
+it('associatesRecoveryResponsesWithTheRequestedOperationAndAccount', async () => {
+  const token = installProfile(accountId,new Uint8Array(32),session), client = new SyncClient(token,new AbortController().signal)
+  const mock = vi.spyOn(globalThis,'fetch')
+  mock.mockResolvedValueOnce(Response.json({...recoveryPoint,operationId:documentId}))
+  await expect(client.sealRecovery(accountId)).rejects.toThrow('INTEGRITY_FAILED')
+  mock.mockResolvedValueOnce(Response.json({version:1,points:[{...recoveryPoint,revisions:[{...recoveryDescriptor,accountId:documentId}]}]}))
+  await expect(client.listRecoveries()).rejects.toThrow('INTEGRITY_FAILED')
+  mock.mockResolvedValueOnce(Response.json(recoveryPoint))
+  await expect(client.reserveRecovery({version:1,operationId:accountId,revisions:[recoveryDescriptor],reservedBytes:33})).resolves.toEqual(recoveryPoint)
+  expect(mock).toHaveBeenLastCalledWith('/api/v1/sync/recoveries',expect.objectContaining({method:'POST',headers:expect.objectContaining({'x-csrf-token':'synthetic'})}))
+})
+it('rejectsRecoveryResultsWhenTheSessionChangesDuringParsing', async () => {
+  const token = installProfile(accountId,new Uint8Array(32),session), client = new SyncClient(token,new AbortController().signal)
+  vi.spyOn(globalThis,'fetch').mockResolvedValueOnce(Response.json(recoveryPoint))
+  const parse = JSON.parse
+  vi.spyOn(JSON,'parse').mockImplementation((text,...rest)=>{
+    const result = parse(text,...rest)
+    if(result?.operationId===accountId) setProfileSession(token,{...session})
+    return result
+  })
+  await expect(client.sealRecovery(accountId)).rejects.toThrow('PROFILE_SESSION_CHANGED')
+})

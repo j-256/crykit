@@ -2,7 +2,7 @@ import { afterEach, expect, it } from 'vitest'
 import { randomBytes } from 'node:crypto'
 import { plainChunkBytes, streamOverheadBytes } from '../../src/account/protocol'
 import { createServiceFixture, type ServiceFixture } from '../testing/service-fixture'
-import { customer, prepared, post, command, id } from '../sync/testing'
+import { customer, loginCustomer, prepared, post, command, id } from '../sync/testing'
 import { createServiceContext, type ServiceContext } from '../context'
 import { initializeRevocationLedger } from './ledger'
 import {
@@ -927,3 +927,77 @@ it('ownerProjectCeilingRejectsLiveCaptureAndGrowthWithoutLosingProtectedData', a
   expect(expired).toBe(true)
   expect(await readSnapshotManifest(c, retained)).toMatchObject({ snapshotId: retained })
 }, 90000)
+
+it('restoresRecoveryOwnershipWithRemappedGenerationsAndCancelledOperationMarkers', async () => {
+  const f=await fixture(),c=context(f),owner=await customer(f),item=await prepared(f,owner),operationId=id()
+  expect((await post(f,'sync/recoveries',{version:1,operationId,revisions:[item.descriptor],reservedBytes:33},owner.headers)).status).toBe(200)
+  expect((await post(f,`sync/recoveries/${operationId}/seal`,{version:1},owner.headers)).status).toBe(200)
+  const cancelled=id(),unused={...item.descriptor,uploadId:id(),revisionId:id(),documentId:id()}
+  expect((await post(f,'sync/recoveries',{version:1,operationId:cancelled,revisions:[unused],reservedBytes:33},owner.headers)).status).toBe(200)
+  expect((await post(f,`sync/recoveries/${cancelled}/cancel`,{version:1},owner.headers)).status).toBe(200)
+  const retired=id(),oldSnapshot=await prepared(f,owner),targetUpload=await prepared(f,owner)
+  expect((await post(f,'sync/recoveries',{version:1,operationId:retired,revisions:[oldSnapshot.descriptor],reservedBytes:33},owner.headers)).status).toBe(200)
+  expect((await post(f,`sync/recoveries/${retired}/seal`,{version:1},owner.headers)).status).toBe(200)
+  const oldPublication={...command([targetUpload.descriptor]),expectedPublicationEpoch:0,recoveryOperationId:retired}
+  expect((await post(f,`sync/recoveries/${retired}/bind`,{version:1,operationId:retired,publication:oldPublication},owner.headers)).status).toBe(200)
+  expect((await post(f,'sync/commits',command([targetUpload.descriptor]),owner.headers)).status).toBe(200)
+  const head={documentId:targetUpload.descriptor.documentId,revisionId:targetUpload.descriptor.revisionId}
+  const successor={...command([],[head],[head]),expectedPublicationEpoch:1,recoveryOperationId:operationId}
+  expect((await post(f,`sync/recoveries/${operationId}/bind`,{version:1,operationId,publication:successor},owner.headers)).status).toBe(200)
+  expect((await post(f,`sync/recoveries/${retired}/supersede`,{version:1,operationId:retired,mutationId:oldPublication.mutationId,successorOperationId:operationId,successorMutationId:successor.mutationId},owner.headers)).status).toBe(200)
+  const retryOperation=id(),retryUpload=await prepared(f,owner)
+  expect((await post(f,'sync/recoveries',{version:1,operationId:retryOperation,revisions:[retryUpload.descriptor],reservedBytes:33},owner.headers)).status).toBe(200)
+  const {cleanupExpiredUploads,fenceGeneration}=await import('../sync/storage')
+  const retryGeneration=await f.db.prepare('SELECT generation FROM upload_reservations WHERE upload_id=?').bind(retryUpload.input.uploadId).first<string>('generation')
+  await f.db.prepare('UPDATE storage_generations SET expires_at=0 WHERE id=?').bind(retryGeneration).run()
+  expect(await cleanupExpiredUploads(c)).toBe(1)
+  expect(await fenceGeneration(retryGeneration!,c)).toBe(true)
+  expect(await f.db.prepare('SELECT reserved_metadata FROM quota_counters WHERE scope=?').bind(owner.accountId).first('reserved_metadata')).toBe(65)
+  const original=await f.db.prepare('SELECT generation FROM recovery_revisions WHERE operation_id=?').bind(operationId).first<string>('generation')
+  await initializeRevocationLedger(c)
+  const originalCapacity=await f.db.prepare('SELECT capacity_bytes FROM accounts WHERE id=?').bind(owner.accountId).first<number>('capacity_bytes')
+  await f.db.prepare('UPDATE accounts SET capacity_bytes=1 WHERE id=?').bind(owner.accountId).run()
+  const snapshot=await capture(f),{target,c:targetContext}=await staged(f)
+  await restore(targetContext,snapshot)
+  const restored=await target.db.prepare('SELECT r.generation,u.generation upload_generation,u.recovery_operation_id FROM recovery_revisions r JOIN upload_reservations u USING(account_id,upload_id) WHERE r.operation_id=?').bind(operationId).first<{generation:string;upload_generation:string;recovery_operation_id:string}>()
+  expect(restored!.generation).not.toBe(original)
+  expect(restored!.generation).toBe(restored!.upload_generation)
+  expect(restored!.recovery_operation_id).toBe(operationId)
+  expect(await target.db.prepare('SELECT sealed,state FROM account_recoveries WHERE operation_id=?').bind(operationId).first()).toEqual({sealed:1,state:'pending'})
+  expect(await target.db.prepare('SELECT operation_id FROM cancelled_recoveries').first('operation_id')).toBe(cancelled)
+  expect(await target.db.prepare('SELECT operation_id,successor_operation_id,successor_mutation_id FROM superseded_recoveries').first()).toEqual({operation_id:retired,successor_operation_id:operationId,successor_mutation_id:successor.mutationId})
+  const key=await target.db.prepare('SELECT object_key FROM upload_chunks WHERE generation=?').bind(restored!.generation).first<string>('object_key')
+  expect(new Uint8Array(await (await target.objects.get(key!))!.arrayBuffer())).toEqual(new Uint8Array(item.bytes))
+  expect(await target.db.prepare('SELECT reserved_metadata FROM quota_counters WHERE scope=?').bind(owner.accountId).first('reserved_metadata')).toBe(65)
+  await closeServiceForRecovery(c)
+  await promoteServiceRestore(targetContext,c)
+  expect(await target.db.prepare('SELECT capacity_bytes FROM accounts WHERE id=?').bind(owner.accountId).first('capacity_bytes')).toBe(1)
+  await target.db.prepare('UPDATE accounts SET capacity_bytes=? WHERE id=?').bind(originalCapacity,owner.accountId).run()
+  const fresh=await loginCustomer(target)
+  const beforeQuota=await target.db.prepare("SELECT scope,reserved_metadata,payload_bytes FROM quota_counters WHERE scope='global' OR scope=? ORDER BY scope").bind(owner.accountId).all<{scope:string;reserved_metadata:number;payload_bytes:number}>()
+  expect((await post(target,'sync/uploads',retryUpload.input,fresh.headers)).status).toBe(200)
+  for(const before of beforeQuota.results) expect(await target.db.prepare('SELECT reserved_metadata,payload_bytes FROM quota_counters WHERE scope=?').bind(before.scope).first()).toEqual({reserved_metadata:before.reserved_metadata-65,payload_bytes:before.payload_bytes+97})
+  expect((await post(target,`sync/recoveries/${retryOperation}/cancel`,{version:1},fresh.headers)).status).toBe(200)
+  const revived=await target.db.prepare('SELECT generation FROM upload_reservations WHERE upload_id=?').bind(retryUpload.input.uploadId).first<string>('generation')
+  const {claimGenerationCleanup}=await import('../sync/storage')
+  expect(await claimGenerationCleanup(owner.accountId,revived!,targetContext)).toBe(true)
+  expect(await fenceGeneration(revived!,targetContext)).toBe(true)
+  for(const before of beforeQuota.results) expect(await target.db.prepare('SELECT reserved_metadata,payload_bytes FROM quota_counters WHERE scope=?').bind(before.scope).first()).toEqual({reserved_metadata:before.reserved_metadata-65,payload_bytes:before.payload_bytes+32})
+},90_000)
+
+it('migratesExistingUploadQuotaAndAcceptsOnlyTheExactLegacyTupleWidth',async()=>{
+  const f=await createServiceFixture({migrationThrough:'0015-admin-query-indexes.sql'})
+  fixtures.push(f)
+  const account=id(),upload=id(),revision=id(),document=id(),generation=id()
+  await f.db.prepare('INSERT INTO upload_reservations(account_id,upload_id,document_id,revision_id,request_digest,request_json,generation,descriptor_reserve) VALUES(?,?,?,?,?,?,?,?)').bind(account,upload,document,revision,'digest','{}',generation,100).run()
+  const before=await f.db.prepare('SELECT metadata_bytes FROM quota_counters WHERE scope=?').bind(account).first<number>('metadata_bytes')
+  const {readFile}=await import('node:fs/promises'),{unstable_splitSqlQuery:split}=await import('wrangler')
+  await f.db.batch(split(await readFile('worker/migrations/0016-account-recovery.sql','utf8')).map(sql=>f.db.prepare(sql)))
+  expect(await f.db.prepare('SELECT metadata_bytes FROM quota_counters WHERE scope=?').bind(account).first('metadata_bytes')).toBe(before!+5)
+  expect(await f.db.prepare('SELECT recovery_operation_id FROM upload_reservations').first('recovery_operation_id')).toBeNull()
+  const {normalizeRecoveryTuple}=await import('./recovery-projection')
+  const legacy=[account,upload,document,revision,'digest','{}',generation,100]
+  expect(normalizeRecoveryTuple('upload_reservations',legacy)).toEqual([...legacy,null])
+  expect(()=>normalizeRecoveryTuple('upload_reservations',legacy.slice(1))).toThrow('INTEGRITY_FAILED')
+  expect(legacy).toHaveLength(8)
+})

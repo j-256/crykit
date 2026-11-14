@@ -1,3 +1,4 @@
+import { cleanupExpiredRecoveries } from '../sync/recovery'
 import { cleanupAdminCommands } from '../admin/audit'
 import { cleanupAdminSessions } from '../admin/session'
 import type { ServiceContext } from '../context'
@@ -9,6 +10,7 @@ const auditRetentionMs = 90 * 24 * 60 * 60 * 1000
 export async function runCleanup(job: ServiceJob, context: ServiceContext): Promise<void> {
   // Accepted pins and unfinished commits remain authority; age alone never retires history
   await reconcileExpiredPublicationWork(context)
+  await cleanupExpiredRecoveries(context)
   await cleanupExpiredUploads(context)
   await context.env.DB!.prepare('DELETE FROM service_audit WHERE rowid IN (SELECT rowid FROM service_audit WHERE created_at < ? LIMIT ?)').bind(context.now() - auditRetentionMs, serviceBatchLimit).run()
   await cleanupAdminSessions(context)

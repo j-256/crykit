@@ -20,6 +20,9 @@ export async function customer(f: ServiceFixture, name = 'sync') {
   expect((await post(f, 'auth/signup/finish', { attemptId: start.attemptId, transactionId: id(), registrationRecord: registered.record, accountEnvelope: { version: 1, algorithm: 'xchacha20poly1305-ietf', nonce: randomBytes(24).toString('base64url'), ciphertext: randomBytes(48).toString('base64url') }, remember: true })).status).toBe(200)
   await f.runJobs()
   expect((await post(f, 'auth/verify', { capability: (await f.emails()).at(-1)!.capability })).status).toBe(200)
+  return loginCustomer(f, name)
+}
+export async function loginCustomer(f: ServiceFixture, name = 'sync') {
   const login = await opaque.startLogin(password)
   const challenge = await (await post(f, 'auth/login/start', { email: `${name}@example.org`, role: 'password', startLoginRequest: login.request })).json() as { attemptId: string; credentialId: string; loginResponse: string }
   const finish = await opaque.finishLogin(login.state, challenge.loginResponse, password, challenge.credentialId)

@@ -1,3 +1,4 @@
+import { RecoverySupersessionSchema, RecoverySupersessionReceiptSchema, type RecoverySupersession, MAX_RECOVERY_RESPONSE_BYTES, RECOVERY_CONTROL_BYTES, RecoveryBindingSchema, RecoveryListSchema, RecoveryPointSchema, RecoveryRemovalSchema, RecoveryReserveSchema, type RecoveryBinding, type RecoveryPoint, type RecoveryReserve } from '../recovery-protocol'
 import { CleanupPreviewSchema, CleanupResultSchema, type CleanupRequest } from '../storage-protocol'
 import { z } from 'zod'
 import { serviceNoticeRequest } from '../service-notice'
@@ -80,6 +81,53 @@ export class SyncClient {
     try { return schema.parse(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))) }
     catch { throw new SyncError('INTEGRITY_FAILED') }
   }
+  private async recoveryPointRequest(path: string, operationId: string, input: unknown): Promise<RecoveryPoint> {
+    return withProfileSession(this.token, async () => {
+      const result = await this.json(path, RecoveryPointSchema, 'POST', input, maxCommitJsonBytes + RECOVERY_CONTROL_BYTES)
+      if (result.operationId !== operationId || result.revisions.some(r => r.accountId !== this.token.accountId)) throw new SyncError('INTEGRITY_FAILED')
+      this.signal.throwIfAborted()
+      return result
+    })
+  }
+  reserveRecovery(input: RecoveryReserve): Promise<RecoveryPoint> {
+    RecoveryReserveSchema.parse(input)
+    return this.recoveryPointRequest('recoveries', input.operationId, input)
+  }
+  sealRecovery(operationId: string): Promise<RecoveryPoint> { return this.recoveryPointRequest(`recoveries/${OpaqueIdSchema.parse(operationId)}/seal`, operationId, { version: 1 }) }
+  bindRecoveryPublication(input: RecoveryBinding): Promise<RecoveryPoint> {
+    RecoveryBindingSchema.parse(input)
+    return this.recoveryPointRequest(`recoveries/${input.operationId}/bind`, input.operationId, input)
+  }
+  completeRecovery(operationId: string): Promise<RecoveryPoint> { return this.recoveryPointRequest(`recoveries/${OpaqueIdSchema.parse(operationId)}/complete`, operationId, { version: 1 }) }
+  async listRecoveries() {
+    return withProfileSession(this.token, async () => {
+      const result = await this.json('recoveries', RecoveryListSchema, 'GET', undefined, MAX_RECOVERY_RESPONSE_BYTES)
+      if (result.points.some(point => point.revisions.some(r => r.accountId !== this.token.accountId))) throw new SyncError('INTEGRITY_FAILED')
+      this.signal.throwIfAborted()
+      return result
+    })
+  }
+  recoveryChunk(operationId: string, revisionId: string, index: number): Promise<Uint8Array> {
+    return this.request(`recoveries/${OpaqueIdSchema.parse(operationId)}/revisions/${OpaqueIdSchema.parse(revisionId)}/chunks/${indexPath(index)}`, 'GET', undefined, MAX_CHUNK_BYTES)
+  }
+  async supersedeRecoveryPublication(input: RecoverySupersession) {
+    RecoverySupersessionSchema.parse(input)
+    return withProfileSession(this.token, async () => {
+      const result = await this.json(`recoveries/${input.operationId}/supersede`, RecoverySupersessionReceiptSchema, 'POST', input)
+      if (result.operationId !== input.operationId || result.successorOperationId !== input.successorOperationId || result.successorMutationId !== input.successorMutationId) throw new SyncError('INTEGRITY_FAILED')
+      this.signal.throwIfAborted()
+      return result
+    })
+  }
+  private recoveryRemovalRequest(operationId: string, action: 'remove' | 'cancel') {
+    return withProfileSession(this.token, async () => {
+      const result = await this.json(`recoveries/${OpaqueIdSchema.parse(operationId)}/${action}`, RecoveryRemovalSchema, 'POST', { version: 1 })
+      this.signal.throwIfAborted()
+      return result
+    })
+  }
+  removeRecovery(operationId: string) { return this.recoveryRemovalRequest(operationId, 'remove') }
+  cancelRecoveryPreparation(operationId: string) { return this.recoveryRemovalRequest(operationId, 'cancel') }
   previewCleanup(ref: import('../../persistence/account-database').CipherRef) { return this.json('cleanup/preview', CleanupPreviewSchema, 'POST', { version: 1, ref }) }
   cleanup(input: CleanupRequest) { return this.json('cleanup', CleanupResultSchema, 'POST', input) }
   startUpload(input: UploadStart): Promise<UploadReady> { UploadStartSchema.parse(input); return this.json('uploads', UploadReadySchema, 'POST', input) }

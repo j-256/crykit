@@ -14,7 +14,10 @@ import { advanceJob, jobBatch, jobGuard, serviceBatchLimit, type ServiceJob } fr
 
 const statusTokenSchema = base64urlSchema(digestBytes)
 const confirmationSchema = z.strictObject({ confirmation: z.literal(deletionConfirmation) })
-const metadataTables = ['publication_borrows','publication_certificates','publication_pins','publication_progress','publication_work','mutation_receipts','head_history','scan_leases','sync_dependencies','sync_revisions','sync_documents','account_sequences','share_snapshots','share_mutations','shares','storage_generations','upload_reservations','device_approvals','credential_registrations','pending_email_changes','account_security_notices','pending_registrations','auth_attempts','auth_transactions','customer_sessions','devices'] as const
+// Persisted metadata cursors index this order, so keep existing tables in relative order
+// Prefix only new tables: older deleting accounts cannot acquire their ownership
+// Legacy cursors can repeat cleared tables but cannot skip preexisting ownership
+const metadataTables = ['superseded_recoveries','cancelled_recoveries','recovery_revisions','account_recoveries','publication_borrows','publication_certificates','publication_pins','publication_progress','publication_work','mutation_receipts','head_history','scan_leases','sync_dependencies','sync_revisions','sync_documents','account_sequences','share_snapshots','share_mutations','shares','storage_generations','upload_reservations','device_approvals','credential_registrations','pending_email_changes','account_security_notices','pending_registrations','auth_attempts','auth_transactions','customer_sessions','devices'] as const
 async function tokenDigest(token: string) {
   if (!statusTokenSchema.safeParse(token).success) throw new ApiFailure('NOT_FOUND')
   return digest(encoder.encode(`deletion-status:v1:${token}`))
