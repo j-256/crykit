@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { MOBILE_TEST_TAG } from './test-tags'
+import { waitForPlannerReady } from './local-data-helpers'
 
 async function readOriginal(page: Page) {
   return page.evaluate(() => new Promise<string>((resolve, reject) => {
@@ -40,10 +41,12 @@ test('old-format storage has one startup decision and survives starting a new wo
   await expect(page.getByRole('heading', { name: 'A new source catalog', exact: true })).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
   await page.getByRole('button', { name: 'Start new workspace', exact: true }).click()
+  await waitForPlannerReady(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
   expect(await readOriginal(page)).toBe('Synthetic original data')
   await page.reload()
+  await waitForPlannerReady(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await expect(page.getByRole('alert')).toHaveCount(0)
   expect(await readOriginal(page)).toBe('Synthetic original data')
