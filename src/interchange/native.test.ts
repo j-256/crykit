@@ -21,6 +21,12 @@ describe('complete source backup payloads', () => {
     expect(Object.isFrozen(entity.sources)).toBe(true)
     expect(() => { (entity as { name: string }).name = 'Altered guide' }).toThrow()
 
+    const next = await previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [GUIDE_CATALOG] }, mutateLocalData: data => { data.revision = 7 } }), 'next.zip')
+    expect(next.proposed.catalogs[0]).toBe(catalog)
+    expect(next.proposed.localData.revision).toBe(7)
+    const unexpected = { ...GUIDE_CATALOG, unchecked: 'Unknown catalog field' }
+    await expect(previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [unexpected] } }), 'unexpected.zip')).rejects.toThrow(/unsupported shape/)
+
     const changed = structuredClone(GUIDE_CATALOG)
     const changedEntity = Object.values(changed.entities)[0]! as { name: string }
     changedEntity.name = 'Altered guide'

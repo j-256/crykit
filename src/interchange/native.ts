@@ -22,7 +22,7 @@ import {
   NativeCatalogSnapshotSchema,
   NativeHistorySchema,
   NativeManifestSchema,
-  NativePayloadSchema,
+  NativePayloadEnvelopeSchema,
   NativeLocalDataSchema,
 } from './native-schema'
 import { catalogSnapshotKey } from './identity'
@@ -51,6 +51,8 @@ const validatedImmutableCatalogs = new WeakSet<CatalogSnapshot>()
 const frozenCatalogValues = new WeakSet<object>()
 const immutableExpandedSources = new WeakMap<CatalogSnapshot, { readonly baseline: CatalogSnapshot; readonly compact: CatalogSnapshot }>()
 const immutableLegacyComparisons = new WeakMap<CatalogSnapshot, WeakMap<CatalogSnapshot, boolean>>()
+const NATIVE_CATALOG_CACHE_LIMIT = 16
+const admittedCatalogBodies: WeakRef<CatalogSnapshot>[] = []
 
 function freezeCatalogValue(value: unknown): void {
   if (!value || typeof value !== 'object' || frozenCatalogValues.has(value)) return
@@ -64,7 +66,35 @@ function freezeCatalogValue(value: unknown): void {
 function retainSchemaValidatedCatalog(catalog: CatalogSnapshot): CatalogSnapshot {
   freezeCatalogValue(catalog)
   validatedImmutableCatalogs.add(catalog)
+  admittedCatalogBodies.push(new WeakRef(catalog))
+  if (admittedCatalogBodies.length > NATIVE_CATALOG_CACHE_LIMIT) admittedCatalogBodies.shift()
   return catalog
+}
+
+// Both sides are complete JSON values, and the candidate has already passed bounded parsing
+// Compare every key and value without canonicalization copies; IDs and claimed digests never establish equality
+function sameJsonBody(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true
+  if (!left || !right || typeof left !== 'object' || typeof right !== 'object' || Array.isArray(left) !== Array.isArray(right)) return false
+  const keys = Object.keys(left)
+  if (keys.length !== Object.keys(right).length) return false
+  return keys.every(key => Object.hasOwn(right, key) && sameJsonBody((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key]))
+}
+
+function readNativeCatalog(value: unknown): CatalogSnapshot {
+  // Weak handles bound lookup work without keeping a closed account's catalog bodies alive
+  // Archive checks precede this reuse, and source integrity and the current planner graph still follow it
+  for (let index = admittedCatalogBodies.length - 1; index >= 0; index--) {
+    const catalog = admittedCatalogBodies[index]!.deref()
+    if (!catalog) { admittedCatalogBodies.splice(index, 1); continue }
+    if (sameJsonBody(value, catalog)) {
+      admittedCatalogBodies.push(...admittedCatalogBodies.splice(index, 1))
+      return catalog
+    }
+  }
+  const result = NativeCatalogSnapshotSchema.safeParse(value)
+  if (!result.success) schemaError('The native backup catalog has an unsupported shape', { issues: result.error.issues.slice(0, 20).map(issue => `${issue.path.join('.')}: ${issue.message}`) })
+  return retainSchemaValidatedCatalog(result.data as unknown as CatalogSnapshot)
 }
 
 export function immutableCatalogSnapshot(catalog: CatalogSnapshot): CatalogSnapshot {
@@ -961,16 +991,16 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
     manifest.payload,
     NATIVE_BACKUP_JSON_LIMITS,
   )
-  const payloadResult = NativePayloadSchema.safeParse(payloadValue)
+  const payloadResult = NativePayloadEnvelopeSchema.safeParse(payloadValue)
   if (!payloadResult.success) {
     throw new AppDataError('schema-mismatch', 'The native backup payload has an unsupported shape', {
       recoverable: true,
       details: { issues: payloadResult.error.issues.slice(0, 20).map((issue) => `${issue.path.join('.')}: ${issue.message}`) },
     })
   }
-  // NativePayloadSchema has checked every body; retain that admission across the graph checks below
-  // Frozen membership and nested values permit cache reuse without trusting IDs or caller-supplied digests
-  const allCatalogs = Object.freeze(payloadResult.data.catalogs.map(catalog => retainSchemaValidatedCatalog(catalog as unknown as CatalogSnapshot)))
+  // Each complete body either matches a format-owned immutable body or passes full schema admission
+  // Frozen membership and nested values permit reuse without trusting IDs or caller-supplied digests
+  const allCatalogs = Object.freeze(payloadResult.data.catalogs.map(readNativeCatalog))
   const catalogs = validateCatalogs(allCatalogs)
   const validationKeys = includeUnavailableModCatalogs(catalogs.keys, unavailableModCatalogKeys([payloadResult.data.localData as unknown as LocalData, ...(payloadResult.data.history ?? []).flatMap(entry => [entry.before, entry.after]) as unknown as LocalData[]], allCatalogs))
   const localData = validateLocalData(payloadResult.data.localData, validationKeys, 'localData', catalogs.entityKinds)
