@@ -1,9 +1,15 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { validateBuildContent } from '../domain/build-validity'
+import { asId } from '../domain/core'
+import { createTestLocalData, TEST_GAME_SETUP_REVISION_ID } from '../domain/test-helpers'
+import type { GameSetupRevision } from '../domain/types'
+import { BuildModFiles } from './BuildModFiles'
 import { BuildValidity } from './BuildValidity'
 
 const report = validateBuildContent({ primaryClass: null, secondaryClass: null, equipment: {}, passives: [], contextAssumptions: [] }, undefined, [], () => undefined)
+const setup: GameSetupRevision = { ...createTestLocalData().gameSetups[TEST_GAME_SETUP_REVISION_ID]!, modSourceReceipts: [{ catalogId: asId('synthetic-mod'), catalogRevisionId: asId('synthetic-mod-v1'), checksum: 'synthetic', title: 'Synthetic equipment mod' }] }
+const modFiles = <BuildModFiles setup={setup} catalogs={[]} onOpen={() => undefined}/>
 
 describe('Build draft and compatibility feedback', () => {
   it('does not turn an empty compatible draft into a green completed Build', () => {
@@ -48,6 +54,28 @@ describe('Build draft and compatibility feedback', () => {
     expect(markup).toContain('Review Class')
     expect(markup).toContain('Review passives')
     expect(markup).toContain('Restore the missing class and passive definitions')
+  })
+
+  it('consolidates mod recovery without hiding confirmed conflicts or selection review', () => {
+    const markup = renderToStaticMarkup(<BuildValidity modFiles={modFiles} onUploadMod={() => undefined} onReviewField={() => undefined} fieldLabels={{ body: 'Body' }} report={{ ...report, status: 'invalid', issues: [
+      { code: 'EQUIPMENT_ROLE', status: 'invalid', message: 'Synthetic weapon does not fit Body', slotId: 'body' },
+      { code: 'EQUIPMENT_DEFINITION', status: 'undetermined', message: 'Synthetic armor definition is unavailable', slotId: 'body' },
+      { code: 'PP_COST_UNKNOWN', status: 'undetermined', message: 'Selected passive costs are unresolved' },
+    ] }}/>)
+    expect(markup.indexOf('Synthetic weapon does not fit Body')).toBeLessThan(markup.indexOf('<details'))
+    expect(markup).toContain('Synthetic equipment mod')
+    expect(markup.indexOf('Synthetic equipment mod')).toBeGreaterThan(markup.indexOf('<details'))
+    expect(markup.match(/>Upload mod JSON</g)).toHaveLength(1)
+    expect(markup).toContain('Review Body')
+    expect(markup).toContain('Review passives')
+  })
+
+  it('keeps recorded mod sources accessible when there are no incomplete checks', () => {
+    const markup = renderToStaticMarkup(<BuildValidity modFiles={modFiles} report={{ ...report, status: 'valid', issues: [] }}/>)
+    expect(markup).toContain('No known loadout conflicts')
+    expect(markup).toContain('<details class="build-validity__details">')
+    expect(markup).toContain('Synthetic equipment mod')
+    expect(markup).toContain('Upload mod JSON')
   })
 
   it('provides a passive recovery action even when the PP warning has no single slot', () => {
