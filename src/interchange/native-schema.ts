@@ -587,3 +587,7 @@ export const NativePayloadSchema = z.object({
   evidence: z.array(NativeEvidenceSchema).max(MAX_COLLECTION_LENGTH),
   history: z.array(NativeHistorySchema).max(500),
 }).strict()
+
+// The archive reader admits complete catalog bodies separately so exact immutable bodies can be reused
+// The envelope keeps the same membership limit and all non-catalog validation
+export const NativePayloadEnvelopeSchema = NativePayloadSchema.extend({ catalogs: z.array(z.unknown()).max(MAX_COLLECTION_LENGTH) })
