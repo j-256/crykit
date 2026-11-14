@@ -18,30 +18,47 @@ export function claimBulkRebase(token: ProfileToken): boolean {
 export type SyncState = 'synced' | 'syncing' | 'offline' | 'signin-required' | 'conflict' | 'quota' | 'failed' | 'paused'
 export interface SyncOutcome { readonly state: SyncState; readonly moreWork: boolean }
 export type SyncReason = 'quiet' | 'save' | 'retry' | 'foreground'
-type Runner = (token: ProfileToken, signal: AbortSignal) => Promise<SyncOutcome>
+export type Runner = (token: ProfileToken, signal: AbortSignal) => Promise<SyncOutcome>
 interface ScheduledSync {
   request(reason: SyncReason): void
   subscribe(listener: (state: SyncState) => void): () => void
   dispose(): void
 }
+export interface SyncSchedulerOwner { (): void; drain(): Promise<void> }
+// Retired profile runners still own their in-flight work until their finally blocks settle
+const running = new Set<Promise<void>>()
+const retryFloors = new Map<string, number>()
 const schedulers = new Map<string, ScheduledSync>()
 const identity = (token: ProfileToken) => `${token.accountId}:${token.generation}`
 function foreground() { return typeof document !== 'undefined' && document.visibilityState === 'visible' }
 function connected() { return typeof navigator === 'undefined' || navigator.onLine !== false }
+export async function drainSyncSchedulers(): Promise<void> {
+  for (const scheduler of schedulers.values()) scheduler.dispose()
+  await Promise.all([...running])
+}
 export function requestSync(token: ProfileToken, reason: SyncReason): void { assertActiveProfile(token); schedulers.get(identity(token))?.request(reason) }
 export function subscribeSync(token: ProfileToken, listener: (state: SyncState) => void): () => void { assertActiveProfile(token); const scheduler = schedulers.get(identity(token)); if (!scheduler) { listener('paused'); return () => {} }; return scheduler.subscribe(listener) }
-export function attachSyncScheduler(token: ProfileToken, run: Runner): () => void {
+export function attachSyncScheduler(token: ProfileToken, run: Runner): SyncSchedulerOwner {
   assertActiveProfile(token)
   const key = identity(token)
-  schedulers.get(key)?.dispose()
+  for (const [owner, deadline] of retryFloors) if (deadline <= Date.now()) retryFloors.delete(owner)
+  for (const scheduler of schedulers.values()) scheduler.dispose()
+  const predecessors = [...running]
+  let ready = predecessors.length === 0
+  let iteration: Promise<void> | undefined
   const listeners = new Set<(state: SyncState) => void>()
   let state: SyncState = 'paused', failures = 0, blocked = false, disposed = false, busy = false
   let timer: ReturnType<typeof setTimeout> | undefined, active: AbortController | undefined, requestedAt: number | undefined
-  let retryNotBefore = 0, urgentRequest = false
+  let retryNotBefore = retryFloors.get(key) ?? 0, urgentRequest = false
   const publish = (next: SyncState) => { state = next; for (const listener of listeners) listener(next) }
   const clear = () => { if (timer !== undefined) clearTimeout(timer); timer = undefined }
-  const eligible = () => !disposed && foreground() && connected() && profileAccess(token) === 'connected'
-  const schedule = (delay: number) => { clear(); if (eligible() && !blocked) timer = setTimeout(() => { timer = undefined; void iterate() }, Math.max(0, delay, retryNotBefore - Date.now())) }
+  const eligible = () => !disposed && ready && foreground() && connected() && profileAccess(token) === 'connected'
+  const schedule = (delay: number) => { clear(); if (eligible() && !blocked) timer = setTimeout(() => { timer = undefined; startIteration() }, Math.max(0, delay, retryNotBefore - Date.now())) }
+  function startIteration() {
+    const pending = Promise.resolve().then(iterate)
+    iteration = pending; running.add(pending)
+    void pending.finally(() => { running.delete(pending); if (iteration === pending) iteration = undefined })
+  }
   async function iterate() {
     if (busy || !eligible() || blocked) return
     busy = true; requestedAt = undefined; urgentRequest = false
@@ -62,6 +79,7 @@ export function attachSyncScheduler(token: ProfileToken, run: Runner): () => voi
         if (error instanceof CommitProgress) {
           failures = 0; publish('syncing')
           retryNotBefore = Math.max(retryNotBefore, Date.now() + error.retryAfterMs)
+          retryFloors.set(key, retryNotBefore)
           nextDelay = error.retryAfterMs
         }
         else if (['PROFILE_SESSION_CHANGED', 'LOCAL_REVISION_CONFLICT'].includes(code)) { publish('paused'); nextDelay = 0 }
@@ -75,6 +93,7 @@ export function attachSyncScheduler(token: ProfileToken, run: Runner): () => voi
           // Retry/visibility/local activity may resume work, but cannot erase the server or transient retry floor
           const delay = Math.max((error instanceof SyncError ? error.retryAfterMs : 0), Math.min(MAX_BACKOFF_MS, INITIAL_BACKOFF_MS * 2 ** (failures - 1) * (0.5 + Math.random())))
           retryNotBefore = Math.max(retryNotBefore, Date.now() + delay)
+          retryFloors.set(key, retryNotBefore)
           if (!blocked) nextDelay = delay
         } else { publish(code === 'SERVICE_PAUSED' ? 'paused' : 'failed'); blocked = true }
       }
@@ -109,8 +128,10 @@ export function attachSyncScheduler(token: ProfileToken, run: Runner): () => voi
   const scheduler: ScheduledSync = { request, dispose, subscribe(listener) { listeners.add(listener); listener(state); return () => listeners.delete(listener) } }
   schedulers.set(key, scheduler)
   const unsubscribeSession = onProfileSessionChange(token, () => request('foreground'))
-  const unregister = registerProfileCleanup(token, dispose)
+  const unregister = registerProfileCleanup(token, () => { retryFloors.delete(key); dispose() })
   document.addEventListener('visibilitychange', visibility); window.addEventListener('online', online); window.addEventListener('offline', offline); window.addEventListener('focus', online)
   request('foreground')
-  return () => { unregister(); dispose() }
+  if (!ready) void Promise.all(predecessors).then(() => { ready = true; if (!disposed) request('foreground') })
+  const stop = () => { unregister(); dispose() }
+  return Object.assign(stop, { async drain() { stop(); await Promise.all([...predecessors, ...(iteration ? [iteration] : [])]) } })
 }

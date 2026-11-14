@@ -1,9 +1,10 @@
+import type { AccountSyncAttachmentValue } from '../persistence/account-activation-attachments'
 import { classifySigninLocalData } from './signin-local-data'
 import { signinDocumentsEqual, signinProgressCorrespondence } from './signin-progress'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { guestEvidenceForCopy, type CapturedGuestEvidence } from './guest-evidence'
 import { GuestCopyJournalSchema as JournalSchema, PENDING_COPY, PreviewSchema, SAVED_COPY_PREFIX, type GuestCopyJournal as Journal, type GuestCopyPreview } from './guest-copy-journal'
-import { activateManagedGuestCopy, managedGuestCopyMappings, stageManagedGuestCopy } from './managed-guest-copy'
+import { activateGuestCopyWithReceipt, activateManagedGuestCopy, managedGuestCopyMappings, stageManagedGuestCopy } from './managed-guest-copy'
 import { captureAccountSyncWorkspace, isManagedAccountHead } from './account-sync-capture'
 import { initializeAccountWorkspace } from './account-initialization'
 import { createAccountLocalStore } from './account-local-store'
@@ -316,7 +317,7 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
       assertActiveProfile(token); assertMayActivate(); return preview
     } finally { database.close() }
   }
-  async function commitGuestCopy(token: ProfileToken, preview: GuestCopyPreview): Promise<GuestCopyReceipt> {
+  async function commitGuestCopy(token: ProfileToken, preview: GuestCopyPreview, decision?: AccountSyncAttachmentValue): Promise<GuestCopyReceipt> {
     const authority = authorities.get(preview)
     assertActiveProfile(token); assertMayActivate()
     if (!authority || authority.token !== token || authority.generation !== generation || preview.accountId !== token.accountId) throw new Error('Reopen this account copy preview before continuing')
@@ -370,20 +371,29 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
         }
       }
       if (journal.preview.copyId !== preview.copyId || journal.preview.accountId !== token.accountId) throw new Error('Saved copy identity mismatch')
+      const activated = await hasMatchingActivation(database, token, journal)
+      if (activated && decision) {
+        // Replay cannot attach a new approval to data that was already selected without that approval
+        const row = await database.syncState.get(decision.id)
+        const activation = (await database.migrationJournal.get(preview.copyId))!
+        const record = row && await database.encryptedRevisions.get(row.ref.revisionId)
+        if (!row || !record || !record.descriptor.dependencies.some(ref => jsonEqual(ref, activation.head))
+          || !jsonEqual(await openAccountJson(database, token, row.ref, z.unknown()), decision.value)) throw new Error('SIGNIN_RECEIPT_MISMATCH')
+      }
       let mappings: readonly { readonly key: string; readonly documentId: string }[]
       if (journal.version === 2) {
-        mappings = await hasMatchingActivation(database, token, journal)
+        mappings = activated
           ? await managedGuestCopyMappings(database, token, journal)
-          : staged ? await staged.activate() : await activateManagedGuestCopy(database, token, journal, assertCopyActive)
+          : staged ? await staged.activate(decision) : await activateManagedGuestCopy(database, token, journal, assertCopyActive, decision)
       } else {
         const copied = await openAccountWorkspace(database, token, journal.target)
-        if (!await hasMatchingActivation(database, token, journal)) {
+        if (!activated) {
           if (await isManagedAccountHead(database, token, journal.expected)) {
             // Resume the saved native target under the original fence; never recapture guest data or select a native head
             const managed = await prepareManagedAccountProjection(database, token, journal.expected, { head: copied.head, entries: copied.entries, opened: copied, records: [] }, { id: preview.copyId, ref: journal.intent, records: [] })
-            try { await activateLocalAccountCommit(database, token, managed.prepared, assertCopyActive) }
+            try { await activateGuestCopyWithReceipt(database, token, managed.prepared, assertCopyActive, decision) }
             finally { await managed.dispose() }
-          } else await activateLocalAccountCommit(database, token, { version: 1, id: preview.copyId, expected: journal.expected, head: journal.target, intent: journal.intent, intentStatus: 'mapped-local', records: [] }, assertCopyActive)
+          } else await activateGuestCopyWithReceipt(database, token, { version: 1, id: preview.copyId, expected: journal.expected, head: journal.target, intent: journal.intent, intentStatus: 'mapped-local', records: [] }, assertCopyActive, decision)
         }
         mappings = copied.allocations
       }

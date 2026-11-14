@@ -1,5 +1,6 @@
+import { prepareAccountReceiptAttachment, releaseAccountActivationAttachment, type AccountSyncAttachmentValue } from '../persistence/account-activation-attachments'
 import { assertActiveProfile, type ProfileToken } from '../account/profile'
-import { activateLocalAccountCommit, type AccountDatabase, type AccountFence } from '../persistence/account-database'
+import { activateLocalAccountCommit, type AccountDatabase, type AccountFence, type PreparedLocalActivation } from '../persistence/account-database'
 import { guestPlannerValuesEqual } from '../persistence/guest-planner-equality'
 import { createAccountLocalStore } from './account-local-store'
 import { IncrementalWorkspaceIntentSchema } from './account-mapping-origin'
@@ -46,18 +47,18 @@ export async function stageManagedGuestCopy(database: AccountDatabase, token: Pr
     }, assertMayActivate)
     const prepared = await store.preparePersistedActivation(id, result, expected, before, intentRef, projection)
     retained = true
-    return { journal, async activate() {
-      await activateLocalAccountCommit(database, token, prepared, assertMayActivate)
+    return { journal, async activate(receipt?: AccountSyncAttachmentValue) {
+      await activateGuestCopyWithReceipt(database, token, prepared, assertMayActivate, receipt)
       return result.snapshot.entries.map(entry => ({ key: entry.key, documentId: entry.ref.documentId }))
     }, async dispose() { await store.dispose() } }
   } finally { if (!retained) await store.dispose() }
 }
 
-export async function activateManagedGuestCopy(database: AccountDatabase, token: ProfileToken, journal: ManagedGuestCopyJournal, assertMayActivate: () => void) {
+export async function activateManagedGuestCopy(database: AccountDatabase, token: ProfileToken, journal: ManagedGuestCopyJournal, assertMayActivate: () => void, receipt?: AccountSyncAttachmentValue) {
   const store = createAccountLocalStore(database, token)
   try {
     const { prepared, snapshot } = await store.prepareSavedActivation(journal.preview.copyId, journal.target, journal.intent, journal.expected)
-    await activateLocalAccountCommit(database, token, prepared, assertMayActivate)
+    await activateGuestCopyWithReceipt(database, token, prepared, assertMayActivate, receipt)
     return snapshot.entries.map(entry => ({ key: entry.key, documentId: entry.ref.documentId }))
   } finally { await store.dispose() }
 }
@@ -69,4 +70,11 @@ export async function managedGuestCopyMappings(database: AccountDatabase, token:
     const saved = await admitLocalRoot(store.adapter, journal.target, store.lifetime)
     return saved.entries.map(entry => ({ key: entry.key, documentId: entry.ref.documentId }))
   } finally { await store.dispose() }
+}
+
+// The receipt is encrypted against the actual target, including native-to-managed projection targets
+export async function activateGuestCopyWithReceipt(database: AccountDatabase, token: ProfileToken, prepared: PreparedLocalActivation, check: () => void, receipt?: AccountSyncAttachmentValue) {
+  const attachment = receipt ? await prepareAccountReceiptAttachment(database, token, prepared, receipt) : undefined
+  try { return await activateLocalAccountCommit(database, token, prepared, check, attachment) }
+  finally { if (attachment) await releaseAccountActivationAttachment(attachment) }
 }

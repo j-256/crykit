@@ -331,3 +331,46 @@ it.each(['manual', 'signin'] as const)('requires explicit operation identity bef
     expect(captures).toBe(0)
   } finally { await reopened.dispose() }
 })
+
+it.each(['native', 'managed', 'managed-projection'] as const)('atomically attaches the sign-in choice to %s copy and verifies it on exact replay', async layout => {
+  const { z } = await import('zod')
+  const Dexie = (await import('dexie')).default
+  const { initializeAccountWorkspace } = await import('./account-initialization')
+  const destination = layout === 'managed-projection' ? progress('account') : workspace(createBlankLocalData({ now }))
+  const { token, database, service } = await setup(progress('local', layout !== 'managed-projection'), destination)
+  if (layout !== 'native') {
+    await database.delete(); await database.open()
+    const fence = await initializeAccountWorkspace(database, token, destination)
+    const { prepareIncrementalBaseline, activateIncrementalBaseline } = await import('./account-local-mapping')
+    await activateIncrementalBaseline(database, token, await prepareIncrementalBaseline(database, token, fence))
+  }
+  const before = await database.profileMeta.get('active')
+  const preview = await service.previewSigninMerge(token)
+  const decision = { id: 'signin-receipt:copy-test', expected: undefined, value: { version: 1, action: 'merge', copyId: preview.copyId } }
+  const original = accountActivation.activateLocalAccountCommit
+  const fail = vi.spyOn(accountActivation, 'activateLocalAccountCommit').mockImplementationOnce(async (db, owner, prepared, check, attachment) => {
+    let checks = 0
+    return original(db, owner, prepared, () => {
+      check?.()
+      if (++checks === 2) { expect(Dexie.currentTransaction?.active).toBe(true); throw new Error('in-transaction receipt interruption') }
+    }, attachment)
+  })
+  try {
+    await expect(service.commitGuestCopy(token, preview, decision)).rejects.toThrow('in-transaction receipt interruption')
+    fail.mockRestore()
+    expect(await database.profileMeta.get('active')).toEqual(before)
+    expect(await database.migrationJournal.get(preview.copyId)).toBeUndefined()
+    expect(await database.outbox.count()).toBe(0)
+    expect(await database.syncState.get(decision.id)).toBeUndefined()
+    const result = await service.commitGuestCopy(token, preview, decision)
+    const row = await database.syncState.get(decision.id)
+    expect(row).toBeDefined()
+    expect(await openAccountJson(database, token, row!.ref, z.unknown())).toEqual(decision.value)
+    expect(await service.commitGuestCopy(token, preview, decision)).toEqual(result)
+    await expect(service.commitGuestCopy(token, preview, { ...decision, value: { ...decision.value, action: 'account' } })).rejects.toThrow('SIGNIN_RECEIPT_MISMATCH')
+    await database.syncState.delete(decision.id)
+    await expect(service.commitGuestCopy(token, preview, decision)).rejects.toThrow('SIGNIN_RECEIPT_MISMATCH')
+    expect(await database.syncState.get(decision.id)).toBeUndefined()
+    expect(await database.outbox.count()).toBe(1)
+  } finally { fail.mockRestore(); await service.dispose() }
+})

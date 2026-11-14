@@ -164,3 +164,56 @@ it('authenticatedProgressContinuesBeyondEightCallsWithoutWeakeningFailureOrTrigg
   await vi.advanceTimersByTimeAsync(300_000); expect(calls).toHaveLength(19)
   vi.restoreAllMocks()
 })
+
+it('replacement ownership drains an aborted runner before the next profile can run', async () => {
+  vi.useFakeTimers()
+  vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }))
+  vi.stubGlobal('window', new EventTarget()); vi.stubGlobal('navigator', { onLine: true })
+  const token = installProfile(accountId, new Uint8Array(32), { accountId, username: 'synthetic', sessionId: accountId, deviceId: accountId, csrf: 'synthetic', authenticatedAt: 1 })
+  let release!: () => void
+  const held = new Promise<void>(resolve => { release = resolve })
+  const events: string[] = []
+  const first = attachSyncScheduler(token, async () => { events.push('first started'); await held; events.push('first settled'); return { state: 'synced', moreWork: false } })
+  await vi.advanceTimersByTimeAsync(0)
+  first()
+  invalidateProfile()
+  const next = installProfile(accountId, new Uint8Array(32), { accountId, username: 'synthetic', sessionId: accountId, deviceId: accountId, csrf: 'synthetic', authenticatedAt: 1 })
+  attachSyncScheduler(next, async () => { events.push('second started'); return { state: 'synced', moreWork: false } })
+  await vi.advanceTimersByTimeAsync(0)
+  expect(events).toEqual(['first started'])
+  release(); await vi.advanceTimersByTimeAsync(0)
+  expect(events).toEqual(['first started', 'first settled', 'second started'])
+})
+
+it('drain waits past the synced notification and suppresses a disposed owners callbacks', async () => {
+  vi.useFakeTimers()
+  vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }))
+  vi.stubGlobal('window', new EventTarget()); vi.stubGlobal('navigator', { onLine: true })
+  const token = installProfile(accountId, new Uint8Array(32), { accountId, username: 'synthetic', sessionId: accountId, deviceId: accountId, csrf: 'synthetic', authenticatedAt: 1 })
+  let release!: () => void
+  const held = new Promise<void>(resolve => { release = resolve })
+  const owner = attachSyncScheduler(token, async () => { await held; return { state: 'synced', moreWork: false } })
+  const states: string[] = []; subscribeSync(token, value => states.push(value))
+  await vi.advanceTimersByTimeAsync(0)
+  expect(typeof owner.drain).toBe('function')
+  let drained = false
+  const pending = owner.drain().then(() => { drained = true })
+  await Promise.resolve(); expect(drained).toBe(false)
+  release(); await pending
+  expect(drained).toBe(true)
+  expect(states).not.toContain('synced')
+})
+
+it('owner replacement retains the same profiles server retry floor', async () => {
+  vi.useFakeTimers(); vi.setSystemTime(0)
+  vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }))
+  vi.stubGlobal('window', new EventTarget()); vi.stubGlobal('navigator', { onLine: true })
+  const token = installProfile(accountId, new Uint8Array(32), { accountId, username: 'synthetic', sessionId: accountId, deviceId: accountId, csrf: 'synthetic', authenticatedAt: 1 })
+  const first = attachSyncScheduler(token, async () => { throw new SyncError('RATE_LIMITED', 90_000) })
+  await vi.advanceTimersByTimeAsync(0); await first.drain()
+  const calls: number[] = []
+  attachSyncScheduler(token, async () => { calls.push(Date.now()); return { state: 'synced', moreWork: false } })
+  await vi.advanceTimersByTimeAsync(89_999)
+  expect(calls).toEqual([])
+  await vi.advanceTimersByTimeAsync(1); expect(calls).toEqual([90_000])
+})
