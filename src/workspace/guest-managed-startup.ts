@@ -1,3 +1,4 @@
+import Dexie from 'dexie'
 import { GUEST_PLANNER_DATABASE, isPrelaunchGuestDatabase } from '../persistence/storage-names'
 import { captureGuestWorkspaceEpoch } from '../account/profile'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
@@ -62,6 +63,41 @@ export async function prepareGuestStartup(original: CryKitDatabase, purpose: 'ed
       return { kind: 'managed', coordinator, manifest: await prepareFreshGuestWorkspace(coordinator) }
     } catch (error) { coordinator.close(); throw error }
   }
+}
+
+// Sign-in inspection never initializes storage or consumes an unsupported prelaunch namespace
+// An existing coordinator without its selected head requires recovery rather than replacement samples
+export async function prepareExistingGuestStartup(original: CryKitDatabase): Promise<GuestStartup | undefined> {
+  const profile = captureGuestWorkspaceEpoch()
+  const primary = original.name === GUEST_PLANNER_DATABASE
+  const coordinator = new GuestCoordinatorDatabase(primary ? undefined : `${original.name}-coordinator`)
+  try {
+    if (!globalThis.indexedDB?.databases) throw new Error('Browser storage cannot be inspected safely. Keep the existing data and use a browser that supports database enumeration.')
+    const names = (await indexedDB.databases()).flatMap(value => value.name ? [value.name] : [])
+    profile.assertCurrent()
+    if (names.includes(coordinator.name)) {
+      // A schema-less Dexie open reads the installed schema and rejects a disappeared database
+      // Opening the versioned coordinator here would upgrade unsupported storage before admission
+      const reader = new Dexie(coordinator.name, { allowEmptyDB: false })
+      try {
+        await reader.open()
+        profile.assertCurrent()
+        const compatible = reader.verno === coordinator.verno && coordinator.tables.every(expected => {
+          const installed = reader.tables.find(table => table.name === expected.name)
+          return installed && installed.schema.primKey.src === expected.schema.primKey.src && guestPlannerValuesEqual(installed.schema.indexes.map(index => index.src).sort(), expected.schema.indexes.map(index => index.src).sort())
+        })
+        if (!compatible) throw new PrelaunchGuestDataError()
+        const active = await reader.table<{ key: string; manifest: unknown }>('active').get('active')
+        profile.assertCurrent()
+        if (!active) throw new Error('The selected local workspace is unavailable')
+        return { kind: 'managed', coordinator, manifest: GuestManagedManifestSchema.parse(active.manifest) }
+      } finally { reader.close() }
+    }
+    const prelaunch = primary ? names.some(isPrelaunchGuestDatabase) : names.some(name => [original.name, `${original.name}-inspector`, `${original.name}-workspace-files-v1`].includes(name))
+    if (prelaunch) throw new PrelaunchGuestDataError()
+    coordinator.close()
+    return undefined
+  } catch (error) { coordinator.close(); throw error }
 }
 
 export class PrelaunchGuestDataError extends Error {
