@@ -50,3 +50,7 @@ export type RecoverySupersession = z.infer<typeof RecoverySupersessionSchema>
 export const RecoverySupersessionReceiptSchema = z.strictObject({
   version: z.literal(1), operationId: OpaqueIdSchema, successorOperationId: OpaqueIdSchema, successorMutationId: OpaqueIdSchema,
 })
+
+// Unknown is not deletion authority: a reserve may never have arrived or may still be in flight
+export const RecoveryOperationStatusSchema = z.strictObject({ version: z.literal(1), operationId: OpaqueIdSchema, status: z.enum(['unknown', 'active', 'retired']) })
+export type RecoveryOperationStatus = z.infer<typeof RecoveryOperationStatusSchema>

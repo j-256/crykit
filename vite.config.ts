@@ -18,6 +18,7 @@ const WORKER_TEST_WORKERS = 1
 const SERVICE_PERSISTENCE_TEST_FILES = [
   // This cross-runtime proof owns a real Worker fixture and must share the native service budget
   'e2e/accounts/cleanup-persistence.proof.mjs',
+  'src/persistence/account-recovery.test.ts',
   'src/persistence/conflicts.test.ts',
   'src/persistence/copied-conflict-journey.test.ts',
   'src/persistence/lineage-conflicts.test.ts',

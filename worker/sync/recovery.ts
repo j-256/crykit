@@ -2,7 +2,7 @@ import { runGuardedBatch } from '../db/guarded-batch'
 import type { CustomerPrincipal } from '../auth/session'
 import type { ServiceContext } from '../context'
 import { ApiFailure } from '../http'
-import { RecoverySupersessionSchema, type RecoverySupersession, MAX_RECOVERY_BYTES, MAX_RECOVERY_POINTS, RECOVERY_RETENTION_MS, RecoveryBindingSchema, type RecoveryBinding, RECOVERY_CONTROL_BYTES, RECOVERY_REVISION_CONTROL_BYTES, RecoveryReserveSchema, type RecoveryPoint, type RecoveryReserve } from '../../src/account/recovery-protocol'
+import { RecoverySupersessionSchema, type RecoverySupersession, type RecoveryOperationStatus, MAX_RECOVERY_BYTES, MAX_RECOVERY_POINTS, RECOVERY_RETENTION_MS, RecoveryBindingSchema, type RecoveryBinding, RECOVERY_CONTROL_BYTES, RECOVERY_REVISION_CONTROL_BYTES, RecoveryReserveSchema, type RecoveryPoint, type RecoveryReserve } from '../../src/account/recovery-protocol'
 import type { CommitRequest, RevisionDescriptor } from '../../src/account/protocol'
 import { claimGenerationCleanup, fenceGeneration, chunkRow, controlReservationBytes, digest, encodedBytes, encoder, syncBatch } from './storage'
 
@@ -25,6 +25,19 @@ export async function listRecoveries(principal: CustomerPrincipal, context: Serv
   const points = await Promise.all(rows.results.map(row => point(row, context)))
   await syncBatch(principal, '1', [], [], context, 'AUTH_REQUIRED', false, false)
   return { version: 1 as const, points }
+}
+export async function recoveryOperationStatus(principal: CustomerPrincipal, operationId: string, context: ServiceContext): Promise<RecoveryOperationStatus> {
+  // Read ownership in one statement. Only permanent terminal evidence permits local cleanup;
+  // active and unknown results remain conservative if a concurrent reserve or retirement wins
+  const status = await context.env.DB!.prepare(`SELECT CASE
+    WHEN EXISTS(SELECT 1 FROM account_recoveries WHERE account_id=?1 AND operation_id=?2) THEN 'active'
+    WHEN EXISTS(SELECT 1 FROM cancelled_recoveries WHERE account_id=?1 AND operation_id=?2)
+      OR EXISTS(SELECT 1 FROM superseded_recoveries WHERE account_id=?1 AND operation_id=?2)
+      OR EXISTS(SELECT 1 FROM upload_reservations WHERE account_id=?1 AND recovery_operation_id=?2) THEN 'retired'
+    ELSE 'unknown' END AS status`).bind(principal.accountId, operationId).first<RecoveryOperationStatus['status']>('status')
+  await syncBatch(principal, '1', [], [], context, 'AUTH_REQUIRED', false, false)
+  if (!status) throw new ApiFailure('INTEGRITY_FAILED')
+  return { version: 1, operationId, status }
 }
 export async function reserveRecovery(principal: CustomerPrincipal, input: RecoveryReserve, context: ServiceContext): Promise<RecoveryPoint> {
   input = RecoveryReserveSchema.parse(input)
@@ -200,12 +213,34 @@ export async function cleanupExpiredRecoveries(context: ServiceContext): Promise
   return retired
 }
 
-export async function cancelRecoveryPreparation(principal: CustomerPrincipal, operationId: string, context: ServiceContext) {
+export async function cancelRecoveryPreparation(principal: CustomerPrincipal, operationId: string, context: ServiceContext): Promise<{ version: 1; state: 'complete' | 'blocked' }> {
   const db = context.env.DB!, accountId = principal.accountId
   const cancelled = await db.prepare('SELECT 1 FROM cancelled_recoveries WHERE account_id=? AND operation_id=?').bind(accountId, operationId).first()
   await syncBatch(principal, '1', [], [], context, 'FORBIDDEN', true, false)
   if (cancelled) return { version: 1 as const, state: 'complete' as const }
-  const row = await recoveryRow(principal, operationId, context)
+  const row = await db.prepare('SELECT * FROM account_recoveries WHERE account_id=? AND operation_id=?').bind(accountId, operationId).first<RecoveryRow>()
+  if (!row) {
+    if ((await recoveryOperationStatus(principal, operationId, context)).status === 'retired') return { version: 1 as const, state: 'complete' as const }
+    // Never-admitted work needs only a charged terminal marker, not a free recovery slot or
+    // capacity for its archive. This domain-separated digest identifies cancellation intent;
+    // no reserve descriptor exists, and all later reserves reject marker existence atomically
+    const requestDigest = await digest(encoder.encode(JSON.stringify(['recovery-cancellation', 1, operationId])))
+    try {
+      await syncBatch(principal, `NOT EXISTS(SELECT 1 FROM account_recoveries WHERE account_id=? AND operation_id=?)
+        AND NOT EXISTS(SELECT 1 FROM cancelled_recoveries WHERE account_id=? AND operation_id=?)
+        AND NOT EXISTS(SELECT 1 FROM superseded_recoveries WHERE account_id=? AND operation_id=?)
+        AND NOT EXISTS(SELECT 1 FROM upload_reservations WHERE account_id=? AND recovery_operation_id=?)`,
+      [accountId, operationId, accountId, operationId, accountId, operationId, accountId, operationId], [
+        db.prepare('INSERT INTO cancelled_recoveries(account_id,operation_id,request_digest,created_at) VALUES(?,?,?,?)').bind(accountId, operationId, requestDigest, context.now()),
+      ], context, 'HEAD_CONFLICT')
+    } catch (error) {
+      // A reserve/cancel winner is re-read through the same sealed/bound and session guards
+      if (error instanceof ApiFailure && error.code === 'HEAD_CONFLICT') return cancelRecoveryPreparation(principal, operationId, context)
+      throw error
+    }
+    context.emit({ operation: 'sync', stage: 'recovery-preparation-cancelled' })
+    return { version: 1 as const, state: 'complete' as const }
+  }
   if (row.sealed || row.mutation_id || row.state !== 'pending') return { version: 1 as const, state: 'blocked' as const }
   // Cancellation and sealing compete for the same unsealed identity in one guarded transaction
   // Terminal metadata prevents a late preparation retry from consuming a newly freed slot

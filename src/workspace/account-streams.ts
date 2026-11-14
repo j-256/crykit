@@ -1,7 +1,7 @@
 import { accountWorkCheckpoint } from '../account/background-work'
 import { encryptRevision, decryptRevision } from '../account/crypto/revisions'
 import { assertActiveProfile, profileSignal, withAccountKey, type ProfileToken } from '../account/profile'
-import { OpaqueIdSchema, RevisionDescriptorSchema } from '../account/protocol'
+import { OpaqueIdSchema, RevisionDescriptorSchema, type RevisionDescriptor } from '../account/protocol'
 import type { AccountDatabase, CipherChunk, CipherRecord, CipherRef } from '../persistence/account-database'
 import { accountLocalId, readAccountCipherChunk } from './account-cache'
 import type { BlobSource } from './file-types'
@@ -62,6 +62,16 @@ export function openPreparedAccountSource(token: ProfileToken, record: CipherRec
   const captured = { ...record, descriptor: RevisionDescriptorSchema.parse(record.descriptor) }
   if (captured.descriptor.accountId !== token.accountId || captured.revisionId !== captured.descriptor.revisionId) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'Wrong prepared source identity')
   return accountCipherSource(token, captured, async index => chunks[index], owner)
+}
+
+// Recovery descriptors are authenticated by their dedicated account route and never installed
+// into the normal sync graph. Reuse the same bounded decryption and profile cancellation path
+export function openRemoteAccountSource(token: ProfileToken, input: RevisionDescriptor, readChunk: (index: number) => Promise<Uint8Array>): BlobSource {
+  assertActiveProfile(token)
+  const descriptor = RevisionDescriptorSchema.parse(input)
+  if (descriptor.accountId !== token.accountId) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'Wrong remote source account')
+  const payloadId = descriptor.uploadId
+  return accountCipherSource(token, { revisionId: descriptor.revisionId, payloadId, descriptor }, async index => ({ payloadId, index, bytes: await readChunk(index) }))
 }
 
 function accountCipherSource(token: ProfileToken, record: CipherRecord, readChunk: (index: number) => Promise<CipherChunk | undefined>, owner?: AccountPreparationOwner, observe?: (record: CipherRecord, chunks: readonly CipherChunk[]) => void): BlobSource {

@@ -336,3 +336,56 @@ it.each(['cancel','remove'] as const)('recovery%sCanReduceOwnershipAfterAnAdmini
   expect(await response.json()).toEqual({version:1,state:'complete'})
   expect(await f.db.prepare('SELECT COUNT(*) n FROM account_recoveries').first('n')).toBe(0)
 })
+
+it('readsRecoveryTerminalOwnershipWithoutReservingOrExposingAnotherAccount', async () => {
+  const f = await fixture(), signed = await customer(f), other = await customer(f, 'status_other'), item = snapshot(signed.accountId)
+  const status = (operationId: string, owner = signed) => f.request(`/api/v1/sync/recoveries/${operationId}/status`, { headers: owner.headers })
+  const unknown = await status(item.input.operationId)
+  expect(unknown.status).toBe(200)
+  expect(await unknown.json()).toEqual({ version: 1, operationId: item.input.operationId, status: 'unknown' })
+  expect(await f.db.prepare('SELECT COUNT(*) FROM account_recoveries').first('COUNT(*)')).toBe(0)
+  expect((await post(f, 'sync/recoveries', item.input, signed.headers)).status).toBe(200)
+  expect(await (await status(item.input.operationId)).json()).toMatchObject({ status: 'active' })
+  expect(await (await status(item.input.operationId, other)).json()).toMatchObject({ status: 'unknown' })
+  expect((await post(f, `sync/recoveries/${item.input.operationId}/cancel`, { version: 1 }, signed.headers)).status).toBe(200)
+  expect(await (await status(item.input.operationId)).json()).toMatchObject({ status: 'retired' })
+  expect(await (await status(item.input.operationId, other)).json()).toMatchObject({ status: 'unknown' })
+})
+
+it('cancelsNeverReservedWorkWithoutARecoverySlotAndChargesOnlyItsTerminalMarker', async () => {
+  const f = await fixture(), signed = await customer(f)
+  for (let index = 0; index < 3; index++) await sealed(f, signed)
+  const operationId = id(), before = await f.db.prepare('SELECT metadata_bytes FROM quota_counters WHERE scope=?').bind(signed.accountId).first<number>('metadata_bytes')
+  const response = await post(f, `sync/recoveries/${operationId}/cancel`, { version: 1 }, signed.headers)
+  expect(response.status).toBe(200)
+  expect(await response.json()).toEqual({ version: 1, state: 'complete' })
+  expect(await f.db.prepare('SELECT COUNT(*) FROM account_recoveries').first('COUNT(*)')).toBe(3)
+  expect(await f.db.prepare('SELECT metadata_bytes FROM quota_counters WHERE scope=?').bind(signed.accountId).first<number>('metadata_bytes')).toBeGreaterThan(before!)
+  expect((await post(f, 'sync/recoveries', { ...snapshot(signed.accountId).input, operationId }, signed.headers)).status).toBe(404)
+  expect((await post(f, `sync/recoveries/${operationId}/cancel`, { version: 1 }, signed.headers)).status).toBe(200)
+})
+
+it('requiresQuotaForANewCancellationMarkerButReplaysItBelowCapacity', async () => {
+  const f = await fixture(), signed = await customer(f), operationId = id()
+  await f.db.prepare('UPDATE accounts SET capacity_bytes=1 WHERE id=?').bind(signed.accountId).run()
+  expect((await post(f, `sync/recoveries/${operationId}/cancel`, { version: 1 }, signed.headers)).status).toBe(413)
+  expect(await f.db.prepare('SELECT COUNT(*) FROM cancelled_recoveries').first('COUNT(*)')).toBe(0)
+  await f.db.prepare('UPDATE accounts SET capacity_bytes=2147483648 WHERE id=?').bind(signed.accountId).run()
+  expect((await post(f, `sync/recoveries/${operationId}/cancel`, { version: 1 }, signed.headers)).status).toBe(200)
+  await f.db.prepare('UPDATE accounts SET capacity_bytes=1 WHERE id=?').bind(signed.accountId).run()
+  expect((await post(f, `sync/recoveries/${operationId}/cancel`, { version: 1 }, signed.headers)).status).toBe(200)
+})
+
+it('atomicallyFencesADelayedReserveWhenCancellingNeverAdmittedWork', async () => {
+  const f = await fixture(), signed = await customer(f), item = snapshot(signed.accountId)
+  const [reservation, cancellation] = await Promise.all([
+    post(f, 'sync/recoveries', item.input, signed.headers),
+    post(f, `sync/recoveries/${item.input.operationId}/cancel`, { version: 1 }, signed.headers),
+  ])
+  expect([200, 404, 413]).toContain(reservation.status)
+  expect(cancellation.status).toBe(200)
+  expect(await cancellation.json()).toEqual({ version: 1, state: 'complete' })
+  expect(await f.db.prepare('SELECT COUNT(*) FROM account_recoveries').first('COUNT(*)')).toBe(0)
+  expect(await f.db.prepare('SELECT COUNT(*) FROM cancelled_recoveries').first('COUNT(*)')).toBe(1)
+  expect((await post(f, 'sync/recoveries', item.input, signed.headers)).status).toBe(404)
+})
