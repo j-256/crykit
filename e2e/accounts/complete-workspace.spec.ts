@@ -1,3 +1,4 @@
+import { beginSeededAccount, mountSeededAccount, finishAccountSignin } from './signin-helpers'
 import 'fake-indexeddb/auto'
 import { completeWorkspaceFixture } from './workspace-fixture'
 import { accountConnectivity, prepareAccountProofCache } from './network-fixture'
@@ -49,13 +50,8 @@ async function fixture() {
   } finally { await disposeWorkspaceSnapshot(snapshot) }
 }
 async function signIn(page: Page, email: string, password: string, seedLocalWorkspace = false) {
-  await page.goto(`${app}#/settings/account`)
-  await page.getByLabel('Email', { exact: true }).fill(email)
-  await page.getByLabel('Password', { exact: true }).fill(password)
-  await page.getByLabel('Remember this device').first().check()
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   if (seedLocalWorkspace) {
-    await expect(page.getByRole('button', { name: 'Open account workspace', exact: true })).toBeVisible()
+    await beginSeededAccount(page, app, email, password, true)
     const original = await page.evaluate(() => (window as any).accountBootstrapProof.seedSelectionFixture())
     expect((await page.evaluate(() => (window as any).accountBootstrapProof.accountStorage())).rootVersion).toBe(3)
     // Inspect the supported local root before cloud publication can advance it
@@ -65,7 +61,7 @@ async function signIn(page: Page, email: string, password: string, seedLocalWork
     const publicationGate = new Promise<void>(resolve => { releasePublication = resolve })
     await page.route(syncRequests, async route => { await publicationGate; await route.continue() })
     try {
-      await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+      await mountSeededAccount(page)
       await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
       expect((await page.evaluate(() => (window as any).workspaceProof.accountStorage())).rootVersion).toBe(3)
       expect(await page.evaluate(() => (window as any).workspaceProof.savedPlanner())).toEqual(original)
@@ -76,7 +72,12 @@ async function signIn(page: Page, email: string, password: string, seedLocalWork
     }
     return
   }
-  await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+  await page.goto(`${app}#/settings/account`)
+  await page.getByLabel('Email', { exact: true }).fill(email)
+  await page.getByLabel('Password', { exact: true }).fill(password)
+  await page.getByLabel('Remember this device').first().check()
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await finishAccountSignin(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
 }
 async function downloadBackup(page: Page) {
@@ -225,9 +226,7 @@ test('twoDevicesRestoreCompleteWorkspaceWithoutLeakingToViewerOrAdmin', async ({
     const drainedAt = Date.now()
     await signIn(second, email, password)
     await expect(second.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: JOURNEY_BUDGET_MS / 2 })
-    // Remote activation retires the captured view; adopt it through the existing guarded user action
-    await second.getByRole('button', { name: 'Load updated data', exact: true }).click()
-    await expect(second.getByRole('button', { name: 'Load updated data', exact: true })).toHaveCount(0)
+    // Automatic sign-in admits the initial projection before opening the account workspace
     const secondDeviceWorkspace = await privateContent(await downloadBackup(second))
     expect(secondDeviceWorkspace.originals).toEqual(expected.originals)
     expect(secondDeviceWorkspace.metadata.editorDocuments).toEqual(restored.metadata.editorDocuments)

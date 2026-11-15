@@ -378,3 +378,43 @@ it('abandoned hanging sign-in still aborts its owned epoch without an installed 
   await act(async () => finish())
   expect(profile.currentProfileToken()).toBeUndefined()
 })
+
+it('opens automatically after sign-in without a second workspace action', async () => {
+  vi.spyOn(management, 'readAccountView').mockResolvedValue({ username: 'synthetic', email: 'synthetic@example.org', revision: 1, recoveryRevision: 1, expiresAt: Date.now() + 10000, access: 'active' })
+  vi.spyOn(lifecycle, 'signInProfile').mockImplementation(async () => profile.installProfile('AAAAAAAAAAAAAAAAAAAAAA', new Uint8Array(32), { accountId: 'AAAAAAAAAAAAAAAAAAAAAA', username: 'synthetic', sessionId: 'session', deviceId: 'device', csrf: 'secret', authenticatedAt: 1 }))
+  vi.spyOn(lifecycle, 'reconcilePendingRevocations').mockResolvedValue({ revocationPending: false })
+  const open = vi.fn(async () => {})
+  await act(async () => root.render(<AccountView onOpenWorkspace={open} onContinueLocal={async () => {}}/>))
+  container.querySelector<HTMLInputElement>('input[name="email"]')!.value = 'synthetic@example.org'
+  container.querySelector<HTMLInputElement>('input[name="password"]')!.value = 'synthetic account password'
+  await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+  expect(open).toHaveBeenCalledWith(profile.currentProfileToken())
+  expect([...container.querySelectorAll('button')].some(button => button.textContent === 'Open account workspace')).toBe(false)
+})
+
+it('blocks authentication before pending local saves can lose their profile epoch', async () => {
+  const signIn = vi.spyOn(lifecycle, 'signInProfile')
+  const epoch = profile.captureProfileEpoch()
+  await act(async () => root.render(<AccountView beforeAuthentication={() => { throw new Error('WORKSPACE_PENDING_CHANGES') }} onOpenWorkspace={async () => {}} onContinueLocal={async () => {}}/>))
+  container.querySelector<HTMLInputElement>('input[name="email"]')!.value = 'synthetic@example.org'
+  container.querySelector<HTMLInputElement>('input[name="password"]')!.value = 'synthetic account password'
+  await act(async () => container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+  expect(signIn).not.toHaveBeenCalled()
+  expect(() => epoch.assertCurrent()).not.toThrow()
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain('Finish saving')
+})
+
+it('keeps recovery access acknowledgment visible until explicit continuation', async () => {
+  vi.spyOn(management, 'readAccountView').mockResolvedValue({ username: 'synthetic', email: 'synthetic@example.org', revision: 1, recoveryRevision: 1, expiresAt: Date.now() + 10000, access: 'active' })
+  vi.spyOn(lifecycle, 'recoverProfile').mockImplementation(async () => profile.installProfile('AAAAAAAAAAAAAAAAAAAAAA', new Uint8Array(32), { accountId: 'AAAAAAAAAAAAAAAAAAAAAA', username: 'synthetic', sessionId: 'session', deviceId: 'device', csrf: 'secret', authenticatedAt: 1 }))
+  vi.spyOn(lifecycle, 'reconcilePendingRevocations').mockResolvedValue({ revocationPending: false })
+  const open = vi.fn(async () => {})
+  await act(async () => root.render(<AccountView onOpenWorkspace={open} onContinueLocal={async () => {}}/>))
+  const email = container.querySelector<HTMLInputElement>('input[aria-label="Recovery email"]')!
+  email.value = 'synthetic@example.org'; container.querySelector<HTMLInputElement>('input[name="code"]')!.value = 'synthetic code'
+  await act(async () => email.form!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+  expect(open).not.toHaveBeenCalled()
+  expect(container.querySelector('[aria-label="Security acknowledgment"]')).not.toBeNull()
+  await click('I have saved my security information. Continue')
+  expect(open).toHaveBeenCalledOnce()
+})

@@ -1,3 +1,5 @@
+import { loadAccountUpdate } from './workspace-updates'
+import { finishAccountSignin } from './signin-helpers'
 import { expect, test, type Page, type BrowserContext } from '@playwright/test'
 import type * as auth from '../../src/account/auth-client'
 
@@ -22,7 +24,7 @@ test('publishesInitialAccountThroughActualRoutes', async () => {
   await page.getByLabel('Remember this device').first().check()
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   const initialPublication = page.waitForResponse(async response => { const request = response.request(); if (!response.url().endsWith('/sync/commits') || !response.ok()) return false; const value = request.postDataJSON(); return value.heads.length > 0 })
-  await page.getByRole('button', { name: 'Open account workspace' }).click()
+  await finishAccountSignin(page)
   const status = page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')
   await initialPublication
   await expect(status).toHaveText('Synced')
@@ -52,6 +54,7 @@ test('reconnectReconcilesALostAcceptedCommit', async ({}, testInfo) => {
   await expect(status).toHaveText('Synced')
   const reconciled = commits.map(value => JSON.parse(value).mutationId).filter(id => receipts.includes(id))
   expect(reconciled.length).toBeGreaterThan(0)
+  await loadAccountUpdate(page)
   expect(await page.evaluate(() => (window as unknown as { workspaceProof: WorkspaceProof }).workspaceProof.localDefinitions())).toEqual(['Synthetic offline retained item'])
   await testInfo.attach('sync-runtime-evidence', { body: JSON.stringify({ actualWorker: true, offlineReload: true, lostAcceptedCommit: true, stableRequestReplay: reconciled.every(id => new Set(commits.filter(value => JSON.parse(value).mutationId === id)).size === 1) }), contentType: 'application/json' })
 })

@@ -1,3 +1,4 @@
+import { beginSeededAccount, mountSeededAccount, finishAccountSignin } from './signin-helpers'
 import { loadAccountUpdate } from './workspace-updates'
 import { expect, test, type Page, type BrowserContext } from '@playwright/test'
 import type * as auth from '../../src/account/auth-client'
@@ -18,15 +19,18 @@ async function headPublication(page: Page) {
 }
 const status = (page: Page) => page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')
 async function signIn(page: Page, email: string, seed = false) {
-  await page.goto(path)
-  await page.getByLabel('Email', { exact: true }).fill(email); await page.getByLabel('Password', { exact: true }).fill(password)
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Open account workspace' })).toBeVisible()
-  if (seed) await page.evaluate(() => (window as unknown as { accountBootstrapProof: Proof }).accountBootstrapProof.seedConflictFixture())
-  const ready = seed ? headPublication(page) : page.evaluate(() => new Promise<void>(resolve => window.addEventListener('crykit-account-sync-applied', () => resolve(), { once: true })))
-  await page.getByRole('button', { name: 'Open account workspace' }).click()
+  if (seed) {
+    await beginSeededAccount(page, path, email, password)
+    await page.evaluate(() => (window as unknown as { accountBootstrapProof: Proof }).accountBootstrapProof.seedConflictFixture())
+  } else {
+    await page.goto(path)
+    await page.getByLabel('Email', { exact: true }).fill(email); await page.getByLabel('Password', { exact: true }).fill(password)
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  }
+  const ready = seed ? headPublication(page) : finishAccountSignin(page)
+  if (seed) await mountSeededAccount(page)
   await ready
-  if (!seed) await loadAccountUpdate(page)
+  if (!seed) await expect(page.getByRole('button', { name: 'Load updated data', exact: true })).toHaveCount(0)
 }
 test.describe.serial('retained conflict choices across actual browser profiles', () => {
   let a: Page, b: Page, c: Page, contexts: BrowserContext[] = [], email: string, frozen: Snapshot['conflicts'][number], pendingPublication: ReturnType<typeof headPublication>

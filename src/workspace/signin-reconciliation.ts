@@ -10,7 +10,8 @@ import { jsonEqual } from '../persistence/local-data'
 import { accountLocalId, openAccountJson } from './account-cache'
 import { captureExistingGuestWorkspaceForSignin, type GuestCopySource } from './guest-repository'
 import { createGuestCopyService, type GuestCopyPreview } from './guest-copy'
-import type { WorkspaceState } from './documents'
+import { GuestCopyJournalSchema, PENDING_COPY, SAVED_COPY_PREFIX } from './guest-copy-journal'
+import { captureWorkspaceDocuments, privateRecordKey, type WorkspaceState } from './documents'
 import { classifySigninLocalData, type SigninLocalSummary } from './signin-local-data'
 import { createReviewedReplacementService, stableWorkspaceSnapshotIdentity, type ReviewedAccountData, type ReviewedReplacement, type StableWorkspaceSnapshotIdentity } from './reviewed-replacement'
 import { createAccountRecoveryService } from './account-recovery'
@@ -19,6 +20,7 @@ import { captureAccountSnapshot } from './account-snapshot'
 import { disposeWorkspaceSnapshot, type WorkspaceSnapshot } from './snapshot'
 
 export const SIGNIN_DECISION_KEY = 'signin-receipt:decision'
+const RECOVERY_DECISION_PREFIX = 'signin-receipt:recovery:'
 export const SigninDecisionSchema = z.strictObject({
   version: z.literal(1), kind: z.literal('signin-decision'), accountId: OpaqueIdSchema,
   source: z.strictObject({ revisionVector: z.record(z.string(), z.string()), metadataDigest: z.string() }).nullable(),
@@ -26,14 +28,72 @@ export const SigninDecisionSchema = z.strictObject({
   copyId: OpaqueIdSchema.optional(), cleanupPending: z.boolean().optional(), status: z.enum(['preparing', 'complete', 'cancelled']),
 }).refine(value => value.action === 'merge' ? !!value.copyId && !!value.source : value.copyId === undefined)
 export type SigninDecision = z.infer<typeof SigninDecisionSchema>
+// Startup must discover this owner before ordinary pull can replace a saved copy's publication base
+// The encrypted preparing receipt grants identity; a manual pending copy alone never selects recovery
+export async function readPendingRecoveryEntry(token: ProfileToken): Promise<SigninReconciliationOptions['entry']> {
+  assertActiveProfile(token)
+  const database = new AccountDatabase(token.accountId)
+  try {
+    const rows = await database.syncState.where('id').startsWith(RECOVERY_DECISION_PREFIX).toArray()
+    assertActiveProfile(token)
+    let entry: SigninReconciliationOptions['entry']
+    let pending: EncryptedSyncState | undefined, copy: EncryptedSyncState | undefined
+    for (const row of rows) {
+      assertActiveProfile(token)
+      const value = await openAccountJson(database, token, row.ref, SigninDecisionSchema)
+      assertActiveProfile(token)
+      if (value.accountId !== token.accountId) throw new Error('SIGNIN_RECEIPT_MISMATCH')
+      if (value.status !== 'preparing') continue
+      const pointId = OpaqueIdSchema.parse(row.id.slice(RECOVERY_DECISION_PREFIX.length))
+      if (entry) throw new Error('SIGNIN_RECEIPT_MISMATCH')
+      if (value.action === 'merge') {
+        pending = await database.syncState.get(PENDING_COPY)
+        assertActiveProfile(token)
+        copy = await database.syncState.get(`${SAVED_COPY_PREFIX}${value.copyId}`)
+        assertActiveProfile(token)
+        if (!pending || !copy || !jsonEqual(pending.ref, copy.ref)) throw new Error('SIGNIN_RECEIPT_MISMATCH')
+        const journal = await openAccountJson(database, token, copy.ref, GuestCopyJournalSchema)
+        assertActiveProfile(token)
+        if (!journal.preview.signin || journal.preview.accountId !== token.accountId || journal.preview.copyId !== value.copyId) throw new Error('SIGNIN_RECEIPT_MISMATCH')
+      }
+      entry = { kind: 'recovery', pointId }
+    }
+    // Crypto reads happen outside native transactions; recheck every discovered association before handing off
+    await database.transaction('r', database.syncState, async () => {
+      assertActiveProfile(token)
+      if (!jsonEqual(await database.syncState.where('id').startsWith(RECOVERY_DECISION_PREFIX).toArray(), rows)
+        || pending && !jsonEqual(await database.syncState.get(PENDING_COPY), pending)
+        || copy && !jsonEqual(await database.syncState.get(copy.id), copy)) throw new Error('SIGNIN_RECEIPT_MISMATCH')
+      assertActiveProfile(token)
+    })
+    assertActiveProfile(token)
+    return entry
+  } finally { database.close() }
+}
 export type SigninAction = 'merge' | 'account' | 'device'
 export type SigninPhase = 'inspecting' | 'preparing' | 'choosing' | 'confirming' | 'committing' | 'opening' | 'complete' | 'cancelled' | 'failed'
 export interface SigninDisplaySummary extends SigninLocalSummary {
+  readonly recordNames?: Readonly<Record<string, string>>
   readonly progressByPlaythrough: readonly { readonly playthroughId: string; readonly label?: string; readonly count: number }[]
   readonly otherByKind: readonly { readonly kind: string; readonly count: number }[]
 }
 function summarize(workspace: WorkspaceState): SigninDisplaySummary {
   const summary = classifySigninLocalData(workspace)
+  const recordNames: Record<string, string> = {}
+  // Display names come from captured metadata, never persisted preview fallback strings or storage IDs
+  captureWorkspaceDocuments(workspace, (kind, key, input) => {
+    const value = input as { title?: string; label?: string; name?: string; filename?: string; relativePath?: string; metadata?: { label?: string } } | undefined
+    const name = [value?.title, value?.label, value?.name, value?.filename, value?.relativePath, value?.metadata?.label].find(value => typeof value === 'string' && value.trim())
+    if (name) recordNames[key] = name
+    return { version: 1, kind, key, value: null }
+  })
+  for (const [id, playthrough] of Object.entries(workspace.planner.localData.playthroughs)) {
+    if (playthrough.label) recordNames[privateRecordKey('inventory', id)] = playthrough.label
+    for (const [recordId, progress] of Object.entries(playthrough.progress)) {
+      const name = [playthrough.label, progress.displayName].filter(Boolean).join(' / ')
+      if (name) recordNames[privateRecordKey('progress', id, recordId)] = name
+    }
+  }
   const progress = new Map<string, number>(), other = new Map<string, number>()
   for (const reason of summary.reasons) {
     if (reason.category === 'progress') {
@@ -42,7 +102,7 @@ function summarize(workspace: WorkspaceState): SigninDisplaySummary {
     } else if (reason.category === 'other') other.set(reason.code, (other.get(reason.code) ?? 0) + 1)
   }
   // Labels are private display content only; exact IDs, never labels, group source observations
-  return { ...summary, progressByPlaythrough: [...progress].map(([playthroughId, count]) => ({ playthroughId, label: workspace.planner.localData.playthroughs[playthroughId]?.label, count })), otherByKind: [...other].map(([kind, count]) => ({ kind, count })) }
+  return { ...summary, recordNames, progressByPlaythrough: [...progress].map(([playthroughId, count]) => ({ playthroughId, label: workspace.planner.localData.playthroughs[playthroughId]?.label, count })), otherByKind: [...other].map(([kind, count]) => ({ kind, count })) }
 }
 export interface SigninReconciliationState {
   readonly phase: SigninPhase
@@ -61,6 +121,7 @@ export interface SigninReconciliationOptions {
   // Selection effects belong to the provider; successful activation survives an effect failure
   readonly openAccount: (token: ProfileToken) => Promise<void>
   readonly continueLocal: (token: ProfileToken) => Promise<void>
+  readonly entry?: { readonly kind: 'recovery'; readonly pointId: string }
   readonly captureGuest?: () => Promise<GuestCopySource | undefined>
   readonly run?: Runner
   // Only a previously admitted selected account may use this offline escape hatch
@@ -68,6 +129,8 @@ export interface SigninReconciliationOptions {
 }
 
 export function createSigninReconciliation(options: SigninReconciliationOptions) {
+  const recoveryEntry = options.entry
+  const decisionKey = recoveryEntry ? `${RECOVERY_DECISION_PREFIX}${OpaqueIdSchema.parse(recoveryEntry.pointId)}` : SIGNIN_DECISION_KEY
   let state: SigninReconciliationState = { phase: 'inspecting', source: 'unknown', fresh: false, canOpenAccount: false }
   const listeners = new Set<() => void>()
   let token: ProfileToken, database: AccountDatabase | undefined
@@ -88,7 +151,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   }
   const service = () => createReviewedReplacementService(database!, token)
   async function readDecision() {
-    const row = await database!.syncState.get(SIGNIN_DECISION_KEY)
+    const row = await database!.syncState.get(decisionKey)
     const value = row ? await openAccountJson(database!, token, row.ref, SigninDecisionSchema) : undefined
     if (value && value.accountId !== token.accountId) throw new Error('SIGNIN_RECEIPT_MISMATCH')
     return row && value ? { row, value } : undefined
@@ -105,7 +168,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   }
   function safeReason(error: unknown) {
     const code = error instanceof Error ? error.message : ''
-    const known: Record<string, string> = { QUOTA_EXCEEDED: 'quota', LOCAL_REVISION_CONFLICT: 'review-stale', HEAD_CONFLICT: 'review-stale', REPLACEMENT_REVIEW_REQUIRED: 'replacement-review-required', IDEMPOTENCY_MISMATCH: 'source-changed', SIGNIN_SOURCE_CHANGED: 'source-changed', SIGNIN_RECEIPT_MISMATCH: 'receipt-mismatch', SIGNIN_OFFLINE: 'offline', SIGNIN_CANCELLED: 'cancelled', PROFILE_CHANGED: 'profile-changed', ACCOUNT_PROJECTION_UNAVAILABLE: 'account-unavailable' }
+    const known: Record<string, string> = { QUOTA_EXCEEDED: 'quota', LOCAL_REVISION_CONFLICT: 'review-stale', HEAD_CONFLICT: 'review-stale', REPLACEMENT_REVIEW_REQUIRED: 'replacement-review-required', IDEMPOTENCY_MISMATCH: 'source-changed', SIGNIN_SOURCE_CHANGED: 'source-changed', SIGNIN_RECEIPT_MISMATCH: 'receipt-mismatch', SIGNIN_OFFLINE: 'offline', ONLINE_ACCESS_DISCONNECTED: 'signin-required', AUTH_REQUIRED: 'signin-required', CSRF_FAILED: 'signin-required', SIGNIN_CANCELLED: 'cancelled', PROFILE_CHANGED: 'profile-changed', ACCOUNT_PROJECTION_UNAVAILABLE: 'account-unavailable' }
     if (['A pending copy must be resumed by its saved operation ID or kept before starting a new sign-in merge', 'The saved sign-in copy is unavailable', 'The saved sign-in copy identity is unsupported'].includes(code)) return 'saved-copy-review-required'
     return known[code] ?? (state.phase === 'opening' ? 'opening-failed' : 'preparation-failed')
   }
@@ -122,7 +185,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     if (cancellation) assertActiveProfile(token); else check()
     const expected = await database!.profileMeta.get('active')
     if (!expected) throw new Error('ACCOUNT_PROJECTION_UNAVAILABLE')
-    const attachment = await prepareAccountReceiptAttachment(database!, token, { expected, head: expected.head }, { id: SIGNIN_DECISION_KEY, expected: saved?.row, value })
+    const attachment = await prepareAccountReceiptAttachment(database!, token, { expected, head: expected.head }, { id: decisionKey, expected: saved?.row, value })
     try { if (cancellation) assertActiveProfile(token); else check(); await commitAccountReceipt(database!, token, attachment) }
     finally { await releaseAccountActivationAttachment(attachment) }
     saved = await readDecision(); operationId = value.operationId
@@ -210,7 +273,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       if (!saved.value.copyId || !await database!.migrationJournal.get(saved.value.copyId)) throw new Error('SIGNIN_RECEIPT_MISMATCH')
       copy ??= createGuestCopyService(async () => { throw new Error('SIGNIN_RECEIPT_MISMATCH') }, check)
       const preview = await copy.previewSigninMerge(token, saved.value.copyId)
-      await copy.commitGuestCopy(token, preview, { id: SIGNIN_DECISION_KEY, expected: saved.row, value: saved.value })
+      await copy.commitGuestCopy(token, preview, { id: decisionKey, expected: saved.row, value: saved.value })
     } else if (saved.value.action !== 'account') {
       const replacement = await service().status()
       if (replacement?.operationId !== saved.value.operationId) throw new Error('SIGNIN_RECEIPT_MISMATCH')
@@ -231,7 +294,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     void cleanupRecoveries()
     const matches = state.source !== 'unavailable' && saved && jsonEqual(saved.value.source, identity)
     // A completed exact receipt admits cached opening without reimporting or waiting on network
-    if (matches && saved!.value.status === 'complete' && replacement?.state !== 'paused') { await verifyCompletedDecision(); activated = true; publish({ canOpenAccount: true }); await open(); return }
+    if (!recoveryEntry && matches && saved!.value.status === 'complete' && replacement?.state !== 'paused') { await verifyCompletedDecision(); activated = true; publish({ canOpenAccount: true }); await open(); return }
     try { await prepareAccount() }
     catch (error) {
       if (options.admittedOffline && state.canOpenAccount) {
@@ -239,7 +302,9 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       }
       throw error
     }
-    if (state.replacement?.state !== 'paused' && (!source && state.source === 'absent' || source && !state.local?.meaningful)) {
+    // Explicit recovery entry always reviews even empty snapshots and completed prior choices
+    // Preparing receipts still resume below; opening retry follows activated ownership
+    if (!recoveryEntry && state.replacement?.state !== 'paused' && (!source && state.source === 'absent' || source && !state.local?.meaningful)) {
       await remember(SigninDecisionSchema.parse({ version: 1, kind: 'signin-decision', accountId: token.accountId, source: identity, action: 'account', operationId: accountLocalId(), status: 'complete' }))
       activated = true; await open(); return
     }
@@ -277,14 +342,17 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
         if (state.source !== 'unavailable') await remember(SigninDecisionSchema.parse({ version: 1, kind: 'signin-decision', accountId: token.accountId, source: identity, action, operationId: accountLocalId(), status: 'complete' }))
         activated = true; await open(); return
       }
-      await currentSource(); await freshReview()
+      // Source and remote validation can be expensive; retire the visible choices before awaiting either
       publish({ phase: 'preparing', action, preview: undefined, reason: undefined })
+      await currentSource(); await freshReview()
       const value: SigninDecision = { version: 1, kind: 'signin-decision', accountId: token.accountId, source: identity, action, operationId: accountLocalId(), status: 'preparing' }
       if (action === 'merge') {
         copy ??= createGuestCopyService(async () => { await currentSource(); return source! }, check)
         const preview = await copy.previewSigninMerge(token)
         value.copyId = preview.copyId
-        await remember(value); publish({ phase: 'confirming', preview })
+        await copy.prepareSigninMerge(token, preview, { id: decisionKey, expected: saved?.row, value })
+        saved = await readDecision(); operationId = value.operationId
+        publish({ phase: 'confirming', preview })
       } else { await remember(value); publish({ phase: 'confirming' }) }
     })
   }
@@ -294,9 +362,11 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       saved = await readDecision()
       if (activated || saved?.value.status === 'complete' && saved.value.operationId === operationId) { activated = true; await open(); return }
       if (!saved || saved.value.status !== 'preparing' || state.phase !== 'confirming' || saved.value.operationId !== operationId || saved.value.action !== state.action || !jsonEqual(saved.value.source, identity)) throw new Error('SIGNIN_REVIEW_REQUIRED')
+      // Preserve the exact reviewed action and preview while checking its authority again
+      publish({ phase: 'preparing', reason: undefined })
       await freshReview()
       const decision = { ...saved.value, status: 'complete' as const }
-      const receipt = { id: SIGNIN_DECISION_KEY, expected: saved.row, value: decision }
+      const receipt = { id: decisionKey, expected: saved.row, value: decision }
       publish({ phase: 'committing', reason: undefined })
       if (decision.action === 'merge') {
         if (!copy || !state.preview || decision.copyId !== state.preview.copyId) throw new Error('SIGNIN_RECEIPT_MISMATCH')
@@ -355,7 +425,9 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   }
   function reviewReplacement(action: 'device' | 'latest') {
     return execute(async () => {
-      check(); await releaseReview(); review = await service().refresh()
+      check()
+      publish({ phase: 'preparing', action, preview: undefined, reason: undefined })
+      await releaseReview(); review = await service().refresh()
       const replacement = await service().status()
       if (replacement?.state !== 'paused') throw new Error('REPLACEMENT_REVIEW_REQUIRED')
       publish({ fresh: true, replacement, action, preview: undefined })

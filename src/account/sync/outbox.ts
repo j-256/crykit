@@ -308,8 +308,10 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
       if (chosenEvidence) return chosenEvidence
       if (!localEvidence || !remoteEvidence || JSON.stringify(localEvidence) === JSON.stringify(remoteEvidence)) return chosenEvidence = localEvidence ?? remoteEvidence
       const { accountEvidenceContains, prepareAccountEvidenceUnion } = await import('../../workspace/account-evidence-union')
-      if (await accountEvidenceContains(database, token, localEvidence, remoteEvidence)) return chosenEvidence = localEvidence
+      // Independently encrypted equivalent archives must not cause reciprocal publication churn
+      // Authenticated remote containment wins; only additional local members require publication
       if (await accountEvidenceContains(database, token, remoteEvidence, localEvidence)) return chosenEvidence = remoteEvidence
+      if (await accountEvidenceContains(database, token, localEvidence, remoteEvidence)) return chosenEvidence = localEvidence
       evidenceUnion = await prepareAccountEvidenceUnion(database, token, localEvidence, remoteEvidence)
       return chosenEvidence = evidenceUnion.prepared.root
     }

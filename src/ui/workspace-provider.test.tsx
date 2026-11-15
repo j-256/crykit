@@ -1,3 +1,4 @@
+import { useQueuedTileUpdates } from './useQueuedTileUpdates'
 import 'fake-indexeddb/auto'
 import { GuestCoordinatorDatabase } from '../workspace/guest-coordinator'
 import { createGuestLocalStore } from '../workspace/guest-local-store'
@@ -315,6 +316,7 @@ it('remembered startup opens exactly the selected account through verified lifec
   const repository = { ...createGuestRepository(), kind: 'account' as const }
   const opened = vi.spyOn(account, 'openAccountRepository').mockResolvedValue(repository)
   await act(async () => root.render(<WorkspaceProvider><Probe/></WorkspaceProvider>))
+  await vi.waitFor(async () => { await act(async () => {}); expect(container.querySelector('button')?.textContent).toBe('account:clean') })
   expect(unlock).toHaveBeenCalledWith(selectedId)
   expect(opened).toHaveBeenCalledWith(expect.objectContaining({ accountId: selectedId }))
   expect(container.querySelector('button')!.textContent).toBe('account:clean')
@@ -1080,3 +1082,106 @@ it.each(['input', 'profile', 'workspace'] as const)('held Editor reopening canno
     expect(old.editorSession.controller.snapshot()).toMatchObject({ dirty: true, input: { text: change === 'input' ? '{"newer-input":' : '{"losing":true}' } })
   } else expect(old.editorSession.controller.snapshot().input).toBeUndefined()
 })
+
+it('a Progress click blocks same-frame authentication until its immediate save settles', async () => {
+  let release!: () => void
+  const save = new Promise<void>(resolve => { release = resolve })
+  const authenticate = vi.fn()
+  const blocked: string[] = []
+  function PendingSave() {
+    const workspace = useWorkspace()
+    const pending = useRef(0)
+    const { enqueue } = useQueuedTileUpdates<string, boolean>()
+    useLayoutEffect(() => workspace.registerDraftPresence(() => pending.current > 0), [workspace.registerDraftPresence])
+    return <><button onClick={() => enqueue('progress', false, value => !value, () => {
+      pending.current++
+      return save.finally(() => { pending.current-- })
+    }, reason => { throw reason })}>Progress</button><button onClick={() => {
+      try { workspace.beforeAuthentication(); authenticate() }
+      catch (reason) { blocked.push((reason as Error).message) }
+    }}>Start authentication</button></>
+  }
+  await act(async () => root.render(<WorkspaceProvider><PendingSave/></WorkspaceProvider>))
+  const epoch = captureProfileEpoch()
+  const [progress, signin] = container.querySelectorAll('button')
+  await act(async () => { progress.click(); signin.click() })
+  expect(blocked).toEqual(['WORKSPACE_PENDING_CHANGES'])
+  expect(authenticate).not.toHaveBeenCalled()
+  expect(() => epoch.assertCurrent()).not.toThrow()
+  await act(async () => { release(); await save })
+  await act(async () => signin.click())
+  expect(authenticate).toHaveBeenCalledOnce()
+})
+
+it.each(['remembered', 'locked'] as const)('owns pending recovery before %s selected-account startup can attach ordinary sync', async access => {
+  const { AccountDatabase } = await import('../persistence/account-database')
+  const { seedManagedWorkspace } = await import('../persistence/managed-sync.test-helpers')
+  const { createGuestCopyService } = await import('../workspace/guest-copy')
+  const recovery = await import('../workspace/account-recovery')
+  const { ownWorkspaceSnapshot } = await import('../workspace/snapshot')
+  const { stableWorkspaceSnapshotIdentity } = await import('../workspace/reviewed-replacement')
+  const { workspace, progress, now } = await import('../workspace/signin-merge.test-helpers')
+  const { createBlankLocalData } = await import('../domain/local-data')
+  const { accountLocalId } = await import('../workspace/account-cache')
+  const { LAUNCH_DATA_GENERATION } = await import('../domain/data-generation')
+  const sync = await import('../account/sync/scheduler')
+  token = installProfile(accountLocalId(), new Uint8Array(32))
+  const database = new AccountDatabase(token.accountId)
+  const snapshot = () => ownWorkspaceSnapshot({ version: 1, dataGeneration: LAUNCH_DATA_GENERATION, snapshotId: 'provider-recovery', capturedAt: now, revisionVector: { guest: 'provider-recovery', managedRevision: '1' }, state: progress('recovered') }, { async check() {}, async dispose() {} })
+  const source = snapshot(), copy = createGuestCopyService(async () => source)
+  let release!: () => void
+  const held = new Promise<void>(resolve => { release = resolve })
+  try {
+    await seedManagedWorkspace(database, token, workspace(createBlankLocalData({ now })))
+    const { stagePublicationPages } = await import('../account/sync/publication')
+    const { writeSyncState } = await import('../account/sync/outbox')
+    const heads = await stagePublicationPages(database, token, 'local-remote-heads', [], () => [])
+    await writeSyncState(database, token, 'projection', { version: 1, kind: 'remote-state', cursor: null, watermark: 0, publicationEpoch: 0, heads, initialComplete: true }, undefined, [heads])
+    const reviewed = await import('../workspace/reviewed-replacement'), createReviewed = reviewed.createReviewedReplacementService
+    vi.spyOn(reviewed, 'createReviewedReplacementService').mockImplementation((...args) => ({ ...createReviewed(...args), async refresh() { throw new Error('ONLINE_ACCESS_DISCONNECTED') } }))
+    const pointId = accountLocalId(), preview = await copy.previewSigninMerge(token)
+    await copy.prepareSigninMerge(token, preview, { id: `signin-receipt:recovery:${pointId}`, expected: undefined, value: { version: 1, kind: 'signin-decision', accountId: token.accountId, source: await stableWorkspaceSnapshotIdentity(source), action: 'merge', operationId: accountLocalId(), copyId: preview.copyId, status: 'preparing' } })
+    await copy.dispose()
+    const before = await database.profileMeta.get('active')
+    const createRecovery = recovery.createAccountRecoveryService
+    vi.spyOn(recovery, 'createAccountRecoveryService').mockImplementation(next => ({ ...createRecovery(next), async capture(id) { expect(id).toBe(pointId); await held; throw new Error('ONLINE_ACCESS_DISCONNECTED') }, list: async () => [] }))
+    const attach = vi.spyOn(sync, 'attachSyncScheduler')
+    const management = await import('../account/management')
+    const metadata = vi.spyOn(management, 'readAccountView').mockRejectedValue(new Error('ONLINE_ACCESS_DISCONNECTED'))
+    vi.spyOn(lifecycle, 'reconnectProfile').mockResolvedValue(undefined)
+    vi.mocked(selection.readDeviceSelection).mockResolvedValue({ key: 'selected', version: 1, kind: 'account', accountId: token.accountId })
+    vi.mocked(device.listCachedProfiles).mockResolvedValue([{ accountId: token.accountId, remembered: access === 'remembered', passwordAvailable: true, revocationPending: false }])
+    vi.spyOn(lifecycle, 'unlockCachedProfile').mockImplementation(async accountId => token = installProfile(accountId, new Uint8Array(32)))
+    if (access === 'locked') invalidateProfile()
+    vi.spyOn(lifecycle, 'reconcilePendingRevocations').mockResolvedValue({ revocationPending: false })
+    await act(async () => root.render(<WorkspaceProvider><Probe/></WorkspaceProvider>))
+    if (access === 'locked') {
+      expect(container.textContent).toContain('Account workspace locked')
+      const password = container.querySelector<HTMLInputElement>('input[aria-label="Local password"]')!
+      password.value = 'synthetic local password'
+      await act(async () => password.form!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
+    }
+    await vi.waitFor(() => expect(container.querySelector('h1')?.textContent).toBe('Preparing your workspace'))
+    expect(container.textContent).not.toContain('account:clean')
+    expect(attach).not.toHaveBeenCalled()
+    await act(async () => release())
+    await vi.waitFor(() => expect(container.textContent).toContain('Recovery snapshot'))
+    expect(attach).not.toHaveBeenCalled()
+    expect(await database.profileMeta.get('active')).toEqual(before)
+    expect(await database.outbox.count()).toBe(0)
+    expect(await database.syncState.get('guest-copy:pending')).toBeDefined()
+    metadata.mockResolvedValue({ username: 'reconnected_review_account', email: 'synthetic@example.org', revision: 1, recoveryRevision: 1, expiresAt: Date.now() + 10000, access: 'active' })
+    await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Reconnect to review')!.click())
+    await vi.waitFor(async () => { await act(async () => {}); expect(container.textContent).toContain('Account: reconnected_review_account') })
+    expect(attach).not.toHaveBeenCalled()
+    await act(async () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Cancel and return to workspace')!.click())
+    await vi.waitFor(async () => { await act(async () => {}); expect(container.textContent).toContain('account:clean') })
+    expect(await database.profileMeta.get('active')).toEqual(before)
+    expect(await database.outbox.count()).toBe(0)
+    const { readPendingRecoveryEntry } = await import('../workspace/signin-reconciliation')
+    expect(await readPendingRecoveryEntry(token)).toBeUndefined()
+  } finally {
+    release(); await act(async () => root.unmount()); root = createRoot(container)
+    await copy.dispose(); await database.delete()
+  }
+}, 30_000)

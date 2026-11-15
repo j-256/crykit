@@ -1,4 +1,4 @@
-import type { AccountSyncAttachmentValue } from '../persistence/account-activation-attachments'
+import { accountAttachmentCheck, prepareAccountReceiptAttachment, releaseAccountActivationAttachment, type AccountSyncAttachmentValue } from '../persistence/account-activation-attachments'
 import { classifySigninLocalData } from './signin-local-data'
 import { signinDocumentsEqual, signinProgressCorrespondence } from './signin-progress'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
@@ -317,7 +317,7 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
       assertActiveProfile(token); assertMayActivate(); return preview
     } finally { database.close() }
   }
-  async function commitGuestCopy(token: ProfileToken, preview: GuestCopyPreview, decision?: AccountSyncAttachmentValue): Promise<GuestCopyReceipt> {
+  async function executeGuestCopy(token: ProfileToken, preview: GuestCopyPreview, decision?: AccountSyncAttachmentValue, preparingDecision?: AccountSyncAttachmentValue): Promise<GuestCopyReceipt | undefined> {
     const authority = authorities.get(preview)
     assertActiveProfile(token); assertMayActivate()
     if (!authority || authority.token !== token || authority.generation !== generation || preview.accountId !== token.accountId) throw new Error('Reopen this account copy preview before continuing')
@@ -326,18 +326,21 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
     const assertCopyActive = () => { assertActiveProfile(token); assertMayActivate(); if (authority.generation !== generation) throw new Error('Local copy was cancelled') }
     busy = true
     let staged: Awaited<ReturnType<typeof stageManagedGuestCopy>> | undefined
+    let preparationAttachment: Awaited<ReturnType<typeof prepareAccountReceiptAttachment>> | undefined
     const database = new AccountDatabase(token.accountId)
     try {
       const row = await database.syncState.get(`guest-copy:${preview.copyId}`)
       let journal = row ? await openAccountJson(database, token, row.ref, JournalSchema) : authority.journal
       if (!journal) {
+        if (preparingDecision) preparationAttachment = await prepareAccountReceiptAttachment(database, token, { expected: authority.expected, head: authority.expected.head }, preparingDecision)
+        const preparationCheck = accountAttachmentCheck(database, token, { expected: authority.expected, head: authority.expected.head }, preparationAttachment)
         const snapshot = authority.snapshot!, selected = authority.selected!
         await assertOwnedWorkspaceSnapshot(snapshot)
         if (!jsonEqual(await database.profileMeta.get('active'), authority.expected)) throw new Error('The account changed after preview. Preview again before copying.')
         if (await isManagedAccountHead(database, token, authority.expected) && !preview.conflicts.length && !selected.state.conflicts.length) {
           const includeOriginals = !!preview.signin || preview.selectedKeys.includes(HISTORY_KEY)
           const incoming = await guestEvidenceForCopy(selected, includeOriginals ? snapshot : undefined, includeOriginals ? authority.originals : undefined)
-          staged = await stageManagedGuestCopy(database, token, preview, authority.expected, incoming, before => additiveCopyState(before, selected, preview), assertCopyActive)
+          staged = await stageManagedGuestCopy(database, token, preview, authority.expected, incoming, before => additiveCopyState(before, selected, preview), assertCopyActive, preparationAttachment)
           journal = staged.journal
         } else {
           const capturedPrevious = await captureAccountSyncWorkspace(database, token, authority.expected)
@@ -361,16 +364,25 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
             await database.transaction('rw', database.tables, async () => {
               assertCopyActive()
               if (!jsonEqual(await database.profileMeta.get('active'), authority.expected) || await database.syncState.get(PENDING_COPY)) throw new Error('The account or pending copy changed during preparation')
+              await preparationCheck?.recheckAndRetireInTransaction()
               for (const record of new Map([...prepared.records, ...(source?.records ?? []), ...(registrations?.records ?? []), ...intent.records, saved].map(record => [record.revisionId, record])).values()) await database.encryptedRevisions.add(record)
               const ref = cipherRef(saved)
               await database.syncState.add({ id: `guest-copy:${preview.copyId}`, ref })
               await database.syncState.add({ id: PENDING_COPY, ref })
+              // Confirmation can resume only when its receipt and complete copy share this commit
+              await preparationCheck?.installInTransaction()
               assertCopyActive()
             })
           } finally { await operation.abandon(); await base?.dispose(); await disposeWorkspaceSnapshot(normalized) }
         }
       }
       if (journal.preview.copyId !== preview.copyId || journal.preview.accountId !== token.accountId) throw new Error('Saved copy identity mismatch')
+      // Preparation never changes the selected head, queues an intent, or requests sync
+      if (preparingDecision) {
+        const receipt = await database.syncState.get(preparingDecision.id)
+        if (!receipt || !jsonEqual(await openAccountJson(database, token, receipt.ref, z.unknown()), preparingDecision.value)) throw new Error('SIGNIN_RECEIPT_MISMATCH')
+        return
+      }
       const activated = await hasMatchingActivation(database, token, journal)
       if (activated && decision) {
         // Replay cannot attach a new approval to data that was already selected without that approval
@@ -404,7 +416,19 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
       })
       assertActiveProfile(token); requestSync(token, 'save')
       return { copyId: preview.copyId, accountId: token.accountId, mappings: mappings.filter(allocation => preview.closure.some(record => record.key === allocation.key)) }
-    } finally { try { await staged?.dispose() } finally { busy = false; database.close() } }
+    } finally {
+      try { await staged?.dispose() }
+      finally { try { if (preparationAttachment) await releaseAccountActivationAttachment(preparationAttachment) } finally { busy = false; database.close() } }
+    }
+  }
+  async function commitGuestCopy(token: ProfileToken, preview: GuestCopyPreview, decision?: AccountSyncAttachmentValue): Promise<GuestCopyReceipt> {
+    const receipt = await executeGuestCopy(token, preview, decision)
+    if (!receipt) throw new Error('The copy was not activated')
+    return receipt
+  }
+  async function prepareSigninMerge(token: ProfileToken, preview: GuestCopyPreview, decision: AccountSyncAttachmentValue): Promise<void> {
+    if (!preview.signin) throw new Error('Only sign-in copies can prepare a confirmation')
+    await executeGuestCopy(token, preview, undefined, decision)
   }
   async function keepSavedCopyAndRepreview(token: ProfileToken, preview: GuestCopyPreview): Promise<{ activated: boolean }> {
     assertActiveProfile(token); assertMayActivate()
@@ -579,7 +603,7 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
       requestSync(token, 'save')
     } finally { await owner.abandon(); busy = false; database.close() }
   }
-  return { previewGuestCopy, previewSigninMerge: (token: ProfileToken, savedCopyId?: string) => previewGuestCopy(token, [], true, savedCopyId), commitGuestCopy, keepSavedCopyAndRepreview, listSavedGuestCopies, withSavedGuestCopy, inspectCopiedComparisons, previewRetainedComparison, continueCopiedComparisons, dispose }
+  return { prepareSigninMerge, previewGuestCopy, previewSigninMerge: (token: ProfileToken, savedCopyId?: string) => previewGuestCopy(token, [], true, savedCopyId), commitGuestCopy, keepSavedCopyAndRepreview, listSavedGuestCopies, withSavedGuestCopy, inspectCopiedComparisons, previewRetainedComparison, continueCopiedComparisons, dispose }
 }
 const defaultService = createGuestCopyService(() => captureGuestWorkspaceForCopy())
 export const previewGuestCopy = defaultService.previewGuestCopy

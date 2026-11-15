@@ -1,3 +1,4 @@
+import { beginSeededAccount, mountSeededAccount, finishAccountSignin } from './signin-helpers'
 import { loadAccountUpdate } from './workspace-updates'
 import { expect, test, type Page, type BrowserContext } from '@playwright/test'
 import type { SaveWorkspaceDocument } from '../../src/workspace/documents'
@@ -15,16 +16,17 @@ const snapshot = (page: Page) => page.evaluate(() => (window as unknown as { wor
 const publication = (page: Page) => page.waitForResponse(value => value.url().endsWith('/sync/commits') && value.ok() && value.request().postDataJSON().heads.length > 0)
 const status = (page: Page) => page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')
 async function signIn(page: Page, email: string, seed = false) {
-  await page.goto(path)
-  await page.getByLabel('Email', { exact: true }).fill(email)
-  await page.getByLabel('Password', { exact: true }).fill(password)
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Open account workspace' })).toBeVisible()
-  if (seed) await page.evaluate(() => (window as unknown as { accountBootstrapProof: Proof }).accountBootstrapProof.seedSaveConflictFixture())
-  const ready = seed ? publication(page) : page.evaluate(() => new Promise<void>(resolve => window.addEventListener('crykit-account-sync-applied', () => resolve(), { once: true })))
-  await page.getByRole('button', { name: 'Open account workspace' }).click()
+  if (seed) {
+    await beginSeededAccount(page, path, email, password)
+    await page.evaluate(() => (window as unknown as { accountBootstrapProof: Proof }).accountBootstrapProof.seedSaveConflictFixture())
+  } else {
+    await page.goto(path)
+    await page.getByLabel('Email', { exact: true }).fill(email); await page.getByLabel('Password', { exact: true }).fill(password)
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  }
+  const ready = seed ? publication(page) : finishAccountSignin(page)
+  if (seed) await mountSeededAccount(page)
   await ready
-  if (!seed) await loadAccountUpdate(page)
 }
 async function downloaded(page: Page, button: import('@playwright/test').Locator) {
   const event = page.waitForEvent('download')

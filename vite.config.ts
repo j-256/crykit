@@ -43,7 +43,7 @@ const DOM_TEST_FILES = [
   'src/ui/PublicSharedView.viewer.test.tsx',
   'src/ui/mods/FolderImportPreview.test.tsx',
   'src/ui/mods/PrivateArtwork.test.tsx',
-  'src/ui/account/sync-status.test.tsx', 'src/ui/account/storage-panel.test.tsx', 'src/ui/account/LocalCopyPreview.test.tsx', 'src/ui/account/account.test.tsx', 'src/ui/account/DeletionPanel.test.tsx', 'src/ui/account/ConflictPanel.test.tsx', 'src/ui/account/ConflictFileVersion.test.tsx', 'src/ui/workspace-provider.test.tsx',
+  'src/ui/account/sync-status.test.tsx', 'src/ui/account/storage-panel.test.tsx', 'src/ui/account/LocalCopyPreview.test.tsx', 'src/ui/account/account.test.tsx', 'src/ui/account/signin-reconciliation.test.tsx', 'src/ui/account/DeletionPanel.test.tsx', 'src/ui/account/ConflictPanel.test.tsx', 'src/ui/account/ConflictFileVersion.test.tsx', 'src/ui/workspace-provider.test.tsx',
   'src/interchange/xlsx.test.ts',
   'src/ui/KnowledgeValue.test.tsx',
   'src/ui/ClassLearnTree.test.tsx',
@@ -62,6 +62,8 @@ const DOM_TEST_FILES = [
 ]
 
 export default defineConfig({
+  // Account module workers share dynamically loaded recovery and activation code
+  worker: { format: 'es' },
   base: './',
   plugins: [
     react(),

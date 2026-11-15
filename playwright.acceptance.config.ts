@@ -12,7 +12,7 @@ const ACCOUNT_ACCEPTANCE_MAX_FAILURES = process.env.CI ? 1 : 0
 export default defineConfig({
   globalSetup: './e2e/accounts/global-setup.ts',
   testDir: './e2e/accounts', fullyParallel: true, workers: ACCOUNT_ACCEPTANCE_WORKERS, maxFailures: ACCOUNT_ACCEPTANCE_MAX_FAILURES, forbidOnly: true, retries: 0,
-  testMatch: ['complete-workspace.spec.ts', 'privacy-boundaries.spec.ts', 'lifecycle.spec.ts', 'access.spec.ts', 'admin-security.spec.ts', 'admin-panel.spec.ts', 'guest-copy.spec.ts', 'status-recovery.spec.ts', 'runtime-isolation.spec.ts'],
+  testMatch: ['signin-reconciliation.spec.ts', 'complete-workspace.spec.ts', 'privacy-boundaries.spec.ts', 'lifecycle.spec.ts', 'access.spec.ts', 'admin-security.spec.ts', 'admin-panel.spec.ts', 'guest-copy.spec.ts', 'status-recovery.spec.ts', 'runtime-isolation.spec.ts'],
   outputDir: '.account-tests/acceptance-artifacts',
   reporter: [['list'], ['json', { outputFile: '.account-tests/acceptance-results.json' }]],
   use: { ignoreHTTPSErrors: true, trace: 'retain-on-failure', screenshot: 'only-on-failure' },

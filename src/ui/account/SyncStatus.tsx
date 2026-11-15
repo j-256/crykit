@@ -14,10 +14,11 @@ const labels: Record<SyncState, string> = {
 }
 export function SyncStatus({ localSaveState, syncState, onRetry, onReview }: SyncStatusProps): ReactElement {
   const saved = localSaveState === 'saved'
-  const review = ['signin-required', 'conflict', 'quota'].includes(syncState)
+  const review = ['signin-required', 'conflict', 'quota', 'paused'].includes(syncState)
   return <aside aria-label="Account sync" className="account-sync-status">
     <div role={localSaveState === 'error' ? 'alert' : undefined} aria-live="polite"><strong>{saved ? 'Saved on this device' : localSaveState === 'saving' ? 'Saving on this device' : localSaveState === 'error' ? 'Save failed' : 'Unsaved changes'}</strong>{localSaveState === 'error' && <p>Keep your open draft. Retry its save or download it for recovery before leaving.</p>}</div>
     <div role="status">{labels[syncState]}</div>{!saved && <span>Sync status describes previously saved changes.</span>}
-    {review ? <button type="button" onClick={onReview}>{syncState === 'conflict' ? 'Review versions' : syncState === 'quota' ? 'Review storage' : 'Sign in'}</button> : ['failed', 'paused', 'offline'].includes(syncState) && <button type="button" onClick={onRetry}>Retry</button>}
+    {review ? <button type="button" onClick={onReview}>{syncState === 'conflict' ? 'Review versions' : syncState === 'quota' ? 'Review storage' : syncState === 'paused' ? 'Review sync choices' : 'Sign in'}</button> : null}
+    {['failed', 'paused', 'offline'].includes(syncState) && <button type="button" onClick={onRetry}>Retry</button>}
   </aside>
 }

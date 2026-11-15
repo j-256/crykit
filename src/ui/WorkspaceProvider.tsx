@@ -1,3 +1,8 @@
+import { readAccountView } from '../account/management'
+import { createAccountRecoveryService } from '../workspace/account-recovery'
+import { createSigninReconciliation, readPendingRecoveryEntry } from '../workspace/signin-reconciliation'
+import { SigninReconciliation } from './account/SigninReconciliation'
+import { downloadWorkspaceBackup, requestWorkspaceDownload } from './download-stream'
 import { guestPlannerValuesEqual } from '../persistence/guest-planner-equality'
 import { recordWorkspaceStartup, WORKSPACE_STARTUP_PHASE } from '../diagnostics/workspace-startup'
 import { createGuestCopyService } from '../workspace/guest-copy'
@@ -18,7 +23,7 @@ import { flushSync as flushReactUpdates } from 'react-dom'
 import { assertActiveProfile, captureProfileEpoch, currentProfileToken, onProfileTransition, ProfileChangedError, type ProfileToken } from '../account/profile'
 import { attachSyncScheduler, requestSync, subscribeSync, type SyncState } from '../account/sync/scheduler'
 import { registerSyncProjectionGuard, runSyncIteration } from '../account/sync/outbox'
-import { unlockRememberedProfile } from '../account/lifecycle'
+import { reconnectProfile, unlockRememberedProfile } from '../account/lifecycle'
 import { listCachedProfiles } from '../account/device-store'
 import { readDeviceSelection, writeDeviceSelection } from '../workspace/device-selection'
 import { openAccountRepository, readAccountSaveRecovery } from '../workspace/account-repository'
@@ -46,6 +51,10 @@ interface WorkspaceContextValue extends EditorWorkspaceActions, SaveWorkspaceAct
   readonly localCopy: ReturnType<typeof createGuestCopyService>
   readonly token?: ProfileToken
   openAccount(token: ProfileToken): Promise<void>
+  authenticated(token: ProfileToken): Promise<void>
+  beforeAuthentication(): void
+  reviewSigninReplacement(): Promise<void>
+  reconcileRecovery(pointId: string): Promise<void>
   continueLocal(): Promise<void>
   reopenGuest(preserveReferenceRetry?: boolean, completedModImport?: ModLibraryResult): Promise<void>
   readReferenceRetry(): ReferenceRetry | undefined
@@ -70,6 +79,11 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
   const [guest, setGuest] = useState(createGuestRepository)
   const [selection, setSelection] = useState<WorkspaceSelection>({ kind: 'opening', generation: 0 })
   const [repository, setRepository] = useState<WorkspaceRepository>(guest)
+  const reconciliation = useRef<ReturnType<typeof createSigninReconciliation>>(undefined)
+  const reconciliationUnsubscribe = useRef<() => void>(undefined)
+  const [reconciliationSource, setReconciliationSource] = useState('This device')
+  const [reconciliationAccountName, setReconciliationAccountName] = useState<string>()
+  const [reconciliationState, setReconciliationState] = useState<ReturnType<ReturnType<typeof createSigninReconciliation>['getSnapshot']>>()
   const current = useRef(selection)
   const version = useRef(0)
   const retiredGuest = useRef<{ selection: WorkspaceSelection; repository: WorkspaceRepository }>(undefined)
@@ -80,6 +94,9 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
   const saveSession = useRef(createSaveSession()).current
   const buildInputSession = useRef(createBuildInputSession()).current
   const filePending = useRef(false)
+  const beforeAuthentication = () => {
+    if (filePending.current || draftPresence.current() || editorSession.controller.snapshot().dirty || saveSession.controller.snapshot().dirty || buildInputSession.controller.snapshot().dirty) throw new Error('WORKSPACE_PENDING_CHANGES')
+  }
   const localCopy = useRef(createGuestCopyService(() => captureGuestWorkspaceForCopy(), () => {
     if (filePending.current || draftPresence.current() || editorSession.controller.snapshot().dirty || saveSession.controller.snapshot().dirty || buildInputSession.controller.snapshot().dirty) throw new Error('Save or discard open drafts before copying local work')
   })).current
@@ -139,13 +156,13 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
   const retrySync = useCallback(() => { const selected = current.current; if (selected.kind === 'account') requestSync(selected.token, 'retry') }, [])
   const flushSync = useCallback(() => { const selected = current.current; if (selected.kind === 'account') requestSync(selected.token, 'save') }, [])
   useEffect(() => {
-    if (selection.kind !== 'account') return
+    if (selection.kind !== 'account' || reconciliationState && !['complete', 'cancelled'].includes(reconciliationState.phase)) return
     const token = selection.token
     const unregister = registerSyncProjectionGuard(token, () => current.current === selection && !filePending.current && !draftPresence.current() && !editorSession.controller.snapshot().dirty && !saveSession.controller.snapshot().dirty && !buildInputSession.controller.snapshot().dirty)
     const stop = attachSyncScheduler(token, runSyncIteration)
     const unsubscribe = subscribeSync(token, setSyncState)
     return () => { unsubscribe(); stop(); unregister() }
-  }, [selection])
+  }, [selection, reconciliationState?.phase])
   const [successorPending, setSuccessorPending] = useState(false)
   const [guestRefreshError, setGuestRefreshError] = useState<string>()
   const guestRefresh = useRef<{ repository: WorkspaceRepository; run: (preserveReferenceRetry?: boolean, completedModImport?: ModLibraryResult) => Promise<boolean> }>(undefined)
@@ -268,6 +285,9 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
       // Account cleanup still cancels pending authentication on every pagehide
       // A selected guest has no account key to scrub, and BFCache must retain its live input owner
       if (reason === 'pagehide' && current.current.kind === 'guest') return
+      const previous = reconciliation.current
+      reconciliation.current = undefined; reconciliationUnsubscribe.current?.(); setReconciliationState(undefined)
+      void previous?.dispose()
       version.current++
       resetEditorSession()
       if (current.current.kind === 'guest') {
@@ -296,6 +316,7 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
   const openAccount = async (token: ProfileToken) => {
     assertActiveProfile(token)
     if (current.current.kind === 'account' && current.current.token === token) {
+      await reopenAccount()
       window.location.hash = '#/builds'
       return
     }
@@ -374,7 +395,64 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
     setRepository(local)
     setSelection(next)
   }
-  const startup = useRef<Promise<{ selection: WorkspaceSelection; repository?: WorkspaceRepository }>>(undefined)
+  const refreshReconciliationAccountName = async (token: ProfileToken, owner: ReturnType<typeof createSigninReconciliation>) => {
+    assertActiveProfile(token)
+    if (reconciliation.current !== owner) throw new ProfileChangedError()
+    const view = await readAccountView(token)
+    assertActiveProfile(token)
+    if (reconciliation.current !== owner) throw new ProfileChangedError()
+    setReconciliationAccountName(view.username)
+  }
+  const beginSignin = async (token: ProfileToken, recoveryPointId?: string) => {
+    assertActiveProfile(token)
+    const previous = reconciliation.current
+    reconciliationUnsubscribe.current?.()
+    await previous?.dispose()
+    assertActiveProfile(token)
+    const selected = current.current
+    setReconciliationSource(recoveryPointId ? 'Recovery snapshot' : 'This device')
+    const owner = createSigninReconciliation({
+      ...(recoveryPointId ? { entry: { kind: 'recovery' as const, pointId: recoveryPointId }, captureGuest: async () => ({ snapshot: await createAccountRecoveryService(token).capture(recoveryPointId) }) } : {}),
+      admittedOffline: !!recoveryPointId || selected.kind === 'account' && selected.token.accountId === token.accountId,
+      openAccount: async next => { if (reconciliation.current !== owner) throw new ProfileChangedError(); await openAccount(next) },
+      continueLocal: async next => { assertActiveProfile(next); if (reconciliation.current !== owner) throw new ProfileChangedError(); if (recoveryPointId || selected.kind === 'account') await openAccount(next); else await continueLocal() },
+    })
+    reconciliation.current = owner
+    setReconciliationAccountName(undefined)
+    // Display metadata never participates in storage identity or source grouping
+    void refreshReconciliationAccountName(token, owner).catch(() => {})
+    reconciliationUnsubscribe.current = owner.subscribe(() => { if (reconciliation.current === owner) setReconciliationState(owner.getSnapshot()) })
+    setReconciliationState(owner.getSnapshot())
+    await owner.begin(token)
+  }
+  const authenticated = async (token: ProfileToken) => {
+    const selected = current.current
+    const saved = await readDeviceSelection()
+    assertActiveProfile(token)
+    if (current.current !== selected) throw new ProfileChangedError()
+    // Unlocking the explicitly selected account reopens its admitted data, never a new guest migration
+    if (selected.kind === 'locked' && saved?.kind === 'account' && saved.accountId === token.accountId) {
+      const pending = await readPendingRecoveryEntry(token)
+      assertActiveProfile(token)
+      if (current.current !== selected) throw new ProfileChangedError()
+      if (pending) await beginSignin(token, pending.pointId)
+      else await openAccount(token)
+    } else await beginSignin(token)
+  }
+  const reviewSigninReplacement = async () => {
+    beforeAuthentication()
+    const selected = current.current
+    if (selected.kind !== 'account') throw new ProfileChangedError()
+    await beginSignin(selected.token)
+  }
+  const reconcileRecovery = async (pointId: string) => {
+    beforeAuthentication()
+    const selected = current.current
+    if (selected.kind !== 'account') throw new ProfileChangedError()
+    await beginSignin(selected.token, pointId)
+  }
+  useEffect(() => () => { reconciliationUnsubscribe.current?.(); void reconciliation.current?.dispose() }, [])
+  const startup = useRef<Promise<{ selection: WorkspaceSelection; repository?: WorkspaceRepository; recovery?: { token: ProfileToken; pointId: string } }>>(undefined)
   useEffect(() => {
     let live = true
     // StrictMode attaches twice; unlock only once so the second pass cannot invalidate its own key
@@ -396,13 +474,18 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
       const token = currentProfileToken() ?? await unlockRememberedProfile(selected.accountId)
       recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.unlocked)
       if (token.accountId !== selected.accountId) throw new ProfileChangedError()
+      const pending = await readPendingRecoveryEntry(token)
+      assertActiveProfile(token)
+      // Keep account editing and its scheduler unmounted until exact recovery ownership is restored
+      if (pending) return { selection: { kind: 'opening' as const, generation: 0 }, recovery: { token, pointId: pending.pointId } }
       const repository = await openAccountRepository(token)
       recordWorkspaceStartup(WORKSPACE_STARTUP_PHASE.repository)
       assertActiveProfile(token)
       return { selection: { kind: 'account' as const, token }, repository }
     })()
-    void startup.current.then(result => {
+    void startup.current.then(async result => {
       if (!live) return
+      if (result.recovery) { await beginSignin(result.recovery.token, result.recovery.pointId); return }
       current.current = result.selection
       selectAccountPreferences(result.selection.kind !== 'guest')
       if (result.repository) setRepository(result.repository)
@@ -839,9 +922,13 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
       }
     },
   }
+  if (reconciliationState && !['complete', 'cancelled'].includes(reconciliationState.phase) && reconciliation.current) {
+    const owner = reconciliation.current
+    return <main className="panel"><SigninReconciliation accountName={reconciliationAccountName} sourceLabel={reconciliationSource} state={reconciliationState} actions={{ ...owner, reconnect: async () => { const token = currentProfileToken(); if (!token || reconciliation.current !== owner) throw new ProfileChangedError(); await reconnectProfile(token); await refreshReconciliationAccountName(token, owner).catch(() => {}); assertActiveProfile(token); if (reconciliation.current !== owner) throw new ProfileChangedError(); await owner.retry() }, backup: async () => { const sink = await requestWorkspaceDownload(); try { await owner.withPrivateBackup(snapshot => downloadWorkspaceBackup(snapshot, Promise.resolve(sink))) } catch (error) { await sink?.abort(error).catch(() => {}); throw error } } }}/></main>
+  }
   if (selection.kind === 'opening') return <LoadingScreen detail="Opening saved workspace..."/>
-  if (selection.kind === 'locked') return <main className="panel"><h1>Account workspace locked</h1><p>Unlock your account to reopen its saved data.</p><AccountView onOpenWorkspace={openAccount} onContinueLocal={continueLocal} localCopy={localCopy}/></main>
-  if (selection.kind === 'guest' && accountEntry) return <main className="panel"><AccountView onOpenWorkspace={openAccount} onContinueLocal={continueLocal} localCopy={localCopy}/></main>
+  if (selection.kind === 'locked') return <main className="panel"><h1>Account workspace locked</h1><p>Unlock your account to reopen its saved data.</p><AccountView beforeAuthentication={beforeAuthentication} onOpenWorkspace={authenticated} onContinueLocal={continueLocal} localCopy={localCopy}/></main>
+  if (selection.kind === 'guest' && accountEntry) return <main className="panel"><AccountView beforeAuthentication={beforeAuthentication} onOpenWorkspace={authenticated} onContinueLocal={continueLocal} localCopy={localCopy}/></main>
   // The loaded planner shell owns these notices; startup failures must present one recovery decision
   // Mounting the retained-branch monitor before admission also mistakes startup errors for older edits
   const notices = selection.kind === 'guest' ? <div className="workspace-notices">
@@ -849,5 +936,5 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
     {guestRefreshError && <section className="panel guest-recovery-notice" role="alert"><h2>Could not check for a newer workspace</h2><p>{guestRefreshError}</p><p>Your open workspace has been kept.</p><Button tone="secondary" onClick={() => window.dispatchEvent(new Event(GUEST_ACTIVATED_EVENT))}>Retry workspace check</Button></section>}
     <GuestRecoveryNotice repository={repository} canReplace={() => current.current === selection && current.current.kind === 'guest' && !draftPresence.current()}/>
   </div> : null
-  return <WorkspaceContext.Provider value={{ repository, localCopy, notices, ...(selection.kind === 'account' ? { token: selection.token } : {}), openAccount, continueLocal, reopenGuest, reopenAccount, readReferenceRetry: () => { if (!isCurrent()) throw new Error('The Reference retry owner was retired'); return referenceRetry.current }, rememberReferenceRetry: value => { if (!isCurrent()) throw new Error('The Reference retry owner was retired'); referenceRetry.current = value && { ...value } }, readModLibraryResult: () => { if (!isCurrent()) throw new Error('The mod import result owner was retired'); return modLibraryResult.current && copyModLibraryResult(modLibraryResult.current) }, clearModLibraryResult: () => { if (!isCurrent()) throw new Error('The mod import result owner was retired'); modLibraryResult.current = undefined }, registerDraftPresence, flushSync, syncState, retrySync, ...editorActions, ...saveActions, ...buildActions }}><ErrorBoundary key={`${workspaceSelectionKey(selection)}:${ownedGeneration}`} recoveryDownload={() => downloadCapturedWorkspace(repository)}>{children}</ErrorBoundary></WorkspaceContext.Provider>
+  return <WorkspaceContext.Provider value={{ repository, localCopy, notices, ...(selection.kind === 'account' ? { token: selection.token } : {}), openAccount, authenticated, beforeAuthentication, reviewSigninReplacement, reconcileRecovery, continueLocal, reopenGuest, reopenAccount, readReferenceRetry: () => { if (!isCurrent()) throw new Error('The Reference retry owner was retired'); return referenceRetry.current }, rememberReferenceRetry: value => { if (!isCurrent()) throw new Error('The Reference retry owner was retired'); referenceRetry.current = value && { ...value } }, readModLibraryResult: () => { if (!isCurrent()) throw new Error('The mod import result owner was retired'); return modLibraryResult.current && copyModLibraryResult(modLibraryResult.current) }, clearModLibraryResult: () => { if (!isCurrent()) throw new Error('The mod import result owner was retired'); modLibraryResult.current = undefined }, registerDraftPresence, flushSync, syncState, retrySync, ...editorActions, ...saveActions, ...buildActions }}><ErrorBoundary key={`${workspaceSelectionKey(selection)}:${ownedGeneration}`} recoveryDownload={() => downloadCapturedWorkspace(repository)}>{children}</ErrorBoundary></WorkspaceContext.Provider>
 }

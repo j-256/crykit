@@ -1,3 +1,4 @@
+import { AccountRecoveryPoints } from './SigninReconciliation'
 import { StoragePanel } from './StoragePanel'
 import { createStorageService } from '../../account/storage'
 import type { WorkspaceRepository } from '../../workspace/repository'
@@ -22,6 +23,7 @@ import { readServiceNotice, subscribeServiceNotice } from '../../account/service
 import './account.css'
 
 const messages: Record<string, string> = {
+  WORKSPACE_PENDING_CHANGES: 'Finish saving or save or discard open drafts before signing in. Your work stays on this device.',
   INVALID_PASSWORD: 'Use at least 15 Unicode characters and at most 1024 UTF-8 bytes for your password.',
   FORBIDDEN: 'Confirm your identity below, then retry this action.',
   AUTH_FAILED: 'Sign-in failed. Check your email and password or use your recovery code.',
@@ -47,7 +49,7 @@ const messages: Record<string, string> = {
   WORKSPACE_CONNECTION_UNAVAILABLE: 'Account access is ready. Retry opening the account workspace. Your local records stay on this device.',
   ACCOUNT_RESTRICTED: 'Online account changes are restricted. Keep working on this device, download a private backup, or contact the service operator.',
 }
-export function AccountView({ onOpenWorkspace, onContinueLocal, onBackup, localCopy, repository, assertMayRemove }: { onOpenWorkspace: (token: ProfileToken) => Promise<void>; onContinueLocal: () => Promise<void>; onBackup?: () => Promise<void>; localCopy?: LocalCopyService; repository?: WorkspaceRepository; assertMayRemove?: () => void }): ReactElement {
+export function AccountView({ onOpenWorkspace, onContinueLocal, onBackup, localCopy, repository, assertMayRemove, beforeAuthentication, onReconcileRecovery, onReviewReplacement }: { onReconcileRecovery?: (pointId: string) => Promise<void>; onReviewReplacement?: () => Promise<void>; beforeAuthentication?: () => void; onOpenWorkspace: (token: ProfileToken) => Promise<void>; onContinueLocal: () => Promise<void>; onBackup?: () => Promise<void>; localCopy?: LocalCopyService; repository?: WorkspaceRepository; assertMayRemove?: () => void }): ReactElement {
   const service = useAccountServiceStatus()
   const accountsAvailable = service.state === 'ready' && service.accountsAvailable
   const signupAvailable = service.state === 'ready' && service.signupAvailable
@@ -62,6 +64,8 @@ export function AccountView({ onOpenWorkspace, onContinueLocal, onBackup, localC
   const serviceNotice = useSyncExternalStore(subscribeServiceNotice, readServiceNotice, () => undefined)
   const [status, setStatus] = useState('')
   const [pendingEmail, setPendingEmail] = useState('')
+  const [awaitingContinuation, setAwaitingContinuation] = useState(false)
+  const [openingFailed, setOpeningFailed] = useState(false)
   const [confirmation, setConfirmation] = useState(emailConfirmationKind)
   const workflow = useSyncExternalStore(credentials.subscribeCredentialWorkflow, () => credentials.credentialWorkflow(token))
   const { pending, repair, recoveryDisplay: code } = workflow
@@ -74,7 +78,7 @@ export function AccountView({ onOpenWorkspace, onContinueLocal, onBackup, localC
   useEffect(() => {
     mounted.current = true
     void listCachedProfiles().then(value => { if (mounted.current) setCached(value) }).catch(() => { if (mounted.current) setError('Saved account access could not be read. You can still sign in online.') })
-    const stop = onProfileTransition(() => { pendingAccess.current = undefined; profileVersion.current++; setToken(undefined); setMetadata(undefined); setBusy(false); setError(''); setStatus('') })
+    const stop = onProfileTransition(() => { pendingAccess.current = undefined; profileVersion.current++; setToken(undefined); setMetadata(undefined); setAwaitingContinuation(false); setOpeningFailed(false); setBusy(false); setError(''); setStatus('') })
     // Cancel only pre-login work this view owns; sign-out owns its successor revocation epoch
     return () => {
       mounted.current = false; operation.current++; stop()
@@ -127,7 +131,17 @@ export function AccountView({ onOpenWorkspace, onContinueLocal, onBackup, localC
     }
   }
   function run(work: () => Promise<void>, transitions = false, ownsPendingAccess = true) { void execute(work, transitions, false, ownsPendingAccess) }
-  async function accessed(next: ProfileToken) {
+  async function openAuthenticated(next: ProfileToken) {
+    assertActiveProfile(next)
+    try { await onOpenWorkspace(next); setOpeningFailed(false) }
+    catch { assertActiveProfile(next); setOpeningFailed(true); throw new Error('WORKSPACE_CONNECTION_UNAVAILABLE') }
+  }
+  async function authenticate(work: () => Promise<ProfileToken>, acknowledge = false) {
+    // This guard runs before lifecycle authentication retires the guest epoch and its pending saves
+    beforeAuthentication?.()
+    await accessed(await work(), acknowledge)
+  }
+  async function accessed(next: ProfileToken, acknowledge = false) {
     assertActiveProfile(next)
     if (!mounted.current) { await lifecycle.lockProfile(next); return }
     setToken(next); setBusy(false); setPendingEmail(''); setStatus(profileAccess(next) === 'connected' ? 'Signed in. Your local records have not been copied to this account.' : 'Unlocked on this device. Online access is disconnected.')
@@ -138,10 +152,14 @@ export function AccountView({ onOpenWorkspace, onContinueLocal, onBackup, localC
       assertActiveProfile(next)
       if (result.revocationPending) setStatus('Signed in. An earlier sign-out is still pending. Retry reconciliation when connected.')
     }
+    assertActiveProfile(next)
+    if (!mounted.current) return
+    if (acknowledge || credentials.credentialWorkflow(next).recoveryDisplay) setAwaitingContinuation(true)
+    else await openAuthenticated(next)
   }
   async function refresh() { if (token) setMetadata(await management.readAccountView(token)) }
   const connected = token ? profileAccess(token) === 'connected' : false
-  return <article className="account-view"><h1>Account</h1><p>Use CryKit on this device without an account. Signing in, when available, does not copy your local records.</p>
+  return <article className="account-view"><h1>Account</h1><p>Use CryKit on this device without an account. After signing in, review meaningful local work before choosing what to keep. Your original device workspace stays available.</p>
     <p>Read the <PrivacyTermsLink/>.</p>
     <CloudServiceNotice/>
     <button onClick={() => run(async () => { invalidateProfile(); clearEmailCapability(); await onContinueLocal() }, true, false)}>Continue using this device</button>
@@ -151,11 +169,13 @@ export function AccountView({ onOpenWorkspace, onContinueLocal, onBackup, localC
     </section>
     {error && (!serviceNotice || error !== messages[serviceNotice.code]) && <div className="account-error" role="alert" ref={alert} tabIndex={-1}><strong>Action needs attention</strong><p>{error}</p></div>}{status && <p role="status">{status}</p>}
     {confirmation && <section><h2>Confirm email</h2><p>{confirmation === 'verify' ? 'Confirm your account email, then sign in. Links expire after 30 minutes and work once.' : 'Sign in to the account that requested this new email, then confirm.'}</p><button disabled={busy || !accountsAvailable || (confirmation === 'confirm-email' && !connected)} onClick={() => run(async () => { await confirmPendingEmail(token); setConfirmation(undefined); setStatus('Email confirmed. You can sign in.'); if (token) await refresh() })}>Confirm email</button><button onClick={() => { clearEmailCapability(); setConfirmation(undefined) }}>Discard link</button></section>}
-    {accountsAvailable && (!token || !connected) && <SignInForm busy={busy} signupAvailable={signupAvailable} onSubmit={(input, signup) => execute(async () => { if (signup) { await registerAccount(input); setPendingEmail(input.email); setStatus('Check your email to verify your account before signing in or uploading. Pending signup expires after 24 hours.'); } else await accessed(await lifecycle.signInProfile(input)) }, true)}/>}
+    {accountsAvailable && (!token || !connected) && <SignInForm busy={busy} signupAvailable={signupAvailable} onSubmit={(input, signup) => execute(async () => { if (signup) { await registerAccount(input); setPendingEmail(input.email); setStatus('Check your email to verify your account before signing in or uploading. Pending signup expires after 24 hours.'); } else await authenticate(() => lifecycle.signInProfile(input)) }, true)}/>}
     {signupAvailable && pendingEmail && <section><h2>Check your email</h2><p>Links expire after 30 minutes. If signup expires after 24 hours, create the account again.</p><button disabled={busy} onClick={() => run(async () => { await resendVerification(pendingEmail); setStatus('If signup is still pending, a new verification email has been requested.') })}>Resend verification email</button></section>}
     {cached.some(profile => profile.revocationPending) && <p role="status">An earlier sign-out is pending. Sign in to its account to finish revoking that session. Other accounts cannot clear it.</p>}
-    {!token && cached.map(profile => <section key={profile.accountId}><h2>Saved account ending {profile.accountId.slice(-6)}</h2>{profile.remembered && <button disabled={busy} onClick={() => run(async () => accessed(await lifecycle.unlockRememberedProfile(profile.accountId)), true)}>Unlock remembered account</button>}{profile.passwordAvailable && <form onSubmit={event => { event.preventDefault(); const input = event.currentTarget.elements.namedItem('password') as HTMLInputElement; const password = input.value; input.value = ''; run(async () => accessed(await lifecycle.unlockCachedProfile(profile.accountId, password)), true) }}><label>Local password<input aria-label="Local password" type="password" name="password" autoComplete="current-password" required/></label><button disabled={busy}>Unlock on this device</button></form>}</section>)}
-    {token && <section><h2>{metadata ? `Signed in as ${metadata.username}` : 'Account unlocked on this device'}</h2><p>{connected ? 'Online access connected.' : 'Online access disconnected. You can reconnect or sign in again.'}</p>{metadata?.access === 'read-only' && <p role="status">Online account changes are restricted. Local editing and private backups remain available. Contact the service operator to review the restriction.</p>}{metadata && <p>Email: {metadata.email}. Online session ends by {new Date(metadata.expiresAt).toLocaleString()}.</p>}<button disabled={busy} onClick={() => run(async () => { await onOpenWorkspace(token) })}>Open account workspace</button><button onClick={() => run(async () => { await lifecycle.lockProfile(token); setStatus('Account locked on this device.') }, true)}>Lock</button><button onClick={() => run(async () => { const result = await lifecycle.signOutProfile(token); setCached(await listCachedProfiles()); setStatus(result.revocationPending ? 'Signed out locally. Online revocation is pending; sign in to this account to retry.' : 'Signed out.'); }, true)}>Sign out</button>{accountsAvailable && <><button disabled={busy} onClick={() => run(async () => { await lifecycle.reconnectProfile(token); await refresh(); setStatus('Online access reconnected.') })}>Reconnect</button><button disabled={busy || !connected} onClick={() => run(async () => { await lifecycle.renewProfile(token); await refresh(); setStatus('Online session renewed.') })}>Renew session</button><button disabled={busy || !connected} onClick={() => run(async () => { const result = await lifecycle.reconcilePendingRevocations(token); setCached(await listCachedProfiles()); setStatus(result.revocationPending ? 'Earlier sign-out is still pending.' : 'Earlier sign-outs reconciled for this account.') })}>Retry pending sign-out</button></>}</section>}
+    {!token && cached.map(profile => <section key={profile.accountId}><h2>Saved account ending {profile.accountId.slice(-6)}</h2>{profile.remembered && <button disabled={busy} onClick={() => run(async () => authenticate(() => lifecycle.unlockRememberedProfile(profile.accountId)), true)}>Unlock remembered account</button>}{profile.passwordAvailable && <form onSubmit={event => { event.preventDefault(); const input = event.currentTarget.elements.namedItem('password') as HTMLInputElement; const password = input.value; input.value = ''; run(async () => authenticate(() => lifecycle.unlockCachedProfile(profile.accountId, password)), true) }}><label>Local password<input aria-label="Local password" type="password" name="password" autoComplete="current-password" required/></label><button disabled={busy}>Unlock on this device</button></form>}</section>)}
+    {token && <section><h2>{metadata ? `Signed in as ${metadata.username}` : 'Account unlocked on this device'}</h2><p>{connected ? 'Online access connected.' : 'Online access disconnected. You can reconnect or sign in again.'}</p>{metadata?.access === 'read-only' && <p role="status">Online account changes are restricted. Local editing and private backups remain available. Contact the service operator to review the restriction.</p>}{metadata && <p>Email: {metadata.email}. Online session ends by {new Date(metadata.expiresAt).toLocaleString()}.</p>}{openingFailed && <button disabled={busy} onClick={() => run(() => openAuthenticated(token))}>Retry opening</button>}{awaitingContinuation && <section aria-label="Security acknowledgment"><p>Save any recovery code privately and finish reviewing device approval before continuing.</p><button disabled={busy} onClick={() => run(async () => { await openAuthenticated(token); setAwaitingContinuation(false) })}>I have saved my security information. Continue</button></section>}<button onClick={() => run(async () => { await lifecycle.lockProfile(token); setStatus('Account locked on this device.') }, true)}>Lock</button><button onClick={() => run(async () => { const result = await lifecycle.signOutProfile(token); setCached(await listCachedProfiles()); setStatus(result.revocationPending ? 'Signed out locally. Online revocation is pending; sign in to this account to retry.' : 'Signed out.'); }, true)}>Sign out</button>{accountsAvailable && <><button disabled={busy} onClick={() => run(async () => { await lifecycle.reconnectProfile(token); await refresh(); setStatus('Online access reconnected.') })}>Reconnect</button><button disabled={busy || !connected} onClick={() => run(async () => { await lifecycle.renewProfile(token); await refresh(); setStatus('Online session renewed.') })}>Renew session</button><button disabled={busy || !connected} onClick={() => run(async () => { const result = await lifecycle.reconcilePendingRevocations(token); setCached(await listCachedProfiles()); setStatus(result.revocationPending ? 'Earlier sign-out is still pending.' : 'Earlier sign-outs reconciled for this account.') })}>Retry pending sign-out</button></>}</section>}
+    {token && onReviewReplacement && <button disabled={busy} onClick={() => run(onReviewReplacement)}>Review sync choices</button>}
+    {token && onReconcileRecovery && <AccountRecoveryPoints token={token} onReconcile={onReconcileRecovery}/>}
     {token && localCopy && <LocalCopyPreview key={`copy-${token.generation}`} token={token} service={localCopy}/>}
     {pending && <p role="status">A credential change is not confirmed. Reconnect if needed, then check the saved change before starting another one.</p>}
     {repair && <p>Your online password changed. Local unlocking still needs repair. Verify your new password below.</p>}
@@ -166,8 +186,8 @@ export function AccountView({ onOpenWorkspace, onContinueLocal, onBackup, localC
       {metadata && <><form onSubmit={event => { event.preventDefault(); const name = String(new FormData(event.currentTarget).get('username')); run(async () => { await management.renameProfile(token, name, metadata.revision); await refresh(); setStatus('Public screen name changed.') }) }}><label>Public screen name<input aria-label="Public screen name" name="username" defaultValue={metadata.username} pattern="[a-z0-9_]{3,24}" required/></label><button disabled={busy}>Change screen name</button></form><form onSubmit={event => { event.preventDefault(); const email = String(new FormData(event.currentTarget).get('email')); run(async () => { await management.changeProfileEmail(token, email, metadata.revision); setStatus('Check your new email address. Your existing address stays in use until you confirm.') }) }}><label>New email<input aria-label="New email" name="email" type="email" required autoComplete="email"/></label><button disabled={busy}>Send email confirmation</button></form></>}
     </section>}
     {/* A generated code replaces its predecessor, so its local download must survive service outages */}
-    {(accountsAvailable || (token && code)) && <RecoveryPanel key={token?.generation ?? 'guest'} token={connected || code ? token : undefined} missing={metadata?.recoveryRevision == null} code={code} busy={busy || !!pending || repair} onDismiss={() => { if (token) credentials.dismissCredentialDisplay(token) }} onCreate={() => { if (token && accountsAvailable) run(async () => { await credentials.createCredentialRecovery(token); await refresh(); setStatus('Recovery code ready. Choose Download recovery code to save it privately.') }) }} onRecover={(email, code, remember) => execute(async () => accessed(await lifecycle.recoverProfile(email, code, remember)), true)}/>}
-    {accountsAvailable && <DeviceApprovalPanel key={`devices-${token?.generation ?? 'guest'}`} token={connected ? token : undefined} busy={busy} run={work => run(work, !token)} onAccess={accessed}/>}
+    {(accountsAvailable || (token && code)) && <RecoveryPanel key={token?.generation ?? 'guest'} token={connected || code ? token : undefined} missing={metadata?.recoveryRevision == null} code={code} busy={busy || !!pending || repair} onDismiss={() => { if (token) credentials.dismissCredentialDisplay(token) }} onCreate={() => { if (token && accountsAvailable) run(async () => { await credentials.createCredentialRecovery(token); await refresh(); setStatus('Recovery code ready. Choose Download recovery code to save it privately.') }) }} onRecover={(email, code, remember) => execute(async () => authenticate(() => lifecycle.recoverProfile(email, code, remember), true), true)}/>}
+    {accountsAvailable && <DeviceApprovalPanel key={`devices-${token?.generation ?? 'guest'}`} token={connected ? token : undefined} busy={busy} run={work => run(work, !token)} beforeAuthentication={beforeAuthentication} onAccess={next => accessed(next, true)}/>}
     {accountsAvailable && <DeletionPanel token={connected ? token : undefined} busy={busy}/>}
     {!storage && onBackup && <button disabled={busy} onClick={() => void execute(onBackup, false, true)}>Account backup</button>}
     {storage ? <StoragePanel key={token!.generation} service={storage} onlineAvailable={accountsAvailable}/> : token && <p>Open the account workspace to review storage, export a backup or remove this device copy.</p>}

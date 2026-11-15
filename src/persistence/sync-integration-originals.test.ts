@@ -19,10 +19,10 @@ import { customer } from './sync-customer.test-helpers'
 // Each file owns its profile and database lifetime; the shared sign-in helper retains no state
 let service: ServiceFixture | undefined
 afterEach(async () => { vi.unstubAllGlobals(); invalidateProfile(); await service?.dispose() })
-it('unionsDisjointHistoricalOriginalsAndReexportsThemOnBothDevices', async () => {
+it.each(['disjoint', 'local-superset'] as const)('preserves %s historical originals and reexports them on both devices', async mode => {
   const { activateLocalAccountCommit } = await import('./account-database')
   const { openAccountWorkspace, prepareAccountWorkspaceWithEvidence } = await import('../workspace/account-graph')
-  const { createAccountInheritedEvidencePreparation } = await import('../workspace/account-evidence-snapshots')
+  const { createAccountInheritedEvidencePreparation, openAccountInheritedEvidence } = await import('../workspace/account-evidence-snapshots')
   const { editorClosureFixture } = await import('../workspace/test-helpers')
   const { inheritWorkspaceSnapshot } = await import('../interchange/workspace-backup-evidence')
   const { stageMappedWorkspaceIntent, mappedChanges } = await import('../workspace/account-intents')
@@ -62,7 +62,7 @@ it('unionsDisjointHistoricalOriginalsAndReexportsThemOnBothDevices', async () =>
     }
     return { token, db, get repo() { return repo }, settle }
   }
-  const stageHistory = async (selected: Awaited<ReturnType<typeof device>>, label: string) => {
+  const stageHistory = async (selected: Awaited<ReturnType<typeof device>>, label: string, preserveExisting = false) => {
     const fence = (await selected.db.profileMeta.get('active'))!, mapped = (await readIncrementalMappedRoot(selected.db, selected.token, fence))!
     const source = await openAccountWorkspace(selected.db, selected.token, mapped)
     const fixture = await editorClosureFixture()
@@ -70,8 +70,9 @@ it('unionsDisjointHistoricalOriginalsAndReexportsThemOnBothDevices', async () =>
     const historical = { ...current, snapshotId: `historical-${label}`, state: { ...fixture.state, editorDocuments: [{ ...fixture.file, unfinished: { ...fixture.file.unfinished, fieldState: { original: `\ud800${label}` } } }] } }
     const inherited = await inheritWorkspaceSnapshot(current, [historical])
     const operation = createAccountInheritedEvidencePreparation(selected.db, selected.token)
+    const base = preserveExisting && source.inheritedEvidence ? await openAccountInheritedEvidence(selected.db, selected.token, source.inheritedEvidence) : undefined
     try {
-      const evidence = await operation.prepare({ additions: [inherited] })
+      const evidence = await operation.prepare({ base, additions: [inherited] })
       const successor = await prepareAccountWorkspaceWithEvidence(selected.db, selected.token, source.state, evidence, source)
       const id = accountLocalId(), intent = await stageMappedWorkspaceIntent(selected.db, selected.token, {
         version: 1, kind: 'mapped-workspace-intent', operationId: id, portableGroupId: accountLocalId(), operation: 'workspace-command', mode: 'replace',
@@ -81,7 +82,7 @@ it('unionsDisjointHistoricalOriginalsAndReexportsThemOnBothDevices', async () =>
       const projection = await prepareManagedAccountProjection(selected.db, selected.token, fence, successor, { id, ref: cipherRef(intent.record), records: intent.records })
       try { await activateLocalAccountCommit(selected.db, selected.token, projection.prepared) }
       finally { await projection.dispose() }
-    } finally { await operation.abandon(); await disposeWorkspaceSnapshot(inherited) }
+    } finally { await operation.abandon(); await base?.dispose(); await disposeWorkspaceSnapshot(inherited) }
   }
   const assertExport = async (selected: Awaited<ReturnType<typeof device>>) => {
     const snapshot = await captureWorkspaceSnapshot(selected.repo)
@@ -111,11 +112,26 @@ it('unionsDisjointHistoricalOriginalsAndReexportsThemOnBothDevices', async () =>
     await b.settle()
     a = await device(0)
     await stageHistory(a, 'A')
+    if (mode === 'local-superset') await a.settle()
     b = await device(1)
-    await stageHistory(b, 'B')
+    if (mode === 'local-superset') await b.settle()
+    await stageHistory(b, 'B', mode === 'local-superset')
     a = await device(0)
     await a.settle()
     b = await device(1)
+    if (mode === 'local-superset') {
+      const { captureAccountSyncWorkspace } = await import('../workspace/account-sync-capture')
+      const { readRemoteState, readRemoteHeads } = await import('../account/sync/pull')
+      const { openRemoteProjection } = await import('../account/sync/projection')
+      const { accountEvidenceContains } = await import('../workspace/account-evidence-union')
+      const local = await captureAccountSyncWorkspace(b.db, b.token, (await b.db.profileMeta.get('active'))!)
+      try {
+        const state = (await readRemoteState(b.db, b.token))!.value
+        const remote = (await openRemoteProjection(b.db, b.token, await readRemoteHeads(b.db, b.token, state.heads), local.workspace.head, local.operativePlanner.localData.revision, local.validatedEvidence))!
+        expect(await accountEvidenceContains(b.db, b.token, local.inheritedEvidence!, remote.inheritedEvidence!)).toBe(true)
+        expect(await accountEvidenceContains(b.db, b.token, remote.inheritedEvidence!, local.inheritedEvidence!)).toBe(false)
+      } finally { await local.dispose() }
+    }
     await b.settle()
     a = await device(0)
     await a.settle()
@@ -242,6 +258,29 @@ it('publishes the first pending copy once and preserves every original on a fres
     const second = await openDevice()
     await settle(second)
     expect(publications.size).toBe(1)
+    const { captureAccountSyncWorkspace } = await import('../workspace/account-sync-capture')
+    const { readRemoteState, readRemoteHeads } = await import('../account/sync/pull')
+    const { openRemoteProjection } = await import('../account/sync/projection')
+    const { accountEvidenceContains } = await import('../workspace/account-evidence-union')
+    const before = (await readRemoteState(second.db, second.token))!.value
+    const heads = await readRemoteHeads(second.db, second.token, before.heads)
+    const local = await captureAccountSyncWorkspace(second.db, second.token, (await second.db.profileMeta.get('active'))!)
+    try {
+      const remote = (await openRemoteProjection(second.db, second.token, heads, local.workspace.head, local.operativePlanner.localData.revision, local.validatedEvidence))!
+      expect(local.inheritedEvidence).not.toEqual(remote.inheritedEvidence)
+      expect(await accountEvidenceContains(second.db, second.token, local.inheritedEvidence!, remote.inheritedEvidence!)).toBe(true)
+      expect(await accountEvidenceContains(second.db, second.token, remote.inheritedEvidence!, local.inheritedEvidence!)).toBe(true)
+    } finally { await local.dispose() }
+    // Reopening an equivalent archive must not create another publication or reciprocal device churn
+    for (let repeat = 0; repeat < 2; repeat++) {
+      expect(await runSyncIteration(second.token, new AbortController().signal)).toEqual({ state: 'synced', moreWork: false })
+      expect(await second.db.outbox.count()).toBe(0)
+      expect(await second.db.syncState.get('publication')).toBeUndefined()
+      const after = (await readRemoteState(second.db, second.token))!.value
+      expect(after.publicationEpoch).toBe(before.publicationEpoch)
+      expect(await readRemoteHeads(second.db, second.token, after.heads)).toEqual(heads)
+      expect(publications.size).toBe(1)
+    }
     const received = await captureWorkspaceSnapshot(await openAccountRepository(second.token))
     try {
       expect(received.state.editorDocuments).toEqual([fixture.file])

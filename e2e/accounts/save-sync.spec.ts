@@ -1,3 +1,4 @@
+import { finishAccountSignin } from './signin-helpers'
 import { expect, test } from '@playwright/test'
 import { createSaveEditorFixture } from '../../src/domain/save-editor.fixture'
 import { encodeCrystalSave, decodeCrystalSave } from '../../src/interchange/crystal-save'
@@ -34,10 +35,15 @@ test('guest invalid pending input survives quiet save and reload without applyin
   await expect(option).toHaveCount(1)
   await files.selectOption((await option.getAttribute('value'))!)
   await expect(field).toHaveValue('invalid second')
-  const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export edited save', exact: true }).click()
+  await expect(page.getByText('Apply or discard pending fields and loadout choices before exporting. Unreviewed input has not been included in the draft.', { exact: true })).toBeVisible()
+  expect(downloads).toEqual([])
+  await expect(field).toHaveValue('invalid second')
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Download original', exact: true }).click()
   expect(await downloadBytes(await pending)).toEqual(original)
-  await expect(page.getByText('Working download requested', { exact: false })).toBeVisible()
+  await expect(field).toHaveValue('invalid second')
+  await expect(page.getByText('No working download recorded', { exact: false })).toBeVisible()
 })
 test('guest Apply persists working bytes and retains both originals when another unsupported save is imported', async ({ page }) => {
   await page.goto(saveRoute)
@@ -80,7 +86,7 @@ test('account Save persists invalid input and exact bytes for a second browser',
       await page.getByLabel('Email', { exact: true }).fill(email)
       await page.getByLabel('Password', { exact: true }).fill(password)
       await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-      await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+      await finishAccountSignin(page)
       await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
       await page.evaluate(() => { window.location.hash = '#/save-editor' })
       await expect(page.getByRole('heading', { name: 'Save Editor', exact: true })).toBeVisible()
@@ -90,10 +96,14 @@ test('account Save persists invalid input and exact bytes for a second browser',
     await first.getByLabel('Copper', { exact: true }).fill('private invalid currency')
     await expect(first.getByRole('combobox', { name: 'Saved game saves', exact: true })).toBeEnabled({ timeout: ACCOUNT_SAVE_PENDING_READY_MS })
     await expect(first.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: ACCOUNT_SAVE_SYNC_READY_MS })
+    const deadline = Date.now() + ACCOUNT_SAVE_REMOTE_READY_MS, remaining = () => Math.max(1, deadline - Date.now())
+    await second.bringToFront()
+    const update = second.getByRole('button', { name: 'Load updated data', exact: true })
+    await expect(update).toBeEnabled({ timeout: remaining() })
+    await update.click({ timeout: remaining() })
     const files = second.getByRole('combobox', { name: 'Saved game saves', exact: true }), option = files.locator('option').filter({ hasText: 'private.sav' })
     await expect(option).toHaveCount(1)
-    await second.bringToFront()
-    await expect(option).toHaveAttribute('data-revision', '2', { timeout: ACCOUNT_SAVE_REMOTE_READY_MS })
+    await expect(option).toHaveAttribute('data-revision', '2', { timeout: remaining() })
     await files.selectOption((await option.getAttribute('value'))!)
     await expect(second.getByLabel('Copper', { exact: true })).toHaveValue('private invalid currency')
     const content = await second.evaluate(() => (window as unknown as { workspaceProof: { saveContent(): Promise<{ original: number[]; working: number[] }[]> } }).workspaceProof.saveContent())

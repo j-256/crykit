@@ -33,6 +33,7 @@ it('fresh remote projection precedes choices and account-only receipt skips unch
   const guestBefore = JSON.stringify(fixture.guest)
   await controller.begin(fixture.device.token)
   expect(controller.getSnapshot().phase).toBe('choosing')
+  expect(controller.getSnapshot().local?.recordNames).toMatchObject({ '["progress","play","guest"]': 'Run / Class', '["inventory","play"]': 'Run', '["playthrough","play"]': 'Run' })
   expect(await fixture.device.db.syncState.get('projection')).toBeDefined()
   expect((await (await fixture.device.open()).readWorkspace()).planner.localData.playthroughs).toEqual({})
   const before = await fixture.device.db.profileMeta.get('active')
@@ -181,7 +182,21 @@ it('paused replacement survives reload and exposes exact private backup and revi
   expect(await resumed.db.profileMeta.get('active')).toEqual(before)
   await controller.withPrivateBackup(async snapshot => { expect(snapshot.state.planner.localData.playthroughs).toEqual(fixture.guest.planner.localData.playthroughs) })
   expect(await resumed.db.profileMeta.get('active')).toEqual(before)
-  await controller.reviewReplacement('latest'); await controller.confirm()
+  const replacements = await import('../workspace/reviewed-replacement')
+  const create = replacements.createReviewedReplacementService
+  let entered!: () => void, release!: () => void
+  const started = new Promise<void>(resolve => { entered = resolve })
+  const held = new Promise<void>(resolve => { release = resolve })
+  const spy = vi.spyOn(replacements, 'createReviewedReplacementService').mockImplementation((...args) => {
+    const service = create(...args)
+    return { ...service, async refresh() { entered(); await held; return service.refresh() } }
+  })
+  const reviewing = controller.reviewReplacement('latest')
+  try {
+    await started
+    expect(controller.getSnapshot()).toMatchObject({ phase: 'preparing', action: 'latest' })
+  } finally { release(); await reviewing; spy.mockRestore() }
+  await controller.confirm()
   expect(controller.getSnapshot().phase).toBe('complete')
   expect((await (await resumed.open()).readWorkspace()).planner.localData.modSetup?.state).toBe('completed')
   expect(await resumed.db.outbox.count()).toBe(0)
@@ -412,4 +427,98 @@ it.each(['returns', 'throws'] as const)('cancel releases source and review befor
     expect(await fixture.device.db.outbox.toArray()).toEqual(intent)
     expect(await fixture.device.db.migrationJournal.get(copyId)).toEqual(journal)
   } finally { release(); await confirming }
+})
+
+it('explicit recovery review never consumes a completed sign-in or recovery receipt, even for empty data', async () => {
+  const fixture = await setup(workspace(createBlankLocalData({ now })))
+  const ordinary = fixture.create(); await ordinary.begin(fixture.device.token); await ordinary.dispose()
+  const signin = await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)
+  fixture.options.entry = { kind: 'recovery', pointId: 'AAAAAAAAAAAAAAAAAAAAAA' }
+  const first = fixture.create(); await first.begin(fixture.device.token)
+  expect(first.getSnapshot().phase).toBe('choosing')
+  await first.choose('account'); await first.dispose()
+  const receipt = await fixture.device.db.syncState.get('signin-receipt:recovery:AAAAAAAAAAAAAAAAAAAAAA')
+  const second = fixture.create(); await second.begin(fixture.device.token)
+  expect(second.getSnapshot().phase).toBe('choosing')
+  expect(await fixture.device.db.syncState.get('signin-receipt:recovery:AAAAAAAAAAAAAAAAAAAAAA')).toEqual(receipt)
+  expect(await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toEqual(signin)
+})
+it('recovery preparing decision resumes exactly and opening retry does not reactivate it', async () => {
+  const fixture = await setup()
+  fixture.options.entry = { kind: 'recovery', pointId: 'AAAAAAAAAAAAAAAAAAAAAA' }
+  const first = fixture.create(); await first.begin(fixture.device.token); await first.choose('merge')
+  const preview = first.getSnapshot().preview!
+  await first.dispose()
+  const resumed = fixture.create(); await resumed.begin(fixture.device.token)
+  expect(resumed.getSnapshot()).toMatchObject({ phase: 'confirming', preview: { copyId: preview.copyId } })
+  fixture.failOpen = true; await resumed.confirm()
+  expect(resumed.getSnapshot()).toMatchObject({ phase: 'failed', reason: 'opening-failed' })
+  const fence = await fixture.device.db.profileMeta.get('active')
+  fixture.failOpen = false; await resumed.retry()
+  expect(resumed.getSnapshot().phase).toBe('complete')
+  expect(await fixture.device.db.profileMeta.get('active')).toEqual(fence)
+})
+
+it.each(['choose', 'confirm'] as const)('shows preparation while %s refreshes its reviewed remote authority', async action => {
+  const fixture = await setup(), controller = fixture.create()
+  await controller.begin(fixture.device.token)
+  if (action === 'confirm') await controller.choose('device')
+  const replacements = await import('../workspace/reviewed-replacement')
+  const create = replacements.createReviewedReplacementService
+  let entered!: () => void, release!: () => void
+  const started = new Promise<void>(resolve => { entered = resolve })
+  const held = new Promise<void>(resolve => { release = resolve })
+  const spy = vi.spyOn(replacements, 'createReviewedReplacementService').mockImplementation((...args) => {
+    const service = create(...args)
+    return { ...service, async refresh() { entered(); await held; return service.refresh() } }
+  })
+  const running = action === 'choose' ? controller.choose('device') : controller.confirm()
+  try {
+    await started
+    expect(controller.getSnapshot()).toMatchObject({ phase: 'preparing', action: 'device' })
+    expect(fixture.opens).toBe(0)
+    expect(await fixture.device.db.outbox.count()).toBe(0)
+  } finally { release(); await running; spy.mockRestore() }
+})
+
+it.each(['pending', 'complete', 'cancelled', 'mismatched', 'ambiguous', 'manual', 'foreign', 'profile-change'] as const)('startup discovery treats %s recovery ownership explicitly', async mode => {
+  const fixture = await setup()
+  const pointId = 'AAAAAAAAAAAAAAAAAAAAAA', receiptKey = `signin-receipt:recovery:${pointId}`
+  fixture.options.entry = { kind: 'recovery', pointId }
+  const first = fixture.create(); await first.begin(fixture.device.token); await first.choose('merge')
+  const copyId = first.getSnapshot().preview!.copyId
+  await first.dispose()
+  const { openAccountJson } = await import('../workspace/account-cache')
+  const { writeSyncState } = await import('../account/sync/outbox')
+  const database = fixture.device.db, token = fixture.device.token
+  const row = (await database.syncState.get(receiptKey))!
+  const decision = await openAccountJson(database, token, row.ref, reconciliation.SigninDecisionSchema)
+  if (mode === 'complete' || mode === 'cancelled') await writeSyncState(database, token, receiptKey, { ...decision, status: mode }, row)
+  if (mode === 'mismatched') await writeSyncState(database, token, receiptKey, { ...decision, copyId: 'AAAAAAAAAAAAAAAAAAAAAQ' }, row)
+  if (mode === 'ambiguous') await database.syncState.add({ id: 'signin-receipt:recovery:AAAAAAAAAAAAAAAAAAAAAQ', ref: row.ref })
+  if (mode === 'manual') await database.syncState.delete(receiptKey)
+  if (mode === 'foreign') await writeSyncState(database, token, receiptKey, { ...decision, accountId: 'AAAAAAAAAAAAAAAAAAAAAQ' }, row)
+  if (mode === 'profile-change') {
+    const cache = await import('../workspace/account-cache'), read = cache.openAccountJson
+    const { invalidateProfile } = await import('../account/profile')
+    vi.spyOn(cache, 'openAccountJson').mockImplementation(async (...args) => { const value = await read(...args); invalidateProfile(); return value })
+  }
+  const before = await database.profileMeta.get('active')
+  if (mode === 'profile-change') await expect(reconciliation.readPendingRecoveryEntry(token)).rejects.toThrow('PROFILE_CHANGED')
+  else if (mode === 'mismatched' || mode === 'ambiguous' || mode === 'foreign') await expect(reconciliation.readPendingRecoveryEntry(token)).rejects.toThrow('SIGNIN_RECEIPT_MISMATCH')
+  else expect(await reconciliation.readPendingRecoveryEntry(token)).toEqual(mode === 'pending' ? { kind: 'recovery', pointId } : undefined)
+  expect(await database.profileMeta.get('active')).toEqual(before)
+  expect(await database.outbox.count()).toBe(0)
+  expect(await database.syncState.get(`guest-copy:${copyId}`)).toBeDefined()
+  if (mode === 'pending') {
+    const resumed = fixture.create(); await resumed.begin(token)
+    expect(resumed.getSnapshot()).toMatchObject({ phase: 'confirming', preview: { copyId } })
+    await resumed.confirm()
+    const activated = await database.profileMeta.get('active'), intent = await database.outbox.toArray()
+    expect(resumed.getSnapshot().phase).toBe('complete')
+    await resumed.confirm()
+    expect(await database.profileMeta.get('active')).toEqual(activated)
+    expect(await database.outbox.toArray()).toEqual(intent)
+    expect(await reconciliation.readPendingRecoveryEntry(token)).toBeUndefined()
+  }
 })

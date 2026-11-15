@@ -1,3 +1,4 @@
+import { finishAccountSignin } from './signin-helpers'
 import 'fake-indexeddb/auto'
 import { readFile } from 'node:fs/promises'
 import { extname, relative, resolve } from 'node:path'
@@ -86,7 +87,7 @@ test('account complete restore replaces the selected workspace and keeps exact o
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByLabel('Remember this device').first().check()
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+  await finishAccountSignin(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: 60_000 })
   await page.evaluate(() => { window.location.hash = '#/settings/data' })

@@ -1,3 +1,4 @@
+import { finishAccountSignin } from './signin-helpers'
 import { CHROMIUM_STATUS_COMPLETION_TAG } from '../test-tags'
 import { WORKSPACE_STARTUP_MARK } from '../../src/diagnostics/workspace-startup'
 import { accountConnectivity, prepareAccountProofCache } from './network-fixture'
@@ -141,13 +142,11 @@ test(SETUP_RECOVERY_TITLE, async () => {
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByLabel('Remember this device').first().check()
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+  await finishAccountSignin(page)
   const status = page.getByRole('complementary', { name: 'Account sync' }), remote = status.getByRole('status')
   await expect(remote).toHaveText('Synced', { timeout: 60_000 })
-  // Initial cloud projection advances the managed root after App captured its empty workspace
-  // Adopt that committed root through the normal reopen before starting a new form
-  recoveryPhase = 'reopen-initial-workspace'
-  await page.getByRole('button', { name: 'Load updated data', exact: true }).click()
+  // Automatic entry admits the initial cloud projection before exposing the first editor
+  recoveryPhase = 'initial-workspace-ready'
   await expect(page.getByRole('button', { name: 'Load updated data', exact: true })).toBeHidden()
   await page.getByRole('button', { name: /^(Data & Settings|Open data and settings)$/ }).filter({ visible: true }).click()
   const data = page.getByRole('region', { name: 'Data & Settings', exact: true })

@@ -1,3 +1,5 @@
+import { loadAccountUpdate } from './workspace-updates'
+import { finishAccountSignin } from './signin-helpers'
 import { openShareSources } from '../share-view-helpers'
 import sharp from 'sharp'
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
@@ -7,19 +9,31 @@ import { expect, test, type Page } from '@playwright/test'
 import { previewCrystalEdit } from '../../src/interchange/crystal-edit'
 import { createPublicShareUrl } from '../../src/interchange/public-share'
 import { CURRENT_CATALOG } from '../../src/catalog/bundled'
-import { modModelEntity } from '../../src/domain/mod-layers'
+import { sourceCompositionDigest } from '../../src/domain/source-composition'
+import { prepareModComposition, modModelEntity } from '../../src/domain/mod-layers'
 import { SUGGESTED_BUILD_SLOTS } from '../../src/domain/build-planning'
 import { PC_RULES } from '../../src/domain/calculation-rules'
 import type { PublicSnapshot } from '../../src/interchange/public-share-schema'
 import { skipInitialModSetup } from '../local-data-helpers'
 
 const source = Buffer.from(JSON.stringify({ ID: 'recipient-owned-t05', Title: 'Recipient source', EditorVersion: 34, PrivateUnselected: 'SENDER_PRIVATE_CANARY_T05', Jobs: [{ ID: 0, Name: 'Recipient class', HPRating: 60, MPRating: 60, StrRating: 60, VitRating: 60, DexRating: 60, AgiRating: 60, MndRating: 60, SpiRating: 60, SpdRating: 60, LckRating: 60, EquipmentTypes: [0], PassiveIDs: [], AbilityIDs: [] }], Equipment: [{ ID: 9, Name: 'Recipient blade', Description: 'OWN_EXACT_EFFECT_T05', EquipmentType: 0, TexturePath: 'Equipment/Recipient', TextureIndex: 0, IsTwoHanded: true, StatMods: [{ Tag: Number(Object.entries(PC_RULES.statMods).find(([, rule]) => rule.name === 'Flat_MPCosts')![0]), Value1: -2, Value2: 0, Value3: 0 }] }] }))
+async function explicitComposition() {
+  const preview = await previewCrystalEdit(source, 'source.json'), catalog = preview.proposed.catalogs[0]!
+  return prepareModComposition({ version: 3, baseline: { catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId }, layers: [{ catalogId: catalog.id, catalogRevisionId: catalog.revisionId, enabled: true }], links: [] }, [CURRENT_CATALOG, catalog])
+}
+async function installRecipientComposition(page: Page) {
+  const destination = page.url()
+  if (!destination.includes('/__accounts-proof/')) await page.goto('/__accounts-proof/account-workspace.html#/builds')
+  await page.waitForFunction(() => !!(window as any).workspaceProof)
+  await page.evaluate(composition => (window as any).workspaceProof.seedPublicComposition(composition), await explicitComposition())
+  if (page.url() !== destination) await page.goto(destination)
+}
 async function snapshot(): Promise<PublicSnapshot> {
   const preview = await previewCrystalEdit(source, 'source.json'), catalog = preview.proposed.catalogs[0]!
   const job = modModelEntity(catalog, 'crystal-edit:Jobs:0')!, weapon = modModelEntity(catalog, 'crystal-edit:Equipment:9')!
   const ref = (id: string) => ({ kind: 'catalog' as const, catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: id })
   const baseline = { catalogId: CURRENT_CATALOG.id, catalogRevisionId: CURRENT_CATALOG.revisionId }
-  return { version: 6, dataGeneration: 'catalog-sources-1', kind: 'team', title: 'Recipient Team T05', setup: { baseline, catalogLock: { [baseline.catalogId]: baseline.catalogRevisionId, [catalog.id]: catalog.revisionId }, layers: [{ catalogId: catalog.id, catalogRevisionId: catalog.revisionId, checksum: catalog.checksum, title: 'Recipient source' }], mode: { state: 'known', value: 'Standard' }, ppCostsNonNegative: { state: 'known', value: true }, slots: SUGGESTED_BUILD_SLOTS.map(({ id, label, equipmentRole }) => ({ id, label, equipmentRole })) }, slots: [{ primaryClass: ref(job.id), secondaryClass: null, equipment: [{ slotId: 'plan-main-hand', ref: ref(weapon.id) }, { slotId: 'plan-off-hand', ref: ref(weapon.id) }], equipmentGroups: [['plan-main-hand', 'plan-off-hand']], passives: [], calculation: { model: 'pc-1.6.9-v1', level: 30, growthMode: 'primary', gender: 'male', growth: [{ classRef: ref(job.id), levels: 30 }], bonuses: [], statuses: [] } }, null, null, null], receipts: [job, weapon].map((entity, index) => ({ ref: ref(entity.id), kind: entity.kind, name: entity.name, origin: { kind: 'catalog', projectId: catalog.id, sourceRevisionId: catalog.revisionId, catalogId: catalog.id, catalogRevisionId: catalog.revisionId, modelKey: index ? 'crystal-edit:Equipment:9' : 'crystal-edit:Jobs:0' } })) }
+  return { version: 6, dataGeneration: 'catalog-sources-1', kind: 'team', title: 'Recipient Team T05', setup: { baseline, catalogLock: { [baseline.catalogId]: `composition-v2:sha256:${sourceCompositionDigest(await explicitComposition(), [CURRENT_CATALOG, catalog])}`, [catalog.id]: catalog.revisionId }, layers: [{ catalogId: catalog.id, catalogRevisionId: catalog.revisionId, checksum: catalog.checksum, title: 'Recipient source' }], mode: { state: 'known', value: 'Standard' }, ppCostsNonNegative: { state: 'known', value: true }, slots: SUGGESTED_BUILD_SLOTS.map(({ id, label, equipmentRole }) => ({ id, label, equipmentRole })) }, slots: [{ primaryClass: ref(job.id), secondaryClass: null, equipment: [{ slotId: 'plan-main-hand', ref: ref(weapon.id) }, { slotId: 'plan-off-hand', ref: ref(weapon.id) }], equipmentGroups: [['plan-main-hand', 'plan-off-hand']], passives: [], calculation: { model: 'pc-1.6.9-v1', level: 30, growthMode: 'primary', gender: 'male', growth: [{ classRef: ref(job.id), levels: 30 }], bonuses: [], statuses: [] } }, null, null, null], receipts: [job, weapon].map((entity, index) => ({ ref: ref(entity.id), kind: entity.kind, name: entity.name, origin: { kind: 'catalog', projectId: catalog.id, sourceRevisionId: catalog.revisionId, catalogId: catalog.id, catalogRevisionId: catalog.revisionId, modelKey: index ? 'crystal-edit:Equipment:9' : 'crystal-edit:Jobs:0' } })) }
 }
 for (const width of [1280, 390]) test(`guest recipient exact import and independent four-slot copy at ${width}px`, async ({ page, baseURL }) => {
   await page.setViewportSize({ width, height: 900 })
@@ -45,6 +59,8 @@ for (const width of [1280, 390]) test(`guest recipient exact import and independ
   expect(await page.locator('body').textContent()).not.toContain('WRONG_REVISION_T05')
   await input.setInputFiles({ name: 'matching.json', mimeType: 'application/json', buffer: source })
   await expect(page.getByText('All selected definitions are available.', { exact: true })).toBeAttached()
+  await expect(page.getByRole('table', { name: 'Calculated character stats', exact: true })).toHaveCount(0)
+  await installRecipientComposition(page)
   await openShareSources(page)
   await expect(page.getByRole('status').filter({ hasText: 'All selected definitions are available.' })).toBeVisible()
   await page.getByRole('region', { name: 'Your matching definitions' }).getByText('Recipient blade', { exact: true }).click()
@@ -79,7 +95,7 @@ async function register(page: Page) {
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.locator('form').filter({ has: page.getByRole('button', { name: 'Sign in', exact: true }) }).getByLabel('Remember this device', { exact: true }).check()
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+  await finishAccountSignin(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   // Initial account projection can remount the planner; use the established account import setup boundary
   await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: 90_000 })
@@ -152,6 +168,7 @@ test('initialized account recipient uses its own files and artwork while sender 
     await preview.getByRole('button', { name: 'Save selected JSON and artwork' }).click()
     await expect(preview).toBeHidden({ timeout: LIBRARY_OPERATION_MS })
     await expect(recipient.getByText('1 matching image saved privately.')).toBeVisible()
+    await installRecipientComposition(recipient)
     await recipient.goto(copiedUrl)
     await openShareSources(recipient)
     await recipient.getByRole('region', { name: 'Your matching definitions' }).getByText('Recipient blade', { exact: true }).click()
@@ -165,6 +182,7 @@ test('initialized account recipient uses its own files and artwork while sender 
     expect(afterRecipient.defaults).toEqual(beforeRecipient.defaults)
     expect(afterRecipient.assets).toHaveLength(1)
     expect(afterRecipient.sources).toHaveLength(1)
+    await loadAccountUpdate(page)
     expect(await readProof(page)).toEqual(beforeSender)
     const requests: string[] = [], publicLogs: string[] = []
     stranger.on('console', message => publicLogs.push(message.text()))

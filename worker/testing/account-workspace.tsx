@@ -1,3 +1,6 @@
+import { signInProfile } from '../../src/account/lifecycle'
+import { writeDeviceSelection } from '../../src/workspace/device-selection'
+import { assertActiveProfile, type ProfileToken } from '../../src/account/profile'
 import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from '../../src/App'
@@ -46,9 +49,25 @@ async function teamFixtureData(publicSharing?: PublicSharingFixture) {
   return data
 }
 
+async function signinProgressFixture(label: string, marker: string) {
+  const { progress } = await import('../../src/workspace/signin-merge.test-helpers')
+  const state = progress(marker), localData = state.planner.localData
+  return { ...state, planner: { ...state.planner, localData: { ...localData, playthroughs: { ...localData.playthroughs, play: { ...localData.playthroughs.play, label } } } } }
+}
+
 // Bootstrap proofs touch only synthetic account storage before the planner is mounted
 // Public startup accepts only managed launch roots, so fixture admission must finish before mounting
 const accountBootstrapProof = {
+  // Fixture-only composition preserves the real auth choice while seeding before provider admission
+  signIn: signInProfile,
+  async mount() {
+    const token = currentProfileToken()!
+    await writeDeviceSelection({ key: 'selected', version: 1, kind: 'guest' }, () => assertActiveProfile(token))
+    fixtureAdmission = token
+    // Normal hash navigation must not drop a fixture query and accidentally reload an unremembered profile
+    window.history.replaceState(null, '', `${window.location.pathname}#/builds`)
+    mountWorkspaceProof()
+  },
   async accountStorage() {
     const token = currentProfileToken()!
     const database = new AccountDatabase(token.accountId)
@@ -87,6 +106,36 @@ const accountBootstrapProof = {
       await seedManagedWorkspace(database, token, { ...fixture.state, editorDocuments: [fixture.file], retainedContent: [], blobs: fixture.blobs.filter(blob => blob.ref.encoding === 'utf16le') })
     } finally { database.close() }
   },
+  async seedSigninProgress(label: string) {
+    const token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
+    try {
+      if (await database.profileMeta.get('active')) throw new Error('Sign-in fixture requires fresh account storage')
+      await seedManagedWorkspace(database, token, await signinProgressFixture(label, 'from-account'))
+    } finally { database.close() }
+  },
+  async seedRecoveryProgress(label: string) {
+    const { createAccountRecoveryService } = await import('../../src/workspace/account-recovery')
+    const { ownWorkspaceSnapshot, disposeWorkspaceSnapshot } = await import('../../src/workspace/snapshot')
+    const { accountLocalId } = await import('../../src/workspace/account-cache')
+    const { LAUNCH_DATA_GENERATION } = await import('../../src/domain/data-generation')
+    const token = currentProfileToken()!, pointId = accountLocalId()
+    const snapshot = ownWorkspaceSnapshot({ version: 1, dataGeneration: LAUNCH_DATA_GENERATION, snapshotId: 'synthetic-recovery', capturedAt: '2026-11-14T00:00:00.000Z', revisionVector: { guest: pointId, managedRevision: '1' }, state: await signinProgressFixture(label, 'recovered') }, { async check() { assertActiveProfile(token) }, async dispose() {} })
+    try { await createAccountRecoveryService(token).prepare(pointId, snapshot); return pointId }
+    finally { await disposeWorkspaceSnapshot(snapshot) }
+  },
+  async recoveryDecision(pointId: string) {
+    const token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
+    try {
+      const { openAccountJson } = await import('../../src/workspace/account-cache')
+      const { SigninDecisionSchema } = await import('../../src/workspace/signin-reconciliation')
+      const { GuestCopyJournalSchema } = await import('../../src/workspace/guest-copy-journal')
+      const row = await database.syncState.get(`signin-receipt:recovery:${pointId}`)
+      const decision = row && await openAccountJson(database, token, row.ref, SigninDecisionSchema)
+      const saved = decision?.copyId && await database.syncState.get(`guest-copy:${decision.copyId}`)
+      const journal = saved ? await openAccountJson(database, token, saved.ref, GuestCopyJournalSchema) : undefined
+      return { decision, journalVersion: journal?.version, projection: await database.syncState.get('projection'), active: await database.profileMeta.get('active'), pending: await database.outbox.toArray(), activation: decision?.copyId ? await database.migrationJournal.get(decision.copyId) : undefined, copies: (await database.syncState.where('id').startsWith('guest-copy:').toArray()).filter(value => value.id !== 'guest-copy:pending').map(value => value.id) }
+    } finally { database.close() }
+  },
   async seedSelectionFixture() {
     let data = createBlankLocalData()
     for (const label of ['First local journey', 'Second local journey']) {
@@ -118,6 +167,7 @@ const accountBootstrapProof = {
 }
 Object.assign(window, { accountBootstrapProof })
 
+let stopSaveRecoveryInjection: (() => void) | undefined
 let releaseQueued: (() => void) | undefined
 let queuedResult: Promise<string> | undefined
 let capturedEditorAuthority: (() => { sameProfile: boolean; repositoryCurrent: boolean; viewRetired: boolean }) | undefined
@@ -138,6 +188,11 @@ function WorkspaceProof() {
         if (!file) return undefined
         const content = await (await import('../../src/workspace/editor-document')).readEditorContent(state, file)
         return { original: Array.from(content.originalBytes), appliedText: content.lastAppliedText, unfinishedText: content.unfinishedText, fieldState: file.unfinished.fieldState, editedPath: file.unfinished.editedPath, validation: file.unfinished.validation, revision: file.revision }
+      },
+      async seedGuestProgress(label: string) {
+        if (workspace.repository.kind !== 'guest') throw new Error('Guest fixture requires the device workspace')
+        const before = await workspace.repository.load()
+        await workspace.repository.commitWorkspace(await signinProgressFixture(label, 'from-device'), before.revision)
       },
       async seedGuestEditor(input: { id: string; filename: string; originalText: string; draftText: string }) {
         if (workspace.repository.kind !== 'guest') throw new Error('This fixture requires the local workspace')
@@ -252,6 +307,16 @@ function WorkspaceProof() {
         }
       },
       teamState: async () => (await workspace.repository.load()).localData,
+      async seedPublicComposition(composition: import('../../src/domain/types').ModComposition) {
+        const before = await workspace.repository.readWorkspace()
+        const { addGameSetupRevision } = await import('../../src/domain')
+        const { prepareModComposition, composeModCatalog, expandModCatalogs } = await import('../../src/domain/mod-layers')
+        const localData = addGameSetupRevision(before.planner.localData, { label: 'Synthetic explicit sharing composition', modComposition: prepareModComposition(composition, before.planner.catalogs), activate: false })
+        const setup = Object.values(localData.gameSetups).find(value => !before.planner.localData.gameSetups[value.id])!
+        const catalogs = expandModCatalogs([...before.planner.catalogs, composeModCatalog(setup, before.planner.catalogs)!])
+        await workspace.repository.commitWorkspace({ ...before, planner: { ...before.planner, localData, catalogs } }, before.planner.localData.revision)
+        if (workspace.repository.kind === 'account') await workspace.reopenAccount()
+      },
       publicSharingState: async () => {
         const state = await workspace.repository.readWorkspace()
         return { localData: state.planner.localData, catalogPins: state.planner.catalogs.map(value => [value.id, value.revisionId]), sources: state.planner.sources.map(value => value.digest), defaults: state.libraryDefaults, assets: state.assets }
@@ -291,9 +356,23 @@ function WorkspaceProof() {
         }
         return { files: await Promise.all(state.saveDocuments.map(inspect)), conflicts: await Promise.all(state.conflicts.map(async conflict => ({ id: conflict.id, disposition: conflict.disposition.kind, versions: await Promise.all(conflict.branches.map(async branch => ({ role: branch.role, ...await inspect((await inspectWorkspaceClosure(state, branch.closure)).value as import('../../src/workspace/documents').SaveWorkspaceDocument) }))) }))) }
       },
-      armSaveStrictRecovery() {
+      async armSaveStrictRecovery() {
+        const { getDatabase } = await import('../../src/persistence/database')
+        const name = `${getDatabase().name}-coordinator`
         const view = workspace.saveSession.transferView!, controller = workspace.saveSession.controller
-        window.addEventListener('crykit-guest-activated', () => controller.present(view, 'query', 'later recovery input'), { once: true })
+        stopSaveRecoveryInjection?.()
+        const put = IDBObjectStore.prototype.put
+        // Managed file publication has no bulk activation event; inject only after the exact pointer transaction commits
+        const restore = () => { if (IDBObjectStore.prototype.put === watch) IDBObjectStore.prototype.put = put; if (stopSaveRecoveryInjection === restore) stopSaveRecoveryInjection = undefined }
+        function watch(this: IDBObjectStore, ...args: Parameters<typeof put>) {
+          if (this.name === 'active' && this.transaction.db.name === name && args[0]?.manifest?.version === 3) {
+            restore()
+            this.transaction.addEventListener('complete', () => controller.present(view, 'query', 'later recovery input'), { once: true })
+          }
+          return put.apply(this, args)
+        }
+        IDBObjectStore.prototype.put = watch
+        stopSaveRecoveryInjection = restore
       },
       async editConflictFile(filename: string, unrelated = false, draftCodeUnit = 0xd800) {
         const before = await workspace.repository.readWorkspace()
@@ -340,9 +419,26 @@ function WorkspaceProof() {
       previewBackup: async (bytes: number[]) => previewImport(new Uint8Array(bytes), 'recovery.zip'),
       crash: () => setFailed(true),
     } })
-    return () => { delete (window as unknown as { workspaceProof?: unknown }).workspaceProof }
+    return () => { stopSaveRecoveryInjection?.(); delete (window as unknown as { workspaceProof?: unknown }).workspaceProof }
   }, [workspace])
   if (failed) throw new Error('Synthetic render failure')
   return <App/>
 }
-createRoot(document.getElementById('root')!, { onCaughtError: () => {} }).render(<WorkspaceProvider><WorkspaceProof/></WorkspaceProvider>)
+let fixtureAdmission: ProfileToken | undefined
+function FixtureAdmission() {
+  const workspace = useWorkspace()
+  useEffect(() => {
+    if (!fixtureAdmission) return
+    const token = fixtureAdmission
+    fixtureAdmission = undefined
+    void workspace.openAccount(token)
+  }, [workspace])
+  return workspace.repository.kind === 'account' || !new URLSearchParams(location.search).has('fixture-setup') ? <WorkspaceProof/> : <p role="status">Opening synthetic fixture...</p>
+}
+let mounted = false
+function mountWorkspaceProof() {
+  if (mounted) throw new Error('Workspace proof already mounted')
+  mounted = true
+  createRoot(document.getElementById('root')!, { onCaughtError: () => {} }).render(<WorkspaceProvider><FixtureAdmission/></WorkspaceProvider>)
+}
+if (!new URLSearchParams(location.search).has('fixture-setup')) mountWorkspaceProof()

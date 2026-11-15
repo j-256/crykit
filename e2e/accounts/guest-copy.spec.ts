@@ -1,3 +1,5 @@
+import { loadAccountUpdate } from './workspace-updates'
+import { finishAccountSignin } from './signin-helpers'
 import { readManagedGuestWorkspace } from '../guest-planner-reader'
 import { readEditorContent } from '../../src/workspace/editor-document'
 import { prepareAccountProofCache } from './network-fixture'
@@ -28,13 +30,14 @@ test('signInNeverUploadsGuestData and explicit saved-draft copy keeps guest orig
   await page.waitForFunction(() => !!(window as unknown as { workspaceProof?: unknown }).workspaceProof)
   const guestBefore = await guestEditorContent(page)
   await page.getByRole('button', { name: 'Account', exact: true }).first().click()
-  let uploads = 0
-  page.on('request', request => { if (request.method() === 'POST' && /\/api\/v1\/sync\//.test(request.url())) uploads++ })
   await page.getByLabel('Email', { exact: true }).fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Open account workspace', exact: true })).toBeVisible()
-  expect(uploads).toBe(0)
+  await expect(page.getByRole('heading', { name: 'Choose what to keep', exact: true })).toBeVisible({ timeout: 60_000 })
+  // Baseline account publication is allowed; the private guest draft is not selected before review
+  expect(await guestEditorContent(page)).toEqual(guestBefore)
+  await finishAccountSignin(page)
+  await page.getByRole('button', { name: 'Account', exact: true }).first().click()
   await page.getByRole('button', { name: 'Copy local work', exact: true }).click()
   const preview = page.getByRole('region', { name: 'Copy local work' })
   await preview.getByText('Preparing local copy...', { exact: true }).waitFor({ state: 'hidden', timeout: 30_000 })
@@ -68,7 +71,9 @@ test('signInNeverUploadsGuestData and explicit saved-draft copy keeps guest orig
   })
   expect(await guestEditorContent(page)).toEqual(guestBefore)
   await test.step('Open the copied account workspace', async () => {
-    await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+    await page.getByRole('button', { name: 'Builds', exact: true }).first().click()
+    await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: 60_000 })
+    await loadAccountUpdate(page)
     await expect(page.getByRole('heading', { name: 'Plan your next Build', exact: true })).toBeVisible()
   })
   const content = await page.evaluate(() => (window as unknown as { workspaceProof: { editorContent(): Promise<{ unfinishedText: string; validation: string }>; inspect(): Promise<{ titles: string[] }> } }).workspaceProof.editorContent())
