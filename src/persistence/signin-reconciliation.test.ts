@@ -648,3 +648,35 @@ it.each(['missing-preparation', 'missing-journal', 'ambiguous-journal', 'journal
   expect(await device.db.profileMeta.get('active')).toEqual(fence)
   expect(await device.db.outbox.toArray()).toEqual(intents)
 })
+
+it.each(['point-count', 'account-bytes'] as const)('renders honest capacity guidance after real %s exhaustion', async limit => {
+  const fixture = await setup(), controller = fixture.create(), token = fixture.device.token
+  await controller.begin(token); await controller.choose('device')
+  const recovery = createAccountRecoveryService(token)
+  if (limit === 'point-count') {
+    const { accountLocalId } = await import('../workspace/account-cache')
+    const { disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
+    for (let index = 0; index < 3; index++) {
+      const source = (await fixture.options.captureGuest!())!.snapshot
+      try { await recovery.prepare(accountLocalId(), source) } finally { await disposeWorkspaceSnapshot(source) }
+    }
+    const points = await recovery.list()
+    expect(points).toHaveLength(3)
+    expect(points.every(point => point.state === 'pending')).toBe(true)
+    const capacity = await service!.fixture.db.prepare('SELECT capacity_bytes FROM accounts WHERE id=?').bind(token.accountId).first<number>('capacity_bytes')
+    expect(capacity).toBeGreaterThan(128 * 1024 * 1024)
+    expect(points.reduce((sum, point) => sum + point.admittedBytes, 0)).toBeLessThan(128 * 1024 * 1024)
+  } else await service!.fixture.db.prepare('UPDATE accounts SET capacity_bytes=1 WHERE id=?').bind(token.accountId).run()
+  const before = await fixture.device.db.profileMeta.get('active')
+  await controller.confirm()
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'failed', reason: 'quota' })
+  expect(await fixture.device.db.profileMeta.get('active')).toEqual(before)
+  const { createElement } = await import('react'), { renderToStaticMarkup } = await import('react-dom/server')
+  const { SigninReconciliation } = await import('../ui/account/SigninReconciliation')
+  const rendered = renderToStaticMarkup(createElement(SigninReconciliation, { state: controller.getSnapshot(), actions: { ...controller, backup: async () => {} } }))
+  expect(rendered).toContain('recovery point limit or a storage limit')
+  expect(rendered).toContain('Pending recovery points stay protected')
+  expect(rendered).toContain('does not free capacity')
+  expect(rendered).not.toContain('Storage is full')
+  expect(await fixture.device.db.outbox.count()).toBe(0)
+})

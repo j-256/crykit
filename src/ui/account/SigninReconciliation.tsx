@@ -18,7 +18,7 @@ interface Actions {
   reconnect?(): Promise<void>
 }
 const reasons: Record<string, string> = {
-  quota: 'Storage is full. Free account space or download a private backup before retrying. No replacement has been approved.',
+  quota: 'Preparation reached a recovery point limit or a storage limit. Pending recovery points stay protected: finish syncing or review pending replacements before retrying. Completed points can be retired when eligible; storage limits also require enough free space. A private backup preserves your data but does not free capacity.',
   'signin-required': 'This account is unlocked locally. Reconnect online access to review current account data. If reconnect fails, return to the workspace and sign in again.',
   offline: 'Fresh account data is unavailable offline. Reconnect to review a merge or replacement. An already admitted account copy can still be opened.',
   'review-stale': 'Account data changed after review. Retry preparation to check the latest data before choosing.',
@@ -51,11 +51,19 @@ export function SigninReconciliation({ state, actions, sourceLabel = 'This devic
   const [accountConfirmation, setAccountConfirmation] = useState(false)
   const [error, setError] = useState('')
   const heading = useRef<HTMLHeadingElement>(null)
-  const recordLabel = (record: { kind: string; key: string }) => {
+  const recordLabel = (record: { kind: string; key: string }, displayName = state.local?.recordNames?.[record.key]) => {
     const category = recordLabels[record.kind]?.[0] ?? 'saved record'
     const title = category.charAt(0).toUpperCase() + category.slice(1)
-    const name = state.local?.recordNames?.[record.key]
-    return name ? `${title}: ${name}` : title
+    return displayName ? `${title}: ${displayName}` : title
+  }
+  const conflictLabel = (key: string) => {
+    const direct = state.preview?.closure.find(record => record.key === key)
+    if (direct) return recordLabel(direct, state.account?.recordNames?.[key] ?? state.local?.recordNames?.[key])
+    // Progress disagreements can use the destination key instead of the included source key
+    // Only the explicit correspondence grants that association; labels never match identities
+    const mapping = state.preview?.signin?.progressMappings.find(mapping => mapping.destinationKey === key)
+    const source = mapping && state.preview?.closure.find(record => record.key === mapping.sourceKey && record.kind === 'progress')
+    return source ? recordLabel(source, state.account?.recordNames?.[key] ?? state.local?.recordNames?.[source.key]) : 'Saved record'
   }
   const recovery = sourceLabel === 'Recovery snapshot'
   const paused = state.replacement?.state === 'paused'
@@ -77,7 +85,7 @@ export function SigninReconciliation({ state, actions, sourceLabel = 'This devic
       <p>Your original device workspace stays on this device. Account changes sync to your other signed-in devices. Private backups contain sensitive records; store them privately.</p>
       {accountConfirmation ? <section><p>This device will show account data instead of {sourceLabel.toLowerCase()} records. Those records are not merged or uploaded. {recovery ? 'The recovery point remains available in Account settings.' : 'The original device workspace remains available through Continue using this device.'}</p><button onClick={() => void run(() => actions.choose('account'))}>Confirm use account data</button><button onClick={() => setAccountConfirmation(false)}>Back to choices</button></section>
       : state.phase === 'confirming' ? <section>
-        {state.action === 'merge' ? <><p>Combine meaningful work, keeping saved versions when records conflict. Progress matches by exact Playthrough identity, never by name.</p>{state.preview && <><h2>Included records</h2><ul>{state.preview.closure.map(record => <li key={record.key}>{recordLabel(record)}</li>)}</ul>{!!state.preview.signin?.requiredCompanionKeys.length && <p>Required starter companions are included: {state.preview.closure.filter(record => state.preview!.signin!.requiredCompanionKeys.includes(record.key)).map(recordLabel).join(', ')}.</p>}{state.preview.conflicts.map((conflict, index) => <p key={index}>{conflict}</p>)}{state.preview.problems.map(problem => <p role="alert" key={problem}>{problem}</p>)}</>}</>
+        {state.action === 'merge' ? <><p>Combine meaningful work, keeping saved versions when records conflict. Progress matches by exact Playthrough identity, never by name.</p>{state.preview && <><h2>Included records</h2><ul>{state.preview.closure.map(record => <li key={record.key}>{recordLabel(record)}</li>)}</ul>{!!state.preview.signin?.requiredCompanionKeys.length && <p>Required starter companions are included: {state.preview.closure.filter(record => state.preview!.signin!.requiredCompanionKeys.includes(record.key)).map(record => recordLabel(record)).join(', ')}.</p>}{state.preview.conflicts.map((conflict, index) => <p key={index}>{conflictLabel(conflict)}: Both versions will be kept. Account values stay active until you review the saved versions.</p>)}{state.preview.problems.map(problem => <p role="alert" key={problem}>{problem}</p>)}</>}</>
         : <p>{state.action === 'latest' ? 'Use the latest account data here and retire the paused replacement. A private recovery snapshot preserves displaced work.' : `Replace account data with the reviewed ${paused ? 'retained workspace' : sourceLabel.toLowerCase()} data. This changes what other devices receive. Displaced account data is preserved in an encrypted recovery point before replacement.`}</p>}
         <button disabled={!!state.preview?.problems.length} onClick={() => void run(actions.confirm)}>{state.action === 'merge' ? 'Confirm merge' : state.action === 'latest' ? 'Confirm use latest account data' : 'Confirm replace account data'}</button>
       </section> : paused ? <section><p>Sync is paused because account data changed. Keep working on this device without publishing the replacement, or explicitly review which data to use.</p><button onClick={() => void run(actions.declineReplacement)}>Keep working on this device</button><button onClick={() => void run(() => actions.reviewReplacement('device'))}>Review this device replacement</button><button onClick={() => void run(() => actions.reviewReplacement('latest'))}>Review latest account data</button></section>

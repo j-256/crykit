@@ -91,3 +91,26 @@ it('confirmation uses exact source display names and generic categories without 
   expect(container.textContent).toContain('History entry')
   expect(container.textContent).not.toContain('private-')
 })
+
+it('explains shared recovery capacity without claiming a backup frees space or pending points expire', async () => {
+  await act(async () => root.render(<SigninReconciliation state={{ ...state, phase: 'failed', reason: 'quota', action: 'device' }} actions={actions()}/>))
+  const message = container.querySelector('[role="alert"]')!.textContent!
+  expect(message).toContain('recovery point limit or a storage limit')
+  expect(message).toContain('Pending recovery points stay protected')
+  expect(message).toContain('finish syncing or review pending replacements')
+  expect(message).toContain('does not free capacity')
+  expect(message).not.toContain('Storage is full')
+  expect(message).not.toContain('No replacement has been approved')
+  expect(message).not.toContain('pending points expire')
+})
+
+it('labels actual Progress destination conflicts through exact correspondence without leaking keys', async () => {
+  const sourceKey = '["progress","play","guest-observation"]', destinationKey = '["progress","play","account-observation"]'
+  const record = { kind: 'progress', key: sourceKey, label: sourceKey, sample: false }
+  const preview = { copyId: 'copy', accountId: 'account', snapshotId: 'snapshot', records: [record], closure: [record], selectedKeys: [sourceKey], estimatedBytes: 1, conflicts: [destinationKey, 'unrecognized-private-key'], problems: [], resumable: false, signin: { version: 1 as const, requiredCompanionKeys: [], progressMappings: [{ version: 1 as const, sourceKey, destinationKey, equivalent: false }] } }
+  const summary = { meaningful: true, builds: 0, progress: 1, other: 0, rootKeys: [], reasons: [], progressByPlaythrough: [], otherByKind: [] }
+  await act(async () => root.render(<SigninReconciliation state={{ ...state, phase: 'confirming', action: 'merge', preview, local: { ...summary, recordNames: { [sourceKey]: 'Guest run / Class' } }, account: { ...summary, recordNames: { [destinationKey]: 'Account run / Class' } } }} actions={actions()}/>))
+  expect(container.textContent).toContain('Progress record: Account run / Class: Both versions will be kept')
+  expect(container.textContent).toContain('Saved record: Both versions will be kept')
+  for (const key of [sourceKey, destinationKey, 'unrecognized-private-key']) expect(container.textContent).not.toContain(key)
+})
