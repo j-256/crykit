@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { BackupJsonReader, encodeBackupJson } from './workspace-backup-json'
-import { metadataSource } from './workspace-backup-evidence'
+import { metadataSource, readBackupMetadata } from './workspace-backup-evidence'
 import { WORKSPACE_BACKUP_LIMITS } from './workspace-backup-schema'
 import { createHash } from 'node:crypto'
 
@@ -42,4 +42,70 @@ it('fills new UTF-8 pages within their byte bound while preserving legacy packin
     expect(reader.finish()).toEqual(value)
   }
   expect([...encodeBackupJson(value, target, { packByBytes: false })]).toEqual(legacy)
+})
+
+it('reads complete token pages after encrypted transport splits and coalesces them', async () => {
+  const { plainChunkBytes } = await import('../account/protocol')
+  const { readBlob } = await import('../workspace/blobs')
+  const value = { rows: Array.from({ length: 1200 }, () => 'x'.repeat(4096)), text: 'brackets [ ] and escaped \" quote \\ and 雪' }
+  const source = metadataSource(value), bytes = await readBlob(source, source.byteLength)
+  const transported = { byteLength: bytes.length, async *open() { for (let offset = 0; offset < bytes.length; offset += plainChunkBytes) yield bytes.subarray(offset, offset + plainChunkBytes) } }
+  await expect(readBackupMetadata(transported)).resolves.toEqual(value)
+})
+
+it('preserves UTF-8 and JSON escapes across every stream boundary', async () => {
+  const value = { text: 'brackets [ ] and escaped \" quote \\ and 雪😀', end: [] }
+  const pages = [...encodeBackupJson(value, 64)]
+  const bytes = new Uint8Array(pages.reduce((length, page) => length + page.length, 0))
+  let offset = 0
+  for (const page of pages) { bytes.set(page, offset); offset += page.length }
+  const transported = { byteLength: bytes.length, async *open() { for (const byte of bytes) { const chunk = new Uint8Array([byte]); yield chunk; chunk.fill(0) } } }
+  await expect(readBackupMetadata(transported)).resolves.toEqual(value)
+})
+
+it('accepts JSON whitespace around complete token pages', async () => {
+  const { memoryBlob } = await import('../workspace/blobs')
+  const bytes = new TextEncoder().encode(' \t\r\n[["array"]]\n[["text-value","kept"]] [["end"]]\t ')
+  await expect(readBackupMetadata(memoryBlob(bytes))).resolves.toEqual(['kept'])
+})
+
+it.each([
+  '[["text-value","kept"]]garbage',
+  '[["array"]][["end"]',
+  '[["text-value","unterminated]]',
+  '[["array"]]{"invalid":true}',
+  '[["object"],["key","__proto__"],["value",1],["end"]]',
+  '[["object"],["key","duplicate"],["value",1],["key","duplicate"],["value",2],["end"]]',
+])('rejects malformed or incomplete concatenated metadata: %s', async input => {
+  const { memoryBlob } = await import('../workspace/blobs')
+  await expect(readBackupMetadata(memoryBlob(new TextEncoder().encode(input)))).rejects.toThrow()
+})
+
+it.each([-1, 1])('rejects a declared metadata length differing from its bytes by %s', async delta => {
+  const bytes = new TextEncoder().encode('[["text-value","kept"]]')
+  await expect(readBackupMetadata({ byteLength: bytes.length + delta, async *open() { yield bytes } })).rejects.toThrow('metadata length mismatch')
+})
+
+it('accepts the existing page bound and rejects larger pages and total claims', async () => {
+  const { memoryBlob } = await import('../workspace/blobs')
+  const value = 'x'.repeat(WORKSPACE_BACKUP_LIMITS.payload - JSON.stringify([['text-value', '']]).length)
+  const bytes = new TextEncoder().encode(JSON.stringify([['text-value', value]]))
+  expect(bytes.length).toBe(WORKSPACE_BACKUP_LIMITS.payload)
+  await expect(readBackupMetadata(memoryBlob(bytes))).resolves.toBe(value)
+  await expect(readBackupMetadata(memoryBlob(new TextEncoder().encode(JSON.stringify([['text-value', value + 'x']]))))).rejects.toThrow('page limit exceeded')
+  await expect(readBackupMetadata({ byteLength: WORKSPACE_BACKUP_LIMITS.bytes + 1, async *open() { throw new Error('Source must not open') } })).rejects.toThrow('byte limit exceeded')
+})
+
+it('exhausts authenticated sources before returning decoded metadata', async () => {
+  const { memoryBlob, verifiedBlob } = await import('../workspace/blobs')
+  const bytes = new TextEncoder().encode('[["text-value","kept"]]')
+  await expect(readBackupMetadata(verifiedBlob(memoryBlob(bytes), '0'.repeat(64)))).rejects.toThrow('Verified blob digest mismatch')
+  await expect(readBackupMetadata({ byteLength: bytes.length, async *open() { yield bytes; throw new Error('Authentication failed at EOF') } })).rejects.toThrow('Authentication failed at EOF')
+})
+
+it('rejects invalid UTF-8 in a complete token page', async () => {
+  const { memoryBlob } = await import('../workspace/blobs')
+  const bytes = new TextEncoder().encode('[["text-value","kept"]]')
+  bytes[bytes.indexOf('k'.charCodeAt(0))] = 0xff
+  await expect(readBackupMetadata(memoryBlob(bytes))).rejects.toThrow()
 })

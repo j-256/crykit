@@ -251,6 +251,20 @@ it('publishes a self-contained Progress identity association and rejects forged 
     const metadataKey = blobIdentity(conflict.progressIdentity!.sourceMetadata)
     const { historicalMetadataIdentity, readBackupMetadata, metadataSource } = await import('../interchange/workspace-backup-evidence')
     const originalMetadata = await readBackupMetadata(state.blobs.find(blob => blobIdentity(blob.ref) === metadataKey)!.content) as import('../interchange/workspace-backup-evidence').SnapshotMetadataV1
+    const { encodeBackupJson } = await import('../interchange/workspace-backup-json')
+    const { stageAccountSource, openAccountSource } = await import('./account-streams')
+    const { cipherRef } = await import('./account-cache')
+    const pages = [...encodeBackupJson(originalMetadata, 256)]
+    const paged = { byteLength: pages.reduce((length, page) => length + page.length, 0), async *open() { yield* pages } }
+    const identity = await historicalMetadataIdentity(paged)
+    const encrypted = await stageAccountSource(database, token, paged, [])
+    await database.encryptedRevisions.add(encrypted)
+    const content = await openAccountSource(database, token, cipherRef(encrypted))
+    expect(await historicalMetadataIdentity(content)).toEqual(identity)
+    const ref = { ...conflict.progressIdentity!.sourceMetadata, documentId: `progress-original:${identity.id}`, revisionId: identity.metadataStreamDigest, byteLength: content.byteLength, sha256: identity.metadataStreamDigest }
+    const transported = { ...conflict, progressIdentity: { ...conflict.progressIdentity!, sourceMetadata: ref, sourceIdentity: identity.id, sourceDigest: identity.metadataStreamDigest } }
+    const transportedState = { ...state, conflicts: [transported], blobs: state.blobs.map(blob => blobIdentity(blob.ref) === metadataKey ? { ref, content } : blob) }
+    await expect(validateSigninProgressIdentity(transportedState, transported, pending.documents, accepted.documents)).resolves.toBeUndefined()
     for (const kind of ['malformed', 'observation', 'dependency'] as const) {
       const raw = structuredClone(originalMetadata)
       if (kind === 'observation') Object.assign(raw.state.planner.localData.playthroughs.play.progress.local, { observedAt: now })

@@ -28,10 +28,47 @@ export function metadataSource(value: unknown): BlobSource {
   for (const page of encodeBackupJson(value, CAPTURE_METADATA_PAGE_BYTES, { packByBytes: true })) byteLength += page.length
   return { byteLength, async *open() { yield* encodeBackupJson(value, CAPTURE_METADATA_PAGE_BYTES, { packByBytes: true }) } }
 }
+const JSON_BYTE = Object.freeze({ arrayStart: 0x5b, arrayEnd: 0x5d, objectStart: 0x7b, objectEnd: 0x7d, quote: 0x22, escape: 0x5c, space: 0x20, tab: 0x09, lineFeed: 0x0a, carriageReturn: 0x0d })
 export async function readBackupMetadata(content: BlobSource): Promise<unknown> {
-  const json = new BackupJsonReader()
-  for await (const page of content.open()) json.consume(page)
-  return json.finish()
+  if (!Number.isSafeInteger(content.byteLength) || content.byteLength < 0 || content.byteLength > WORKSPACE_BACKUP_LIMITS.bytes) throw new Error('Backup metadata byte limit exceeded')
+  const json = new BackupJsonReader(), page = new Uint8Array(Math.min(content.byteLength, WORKSPACE_BACKUP_LIMITS.payload))
+  let length = 0, pageLength = 0, depth = 0, quoted = false, escaped = false, pages = 0
+  // Original token pages are concatenated JSON arrays, but encrypted blobs can split or combine them
+  // Recover only their framing here; the frozen decoder still validates every token and value
+  // ASCII delimiters cannot occur inside a UTF-8 continuation, so byte scanning also preserves split characters
+  try {
+    for await (const chunk of content.open()) {
+      if (chunk.length > content.byteLength - length) throw new Error('Backup metadata length mismatch')
+      length += chunk.length
+      for (const byte of chunk) {
+        if (pageLength === page.length) throw new Error('Backup metadata page limit exceeded')
+        page[pageLength++] = byte
+        if (!depth) {
+          if (byte === JSON_BYTE.space || byte === JSON_BYTE.tab || byte === JSON_BYTE.lineFeed || byte === JSON_BYTE.carriageReturn) continue
+          if (byte !== JSON_BYTE.arrayStart) throw new Error('Invalid backup metadata page')
+          depth = 1
+          continue
+        }
+        if (quoted) {
+          if (escaped) escaped = false
+          else if (byte === JSON_BYTE.escape) escaped = true
+          else if (byte === JSON_BYTE.quote) quoted = false
+        } else if (byte === JSON_BYTE.quote) quoted = true
+        else if (byte === JSON_BYTE.arrayStart || byte === JSON_BYTE.objectStart) depth++
+        else if (byte === JSON_BYTE.arrayEnd || byte === JSON_BYTE.objectEnd) {
+          if (--depth === 0) {
+            if (++pages > WORKSPACE_BACKUP_LIMITS.frames) throw new Error('Backup metadata page count exceeded')
+            json.consume(page.subarray(0, pageLength))
+            page.fill(0, 0, pageLength); pageLength = 0
+          }
+        }
+      }
+    }
+    // Exhaust the source before returning so authenticated readers can reject their final digest or tag
+    if (length !== content.byteLength) throw new Error('Backup metadata length mismatch')
+    if (depth) throw new Error('Truncated backup metadata page')
+    return json.finish()
+  } finally { page.fill(0) }
 }
 export async function historicalEvidenceId(content: BlobSource): Promise<string> {
   return hashBlob({ byteLength: ID_DOMAIN.length + content.byteLength, async *open() { yield ID_DOMAIN; yield* content.open() } })
