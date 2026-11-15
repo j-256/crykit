@@ -50,6 +50,21 @@ it('fresh remote projection precedes choices and account-only receipt skips unch
   expect(reopened.getSnapshot().phase).toBe('complete')
   expect(fixture.opens).toBe(2)
 })
+it('publishes actual preparation boundaries and clears feedback when review is ready', async () => {
+  const fixture = await setup(), controller = fixture.create()
+  const observed: reconciliation.SigninReconciliationState[] = []
+  controller.subscribe(() => observed.push(controller.getSnapshot()))
+  await controller.begin(fixture.device.token)
+  expect(observed.map(value => value.stage)).toEqual(expect.arrayContaining(['reading-source', 'syncing-account', 'checking-account']))
+  expect(controller.getSnapshot().stage).toBeUndefined()
+  observed.length = 0
+  await controller.choose('merge')
+  expect(observed.map(value => value.stage).filter((stage, index, stages) => stage && stage !== stages[index - 1])).toEqual(['checking-source', 'checking-account', 'comparing-records', 'preparing-review'])
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'confirming', action: 'merge' })
+  expect(controller.getSnapshot().stage).toBeUndefined()
+  expect(await fixture.device.db.outbox.count()).toBe(0)
+})
+
 it('merge activation survives failed UI selection and exact reload without importing twice', async () => {
   const fixture = await setup(), controller = fixture.create()
   await controller.begin(fixture.device.token)
@@ -126,13 +141,42 @@ it('cancel drains a delayed preparation before returning through the provider lo
   fixture.options.run = async () => { started(); await held; return { state: 'synced', moreWork: false } }
   const controller = fixture.create(), beginning = controller.begin(fixture.device.token)
   await running
+  expect(controller.getSnapshot().stage).toBe('syncing-account')
   const cancelled = controller.cancel()
   await Promise.resolve(); expect(fixture.locals).toBe(0)
   release(); await Promise.all([beginning, cancelled])
   expect(controller.getSnapshot().phase).toBe('cancelled')
+  expect(controller.getSnapshot().stage).toBeUndefined()
   expect(fixture.locals).toBe(1); expect(fixture.opens).toBe(0)
   expect(await fixture.device.db.outbox.count()).toBe(0)
 })
+it('cancellation after durable review staging cannot publish a late confirmation', async () => {
+  const fixture = await setup(), copies = await import('../workspace/guest-copy')
+  const createCopy = copies.createGuestCopyService
+  let release!: () => void, prepared!: () => void
+  const held = new Promise<void>(resolve => { release = resolve })
+  const durable = new Promise<void>(resolve => { prepared = resolve })
+  vi.spyOn(copies, 'createGuestCopyService').mockImplementation((...args) => {
+    const copy = createCopy(...args)
+    return { ...copy, async prepareSigninMerge(...input) { await copy.prepareSigninMerge(...input); prepared(); await held } }
+  })
+  const controller = fixture.create(), observed: reconciliation.SigninReconciliationState[] = []
+  controller.subscribe(() => observed.push(controller.getSnapshot()))
+  await controller.begin(fixture.device.token)
+  const choosing = controller.choose('merge')
+  await durable
+  expect(controller.getSnapshot().stage).toBe('preparing-review')
+  const cancelled = controller.cancel()
+  release(); await Promise.all([choosing, cancelled])
+  expect(observed.some(value => value.phase === 'confirming')).toBe(false)
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'cancelled', stage: undefined })
+  const { openAccountJson } = await import('../workspace/account-cache')
+  const row = (await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY))!
+  expect(await openAccountJson(fixture.device.db, fixture.device.token, row.ref, reconciliation.SigninDecisionSchema)).toMatchObject({ status: 'cancelled' })
+  expect(await fixture.device.db.outbox.count()).toBe(0)
+  expect(fixture.locals).toBe(1)
+})
+
 it('an unrelated pending saved copy blocks fresh Merge but keeps account-only opening available', async () => {
   const fixture = await setup(), controller = fixture.create()
   await controller.begin(fixture.device.token)
@@ -314,6 +358,7 @@ it('a profile switch during source capture cannot open or write for the old acco
   const next = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
   release(); await pending
   expect(controller.getSnapshot()).toMatchObject({ phase: 'failed', reason: 'profile-changed' })
+  expect(controller.getSnapshot().stage).toBeUndefined()
   expect(currentProfileToken()).toBe(next)
   expect(fixture.opens).toBe(0); expect(fixture.locals).toBe(0)
   expect(await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toBeUndefined()

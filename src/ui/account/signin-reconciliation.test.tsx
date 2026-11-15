@@ -5,7 +5,7 @@ import { SigninReconciliation } from './SigninReconciliation'
 import type { SigninReconciliationState } from '../../workspace/signin-reconciliation'
 let container: HTMLDivElement, root: Root
 beforeEach(() => { Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true }); container = document.createElement('div'); document.body.append(container); root = createRoot(container) })
-afterEach(async () => { await act(async () => root.unmount()); container.remove() })
+afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.useRealTimers() })
 const state: SigninReconciliationState = { phase: 'choosing', source: 'available', fresh: true, canOpenAccount: true }
 const actions = () => ({ choose: vi.fn(async () => {}), confirm: vi.fn(async () => {}), cancel: vi.fn(async () => {}), retry: vi.fn(async () => {}), reviewReplacement: vi.fn(async () => {}), declineReplacement: vi.fn(async () => {}), backup: vi.fn(async () => {}) })
 const click = async (name: string) => { const button = [...container.querySelectorAll('button')].find(value => value.textContent === name); expect(button).toBeDefined(); await act(async () => button!.click()) }
@@ -126,4 +126,36 @@ it('describes the backup beside its download action without an unrelated intro w
   expect(container.textContent).not.toContain('sensitive records; store them privately')
   await click('Download private account backup')
   expect(controller.backup).toHaveBeenCalledOnce()
+})
+
+
+it('announces real preparation stages with indeterminate progress and keeps cancellation available', async () => {
+  const controller = actions()
+  await act(async () => root.render(<SigninReconciliation state={{ ...state, phase: 'preparing', stage: 'comparing-records' }} actions={controller}/>))
+  const status = container.querySelector('[role="status"]')!
+  expect(status.textContent).toContain('Comparing')
+  const indicator = container.querySelector('[role="progressbar"]')!
+  expect(indicator).not.toBeNull()
+  expect(indicator.getAttribute('aria-valuenow')).toBeNull()
+  expect(indicator.getAttribute('aria-label')).toBe('Preparing your workspace')
+  await act(async () => root.render(<SigninReconciliation state={{ ...state, phase: 'preparing', stage: 'preparing-review' }} actions={controller}/>))
+  expect(status.textContent).toContain('saved versions')
+  await click('Cancel and return to workspace')
+  expect(controller.cancel).toHaveBeenCalledOnce()
+})
+
+it('shows elapsed waiting time without repeated live announcements and resets after review', async () => {
+  vi.useFakeTimers()
+  await act(async () => root.render(<SigninReconciliation state={{ ...state, phase: 'preparing', stage: 'checking-account' }} actions={actions()}/>))
+  await act(async () => vi.advanceTimersByTime(30_000))
+  expect(container.textContent).toContain('30 seconds elapsed')
+  expect(container.textContent).toContain('This is taking longer than expected')
+  expect(container.querySelector('[role="status"]')?.textContent).not.toContain('seconds elapsed')
+  await act(async () => root.render(<SigninReconciliation state={{ ...state, phase: 'preparing', stage: 'comparing-records' }} actions={actions()}/>))
+  expect(container.textContent).toContain('30 seconds elapsed')
+  await act(async () => root.render(<SigninReconciliation state={state} actions={actions()}/>))
+  expect(container.querySelector('[role="progressbar"]')).toBeNull()
+  await act(async () => root.render(<SigninReconciliation state={{ ...state, phase: 'preparing', stage: 'checking-source' }} actions={actions()}/>))
+  expect(container.textContent).not.toContain('30 seconds elapsed')
+  expect(container.textContent).not.toContain('This is taking longer than expected')
 })

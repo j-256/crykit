@@ -63,11 +63,20 @@
 .signin-backup { flex: 1 1 20rem; }
 .signin-backup .button { padding-left: 0; justify-content: flex-start; }
 .signin-backup p { max-width: 48ch; margin: .25rem 0 0; font-size: .75rem; color: var(--text-faint); }
-.signin-waiting, .signin-reconciliation .account-error { display: flex; align-items: flex-start; gap: .75rem; }
-.signin-waiting { padding-block: 1.5rem; }
-.signin-waiting p, .signin-reconciliation .account-error p { margin: 0; }
-.signin-waiting svg, .signin-reconciliation .account-error svg { flex: 0 0 1.5rem; width: 1.5rem; height: 1.5rem; }
-.signin-waiting svg { color: var(--cyan-300); }
+.signin-reconciliation .account-error { display: flex; align-items: flex-start; gap: .75rem; }
+.signin-reconciliation .account-error p { margin: 0; }
+.signin-reconciliation .account-error svg { flex: 0 0 1.5rem; width: 1.5rem; height: 1.5rem; }
+.signin-waiting { max-width: 40rem; padding-block: 1.5rem; }
+.signin-waiting p { margin: .75rem 0 0; }
+.signin-waiting [role="status"] { font-weight: 600; }
+.signin-waiting .signin-elapsed { font-size: .8rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.signin-waiting .signin-waiting-help { font-size: .85rem; color: var(--text-dim); }
+.signin-activity { height: .35rem; overflow: hidden; background: var(--line); }
+.signin-activity span { display: block; width: 35%; height: 100%; background: var(--cyan-300); animation: signin-activity 1.5s ease-in-out infinite alternate; }
+@keyframes signin-activity { from { transform: translateX(-100%); } to { transform: translateX(286%); } }
+@media (prefers-reduced-motion: reduce) {
+  .signin-activity span { margin-inline: auto; animation: none; }
+}
 @media (max-width: 42rem) {
   .signin-summaries { grid-template-columns: minmax(0, 1fr); }
   .signin-summary + .signin-summary { border-left: 0; border-top: 1px solid var(--line); }

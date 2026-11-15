@@ -6,7 +6,7 @@ import type { RecoveryPoint } from '../../account/recovery-protocol'
 import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from '../components'
 import { Icon, type IconName } from '../icons'
-import type { SigninAction, SigninDisplaySummary, SigninReconciliationState } from '../../workspace/signin-reconciliation'
+import type { SigninAction, SigninDisplaySummary, SigninPreparationStage, SigninReconciliationState } from '../../workspace/signin-reconciliation'
 import './account.css'
 
 interface Actions {
@@ -56,6 +56,36 @@ function Summary({ title, summary, icon }: { title: string; summary?: SigninDisp
     </> : <p>Summary not available. This does not mean the workspace is empty.</p>}
   </section>
 }
+const PREPARATION_TICK_MS = 1_000
+const LONG_PREPARATION_SECONDS = 30
+const preparationLabels: Record<SigninPreparationStage, string> = {
+  'waiting-for-sync': 'Finishing earlier account activity...',
+  'reading-source': 'Reading saved source records...',
+  'opening-account': 'Opening saved account data...',
+  'syncing-account': 'Checking for account updates...',
+  'checking-account': 'Checking account records and retained history...',
+  'checking-source': 'Checking source records and retained history...',
+  'comparing-records': 'Comparing source and account records...',
+  'preparing-review': 'Preparing saved versions for review...',
+}
+
+function PreparationFeedback({ state, title }: { state: SigninReconciliationState; title: string }) {
+  const [started] = useState(() => Date.now())
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    const timer = window.setInterval(() => setElapsed(Math.max(0, Math.floor((Date.now() - started) / PREPARATION_TICK_MS))), PREPARATION_TICK_MS)
+    return () => window.clearInterval(timer)
+  }, [started])
+  const label = state.stage ? preparationLabels[state.stage] : state.phase === 'inspecting' ? 'Inspecting saved work...' : state.phase === 'preparing' ? 'Preparing account data...' : state.phase === 'committing' ? 'Saving your reviewed choice...' : 'Opening account workspace...'
+  // Keep the clock outside the live region and avoid aria-busy ancestors that defer stage announcements
+  return <section className="signin-waiting" aria-label="Workspace activity">
+    <div className="signin-activity" role="progressbar" aria-label={title}><span/></div>
+    <p role="status" aria-atomic="true">{label}</p>
+    <p className="signin-elapsed">{elapsed} {elapsed === 1 ? 'second' : 'seconds'} elapsed</p>
+    {elapsed >= LONG_PREPARATION_SECONDS && <p className="signin-waiting-help">This is taking longer than expected. The current step is shown above.</p>}
+  </section>
+}
+
 export function SigninReconciliation({ state, actions, sourceLabel = 'This device', accountName }: { state: SigninReconciliationState; actions: Actions; sourceLabel?: string; accountName?: string }) {
   const [accountConfirmation, setAccountConfirmation] = useState(false)
   const [error, setError] = useState('')
@@ -84,10 +114,10 @@ export function SigninReconciliation({ state, actions, sourceLabel = 'This devic
     setError('')
     try { await action() } catch { setError('The action could not be completed. Saved data stays in place. Retry or return to your workspace.') }
   }
-  return <article className="signin-reconciliation" aria-busy={waiting}>
+  return <article className="signin-reconciliation">
     <header className="signin-brand"><Icon name="crystal"/>Crystal Kit</header>
     <h1 ref={heading} tabIndex={-1}>{title}</h1>
-    {waiting && <div className="signin-waiting" role="status"><Icon name="history"/><p>{state.phase === 'inspecting' ? 'Inspecting saved work...' : state.phase === 'preparing' ? 'Preparing account data. Your device records are not uploaded before your choice.' : state.phase === 'committing' ? 'Saving your reviewed choice...' : 'Opening account workspace...'}</p></div>}
+    {waiting && <PreparationFeedback state={state} title={title}/>}
     {(error || state.phase === 'failed' || state.reason) && <div role="alert" className="account-error"><Icon name="warning"/><p>{error || reasons[state.reason ?? ''] || 'Account preparation could not finish. Retry when connected. Saved data stays in place.'}</p></div>}
     {state.cleanupPending && <p role="status">Remote cleanup is still pending. The retained preparation will be checked when connected.</p>}
     {!waiting && <>

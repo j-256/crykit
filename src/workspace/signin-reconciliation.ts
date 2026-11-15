@@ -71,6 +71,7 @@ export async function readPendingRecoveryEntry(token: ProfileToken): Promise<Sig
   } finally { database.close() }
 }
 export type SigninAction = 'merge' | 'account' | 'device'
+export type SigninPreparationStage = 'waiting-for-sync' | 'reading-source' | 'opening-account' | 'syncing-account' | 'checking-account' | 'checking-source' | 'comparing-records' | 'preparing-review'
 export type SigninPhase = 'inspecting' | 'preparing' | 'choosing' | 'confirming' | 'committing' | 'opening' | 'complete' | 'cancelled' | 'failed'
 export interface SigninDisplaySummary extends SigninLocalSummary {
   readonly recordNames?: Readonly<Record<string, string>>
@@ -106,6 +107,7 @@ function summarize(workspace: WorkspaceState): SigninDisplaySummary {
 }
 export interface SigninReconciliationState {
   readonly phase: SigninPhase
+  readonly stage?: SigninPreparationStage
   readonly source: 'unknown' | 'absent' | 'available' | 'unavailable'
   readonly local?: SigninDisplaySummary
   readonly account?: SigninDisplaySummary
@@ -146,9 +148,11 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   const check = () => { if (disposed || cancelling) throw new Error('SIGNIN_CANCELLED'); lifetime.signal.throwIfAborted(); assertActiveProfile(token) }
   const publish = (change: Partial<SigninReconciliationState>) => {
     if (disposed) return
-    state = { ...state, ...change }
+    // Stage feedback is transient; a phase transition cannot retain a completed operation's label
+    state = { ...state, ...(change.phase ? { stage: undefined } : {}), ...change }
     for (const listener of listeners) { try { listener() } catch { /* Observers cannot alter durable decisions */ } }
   }
+  const preparationStage = (stage: SigninPreparationStage) => { check(); publish({ stage }) }
   const service = () => createReviewedReplacementService(database!, token)
   async function readDecision() {
     const row = await database!.syncState.get(decisionKey)
@@ -218,7 +222,9 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   }
   async function prepareAccount() {
     publish({ phase: 'preparing', fresh: false, reason: undefined })
+    preparationStage('waiting-for-sync')
     await drainSyncSchedulers(); check()
+    preparationStage('opening-account')
     if (!await database!.profileMeta.get('active')) {
       const { openAccountRepository } = await import('./account-repository')
       await openAccountRepository(token)
@@ -228,6 +234,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('SIGNIN_OFFLINE')
     const retainedPreparation = await database!.syncState.get('guest-copy:pending') || saved?.value.status === 'preparing'
     if (!retainedPreparation) {
+      preparationStage('syncing-account')
       unregister = registerSyncProjectionGuard(token, () => !disposed && !cancelling)
       scheduler = attachSyncScheduler(token, options.run ?? runSyncIteration)
       let unsubscribe: (() => void) | undefined
@@ -248,7 +255,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       } finally { unsubscribe?.(); await drain() }
     } else if (!await database!.syncState.get('projection')) throw new Error('ACCOUNT_PROJECTION_UNAVAILABLE')
     // Discovery must not rewrite the publication-base row owned by an exact saved copy
-    check()
+    preparationStage('checking-account')
     await releaseReview(); review = await service().refresh(); check()
     const replacement = await service().status()
     if (replacement?.state !== 'paused') await requireSelectedReview(review)
@@ -285,9 +292,10 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     publish({ replacement })
     await releaseSource()
     try {
+      preparationStage('reading-source')
       source = await (options.captureGuest ?? captureExistingGuestWorkspaceForSignin)(); check()
       identity = source ? await stableWorkspaceSnapshotIdentity(source.snapshot) : null
-      publish({ source: source ? 'available' : 'absent', local: source ? summarize(source.snapshot.state) : undefined })
+      check(); publish({ source: source ? 'available' : 'absent', local: source ? summarize(source.snapshot.state) : undefined })
     } catch (error) { check(); if (source) await disposeWorkspaceSnapshot(source.snapshot); source = undefined; identity = null; publish({ source: 'unavailable', local: undefined }); if (error instanceof Error && error.message === 'PROFILE_CHANGED') throw error }
     check()
     void cleanupRecoveries()
@@ -315,15 +323,16 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
         && (!jsonEqual(preparation.sourceVector, identity?.revisionVector) || preparation.sourceIdentity !== identity?.metadataDigest)) throw new Error('SIGNIN_SOURCE_CHANGED')
       if (saved!.value.action === 'merge') {
         copy = createGuestCopyService(async () => { await currentSource(); return source! }, check)
+        publish({ phase: 'preparing' }); preparationStage('comparing-records')
         const preview = await copy.previewSigninMerge(token, saved!.value.copyId)
-        publish({ phase: 'confirming', action: 'merge', preview })
+        check(); publish({ phase: 'confirming', action: 'merge', preview })
       } else publish({ phase: 'confirming', action: saved!.value.action })
     }
   }
   function begin(next: ProfileToken) {
     return execute(async () => {
       if (database) throw new Error('SIGNIN_ALREADY_STARTED')
-      token = next; assertActiveProfile(token); await drainSyncSchedulers(); check(); database = new AccountDatabase(token.accountId)
+      token = next; assertActiveProfile(token); preparationStage('waiting-for-sync'); await drainSyncSchedulers(); check(); database = new AccountDatabase(token.accountId)
       publish({ canOpenAccount: !!options.admittedOffline && !!await database.profileMeta.get('active') })
       unsubscribeSession = onProfileSessionChange(token, online)
       if (typeof window !== 'undefined') window.addEventListener('online', online)
@@ -343,16 +352,19 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       }
       // Source and remote validation can be expensive; retire the visible choices before awaiting either
       publish({ phase: 'preparing', action, preview: undefined, reason: undefined })
-      await currentSource(); await freshReview()
+      preparationStage('checking-source'); await currentSource()
+      preparationStage('checking-account'); await freshReview()
       const value: SigninDecision = { version: 1, kind: 'signin-decision', accountId: token.accountId, source: identity, action, operationId: accountLocalId(), status: 'preparing' }
       if (action === 'merge') {
         copy ??= createGuestCopyService(async () => { await currentSource(); return source! }, check)
+        preparationStage('comparing-records')
         const preview = await copy.previewSigninMerge(token)
         value.copyId = preview.copyId
+        preparationStage('preparing-review')
         await copy.prepareSigninMerge(token, preview, { id: decisionKey, expected: saved?.row, value })
         saved = await readDecision(); operationId = value.operationId
-        publish({ phase: 'confirming', preview })
-      } else { await remember(value); publish({ phase: 'confirming' }) }
+        check(); publish({ phase: 'confirming', preview })
+      } else { preparationStage('preparing-review'); await remember(value); check(); publish({ phase: 'confirming' }) }
     })
   }
   function confirm() {
@@ -363,7 +375,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       if (!saved || saved.value.status !== 'preparing' || state.phase !== 'confirming' || saved.value.operationId !== operationId || saved.value.action !== state.action || !jsonEqual(saved.value.source, identity)) throw new Error('SIGNIN_REVIEW_REQUIRED')
       // Preserve the exact reviewed action and preview while checking its authority again
       publish({ phase: 'preparing', reason: undefined })
-      await freshReview()
+      preparationStage('checking-account'); await freshReview()
       const decision = { ...saved.value, status: 'complete' as const }
       const receipt = { id: decisionKey, expected: saved.row, value: decision }
       publish({ phase: 'committing', reason: undefined })
@@ -426,12 +438,13 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     return execute(async () => {
       check()
       publish({ phase: 'preparing', action, preview: undefined, reason: undefined })
-      await releaseReview(); review = await service().refresh()
+      preparationStage('checking-account')
+      await releaseReview(); review = await service().refresh(); check()
       const replacement = await service().status()
       if (replacement?.state !== 'paused') throw new Error('REPLACEMENT_REVIEW_REQUIRED')
       publish({ fresh: true, replacement, action, preview: undefined })
       await remember({ version: 1, kind: 'signin-decision', accountId: token.accountId, source: identity, action, operationId: accountLocalId(), status: 'preparing' })
-      publish({ phase: 'confirming' })
+      check(); publish({ phase: 'confirming' })
     })
   }
   function declineReplacement() {
