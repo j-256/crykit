@@ -63,7 +63,7 @@ test('mod names survive nested search routes', async ({ page }) => {
   await importSyntheticLibrary(page)
   await page.goto(PUN_STORM_PATH)
   await expect(page).toHaveURL(/\/crystal-project\/imported\/ce1-[a-f0-9]{64}\/j1-[a-f0-9]{64}-p1\/ability\/9002\/synthetic-technique$/)
-  await page.getByRole('button', { name: /^(Search|Search planner)$/ }).filter({ visible: true }).click()
+  await page.getByRole('button', { name: /^(Search|Search CryKit)$/ }).filter({ visible: true }).click()
   await expect(page).toHaveURL(/\/9002\/synthetic-technique\/search$/)
   await page.reload()
   await expect(page.getByRole('dialog', { name: 'Search CryKit', exact: true })).toBeVisible()

@@ -1,6 +1,6 @@
 # Crystal Kit development
 
-Build a local-first planner with explicit unknown values. Keep catalog definitions, personal observations, and planned configurations separate. Never execute imported descriptions or formulas, infer current inventory from historical acquisition, or derive character learning from party-wide progress.
+Build a local-first toolkit for Crystal Project with explicit unknown values. Keep catalog definitions, personal observations, and planned configurations separate. Never execute imported descriptions or formulas, infer current inventory from historical acquisition, or derive character learning from party-wide progress.
 
 For native gameplay data and calculation claims covered by the [verified Windows/macOS 1.6.9.0 comparison](docs/platform-coverage.md), cite Crystal Project 1.6.9.0 or PC 1.6.9.0 without a redundant Windows qualifier. Retain platform labels for executable fingerprints, extraction provenance, and platform-specific runtime behavior. Preserve immutable source metadata and existing applicability checks; do not extend this equivalence to Switch, Linux, other versions, randomizers, or mod configurations without separate evidence.
 

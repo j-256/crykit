@@ -9,7 +9,7 @@ import { saveTeam } from './teams'
 import type { BuildId, BuildRevisionId, CatalogEntityKind, CatalogRef, CatalogSnapshot, CharacterId, EntityId, EntityRef, LocalData, SourceRef, Timestamp } from './types'
 
 const SAMPLE_CHECKPOINT_NAME = 'Starter loadout'
-const SAMPLE_NOTE = 'Sample data for exploring the planner. Replace it with your own observations.'
+const SAMPLE_NOTE = 'Sample data for exploring CryKit. Replace it with your own observations.'
 const SAMPLE_SOURCE: SourceRef = { sourceId: 'sample-starter-team', locator: 'Built-in sample playthrough', applicability: SAMPLE_NOTE }
 const SAMPLE_LEVEL = 1
 const SAMPLE_MEMBERS = [

@@ -59,7 +59,7 @@ async function importBackup(page: Page, bytes: Uint8Array, playthroughLabel: str
 }
 
 async function search(page: Page, query: string) {
-  await page.getByRole('button', { name: /^(Search|Search planner)$/ }).filter({ visible: true }).click()
+  await page.getByRole('button', { name: /^(Search|Search CryKit)$/ }).filter({ visible: true }).click()
   const palette = page.getByRole('dialog', { name: 'Search CryKit', exact: true })
   await palette.getByRole('searchbox').fill(query)
   return palette

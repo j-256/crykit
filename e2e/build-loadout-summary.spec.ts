@@ -200,16 +200,19 @@ test('selected builds open as loadouts and the desktop sidebar starts expanded a
   const expanded = (await rail.boundingBox())!
   const expandedMain = (await main.boundingBox())!
   const expandedBrandHeader = (await desktopBrandHeader.boundingBox())!
+  const expandedBrand = (await desktopBrandHeader.locator('.brand').boundingBox())!
   const expandedFooter = (await footer.boundingBox())!
   const expandedControls = await railControlGeometry(page)
   expect(expanded.width).toBe(EXPANDED_RAIL_WIDTH_PX)
   expect(expanded.y).toBe(expandedBrandHeader.y + expandedBrandHeader.height)
+  expect(expandedBrand.y).toBeGreaterThanOrEqual(expandedBrandHeader.y)
+  expect(expandedBrand.y + expandedBrand.height).toBeLessThanOrEqual(expandedBrandHeader.y + expandedBrandHeader.height)
   await expect(rail).toHaveCSS('border-right-width', '1px')
   await expect(page.locator('.rail .menu-window')).toHaveCSS('box-shadow', 'none')
   await expect(page.locator('.rail__footer')).toHaveCSS('box-shadow', 'none')
-  const planningLabel = rail.locator('.nav-section__label').filter({ hasText: 'Planning' })
+  const toolkitLabel = rail.locator('.nav-section__label').filter({ hasText: 'Toolkit' })
   const trackingLabel = rail.locator('.nav-section__label').filter({ hasText: 'Tracking' })
-  await expect(planningLabel).toBeVisible()
+  await expect(toolkitLabel).toBeVisible()
   await expect(trackingLabel).toBeVisible()
   const buildsNav = page.getByRole('navigation', { name: 'Primary navigation', exact: true }).filter({ visible: true }).getByRole('button', { name: 'Builds', exact: true })
   await expect(buildsNav.locator('span')).toBeVisible()
@@ -226,7 +229,7 @@ test('selected builds open as loadouts and the desktop sidebar starts expanded a
   expect(collapsedFooter.y + collapsedFooter.height + railBottomPadding).toBe(collapsedRail.y + collapsedRail.height)
   expect(collapsedBrandHeader).toEqual(expandedBrandHeader)
   await expect(desktopBrandHeader.locator('.brand__name')).toBeVisible()
-  await expect(planningLabel).toBeHidden()
+  await expect(toolkitLabel).toBeHidden()
   await expect(trackingLabel).toBeHidden()
   await expect(progressSublist).toBeHidden()
   const collapsedControls = await railControlGeometry(page)

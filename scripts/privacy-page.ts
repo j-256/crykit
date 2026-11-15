@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Marked } from 'marked'
 import type { Plugin } from 'vite'
+import { APP_TAGLINE } from '../src/branding.ts'
 
 const DOCS_URL = 'https://github.com/j-256/crykit/blob/main/docs/'
 const PAGE_ASSET = 'privacy/index.html'
@@ -77,7 +78,7 @@ function policyHtml(source: string, home: string): string {
 <body>
 <a class="skip-link" href="#content">Skip to terms</a>
 <header class="privacy-header">
-<a class="brand" href="${escape(home)}" aria-label="CryKit home"><span class="brand__mark"><img alt="" src="./crystal-icon.svg" width="44" height="44"></span><span><strong class="brand__name"><span>Crystal </span><span class="brand__kit"><span>Kit</span><img alt="" class="brand__cricket" src="./crystal-cricket.svg" width="48" height="24"></span></strong><span class="brand__tagline">A Crystal Project planner</span></span></a>
+<a class="brand" href="${escape(home)}" aria-label="CryKit home"><span class="brand__mark"><img alt="" src="./crystal-icon.svg" width="44" height="44"></span><span><strong class="brand__name"><span>Crystal </span><span class="brand__kit"><span>Kit</span><img alt="" class="brand__cricket" src="./crystal-cricket.svg" width="48" height="24"></span></strong><span class="brand__tagline">${escape(APP_TAGLINE)}</span></span></a>
 <a class="privacy-return" href="${escape(home)}">Return to CryKit</a>
 </header>
 <main id="content" tabindex="-1">
@@ -122,7 +123,7 @@ export function privacyPagePlugin(): Plugin {
       })
     },
     generateBundle: {
-      // Emit actual brand assets with the policy so offline reads need no planner JavaScript
+      // Emit actual brand assets with the policy so offline reads need no application JavaScript
       // All resources must exist before offline's post hook records core bytes and hashes
       order: 'pre',
       handler() {

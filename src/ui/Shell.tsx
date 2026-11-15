@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import crystalCricketUrl from '../assets/crystal-cricket.svg'
+import { APP_TAGLINE } from '../branding'
 import type { CatalogSnapshot, LocalData, PlaythroughId, ScenarioId } from '../domain/types'
 import { ContextSelectors } from './ContextSelectors'
 import { DevelopmentRefresh } from './DevelopmentRefresh'
@@ -52,7 +53,7 @@ function Brand() {
         <span>Crystal </span>
         <span className="brand__kit"><span>Kit</span><img alt="" className="brand__cricket" src={crystalCricketUrl}/></span>
       </strong>
-      <span className="brand__tagline">A Crystal Project planner</span>
+      <span className="brand__tagline">{APP_TAGLINE}</span>
     </span>
   </div>
 }
@@ -141,8 +142,8 @@ export function Shell({ localData, catalogs, destination, saveState, pendingLoca
     <header className="desktop-brand-header"><Brand/></header>
     <aside className="rail" ref={railRef} onFocusCapture={event => positionSidebarLabels(event.currentTarget)} onPointerOver={event => positionSidebarLabels(event.currentTarget)} onScrollCapture={event => positionSidebarLabels(event.currentTarget)}>
       <nav aria-label="Primary navigation" className="menu-window">
-        <p className="nav-section__label">Planning</p>
-        <ul aria-label="Planning" className="nav-list">{MAIN_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}{item.id === 'mods' && <ModWorkspaceLinks/>}</li>)}</ul>
+        <p className="nav-section__label">Toolkit</p>
+        <ul aria-label="Toolkit" className="nav-list">{MAIN_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}{item.id === 'mods' && <ModWorkspaceLinks/>}</li>)}</ul>
         <div aria-label="Tracking" className="nav-tracking" role="group"><p className="nav-section__label">Tracking</p><ul className="nav-list">{TRACKING_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}{item.id === 'progress' && <ProgressBoards sidebar/>}</li>)}</ul></div>
       </nav>
       <div className="rail__footer">
@@ -153,7 +154,7 @@ export function Shell({ localData, catalogs, destination, saveState, pendingLoca
       </div>
     </aside>
     <main className="main-shell" ref={mainRef}>
-      <header className="mobile-header"><Brand/><div className="mobile-header__actions"><IconButton icon="search" label="Search planner" onClick={openSearch}/><IconButton icon="settings" label="Open data and settings" onClick={onOpenData}/></div></header>
+      <header className="mobile-header"><Brand/><div className="mobile-header__actions"><IconButton icon="search" label="Search CryKit" onClick={openSearch}/><IconButton icon="settings" label="Open data and settings" onClick={onOpenData}/></div></header>
       <header className={`context-bar${tracking ? '' : ' context-bar--planning'}${destination === 'map' ? ' context-bar--map' : ''}`} ref={contextRef}>
         {tracking ? <ContextSelectors busy={contextBusy} onSelectPlaythrough={onSelectPlaythrough} onSelectScenario={onSelectScenario} localData={localData}/> : <div className="context-bar__page" ref={setHeaderTarget}/>}
         <div className="context-bar__meta">
@@ -163,8 +164,8 @@ export function Shell({ localData, catalogs, destination, saveState, pendingLoca
       </header>
       <WorkspaceHeaderContext value={headerSlots}><div className="content">{workspace?.notices}<PreviewNotice/>{!accountPage && <CloudServiceNotice/>}{workspace?.token && !sharedSnapshot && <SyncStatus localSaveState={(newPlan || pendingLocalChanges) && saveState === 'saved' ? 'unsaved' : saveState} syncState={workspace.syncState} onRetry={workspace.retrySync} onReview={openAccount}/>}{children}</div></WorkspaceHeaderContext>
     </main>
-    <nav aria-label="Primary navigation" className="bottom-nav"><div className="bottom-nav__scroll" ref={bottomNavRef}><div aria-label="Planning" className="bottom-nav__main" role="group">{MAIN_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tracking" className="bottom-nav__tracking" role="group">{TRACKING_DESTINATIONS.map(destinationButton)}</div></div><button aria-label="More destinations" aria-expanded={mobileNavigationOpen} aria-haspopup="dialog" className="bottom-nav__more" onClick={() => setMobileNavigationOpen(true)} type="button"><Icon name="menu"/><span>More</span></button></nav>
-    <Sheet description="Choose a planning tool or track your Playthrough." onClose={() => setMobileNavigationOpen(false)} open={mobileNavigationOpen} title="Navigate CryKit"><nav aria-label="All destinations" className="mobile-destinations"><section><h3>Planning</h3>{MAIN_DESTINATIONS.map(destinationButton)}</section><section><h3>Tracking</h3>{TRACKING_DESTINATIONS.map(destinationButton)}</section><button className="nav-link" onClick={() => { setMobileNavigationOpen(false); onOpenData() }} type="button"><Icon name="settings"/><span>Data & Settings</span></button><button aria-current={accountPage ? 'page' : undefined} className="nav-link" onClick={openAccount} type="button"><Icon name="user"/><span>Account</span></button></nav></Sheet>
+    <nav aria-label="Primary navigation" className="bottom-nav"><div className="bottom-nav__scroll" ref={bottomNavRef}><div aria-label="Toolkit" className="bottom-nav__main" role="group">{MAIN_DESTINATIONS.map(destinationButton)}</div><div aria-label="Tracking" className="bottom-nav__tracking" role="group">{TRACKING_DESTINATIONS.map(destinationButton)}</div></div><button aria-label="More destinations" aria-expanded={mobileNavigationOpen} aria-haspopup="dialog" className="bottom-nav__more" onClick={() => setMobileNavigationOpen(true)} type="button"><Icon name="menu"/><span>More</span></button></nav>
+    <Sheet description="Choose a tool or track your Playthrough." onClose={() => setMobileNavigationOpen(false)} open={mobileNavigationOpen} title="Navigate CryKit"><nav aria-label="All destinations" className="mobile-destinations"><section><h3>Toolkit</h3>{MAIN_DESTINATIONS.map(destinationButton)}</section><section><h3>Tracking</h3>{TRACKING_DESTINATIONS.map(destinationButton)}</section><button className="nav-link" onClick={() => { setMobileNavigationOpen(false); onOpenData() }} type="button"><Icon name="settings"/><span>Data & Settings</span></button><button aria-current={accountPage ? 'page' : undefined} className="nav-link" onClick={openAccount} type="button"><Icon name="user"/><span>Account</span></button></nav></Sheet>
     <UniversalSearch catalogs={catalogs} open={searchOpen}/>
   </div>
 }
