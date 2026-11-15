@@ -114,3 +114,16 @@ it('labels actual Progress destination conflicts through exact correspondence wi
   expect(container.textContent).toContain('Saved record: Both versions will be kept')
   for (const key of [sourceKey, destinationKey, 'unrecognized-private-key']) expect(container.textContent).not.toContain(key)
 })
+
+it('describes the backup beside its download action without an unrelated intro warning', async () => {
+  const controller = actions()
+  await act(async () => root.render(<SigninReconciliation state={state} actions={controller}/>))
+  const button = [...container.querySelectorAll('button')].find(value => value.textContent === 'Download private account backup')!
+  const description = document.getElementById(button.getAttribute('aria-describedby') ?? '')
+  expect(description?.textContent).toContain('imported files')
+  expect(description?.textContent).toContain('not encrypted')
+  expect(button.parentElement?.contains(description)).toBe(true)
+  expect(container.textContent).not.toContain('sensitive records; store them privately')
+  await click('Download private account backup')
+  expect(controller.backup).toHaveBeenCalledOnce()
+})

@@ -3,7 +3,9 @@ import { createAccountRecoveryService } from '../../workspace/account-recovery'
 import { disposeWorkspaceSnapshot } from '../../workspace/snapshot'
 import { downloadWorkspaceBackup, requestWorkspaceDownload } from '../download-stream'
 import type { RecoveryPoint } from '../../account/recovery-protocol'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
+import { Button } from '../components'
+import { Icon, type IconName } from '../icons'
 import type { SigninAction, SigninDisplaySummary, SigninReconciliationState } from '../../workspace/signin-reconciliation'
 import './account.css'
 
@@ -44,13 +46,21 @@ const recordLabels: Record<string, readonly [string, string]> = {
   conflict: ['saved comparison', 'saved comparisons'], 'retained-content': ['saved version', 'saved versions'],
 }
 const countLabel = (count: number, singular: string, plural = `${singular}s`) => `${count} ${count === 1 ? singular : plural}`
-function Summary({ title, summary }: { title: string; summary?: SigninDisplaySummary }) {
-  return <section><h2>{title}</h2>{summary ? <><p>{countLabel(summary.builds, 'Build')} · {countLabel(summary.progress, 'Progress record')} · {countLabel(summary.other, 'other record')}</p>{summary.progressByPlaythrough.length > 0 && <ul>{summary.progressByPlaythrough.map(group => <li key={group.playthroughId}>{group.label ?? 'Unnamed Playthrough'}: {countLabel(group.count, 'Progress record')}</li>)}</ul>}{summary.otherByKind.length > 0 && <ul>{summary.otherByKind.map(group => <li key={group.kind}>{countLabel(group.count, ...(recordLabels[group.kind] ?? ['other record', 'other records']))}</li>)}</ul>}</> : <p>Summary not available. This does not mean the workspace is empty.</p>}</section>
+function Summary({ title, summary, icon }: { title: string; summary?: SigninDisplaySummary; icon: IconName }) {
+  return <section className="signin-summary" aria-label={title}>
+    <h2><Icon name={icon}/>{title}</h2>
+    {summary ? <>
+      <p className="signin-summary-counts">{countLabel(summary.builds, 'Build')} · {countLabel(summary.progress, 'Progress record')} · {countLabel(summary.other, 'other record')}</p>
+      {summary.progressByPlaythrough.length > 0 && <ul>{summary.progressByPlaythrough.map(group => <li key={group.playthroughId}>{group.label ?? 'Unnamed Playthrough'}: {countLabel(group.count, 'Progress record')}</li>)}</ul>}
+      {summary.otherByKind.length > 0 && <ul>{summary.otherByKind.map(group => <li key={group.kind}>{countLabel(group.count, ...(recordLabels[group.kind] ?? ['other record', 'other records']))}</li>)}</ul>}
+    </> : <p>Summary not available. This does not mean the workspace is empty.</p>}
+  </section>
 }
 export function SigninReconciliation({ state, actions, sourceLabel = 'This device', accountName }: { state: SigninReconciliationState; actions: Actions; sourceLabel?: string; accountName?: string }) {
   const [accountConfirmation, setAccountConfirmation] = useState(false)
   const [error, setError] = useState('')
   const heading = useRef<HTMLHeadingElement>(null)
+  const backupDescription = useId()
   const recordLabel = (record: { kind: string; key: string }, displayName = state.local?.recordNames?.[record.key]) => {
     const category = recordLabels[record.kind]?.[0] ?? 'saved record'
     const title = category.charAt(0).toUpperCase() + category.slice(1)
@@ -74,27 +84,52 @@ export function SigninReconciliation({ state, actions, sourceLabel = 'This devic
     setError('')
     try { await action() } catch { setError('The action could not be completed. Saved data stays in place. Retry or return to your workspace.') }
   }
-  return <article className="account-view signin-reconciliation" aria-busy={waiting}>
-    <header className="signin-brand">Crystal Kit</header>
+  return <article className="signin-reconciliation" aria-busy={waiting}>
+    <header className="signin-brand"><Icon name="crystal"/>Crystal Kit</header>
     <h1 ref={heading} tabIndex={-1}>{title}</h1>
-    {waiting && <p role="status">{state.phase === 'inspecting' ? 'Inspecting saved work...' : state.phase === 'preparing' ? 'Preparing account data. Your device records are not uploaded before your choice.' : state.phase === 'committing' ? 'Saving your reviewed choice...' : 'Opening account workspace...'}</p>}
-    {(error || state.phase === 'failed' || state.reason) && <div role="alert" className="account-error"><p>{error || reasons[state.reason ?? ''] || 'Account preparation could not finish. Retry when connected. Saved data stays in place.'}</p></div>}
+    {waiting && <div className="signin-waiting" role="status"><Icon name="history"/><p>{state.phase === 'inspecting' ? 'Inspecting saved work...' : state.phase === 'preparing' ? 'Preparing account data. Your device records are not uploaded before your choice.' : state.phase === 'committing' ? 'Saving your reviewed choice...' : 'Opening account workspace...'}</p></div>}
+    {(error || state.phase === 'failed' || state.reason) && <div role="alert" className="account-error"><Icon name="warning"/><p>{error || reasons[state.reason ?? ''] || 'Account preparation could not finish. Retry when connected. Saved data stays in place.'}</p></div>}
     {state.cleanupPending && <p role="status">Remote cleanup is still pending. The retained preparation will be checked when connected.</p>}
     {!waiting && <>
-      <div className="signin-summaries"><Summary title={sourceLabel} summary={state.local}/><Summary title={accountName ? `Account: ${accountName}` : 'Account'} summary={state.account}/></div>
-      <p>Your original device workspace stays on this device. Account changes sync to your other signed-in devices. Private backups contain sensitive records; store them privately.</p>
-      {accountConfirmation ? <section><p>This device will show account data instead of {sourceLabel.toLowerCase()} records. Those records are not merged or uploaded. {recovery ? 'The recovery point remains available in Account settings.' : 'The original device workspace remains available through Continue using this device.'}</p><button onClick={() => void run(() => actions.choose('account'))}>Confirm use account data</button><button onClick={() => setAccountConfirmation(false)}>Back to choices</button></section>
-      : state.phase === 'confirming' ? <section>
-        {state.action === 'merge' ? <><p>Combine meaningful work, keeping saved versions when records conflict. Progress matches by exact Playthrough identity, never by name.</p>{state.preview && <><h2>Included records</h2><ul>{state.preview.closure.map(record => <li key={record.key}>{recordLabel(record)}</li>)}</ul>{!!state.preview.signin?.requiredCompanionKeys.length && <p>Required starter companions are included: {state.preview.closure.filter(record => state.preview!.signin!.requiredCompanionKeys.includes(record.key)).map(record => recordLabel(record)).join(', ')}.</p>}{state.preview.conflicts.map((conflict, index) => <p key={index}>{conflictLabel(conflict)}: Both versions will be kept. Account values stay active until you review the saved versions.</p>)}{state.preview.problems.map(problem => <p role="alert" key={problem}>{problem}</p>)}</>}</>
-        : <p>{state.action === 'latest' ? 'Use the latest account data here and retire the paused replacement. A private recovery snapshot preserves displaced work.' : `Replace account data with the reviewed ${paused ? 'retained workspace' : sourceLabel.toLowerCase()} data. This changes what other devices receive. Displaced account data is preserved in an encrypted recovery point before replacement.`}</p>}
-        <button disabled={!!state.preview?.problems.length} onClick={() => void run(actions.confirm)}>{state.action === 'merge' ? 'Confirm merge' : state.action === 'latest' ? 'Confirm use latest account data' : 'Confirm replace account data'}</button>
-      </section> : paused ? <section><p>Sync is paused because account data changed. Keep working on this device without publishing the replacement, or explicitly review which data to use.</p><button onClick={() => void run(actions.declineReplacement)}>Keep working on this device</button><button onClick={() => void run(() => actions.reviewReplacement('device'))}>Review this device replacement</button><button onClick={() => void run(() => actions.reviewReplacement('latest'))}>Review latest account data</button></section>
-      : <section aria-label="Data choices"><button disabled={!state.fresh || state.source !== 'available'} onClick={() => void run(() => actions.choose('merge'))}>Merge (recommended)</button><p>Keep meaningful work from both places and preserve conflicting versions for review.</p><button disabled={!state.canOpenAccount} onClick={() => setAccountConfirmation(true)}>Use account data on this device</button><p>Show account data here; leave the original device workspace unchanged.</p><button disabled={!state.fresh || state.source !== 'available'} onClick={() => void run(() => actions.choose('device'))}>{recovery ? 'Replace account data with recovery data' : "Replace account data with this device's data"}</button><p>Replace account data across devices after a separate confirmation and recovery snapshot.</p></section>}
-      {(state.phase === 'failed' || state.reason === 'signin-required') && actions.reconnect && <button onClick={() => void run(actions.reconnect!)}>Reconnect to review</button>}
-      {state.phase === 'failed' && <button onClick={() => void run(actions.retry)}>{state.reason === 'opening-failed' ? 'Retry opening' : 'Retry preparation'}</button>}
-      {state.canOpenAccount && <button onClick={() => void run(actions.backup)}>Download private account backup</button>}
+      <p className="signin-intro">Your original device workspace stays on this device. Account changes sync to your other signed-in devices.</p>
+      <div className="signin-summaries"><Summary title={sourceLabel} summary={state.local} icon={recovery ? 'history' : 'layout-page'}/><Summary title={accountName ? `Account: ${accountName}` : 'Account'} summary={state.account} icon="user"/></div>
+      {accountConfirmation ? <section className="signin-review">
+        <p>This device will show account data instead of {sourceLabel.toLowerCase()} records. Those records are not merged or uploaded. {recovery ? 'The recovery point remains available in Account settings.' : 'The original device workspace remains available through Continue using this device.'}</p>
+        <div className="signin-confirm"><Button icon="check" onClick={() => void run(() => actions.choose('account'))}>Confirm use account data</Button><Button tone="quiet" icon="arrow-left" onClick={() => setAccountConfirmation(false)}>Back to choices</Button></div>
+      </section>
+      : state.phase === 'confirming' ? <section className="signin-review">
+        {state.action === 'merge' ? <>
+          <p>Combine meaningful work, keeping saved versions when records conflict. Progress matches by exact Playthrough identity, never by name.</p>
+          {state.preview && <>
+            <h2><Icon name="layers"/>Included records</h2>
+            <ul className="signin-records">{state.preview.closure.map(record => <li key={record.key}><Icon name="check"/><span>{recordLabel(record)}</span></li>)}</ul>
+            {!!state.preview.signin?.requiredCompanionKeys.length && <p className="signin-companions">Required starter companions are included: {state.preview.closure.filter(record => state.preview!.signin!.requiredCompanionKeys.includes(record.key)).map(record => recordLabel(record)).join(', ')}.</p>}
+            {state.preview.conflicts.length > 0 && <section className="signin-conflicts" aria-label="Saved versions to review">
+              <h2><Icon name="compare"/>Saved versions to review</h2>
+              <p>Account values stay active until you review the saved versions.</p>
+              <ul>{state.preview.conflicts.map((conflict, index) => <li key={index}>{conflictLabel(conflict)}: Both versions will be kept.</li>)}</ul>
+            </section>}
+            {state.preview.problems.map(problem => <p role="alert" key={problem}>{problem}</p>)}
+          </>}
+        </> : <p>{state.action === 'latest' ? 'Use the latest account data here and retire the paused replacement. A private recovery snapshot preserves displaced work.' : `Replace account data with the reviewed ${paused ? 'retained workspace' : sourceLabel.toLowerCase()} data. This changes what other devices receive. Displaced account data is preserved in an encrypted recovery point before replacement.`}</p>}
+        <div className="signin-confirm"><Button icon="check" disabled={!!state.preview?.problems.length} onClick={() => void run(actions.confirm)}>{state.action === 'merge' ? 'Confirm merge' : state.action === 'latest' ? 'Confirm use latest account data' : 'Confirm replace account data'}</Button></div>
+      </section> : paused ? <section className="signin-review">
+        <p>Sync is paused because account data changed. Keep working on this device without publishing the replacement, or explicitly review which data to use.</p>
+        <div className="signin-confirm"><Button icon="layout-page" onClick={() => void run(actions.declineReplacement)}>Keep working on this device</Button><Button tone="secondary" icon="compare" onClick={() => void run(() => actions.reviewReplacement('device'))}>Review this device replacement</Button><Button tone="secondary" icon="refresh" onClick={() => void run(() => actions.reviewReplacement('latest'))}>Review latest account data</Button></div>
+      </section> : <section aria-label="Data choices" className="signin-choices">
+        <div className="signin-choice signin-choice--recommended"><Button icon="layers" disabled={!state.fresh || state.source !== 'available'} onClick={() => void run(() => actions.choose('merge'))}>Merge (recommended)</Button><p>Keep meaningful work from both places and preserve conflicting versions for review.</p></div>
+        <div className="signin-choice"><Button tone="secondary" icon="user" disabled={!state.canOpenAccount} onClick={() => setAccountConfirmation(true)}>Use account data on this device</Button><p>Show account data here; leave the original device workspace unchanged.</p></div>
+        <div className="signin-choice"><Button tone="secondary" icon="upload" disabled={!state.fresh || state.source !== 'available'} onClick={() => void run(() => actions.choose('device'))}>{recovery ? 'Replace account data with recovery data' : "Replace account data with this device's data"}</Button><p>Replace account data across devices after a separate confirmation and recovery snapshot.</p></div>
+      </section>}
+      <div className="signin-followup">
+        {(state.phase === 'failed' || state.reason === 'signin-required') && actions.reconnect && <Button tone="secondary" icon="refresh" onClick={() => void run(actions.reconnect!)}>Reconnect to review</Button>}
+        {state.phase === 'failed' && <Button tone="secondary" icon="refresh" onClick={() => void run(actions.retry)}>{state.reason === 'opening-failed' ? 'Retry opening' : 'Retry preparation'}</Button>}
+      </div>
     </>}
-    {state.phase !== 'opening' && state.phase !== 'committing' && <button onClick={() => void run(actions.cancel)}>Cancel and return to workspace</button>}
+    <footer className="signin-footer">
+      {!waiting && state.canOpenAccount && <div className="signin-backup"><Button tone="quiet" icon="download" aria-describedby={backupDescription} onClick={() => void run(actions.backup)}>Download private account backup</Button><p id={backupDescription}>Includes saved records, imported files, and retained history. The downloaded file is not encrypted.</p></div>}
+      {state.phase !== 'opening' && state.phase !== 'committing' && <Button tone="quiet" icon="arrow-left" onClick={() => void run(actions.cancel)}>Cancel and return to workspace</Button>}
+    </footer>
   </article>
 }
 
