@@ -3,7 +3,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { AccountDatabase } from './account-database'
 import { createServiceFixture, type ServiceFixture } from '../../worker/testing/service-fixture'
 import { customer } from './sync-customer.test-helpers'
-import { installProfile, invalidateProfile } from '../account/profile'
+import { installProfile, invalidateProfile, setProfileSession } from '../account/profile'
 import { accountLocalId } from '../workspace/account-cache'
 import * as recovery from '../workspace/account-recovery'
 import { editorClosureFixture } from '../workspace/test-helpers'
@@ -114,6 +114,7 @@ it('seals a self-contained successor that retains the original before exact bind
   const receipt = await api.supersede(next.operationId)
   expect(receipt).toMatchObject({ operationId: old.operationId, successorOperationId: next.operationId, successorMutationId: replacement.mutationId })
   expect(await api.supersede(next.operationId)).toEqual(receipt)
+  await expect(api.complete(old.operationId, publication.mutationId)).rejects.toThrow('LOCAL_INTEGRITY_FAILED')
   expect((await api.list()).map(point => point.operationId)).toEqual([next.operationId])
   await client.commit(replacement)
   await expect(api.complete(next.operationId, accountLocalId())).rejects.toThrow()
@@ -138,6 +139,7 @@ it('cancels after an uncertain reserve only through a durable terminal server id
   expect(await database!.stagedCipherChunks.count()).toBeGreaterThan(0)
   expect((await api.list())).toEqual([])
   await expect(api.resume(operationId)).rejects.toThrow()
+  await expect(api.complete(operationId, accountLocalId())).rejects.toThrow('LOCAL_INTEGRITY_FAILED')
   const terminal = await service!.db.prepare('SELECT operation_id FROM cancelled_recoveries WHERE account_id=?').bind(token.accountId).all()
   expect(terminal.results.map(row => row.operation_id)).toEqual([operationId])
   expect(await database!.encryptedRevisions.count()).toBe(1)
@@ -588,4 +590,77 @@ it.each(['predecessor', 'successor', 'unknown-version'] as const)('rejects alter
   await expect(api.supersede(next.operationId)).rejects.toThrow()
   expect((await api.list()).map(point => point.operationId).sort()).toEqual([old.operationId, next.operationId].sort())
   expect(await service!.db.prepare('SELECT COUNT(*) n FROM superseded_recoveries').first('n')).toBe(0)
+})
+
+it.each(['removal', 'expiry', 'capacity', 'read-race'] as const)('settles exact accepted completion after %s retires the payload without uploading again', async retirement => {
+  const { token, session, request } = await setup(), api = recovery.createAccountRecoveryService(token)
+  const original = await source(), point = await api.prepare(accountLocalId(), original), target = await prepared(token)
+  const { SyncClient } = await import('../account/sync/client'), client = new SyncClient(token, new AbortController().signal)
+  const publication = { ...command([target.descriptor]), expectedPublicationEpoch: 0, recoveryOperationId: point.operationId }
+  await api.bind(point.operationId, publication); await client.commit(publication)
+  vi.stubGlobal('fetch', async (path: string, init: RequestInit) => {
+    const response = await request(path, init)
+    if (path.endsWith('/complete') && response.ok) throw new Error('lost completion response')
+    return response
+  })
+  await expect(api.complete(point.operationId, publication.mutationId)).rejects.toThrow('lost completion response')
+  vi.stubGlobal('fetch', request)
+  if (retirement === 'removal') await client.removeRecovery(point.operationId)
+  if (retirement === 'expiry') {
+    const { RECOVERY_RETENTION_MS } = await import('../account/recovery-protocol')
+    service!.advance(RECOVERY_RETENTION_MS)
+    await service!.runJobs()
+    const renewed = await renewSession()
+    Object.assign(session, renewed)
+    setProfileSession(token, renewed)
+  }
+  if (retirement === 'capacity') for (let index = 0; index < 3; index++) await api.prepare(accountLocalId(), original)
+  if (retirement !== 'read-race') expect((await client.recoveryOperationStatus(point.operationId)).status).toBe('retired')
+  const retained = await api.list(), rows = await database!.syncState.toArray()
+  const requests: string[] = []
+  vi.stubGlobal('fetch', async (path: string, init: RequestInit) => {
+    requests.push(`${init.method ?? 'GET'} ${path}`)
+    if (retirement === 'read-race' && path.endsWith('/complete')) {
+      const removed = await request(`/api/v1/sync/recoveries/${point.operationId}/remove`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': session.csrf }, body: JSON.stringify({ version: 1 }) })
+      expect(removed.ok).toBe(true)
+    }
+    return request(path, init)
+  })
+  expect(await api.complete(point.operationId, publication.mutationId, publication)).toMatchObject({ state: 'retired', operationId: point.operationId, mutationId: publication.mutationId })
+  expect(requests.every(value => value.startsWith('GET ') || retirement === 'read-race' && value.endsWith('/complete'))).toBe(true)
+  expect(await api.list()).toEqual(retained.filter(value => value.operationId !== point.operationId))
+  expect(await database!.syncState.toArray()).toEqual(rows)
+})
+
+it.each(['missing-binding', 'operation', 'mutation', 'request-digest', 'expected-request', 'unknown-operation', 'unavailable-transition', 'foreign-transition', 'altered-binding'] as const)('retired completion rejects %s without changing protected state', async mode => {
+  const { token, request } = await setup(), api = recovery.createAccountRecoveryService(token)
+  const point = await api.prepare(accountLocalId(), await source()), target = await prepared(token)
+  const { SyncClient } = await import('../account/sync/client'), client = new SyncClient(token, new AbortController().signal)
+  const publication = { ...command([target.descriptor]), expectedPublicationEpoch: 0, recoveryOperationId: point.operationId }
+  await api.bind(point.operationId, publication); await client.commit(publication)
+  await api.complete(point.operationId, publication.mutationId); await client.removeRecovery(point.operationId)
+  const { writeSyncState } = await import('../account/sync/outbox')
+  const row = (await database!.syncState.get(`recovery-binding:${point.operationId}`))!
+  if (mode === 'missing-binding') await database!.syncState.delete(row.id)
+  if (mode === 'operation' || mode === 'mutation' || mode === 'request-digest') {
+    const changed = { ...publication, ...(mode === 'operation' ? { recoveryOperationId: accountLocalId() } : mode === 'mutation' ? { mutationId: accountLocalId() } : { expectedPublicationEpoch: 1 }) }
+    await writeSyncState(database!, token, row.id, { version: 1, publication: changed }, row)
+  }
+  if (mode === 'altered-binding') {
+    const record = (await database!.encryptedRevisions.get(row.ref.revisionId))!, chunk = (await database!.stagedCipherChunks.get([record.payloadId, 0]))!
+    chunk.bytes[0] ^= 1; await database!.stagedCipherChunks.put(chunk)
+  }
+  vi.stubGlobal('fetch', async (path: string, init: RequestInit) => {
+    const response = await request(path, init)
+    if (mode === 'unknown-operation' && path.endsWith('/status')) return Response.json({ version: 1, operationId: point.operationId, status: 'unknown' })
+    if (path.includes('/transition?')) {
+      if (mode === 'unavailable-transition') return Response.json({ version: 1, kind: 'mutation-transition-unavailable', mutationId: publication.mutationId, reason: 'unknown-mutation' })
+      if (mode === 'foreign-transition') return Response.json({ ...await response.json(), accountId: accountLocalId() })
+    }
+    return response
+  })
+  const rows = await database!.syncState.toArray(), points = await api.list()
+  await expect(api.complete(point.operationId, publication.mutationId, mode === 'expected-request' ? { ...publication, expectedPublicationEpoch: 1 } : undefined)).rejects.toThrow()
+  expect(await database!.syncState.toArray()).toEqual(rows)
+  expect(await api.list()).toEqual(points)
 })

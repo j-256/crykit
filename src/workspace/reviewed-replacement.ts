@@ -7,7 +7,7 @@ import { stagePull, readRemoteState, type PullCandidate } from '../account/sync/
 import { openRemoteProjection, assertProjectionAdvance, assertProjectionSuccessor, type RemoteProjection } from '../account/sync/projection'
 import { AccountDatabase, activateLocalAccountCommit, type AccountFence, type CipherRef, type EncryptedSyncState, type PreparedLocalActivation } from '../persistence/account-database'
 import { prepareAccountSyncAttachment, combineAccountActivationAttachments, releaseAccountActivationAttachment, type AccountActivationAttachment, type AccountBranchRetirement } from '../persistence/account-activation-attachments'
-import { accountLocalId, cipherRef, stageAccountJson } from './account-cache'
+import { accountLocalId, cipherRef, openAccountJson, stageAccountJson } from './account-cache'
 import { createAccountRecoveryService } from './account-recovery'
 import { captureAccountSyncWorkspace } from './account-sync-capture'
 import { captureAccountSnapshot } from './account-snapshot'
@@ -15,6 +15,7 @@ import { disposeWorkspaceSnapshot, backupMetadataDigest, snapshotMetadata, asser
 import { previewAccountWorkspaceRestore, stageAccountWorkspaceRestore, activateAccountWorkspaceRestore, releaseAccountWorkspaceRestorePreview, releaseAccountWorkspaceRestoreStage } from './account-restore'
 import { prepareAccountWorkspace, prepareAccountWorkspaceWithExistingEvidence } from './account-graph'
 import { prepareManagedAccountProjection } from './account-managed-projection'
+import type { SigninDecision } from './signin-reconciliation'
 
 export interface ReviewedReplacementDiagnostic { readonly operationId: string; readonly phase: 'preserve' | 'bind' | 'complete' | 'activate' | 'use-latest'; readonly outcome: 'complete' | 'failed'; readonly elapsedMs: number; readonly code?: string }
 const diagnostics = new Set<(value: ReviewedReplacementDiagnostic) => void>()
@@ -65,6 +66,42 @@ export type StoredReviewedReplacement = { readonly row: EncryptedSyncState; read
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 const refs = (heads: ReadonlyMap<string, string>) => [...heads].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([documentId, revisionId]) => ({ documentId, revisionId }))
 export function readReviewedReplacement(database: AccountDatabase, token: ProfileToken) { return readSyncState(database, token, REVIEWED_REPLACEMENT_KEY, ReviewedReplacementSchema) }
+// Version 1 decisions and activated preparations authenticate only their target head
+// Join that exact head to the activation journal, not to the mutable latest replacement
+export async function assertReviewedDecisionActivation(database: AccountDatabase, token: ProfileToken, receipt: EncryptedSyncState, decision: SigninDecision): Promise<void> {
+  const mismatch = () => new Error('SIGNIN_RECEIPT_MISMATCH')
+  assertActiveProfile(token)
+  if (decision.accountId !== token.accountId || decision.status !== 'complete' || !['device', 'latest'].includes(decision.action)) throw mismatch()
+  const id = `${PREPARATION_PREFIX}${OpaqueIdSchema.parse(decision.operationId)}`
+  const row = await database.syncState.get(id)
+  if (!row) throw mismatch()
+  const preparationRecord = await database.encryptedRevisions.get(row.ref.revisionId)
+  const receiptRecord = await database.encryptedRevisions.get(receipt.ref.revisionId)
+  const preparation = await openAccountJson(database, token, row.ref, PreparationSchema)
+  if (!same(await openAccountJson(database, token, receipt.ref, z.unknown()), decision)) throw mismatch()
+  if (!preparationRecord || !receiptRecord || preparation.operationId !== decision.operationId || preparation.state !== 'activated'
+    || preparation.intent !== (decision.action === 'latest' ? 'use-latest' : 'replace')) throw mismatch()
+  const head = preparationRecord.descriptor.dependencies[0]
+  if (!head || preparationRecord.descriptor.dependencies.length !== 1 || !same(receiptRecord.descriptor.dependencies, [head])) throw mismatch()
+  const source = preparation.predecessorRecoveryId
+    ? { revisionVector: { accountHead: JSON.stringify(preparation.fence.head), headRevision: String(preparation.fence.headRevision) }, metadataDigest: await backupMetadataDigest({ accountId: token.accountId, branch: preparation.fence }) }
+    : decision.source
+  if (!source || !same(preparation.sourceVector, source.revisionVector) || preparation.sourceIdentity !== source.metadataDigest) throw mismatch()
+  // The stage ID differs from the decision ID; the authenticated target and prior fence
+  // establish its association without assuming those independently allocated IDs are equal
+  const ambiguousMatchLimit = 2
+  const matchingJournals = () => database.migrationJournal.filter(value => same(value.head, head) && value.headRevision === preparation.fence.headRevision + 1).limit(ambiguousMatchLimit).toArray()
+  const journals = await matchingJournals()
+  if (journals.length !== 1 || journals[0].localStatus !== 'active') throw mismatch()
+  await database.transaction('r', database.syncState, database.encryptedRevisions, database.migrationJournal, async () => {
+    assertActiveProfile(token)
+    if (!same(await database.syncState.get(id), row) || !same(await database.syncState.get(receipt.id), receipt)
+      || !same(await database.encryptedRevisions.get(row.ref.revisionId), preparationRecord)
+      || !same(await database.encryptedRevisions.get(receipt.ref.revisionId), receiptRecord)
+      || !same(await matchingJournals(), journals)) throw mismatch()
+  })
+  assertActiveProfile(token)
+}
 export function reviewedRemoteMatches(value: ReviewedReplacement, epoch: number, heads: ReadonlyMap<string, string>): boolean {
   return value.reviewedEpoch === epoch && same(value.reviewedHeads, refs(heads))
 }
@@ -101,7 +138,7 @@ export async function bindReviewedPublication(token: ProfileToken, stored: Store
 }
 export async function completeReviewedPublication(database: AccountDatabase, token: ProfileToken, stored: StoredReviewedReplacement) {
   if (!stored.value.final) throw new SyncError('LOCAL_INTEGRITY_FAILED')
-  await phase(stored.value.operationId, 'complete', () => createAccountRecoveryService(token).complete(stored.value.recoveryOperationId, stored.value.final!.mutationId))
+  await phase(stored.value.operationId, 'complete', () => createAccountRecoveryService(token).complete(stored.value.recoveryOperationId, stored.value.final!.mutationId, stored.value.final))
   const value: ReviewedReplacement = { ...stored.value, state: 'accepted' }
   return { value, row: await writeSyncState(database, token, REVIEWED_REPLACEMENT_KEY, value, stored.row, dependencies(value)) }
 }
