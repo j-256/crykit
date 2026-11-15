@@ -167,17 +167,47 @@ const populate = async (cache, indices) => {
   const totalBytes = indices.reduce((sum, index) => sum + SIZES[index], 0);
   const urlIndices = new Map(indices.map(index => [assetUrls[index], index]));
   let lastProgress = 0;
-  const progress = async force => {
-    if (!force && Date.now() - lastProgress < PROGRESS_INTERVAL_MS) return;
-    lastProgress = Date.now();
+  let progressTimer;
+  let progressPending = Promise.resolve();
+  let needsProgress = false;
+  let stopped = false;
+  const progress = async () => {
+    needsProgress = false;
     await broadcast({ type: 'OFFLINE_PROGRESS', progress: { completedFiles: completed.size, totalFiles: indices.length, completedBytes: [...completed].reduce((sum, index) => sum + SIZES[index], 0), totalBytes } });
+    lastProgress = Date.now();
   };
-  await progress(true);
-  await downloadFiles(cache, indices.filter(index => !completed.has(index)).map(index => assetUrls[index]), async batch => {
-    for (const url of batch) completed.add(urlIndices.get(url));
-    await progress(false);
-  });
-  await progress(true);
+  const scheduleProgress = () => {
+    if (stopped) return;
+    needsProgress = true;
+    if (progressTimer !== undefined) return;
+    // Keep the latest partial progress visible even when every other batch finishes before a stalled batch
+    // Own the timer through its broadcast so later completions coalesce instead of overlapping notifications
+    progressTimer = setTimeout(() => {
+      progressPending = progress().catch(error => {
+        // Preserve this failure while downloads drain; a later broadcast must not overwrite it
+        stopped = true;
+        throw error;
+      }).finally(() => {
+        progressTimer = undefined;
+        if (needsProgress && !stopped) scheduleProgress();
+      });
+      // Settlement awaits this same promise; handle rejection while downloads are still pending
+      void progressPending.catch(() => {});
+    }, Math.max(0, PROGRESS_INTERVAL_MS - (Date.now() - lastProgress)));
+  };
+  await progress();
+  try {
+    await downloadFiles(cache, indices.filter(index => !completed.has(index)).map(index => assetUrls[index]), async batch => {
+      for (const url of batch) completed.add(urlIndices.get(url));
+      scheduleProgress();
+    });
+  } finally {
+    // Cancel queued work and drain an active broadcast before terminal status or the next cache mutation
+    stopped = true;
+    clearTimeout(progressTimer);
+    await progressPending;
+  }
+  await progress();
 };
 const readiness = async (legacy = false) => {
   const cache = await applicationCache();

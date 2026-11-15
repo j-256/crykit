@@ -11,11 +11,39 @@ import { ocrAssets } from './ocr-assets.ts'
 
 const SCOPE = 'https://example.test/planner/'
 const MAX_CONCURRENT_DOWNLOADS = 32
+const PROGRESS_INTERVAL_MS = 100
 const turn = () => new Promise(resolve => setImmediate(resolve))
 function deferred() {
   let resolve
-  const promise = new Promise(ready => { resolve = ready })
-  return { promise, resolve }
+  let reject
+  const promise = new Promise((ready, fail) => { resolve = ready; reject = fail })
+  return { promise, resolve, reject }
+}
+
+function progressClock() {
+  let now = 1_000
+  let nextTimer = 0
+  const timers = new Map()
+  return {
+    Date: { now: () => now },
+    setTimeout: (callback, delay) => { const id = ++nextTimer; timers.set(id, { callback, at: now + delay }); return id },
+    clearTimeout: id => { timers.delete(id) },
+    pending: () => timers.size,
+    async advance(milliseconds) {
+      const target = now + milliseconds
+      while (true) {
+        const next = [...timers.entries()].filter(([, timer]) => timer.at <= target).sort((a, b) => a[1].at - b[1].at)[0]
+        if (!next) break
+        const [id, timer] = next
+        timers.delete(id)
+        now = timer.at
+        timer.callback()
+        await turn()
+      }
+      now = target
+      await turn()
+    },
+  }
 }
 
 const OPTIONAL_ASSETS = {
@@ -31,6 +59,7 @@ function workerFixture(scope = SCOPE, options = {}) {
   const progress = []
   const counters = { active: 0, maximum: 0, matches: 0 }
   let intercept = async () => {}
+  let beforeBroadcast = async () => {}
   const caches = {
     async open(name) {
       if (stores.has(name)) return stores.get(name)
@@ -69,9 +98,9 @@ function workerFixture(scope = SCOPE, options = {}) {
   ]))
   Object.assign(bundle, { [options.plugin?.indexSource ?? 'index.html']: { type: 'asset', source: 'Synthetic app shell' } }, OPTIONAL_ASSETS, options.bundle)
   plugin.generateBundle.handler.call({ emitFile: asset => { emitted.set(asset.fileName, asset.source); if (asset.fileName === 'sw.js') source = asset.source } }, {}, bundle)
-  const context = createContext({ caches, URL, Request, Response, Error, crypto: { randomUUID }, self: {
+  const context = createContext({ caches, URL, Request, Response, Error, Date, setTimeout, clearTimeout, ...options.clock, crypto: { randomUUID }, self: {
     registration: { scope }, location: { origin: new URL(scope).origin },
-    clients: { matchAll: async () => [{ url: SCOPE, postMessage: value => progress.push(value) }] },
+    clients: { matchAll: async () => { await beforeBroadcast(); return [{ url: SCOPE, postMessage: value => progress.push(value) }] } },
     addEventListener: (type, handler) => handlers.set(type, handler),
   } })
   runInContext(source, context)
@@ -87,6 +116,7 @@ function workerFixture(scope = SCOPE, options = {}) {
     fetch: request => { let intercepted = false; handlers.get('fetch')({ request, respondWith: () => { intercepted = true } }); return intercepted },
     response: request => { let result; handlers.get('fetch')({ request, respondWith: response => { result = response } }); return result },
     intercept: callback => { intercept = callback },
+    interceptBroadcast: callback => { beforeBroadcast = callback },
     install: () => {
       let completion
       handlers.get('install')({ waitUntil: promise => { completion = promise } })
@@ -144,6 +174,134 @@ test('offline installation makes progress past a slow batch within its download 
   assert.equal((await fixture.message('CHECK_READINESS')).ready, true)
   assert.ok(fixture.counters.matches < 5, 'Readiness must inspect cache keys without opening every response')
 })
+
+test('offline progress publishes the latest completed files while the final batch stays held', async () => {
+  const clock = progressClock()
+  const fixture = workerFixture(SCOPE, { clock, plugin: { publicAssets: [] } })
+  const slow = deferred()
+  fixture.intercept(requests => requests.some(request => request.url.endsWith('/index.html')) ? slow.promise : Promise.resolve())
+  let installed = false
+  const installation = fixture.install().then(() => { installed = true })
+  try {
+    await turn()
+    await clock.advance(PROGRESS_INTERVAL_MS - 1)
+    assert.equal(fixture.progress.length, 1, 'Completed batches must stay within the progress notification budget')
+    assert.equal(fixture.progress[0].progress.completedFiles, 0)
+    await clock.advance(1)
+    const partial = fixture.progress.at(-1).progress
+    assert.equal(partial.completedFiles, 96, 'All synthetic assets completed while the final shell batch stayed held')
+    assert.equal(partial.completedBytes, 96 * Buffer.byteLength('synthetic'))
+    assert.ok(partial.completedFiles < partial.totalFiles)
+    assert.equal(installed, false)
+    assert.equal((await fixture.message('CHECK_READINESS')).ready, false)
+    await clock.advance(PROGRESS_INTERVAL_MS)
+    assert.equal(fixture.progress.length, 2, 'Idle downloads must not generate duplicate progress')
+  } finally { slow.resolve(); await installation }
+  const final = fixture.progress.at(-1).progress
+  assert.equal(final.completedFiles, final.totalFiles)
+  assert.equal(final.completedBytes, final.totalBytes)
+  assert.equal((await fixture.message('CHECK_READINESS')).ready, true)
+  assert.equal(clock.pending(), 0)
+})
+
+test('batches completed during a progress broadcast coalesce into the next bounded notification', async () => {
+  const clock = progressClock()
+  const fixture = workerFixture(SCOPE, { clock, plugin: { publicAssets: [] } })
+  const firstBatch = deferred()
+  const finalBatch = deferred()
+  const broadcast = deferred()
+  fixture.intercept(requests => requests.some(request => request.url.endsWith('/000.png')) ? firstBatch.promise : requests.some(request => request.url.endsWith('/index.html')) ? finalBatch.promise : Promise.resolve())
+  const installation = fixture.install()
+  try {
+    await turn()
+    fixture.interceptBroadcast(() => broadcast.promise)
+    await clock.advance(PROGRESS_INTERVAL_MS)
+    firstBatch.resolve()
+    await turn()
+    await clock.advance(PROGRESS_INTERVAL_MS * 2)
+    assert.equal(fixture.progress.length, 1, 'An active broadcast must not allow overlapping progress notifications')
+    fixture.interceptBroadcast(async () => {})
+    broadcast.resolve()
+    await turn()
+    assert.equal(fixture.progress.at(-1).progress.completedFiles, 88)
+    await clock.advance(PROGRESS_INTERVAL_MS - 1)
+    assert.equal(fixture.progress.length, 2, 'A slow broadcast must not cause a burst of queued notifications')
+    await clock.advance(1)
+    assert.equal(fixture.progress.at(-1).progress.completedFiles, 96)
+    assert.equal(fixture.progress.at(-1).progress.completedBytes, 96 * Buffer.byteLength('synthetic'))
+  } finally { fixture.interceptBroadcast(async () => {}); broadcast.resolve(); firstBatch.resolve(); finalBatch.resolve(); await installation }
+  assert.equal(clock.pending(), 0)
+})
+
+test('a rejected progress broadcast remains fatal when later batches complete', async () => {
+  const clock = progressClock()
+  const fixture = workerFixture(SCOPE, { clock, plugin: { publicAssets: [] } })
+  await fixture.install()
+  const firstBatch = deferred()
+  const finalBatch = deferred()
+  const broadcast = deferred()
+  fixture.intercept(requests => requests.some(request => request.url.endsWith('/000.png')) ? firstBatch.promise : requests.some(request => request.url.endsWith('/index.html')) ? finalBatch.promise : Promise.resolve())
+  const refresh = fixture.message('REFRESH_CACHE')
+  try {
+    await turn()
+    fixture.interceptBroadcast(() => broadcast.promise)
+    await clock.advance(PROGRESS_INTERVAL_MS)
+    firstBatch.resolve()
+    await turn()
+    broadcast.reject(new Error('Synthetic progress broadcast failure'))
+    fixture.interceptBroadcast(async () => {})
+    await turn()
+    await clock.advance(PROGRESS_INTERVAL_MS * 2)
+  } finally { fixture.interceptBroadcast(async () => {}); broadcast.resolve(); firstBatch.resolve(); finalBatch.resolve() }
+  assert.equal((await refresh).error, 'Synthetic progress broadcast failure')
+  assert.equal((await fixture.message('CHECK_READINESS')).ready, true, 'Failed refresh must retain the working cache')
+  assert.equal([...fixture.stores.keys()].some(name => name.startsWith('crykit-refresh-')), false)
+  assert.equal(clock.pending(), 0)
+})
+
+for (const outcome of ['success', 'failure']) {
+  for (const notification of ['scheduled', 'in-flight']) {
+    test(`offline ${outcome} settles ${notification} progress before terminal status and the next mutation`, async () => {
+      const clock = progressClock()
+      const fixture = workerFixture(SCOPE, { clock, plugin: { publicAssets: [] } })
+      await fixture.install()
+      fixture.progress.length = 0
+      const slow = deferred()
+      const broadcast = deferred()
+      fixture.intercept(requests => requests.some(request => request.url.endsWith('/index.html')) ? slow.promise : Promise.resolve())
+      let settled = false
+      const refresh = fixture.message('REFRESH_CACHE').then(result => { settled = true; return result })
+      try {
+        await turn()
+        assert.equal(fixture.progress.length, 1)
+        assert.equal(clock.pending(), 1, 'Completed batches must schedule their trailing progress')
+        if (notification === 'in-flight') {
+          let broadcasting = false
+          fixture.interceptBroadcast(() => { broadcasting = true; return broadcast.promise })
+          await clock.advance(PROGRESS_INTERVAL_MS)
+          assert.equal(broadcasting, true, 'The trailing broadcast must start before testing its settlement')
+        }
+        if (outcome === 'failure') slow.reject(new Error('Synthetic held batch failure'))
+        else slow.resolve()
+        await turn()
+        if (notification === 'in-flight') assert.equal(settled, false, 'Settlement must drain the broadcast that already started')
+      } finally { fixture.interceptBroadcast(async () => {}); broadcast.resolve(); slow.resolve() }
+      const result = await refresh
+      if (outcome === 'failure') assert.equal(result.error, 'Synthetic held batch failure')
+      else assert.equal(result.ready, true)
+      assert.equal(fixture.progress.at(-1).type, 'OFFLINE_STATUS')
+      assert.equal(clock.pending(), 0, 'Terminal status must not leave a queued progress callback')
+      const settledEvents = fixture.progress.length
+      await clock.advance(PROGRESS_INTERVAL_MS * 2)
+      assert.equal(fixture.progress.length, settledEvents, 'No old progress may follow terminal status')
+      fixture.intercept(async () => {})
+      assert.equal((await fixture.message('PREPARE_CACHE', { extras: ['maps'] })).ready, true)
+      const nextEvents = fixture.progress.length
+      await clock.advance(PROGRESS_INTERVAL_MS * 2)
+      assert.equal(fixture.progress.length, nextEvents, 'No progress may escape into the next cache mutation')
+    })
+  }
+}
 
 test('core installation excludes optional terrain, artwork and OCR while reporting real progress', async () => {
   const fixture = workerFixture()
