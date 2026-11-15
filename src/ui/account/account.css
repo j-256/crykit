@@ -23,7 +23,59 @@
 .account-sync-status [role="alert"] { color: var(--danger, #b64545); }
 .account-sync-status button { min-height: 2.75rem; padding: .5rem .8rem; }
 
-.signin-summaries { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1.5rem; }
+.signin-reconciliation, .signin-reconciliation * { box-sizing: border-box; }
+.signin-reconciliation { width: min(100%, 60rem); margin-inline: auto; padding: clamp(1rem, 4vw, 2.5rem); overflow-wrap: anywhere; }
+.signin-reconciliation h1 { margin: 0 0 .75rem; font-size: clamp(2rem, 5vw, 2.75rem); line-height: 1.1; text-wrap: balance; }
 .signin-reconciliation h1:focus { outline: none; }
-.signin-reconciliation p { max-width: 70ch; }
-.signin-brand { font-family: var(--font-display); font-size: 1.25rem; margin-bottom: 1rem; }
+.signin-reconciliation h2 { display: flex; align-items: flex-start; gap: .6rem; margin: 0 0 .75rem; font-size: 1.4rem; line-height: 1.2; }
+.signin-reconciliation h2 svg { flex: 0 0 1.25rem; width: 1.25rem; height: 1.25rem; margin-top: .15rem; color: var(--cyan-300); }
+.signin-reconciliation p { max-width: 70ch; line-height: 1.6; }
+.signin-reconciliation .button { min-height: 2.75rem; padding: .65rem .9rem; white-space: normal; line-height: 1.4; }
+.signin-reconciliation .button svg { flex-shrink: 0; }
+.signin-brand { display: flex; align-items: center; gap: .5rem; margin-bottom: 2rem; font-family: var(--font-menu); font-size: 1.5rem; }
+.signin-brand svg { width: 1.5rem; height: 1.5rem; color: var(--cyan-300); }
+.signin-intro { margin: 0 0 1.75rem; color: var(--text-dim); }
+.signin-summaries { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 2rem; border: 1px solid var(--line-strong); background: var(--panel); }
+.signin-summary { min-width: 0; padding: 1.25rem; }
+.signin-summary + .signin-summary { border-left: 1px solid var(--line); }
+.signin-summary p { margin: .5rem 0; color: var(--text-dim); font-size: .82rem; }
+.signin-summary .signin-summary-counts { color: var(--text); font-variant-numeric: tabular-nums; }
+.signin-summary ul { margin: .75rem 0 0; padding-left: 1.1rem; color: var(--text-dim); font-size: .8rem; line-height: 1.6; }
+.signin-choices { display: grid; gap: .5rem; }
+.signin-choice { display: grid; grid-template-columns: minmax(0, 19rem) minmax(0, 1fr); align-items: center; gap: 1.25rem; padding: 1rem; }
+.signin-choice--recommended { border: 1px solid var(--line-strong); background: var(--panel); }
+.signin-choice p { margin: 0; color: var(--text-dim); font-size: .85rem; }
+.signin-review > p { margin: 0 0 1.5rem; color: var(--text-dim); }
+.signin-records { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem 1.5rem; margin: 1rem 0; padding: 0; list-style: none; }
+.signin-records li { display: flex; align-items: flex-start; gap: .6rem; min-width: 0; font-size: .85rem; line-height: 1.5; }
+.signin-records svg { flex: 0 0 1rem; width: 1rem; height: 1rem; margin-top: .15rem; color: var(--cyan-300); }
+.signin-review .signin-companions { margin: 1rem 0; font-size: .8rem; color: var(--text-faint); }
+.signin-conflicts { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+.signin-conflicts h2 svg { color: var(--amber); }
+.signin-conflicts p { margin: .5rem 0; color: var(--text-dim); font-size: .85rem; }
+.signin-conflicts ul { margin: .75rem 0 0; padding-left: 1.1rem; font-size: .85rem; line-height: 1.6; }
+.signin-conflicts li + li { margin-top: .5rem; }
+.signin-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-top: 1.5rem; }
+.signin-followup { display: flex; flex-wrap: wrap; gap: .75rem; }
+.signin-followup:not(:empty) { margin-top: 1.5rem; }
+.signin-footer { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1.25rem; margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+.signin-footer:empty { display: none; }
+.signin-backup { flex: 1 1 20rem; }
+.signin-backup .button { padding-left: 0; justify-content: flex-start; }
+.signin-backup p { max-width: 48ch; margin: .25rem 0 0; font-size: .75rem; color: var(--text-faint); }
+.signin-waiting, .signin-reconciliation .account-error { display: flex; align-items: flex-start; gap: .75rem; }
+.signin-waiting { padding-block: 1.5rem; }
+.signin-waiting p, .signin-reconciliation .account-error p { margin: 0; }
+.signin-waiting svg, .signin-reconciliation .account-error svg { flex: 0 0 1.5rem; width: 1.5rem; height: 1.5rem; }
+.signin-waiting svg { color: var(--cyan-300); }
+@media (max-width: 42rem) {
+  .signin-summaries { grid-template-columns: minmax(0, 1fr); }
+  .signin-summary + .signin-summary { border-left: 0; border-top: 1px solid var(--line); }
+  .signin-choice { grid-template-columns: minmax(0, 1fr); gap: .75rem; padding: 1rem .75rem; }
+  .signin-choice .button { justify-content: flex-start; text-align: left; }
+  .signin-records { grid-template-columns: minmax(0, 1fr); }
+  .signin-confirm { align-items: stretch; flex-direction: column; }
+  .signin-footer { flex-direction: column; align-items: stretch; }
+  .signin-backup { flex-basis: auto; }
+  .signin-footer > .button { justify-content: flex-start; padding-left: 0; }
+}
