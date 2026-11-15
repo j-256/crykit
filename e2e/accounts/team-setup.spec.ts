@@ -1,3 +1,4 @@
+import { beginSeededAccount, mountSeededAccount } from './signin-helpers'
 import { loadAccountUpdate } from './workspace-updates'
 import { openTeamHistory } from '../share-view-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -106,14 +107,10 @@ test('encrypted account uses the same real Team editing and adoption journey', a
   await page.request.post('/__accounts/jobs')
   const emails = await (await page.request.get('/__accounts/emails')).json() as { recipient: string; capability: string }[]
   await page.evaluate(capability => fetch('/api/v1/auth/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ capability }) }), emails.find(value => value.recipient === email)!.capability)
-  await page.goto(`${app}#/settings/account`)
-  await page.getByLabel('Email', { exact: true }).fill(email); await page.getByLabel('Password', { exact: true }).fill(password)
-  await page.locator('form').filter({ has: page.getByRole('button', { name: 'Sign in', exact: true }) }).getByLabel('Remember this device', { exact: true }).check()
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Open account workspace', exact: true })).toBeVisible()
+  await beginSeededAccount(page, app, email, password, true)
   await page.evaluate(() => (window as unknown as { accountBootstrapProof: Proof }).accountBootstrapProof.seedTeamFixture(true))
   const published = page.waitForResponse(response => response.url().endsWith('/sync/commits') && response.ok() && response.request().postDataJSON().heads.length > 0)
-  await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+  await mountSeededAccount(page)
   await published
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced')

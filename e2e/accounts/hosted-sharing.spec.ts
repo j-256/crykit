@@ -1,3 +1,4 @@
+import { beginSeededAccount, mountSeededAccount } from './signin-helpers'
 import { openTeamHistory } from '../share-view-helpers'
 import { expectOfflineReady } from '../offline-helpers'
 import { skipInitialModSetup } from '../local-data-helpers'
@@ -11,6 +12,7 @@ const privateValues = { effect: 'PRIVATE_EFFECT_T28', filename: 'PRIVATE_FILE_T2
 const secrets = Object.values(privateValues)
 
 test('hosted owner, recipient and anonymous lifecycle keeps private drafts and copies isolated', async ({ page, browser, context }) => {
+  expect((await page.request.post('/__accounts/control/initialize-revocations', { data: {} })).status()).toBe(200)
   test.setTimeout(120_000)
   await page.goto('/__accounts-proof/')
   await expect(page.locator('#status')).toHaveText('Browser worker and offline cache ready')
@@ -29,13 +31,9 @@ test('hosted owner, recipient and anonymous lifecycle keeps private drafts and c
   await page.request.post('/__accounts/jobs')
   const emails = await (await page.request.get('/__accounts/emails')).json() as { recipient: string; capability: string }[]
   await page.evaluate(capability => fetch('/api/v1/auth/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ capability }) }), emails.find(value => value.recipient === email)!.capability)
-  await page.goto(`${app}#/settings/account`)
-  await page.getByLabel('Email', { exact: true }).fill(email)
-  await page.getByLabel('Password', { exact: true }).fill(password)
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Open account workspace', exact: true })).toBeVisible()
+  await beginSeededAccount(page, app, email, password)
   await page.evaluate(values => (window as unknown as { accountBootstrapProof: Proof }).accountBootstrapProof.seedTeamFixture(true, values), privateValues)
-  await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+  await mountSeededAccount(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   const before = await page.evaluate(() => (window as unknown as { workspaceProof: Proof }).workspaceProof.teamState())
   await page.getByRole('button', { name: 'Teams', exact: true }).click()

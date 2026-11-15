@@ -1,3 +1,4 @@
+import { finishAccountSignin } from './signin-helpers'
 import { expect, test } from '@playwright/test'
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -78,7 +79,7 @@ test('exact private artwork reaches a second account device as original image by
     await page.getByLabel('Password', { exact: true }).fill(password)
     await page.locator('form').filter({ has: page.getByRole('button', { name: 'Sign in', exact: true }) }).getByLabel('Remember this device', { exact: true }).check()
     await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-    await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+    await finishAccountSignin(page)
     await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
     await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: 90_000 })
     if (await page.getByRole('button', { name: 'Load updated data' }).isVisible()) await page.getByRole('button', { name: 'Load updated data' }).click()
@@ -104,10 +105,9 @@ test('exact private artwork reaches a second account device as original image by
       await second.getByLabel('Password', { exact: true }).fill(password)
       await second.locator('form').filter({ has: second.getByRole('button', { name: 'Sign in', exact: true }) }).getByLabel('Remember this device', { exact: true }).check()
       await second.getByRole('button', { name: 'Sign in', exact: true }).click()
-      await second.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+      await finishAccountSignin(second)
       await expect(second.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: 90_000 })
-      await expect(second.getByText('Updated data is ready')).toBeVisible()
-      await second.getByRole('button', { name: 'Load updated data' }).click()
+      await expect(second.getByText('Updated data is ready')).toHaveCount(0)
       await second.evaluate(() => { window.location.hash = '#/reference?v=1&q=Browser+art+item' })
       const image = second.locator('[data-artwork-source="private"] img').first()
       await expect(image).toBeVisible({ timeout: 60_000 })

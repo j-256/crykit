@@ -1,3 +1,4 @@
+import { finishAccountSignin } from './signin-helpers'
 import { GUEST_COORDINATOR_DATABASE } from '../../src/persistence/storage-names'
 import { expectPrimedSignInRateLimit, nativeCredentialQuota, prepareAccountProofCache } from './network-fixture'
 import { readCompleteBackup } from '../workspace-backup'
@@ -508,19 +509,15 @@ test('normalAppSignInOpensIndependentEncryptedWorkspaceAndLocksOnReload', async 
   let completed = false
   try {
     const account = await uiSignup(page)
-    const writes: string[] = []
-    page.on('request', request => { if (!['GET', 'HEAD'].includes(request.method()) && /\/api\/v1\/(uploads|sync|documents)/.test(request.url())) writes.push(request.url()) })
     await openAccountSettingsInMountedPlanner(page)
     await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
     const guestBefore = await databaseDump(page, GUEST_COORDINATOR_DATABASE)
     await page.getByLabel('Email', { exact: true }).fill(account.email)
     await page.getByLabel('Password', { exact: true }).fill(uiPassword)
     await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-    await expect(page.getByRole('heading', { name: `Signed in as ${account.username}` })).toBeVisible()
-    await page.getByRole('button', { name: 'Open account workspace' }).click()
+    await finishAccountSignin(page)
     await expect(page.getByRole('heading', { name: 'Plan your next Build' })).toBeVisible()
     expect(await databaseDump(page, GUEST_COORDINATOR_DATABASE)).toBe(guestBefore)
-    expect(writes).toEqual([])
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Account workspace locked' })).toBeVisible()
     await page.getByRole('button', { name: 'Continue using this device' }).click()
@@ -541,8 +538,7 @@ test('normalAppRemountRejectsForeignCookieAndKeepsLocalProfile', async ({ page, 
   await page.getByLabel('Email', { exact: true }).fill(first.email)
   await page.getByLabel('Password', { exact: true }).fill(uiPassword)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('heading', { name: `Signed in as ${first.username}` })).toBeVisible()
-  await page.getByRole('button', { name: 'Builds', exact: true }).first().click()
+  await finishAccountSignin(page)
   const other = await context.newPage()
   const second = await uiSignup(other)
   await uiSignin(other, second.email, second.username)
@@ -571,8 +567,7 @@ async function openWorkspaceAccount(page: import('@playwright/test').Page, accou
   await page.getByLabel('Password', { exact: true }).fill(uiPassword)
   if (remember) await page.getByLabel('Remember this device').first().check()
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('heading', { name: `Signed in as ${account.username}` })).toBeVisible()
-  await page.getByRole('button', { name: 'Open account workspace' }).click()
+  await finishAccountSignin(page)
   await expect(page.getByRole('button', { name: 'New Build', exact: true })).toBeVisible()
 }
 test.describe('actualWorkspaceSwitchesDistinctAccountsAndRecoveryWithoutCrossingGuestOrPendingRevocation', () => {

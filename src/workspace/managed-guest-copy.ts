@@ -1,4 +1,4 @@
-import { prepareAccountReceiptAttachment, releaseAccountActivationAttachment, type AccountSyncAttachmentValue } from '../persistence/account-activation-attachments'
+import { accountAttachmentCheck, type AccountActivationAttachment, prepareAccountReceiptAttachment, releaseAccountActivationAttachment, type AccountSyncAttachmentValue } from '../persistence/account-activation-attachments'
 import { assertActiveProfile, type ProfileToken } from '../account/profile'
 import { activateLocalAccountCommit, type AccountDatabase, type AccountFence, type PreparedLocalActivation } from '../persistence/account-database'
 import { guestPlannerValuesEqual } from '../persistence/guest-planner-equality'
@@ -11,7 +11,7 @@ import { ManagedGuestCopyJournalSchema, PENDING_COPY, SAVED_COPY_PREFIX, type Gu
 import { readLocalEvidence, prepareLocalEvidence } from './local-evidence'
 import { admitLocalRoot, prepareLocalWorkspace } from './local-root'
 
-export async function stageManagedGuestCopy(database: AccountDatabase, token: ProfileToken, preview: GuestCopyPreview, input: AccountFence, incoming: CapturedGuestEvidence, mergeCurrent: (before: WorkspaceState) => Promise<WorkspaceState>, assertMayActivate: () => void) {
+export async function stageManagedGuestCopy(database: AccountDatabase, token: ProfileToken, preview: GuestCopyPreview, input: AccountFence, incoming: CapturedGuestEvidence, mergeCurrent: (before: WorkspaceState) => Promise<WorkspaceState>, assertMayActivate: () => void, preparationAttachment?: AccountActivationAttachment) {
   assertActiveProfile(token)
   if (preview.accountId !== token.accountId) throw new Error('The copy belongs to another account')
   const expected = structuredClone(input), store = createAccountLocalStore(database, token), id = preview.copyId
@@ -40,10 +40,14 @@ export async function stageManagedGuestCopy(database: AccountDatabase, token: Pr
     await incoming.check(); await evidence.check(); await check()
     // A saved journal owns the complete encrypted target even if activation is interrupted
     // It cannot make that target active or upload it until the separate captured-head CAS succeeds
+    const preparationCheck = accountAttachmentCheck(database, token, { expected, head: expected.head }, preparationAttachment)
     await store.persistOperation(id, async () => {
+      await preparationCheck?.recheckAndRetireInTransaction()
       if (!guestPlannerValuesEqual(await database.profileMeta.get('active'), expected) || await database.syncState.get(PENDING_COPY)) throw new Error('The account or pending copy changed during preparation')
       await database.syncState.add({ id: `${SAVED_COPY_PREFIX}${id}`, ref })
       await database.syncState.add({ id: PENDING_COPY, ref })
+      // The durable decision and exact encrypted target become resumable together
+      await preparationCheck?.installInTransaction()
     }, assertMayActivate)
     const prepared = await store.preparePersistedActivation(id, result, expected, before, intentRef, projection)
     retained = true

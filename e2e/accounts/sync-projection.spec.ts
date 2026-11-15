@@ -1,3 +1,4 @@
+import { beginSeededAccount, mountSeededAccount, finishAccountSignin } from './signin-helpers'
 import { loadAccountUpdate } from './workspace-updates'
 import { expect, test, type Page, type BrowserContext } from '@playwright/test'
 import type * as auth from '../../src/account/auth-client'
@@ -8,18 +9,23 @@ interface Proof { seedSelectionFixture(): Promise<unknown>; chooseSelectors(inde
 const proof = (page: Page) => ({ snapshot: () => page.evaluate(() => (window as unknown as { workspaceProof: Proof }).workspaceProof.selectionSnapshot()) })
 const status = (page: Page) => page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')
 const selectors = ({ selectedPlaythroughId, planningGameSetupRevisionId, scenarios }: SelectionSnapshot) => ({ selectedPlaythroughId, planningGameSetupRevisionId, scenarios })
-async function signIn(page: Page, email: string, seed = false, waitForProjection = true) {
-  await page.goto('/__accounts-proof/account-workspace.html#/settings/account')
-  await page.getByLabel('Email', { exact: true }).fill(email); await page.getByLabel('Password', { exact: true }).fill(password)
-  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Open account workspace' })).toBeVisible()
-  if (seed) await page.evaluate(() => (window as unknown as { accountBootstrapProof: Proof }).accountBootstrapProof.seedSelectionFixture())
+async function signIn(page: Page, email: string, seed = false, reload = false) {
+  if (seed) {
+    await beginSeededAccount(page, '/__accounts-proof/account-workspace.html', email, password)
+    await page.evaluate(() => (window as unknown as { accountBootstrapProof: Proof }).accountBootstrapProof.seedSelectionFixture())
+  } else {
+    await page.goto('/__accounts-proof/account-workspace.html#/settings/account')
+    if (reload) await page.reload()
+    await page.getByLabel('Email', { exact: true }).fill(email); await page.getByLabel('Password', { exact: true }).fill(password)
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  }
   const published = seed ? page.waitForResponse(response => response.url().endsWith('/sync/commits') && response.ok() && response.request().postDataJSON().heads.length > 0) : undefined
-  const applied = waitForProjection && !seed ? page.evaluate(() => new Promise<void>(resolve => window.addEventListener('crykit-account-sync-applied', () => resolve(), { once: true }))) : Promise.resolve()
-  await page.getByRole('button', { name: 'Open account workspace' }).click()
+  const applied = seed ? Promise.resolve() : finishAccountSignin(page)
+  if (seed) await mountSeededAccount(page)
   await (published ?? applied)
   await expect(status(page)).toHaveText('Synced')
-  if (waitForProjection) await loadAccountUpdate(page)
+  if (seed) await loadAccountUpdate(page)
+  if (!seed) await expect(page.getByRole('button', { name: 'Load updated data', exact: true })).toHaveCount(0)
 }
 async function flush(page: Page) { await page.evaluate(() => (window as unknown as { workspaceProof: Proof }).workspaceProof.flushSync()) }
 async function publish(page: Page, action: () => Promise<unknown>) {
@@ -55,7 +61,7 @@ test.describe.serial('remote projection respects local interaction', () => {
   })
   test('typedFormSurvivesAnActualRemoteArrivalAndRetainsDeviceSelectors', async () => {
     // Reopen through the real profile/provider so fixture selector writes become the mounted App's initial state
-    await signIn(b, email, false, false)
+    await signIn(b, email, false, true)
     await b.evaluate(() => { window.location.hash = '#/characters' })
     await expect(b.getByRole('button', { name: 'Playthrough: Second local journey', exact: true })).toBeVisible()
     await expect(b.getByRole('button', { name: 'Party plan: Second local scenario', exact: true })).toBeVisible()

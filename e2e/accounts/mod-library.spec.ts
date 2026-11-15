@@ -1,3 +1,4 @@
+import { finishAccountSignin } from './signin-helpers'
 import { SYNTHETIC_LIBRARY_ROOTS } from '../mod-library-fixtures'
 import { expect, test, type Page } from '@playwright/test'
 
@@ -28,7 +29,7 @@ test('account mod source reopens locally and reaches a second device with its ch
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.locator('form').filter({ has: page.getByRole('button', { name: 'Sign in', exact: true }) }).getByLabel('Remember this device', { exact: true }).check()
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+  await finishAccountSignin(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await page.evaluate(() => { window.location.hash = '#/mods' })
   await expect(page.getByRole('heading', { name: 'Mods', exact: true })).toBeVisible()
@@ -65,12 +66,11 @@ test('account mod source reopens locally and reaches a second device with its ch
     await second.getByLabel('Password', { exact: true }).fill(password)
     await second.locator('form').filter({ has: second.getByRole('button', { name: 'Sign in', exact: true }) }).getByLabel('Remember this device', { exact: true }).check()
     await second.getByRole('button', { name: 'Sign in', exact: true }).click()
-    await second.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+    await finishAccountSignin(second)
     await expect(second.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
     await second.evaluate(() => { window.location.hash = '#/mods' })
     await expect(second.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: 90_000 })
-    await expect(second.getByText('Updated data is ready')).toBeVisible()
-    await second.getByRole('button', { name: 'Load updated data' }).click()
+    await expect(second.getByText('Updated data is ready')).toHaveCount(0)
     const secondCard = second.getByRole('region', { name: 'Browser account mod' })
     await expect(secondCard).toContainText('In Reference', { timeout: 90_000 })
     await expect(second.getByText('Updated data is ready')).toHaveCount(0)
@@ -110,7 +110,7 @@ async function continueBuildImport(page: Page, cancel: boolean) {
   await expect(notes).toHaveValue('Exact unsaved notes  ')
   await expect(page.getByLabel('Context assumptions')).toHaveValue('First assumption\n\nSecond assumption  ')
   await expect(page.getByLabel('Checkpoint name', { exact: true })).toHaveValue('Unfinished checkpoint')
-  await expect(page.getByText('Unsaved changes', { exact: true })).toBeVisible()
+  await expect(page.getByTitle('Unsaved changes', { exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   if (cancel) {
     await page.getByRole('button', { name: 'Cancel and discard', exact: true }).click()
@@ -160,7 +160,7 @@ test('account picker import preserves the unsaved Build through Save and cancel'
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.locator('form').filter({ has: page.getByRole('button', { name: 'Sign in', exact: true }) }).getByLabel('Remember this device', { exact: true }).check()
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+  await finishAccountSignin(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
   await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: 90_000 })
   await continueBuildImport(page, true)

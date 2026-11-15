@@ -374,3 +374,59 @@ it.each(['native', 'managed', 'managed-projection'] as const)('atomically attach
     expect(await database.outbox.count()).toBe(1)
   } finally { fail.mockRestore(); await service.dispose() }
 })
+
+it.each(['native', 'managed'] as const)('prepares %s sign-in copy and receipt atomically before reload and confirmation', async layout => {
+  const attachments = await import('../persistence/account-activation-attachments')
+  const Dexie = (await import('dexie')).default
+  const { token, database, service } = await setup(progress('local'))
+  if (layout === 'managed') {
+    await database.delete(); await database.open()
+    const { initializeAccountWorkspace } = await import('./account-initialization')
+    const { prepareIncrementalBaseline, activateIncrementalBaseline } = await import('./account-local-mapping')
+    const fence = await initializeAccountWorkspace(database, token, workspace(createBlankLocalData({ now })))
+    await activateIncrementalBaseline(database, token, await prepareIncrementalBaseline(database, token, fence))
+  }
+  const before = await database.profileMeta.get('active')
+  const preview = await service.previewSigninMerge(token)
+  const decision = { id: 'signin-receipt:prepared-test', expected: undefined, value: { status: 'preparing', copyId: preview.copyId } }
+  const original = attachments.accountAttachmentCheck
+  const fault = vi.spyOn(attachments, 'accountAttachmentCheck').mockImplementation((...args) => {
+    const check = original(...args)
+    return check && { ...check, async installInTransaction() { await check.installInTransaction(); expect(Dexie.currentTransaction?.active).toBe(true); throw new Error('prepared receipt interruption') } }
+  })
+  try {
+    await expect(service.prepareSigninMerge(token, preview, decision)).rejects.toThrow('prepared receipt interruption')
+    fault.mockRestore()
+    expect(await database.syncState.get(decision.id)).toBeUndefined()
+    expect(await database.syncState.get(`guest-copy:${preview.copyId}`)).toBeUndefined()
+    expect(await database.syncState.get('guest-copy:pending')).toBeUndefined()
+    expect(await database.profileMeta.get('active')).toEqual(before)
+    if (layout === 'managed') {
+      const managed = await import('./managed-guest-copy')
+      const stage = managed.stageManagedGuestCopy
+      const release = vi.spyOn(attachments, 'releaseAccountActivationAttachment')
+      const cleanupFault = vi.spyOn(managed, 'stageManagedGuestCopy').mockImplementation(async (...args) => {
+        const prepared = await stage(...args)
+        return { ...prepared, async dispose() { await prepared.dispose(); throw new Error('managed cleanup interruption') } }
+      })
+      try {
+        await expect(service.prepareSigninMerge(token, preview, decision)).rejects.toThrow('managed cleanup interruption')
+        expect(release).toHaveBeenCalledOnce()
+      } finally { cleanupFault.mockRestore(); release.mockRestore() }
+    }
+    await service.prepareSigninMerge(token, preview, decision)
+    await expect(service.prepareSigninMerge(token, preview, { ...decision, value: { status: 'preparing', copyId: 'different-copy' } })).rejects.toThrow('SIGNIN_RECEIPT_MISMATCH')
+    expect(await database.profileMeta.get('active')).toEqual(before)
+    expect(await database.outbox.count()).toBe(0)
+    await service.dispose()
+    const resumed = createGuestCopyService(async () => { throw new Error('Must not recapture') })
+    try {
+      const saved = await resumed.previewSigninMerge(token, preview.copyId)
+      const row = await database.syncState.get(decision.id)
+      const completed = { ...decision, expected: row, value: { ...decision.value, status: 'complete' } }
+      const receipt = await resumed.commitGuestCopy(token, saved, completed)
+      expect(await resumed.commitGuestCopy(token, saved, completed)).toEqual(receipt)
+      expect(await database.outbox.count()).toBe(1)
+    } finally { await resumed.dispose() }
+  } finally { fault.mockRestore(); await service.dispose() }
+})

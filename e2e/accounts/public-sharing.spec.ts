@@ -1,3 +1,4 @@
+import { beginSeededAccount, mountSeededAccount } from './signin-helpers'
 import { openTeamHistory } from '../share-view-helpers'
 import { expect, test } from '@playwright/test'
 import type { LocalData } from '../../src/domain/types'
@@ -19,13 +20,9 @@ for (const account of [false, true]) test(`${account ? 'account' : 'guest'} port
     await page.request.post('/__accounts/jobs')
     const emails = await (await page.request.get('/__accounts/emails')).json() as { recipient: string; capability: string }[]
     await page.evaluate(capability => fetch('/api/v1/auth/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ capability }) }), emails.find(value => value.recipient === email)!.capability)
-    await page.goto(`${app}#/settings/account`)
-    await page.getByLabel('Email', { exact: true }).fill(email)
-    await page.getByLabel('Password', { exact: true }).fill(password)
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-    await expect(page.getByRole('button', { name: 'Open account workspace', exact: true })).toBeVisible()
+    await beginSeededAccount(page, app, email, password)
     await page.evaluate(values => (window as unknown as { accountBootstrapProof: Proof }).accountBootstrapProof.seedTeamFixture(true, values), privateValues)
-    await page.getByRole('button', { name: 'Open account workspace', exact: true }).click()
+    await mountSeededAccount(page)
   } else {
     await page.goto(`${app}#/builds/library`)
     await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()

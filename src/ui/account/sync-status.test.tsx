@@ -52,3 +52,21 @@ it.each(['unsaved', 'saving'] as const)('does not claim %s changes are durable b
   expect(container.textContent).not.toContain('Saved on this device')
   expect(container.textContent).toContain('previously saved changes')
 })
+it('paused sync opens explicit review instead of silently retrying a rejected replacement', async () => {
+  const retry = vi.fn(), review = vi.fn()
+  await act(async () => root.render(<SyncStatus localSaveState="saved" syncState="paused" onRetry={retry} onReview={review}/>))
+  const button = container.querySelector('button')!
+  expect(button.textContent).toBe('Review sync choices')
+  await act(async () => button.click())
+  expect(review).toHaveBeenCalledOnce()
+  expect(retry).not.toHaveBeenCalled()
+})
+it('paused sync retains retry for a cleared draft guard alongside replacement review', async () => {
+  const retry = vi.fn(), review = vi.fn()
+  await act(async () => root.render(<SyncStatus localSaveState="saved" syncState="paused" onRetry={retry} onReview={review}/>))
+  const button = [...container.querySelectorAll('button')].find(value => value.textContent === 'Retry')
+  expect(button).toBeDefined()
+  await act(async () => button!.click())
+  expect(retry).toHaveBeenCalledOnce()
+  expect(review).not.toHaveBeenCalled()
+})
