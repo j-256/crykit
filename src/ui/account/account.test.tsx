@@ -11,6 +11,7 @@ import * as guest from '../../workspace/guest-repository'
 import * as deviceSelection from '../../workspace/device-selection'
 import { captureEmailCapability, clearEmailCapability } from '../../account/email-capability'
 import { parseAppRoute, formatAppRoute } from '../navigation/routes'
+import type { WorkspaceRepository } from '../../workspace/repository'
 
 vi.mock('./useAccountServiceStatus', () => ({ useAccountServiceStatus: () => ({ state: 'ready', accountsAvailable: true, signupAvailable: true, retry: () => {} }) }))
 vi.mock('../../account/device-store', () => ({ listCachedProfiles: async () => [] }))
@@ -180,6 +181,30 @@ async function submitPassword(label: string, password: string) {
   input.value = password
   await act(async () => input.form!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })))
 }
+it('keeps one recovery panel through account settings changes and profile remounts', async () => {
+  connectedProfile()
+  vi.spyOn(lifecycle, 'changeProfilePassword').mockImplementation(async (_token, _password, transactionId) => {
+    throw Object.assign(new Error('CREDENTIAL_CHANGE_UNCONFIRMED'), { transactionId })
+  })
+  const repository = { kind: 'account' } as WorkspaceRepository
+  const renderAccount = async () => { await act(async () => root.render(<AccountView repository={repository} onOpenWorkspace={async () => {}} onContinueLocal={async () => {}}/>)) }
+  const expectSingleRecovery = () => {
+    expect([...container.querySelectorAll('h2')].filter(heading => heading.textContent === 'Recovery code')).toHaveLength(1)
+    expect([...container.querySelectorAll('button')].filter(button => button.textContent === 'Download recovery code')).toHaveLength(1)
+    expect(container.querySelectorAll('section[aria-label="Storage and recovery"]')).toHaveLength(1)
+  }
+  await renderAccount()
+  expectSingleRecovery()
+  await submitPassword('New password', 'original synthetic password')
+  expectSingleRecovery()
+  await leaveAccount()
+  await renderAccount()
+  expectSingleRecovery()
+  await leaveAccount()
+  connectedProfile()
+  await renderAccount()
+  expectSingleRecovery()
+})
 it('pendingPasswordSurvivesNavigationAndResumesOriginalTransaction', async () => {
   const token = connectedProfile()
   let transaction = ''

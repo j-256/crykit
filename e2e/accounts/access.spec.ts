@@ -360,6 +360,8 @@ test('screenCredentialResumeConfirmsOriginalCommandAndSeparatesLocalWriteFailure
   await page.getByLabel('Email', { exact: true }).fill(account.email)
   await page.getByLabel('Password', { exact: true }).fill(uiPassword)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await finishAccountSignin(page)
+  await page.getByRole('button', { name: 'Account', exact: true }).first().click()
   await expect(page.getByRole('heading', { name: `Signed in as ${account.username}` })).toBeVisible()
   const remount = async () => {
     await page.getByRole('button', { name: 'Builds', exact: true }).first().click()
