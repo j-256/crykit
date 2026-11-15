@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest'
 import { createHash, randomBytes } from 'node:crypto'
-import { command, customer, direct, fixture, id, post, prepared } from './testing'
+import { command, customer, direct, fixture, id, loginCustomer, post, prepared } from './testing'
 import type { RevisionDescriptor } from '../../src/account/protocol'
+import { RECOVERY_RETENTION_MS } from '../../src/account/recovery-protocol'
 
 function snapshot(accountId: string) {
   const bytes = randomBytes(33)
@@ -269,6 +270,52 @@ it('supersessionCannotRetireAnAcceptedOldBinding',async()=>{
   expect((await post(f,`sync/recoveries/${next.input.operationId}/bind`,{version:1,operationId:next.input.operationId,publication},signed.headers)).status).toBe(200)
   expect((await post(f,`sync/recoveries/${old.input.operationId}/supersede`,{version:1,operationId:old.input.operationId,mutationId:first.mutationId,successorOperationId:next.input.operationId,successorMutationId:publication.mutationId},signed.headers)).status).toBe(409)
   expect(await f.db.prepare('SELECT COUNT(*) n FROM account_recoveries').first('n')).toBe(2)
+})
+
+it.each(([1, 2] as const).flatMap(version => [-1, 0, 1].map(deadlineOffset => ({ version, deadlineOffset }))))('accepted successor retention fences version $version at deadline offset $deadlineOffset', async ({ version, deadlineOffset }) => {
+  const f = await fixture(), signed = await customer(f), old = await sealed(f, signed), target = await prepared(f, signed)
+  const oldPublication = { ...command([target.descriptor]), expectedPublicationEpoch: 0, recoveryOperationId: old.input.operationId }
+  if (version === 1) expect((await post(f, `sync/recoveries/${old.input.operationId}/bind`, { version: 1, operationId: old.input.operationId, publication: oldPublication }, signed.headers)).status).toBe(200)
+  const intervening = await prepared(f, signed)
+  expect((await post(f, 'sync/commits', command([intervening.descriptor]), signed.headers)).status).toBe(200)
+  const next = await sealed(f, signed)
+  const publication = { ...oldPublication, mutationId: id(), expectedPublicationEpoch: 1, recoveryOperationId: next.input.operationId }
+  expect((await post(f, `sync/recoveries/${next.input.operationId}/bind`, { version: 1, operationId: next.input.operationId, publication }, signed.headers)).status).toBe(200)
+  expect((await post(f, 'sync/commits', publication, signed.headers)).status).toBe(200)
+  const accepted = await f.db.prepare('SELECT state,sealed,mutation_id,binding_json,accepted_at,completed_at,expires_at FROM account_recoveries WHERE account_id=? AND operation_id=?').bind(signed.accountId, next.input.operationId).first<{ accepted_at: number; binding_json: string }>()
+  // Leave completion pending so only accepted_at can establish the successor's retention deadline
+  expect(accepted).toEqual({ state: 'pending', sealed: 1, mutation_id: publication.mutationId, binding_json: expect.any(String), accepted_at: (await direct(f, signed)).context.now(), completed_at: null, expires_at: null })
+  expect(JSON.parse(accepted!.binding_json)).toMatchObject({ mutationId: publication.mutationId, expectedPublicationEpoch: 1, expected: publication.expected, heads: publication.heads })
+  const ownership = async () => ({
+    point: await f.db.prepare('SELECT * FROM account_recoveries WHERE account_id=? AND operation_id=?').bind(signed.accountId, old.input.operationId).first(),
+    revisions: (await f.db.prepare('SELECT * FROM recovery_revisions WHERE account_id=? AND operation_id=?').bind(signed.accountId, old.input.operationId).all()).results,
+    generations: (await f.db.prepare('SELECT g.* FROM storage_generations g JOIN recovery_revisions r ON r.generation=g.id WHERE r.account_id=? AND r.operation_id=?').bind(signed.accountId, old.input.operationId).all()).results,
+  })
+  const before = await ownership()
+  expect(before.point).toMatchObject({ state: 'pending', sealed: 1, mutation_id: version === 1 ? oldPublication.mutationId : null, binding_json: version === 1 ? expect.any(String) : null, accepted_at: null })
+  if (version === 1) expect(JSON.parse(before.point!.binding_json as string)).toMatchObject({ mutationId: oldPublication.mutationId, expectedPublicationEpoch: 0, expected: oldPublication.expected, heads: oldPublication.heads })
+  expect(before.revisions).toHaveLength(1)
+  expect(before.generations).toHaveLength(1)
+  f.advance(RECOVERY_RETENTION_MS + deadlineOffset)
+  // Remembered sessions expire before this boundary; renew auth so rejection proves the retention guard
+  const fresh = await loginCustomer(f)
+  expect(await f.db.prepare('SELECT MAX(authenticated_at) FROM customer_sessions WHERE account_id=?').bind(signed.accountId).first('MAX(authenticated_at)')).toBe(accepted!.accepted_at + RECOVERY_RETENTION_MS + deadlineOffset)
+  const input = { operationId: old.input.operationId, successorOperationId: next.input.operationId, successorMutationId: publication.mutationId, ...(version === 1 ? { version: 1, mutationId: oldPublication.mutationId } : { version: 2, predecessor: { kind: 'sealed-unbound' } }) }
+  const response = await post(f, `sync/recoveries/${old.input.operationId}/supersede`, input, fresh.headers)
+  if (deadlineOffset < 0) {
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ version: 1, operationId: input.operationId, successorOperationId: input.successorOperationId, successorMutationId: input.successorMutationId })
+    expect((await ownership()).point).toBeNull()
+    expect(await f.db.prepare('SELECT successor_operation_id,successor_mutation_id FROM superseded_recoveries WHERE account_id=? AND operation_id=?').bind(signed.accountId, old.input.operationId).first()).toEqual({ successor_operation_id: next.input.operationId, successor_mutation_id: publication.mutationId })
+  } else {
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ error: { code: 'HEAD_CONFLICT' } })
+    expect(await ownership()).toEqual(before)
+    expect(await f.db.prepare('SELECT * FROM superseded_recoveries WHERE account_id=? AND operation_id=?').bind(signed.accountId, old.input.operationId).first()).toBeNull()
+    const ciphertext = await f.request(`/api/v1/sync/recoveries/${old.input.operationId}/revisions/${old.descriptor.revisionId}/chunks/0`, { headers: fresh.headers })
+    expect(ciphertext.status).toBe(200)
+    expect(Buffer.from(await ciphertext.arrayBuffer())).toEqual(old.bytes)
+  }
 })
 
 it('aFreshDeviceCanCompleteTheAcceptedBindingAfterTheOriginalClientLosesItsResponse',async()=>{
