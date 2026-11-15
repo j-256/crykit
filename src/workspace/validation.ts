@@ -11,12 +11,17 @@ export function validateWorkspace(state: WorkspaceState): void {
   const exactFields = (value: object, fields: readonly string[]) => { const keys = Object.keys(value); if (keys.length !== fields.length || keys.some(key => !fields.includes(key))) throw new Error('Unknown or missing workspace container fields') }
   exactFields(state, ['planner', 'editorDocuments', 'saveDocuments', 'assets', 'libraryDefaults', 'conflicts', 'retainedContent', 'blobs'])
   exactFields(state.planner, ['localData', 'lineage', 'catalogs', 'evidence', 'sources', 'history', ...(state.planner.savedChanges ? ['savedChanges'] : []), ...(state.planner.journal ? ['journal'] : [])])
+  if (!Array.isArray(state.planner.catalogs)) throw new Error('Invalid planner catalog collection')
+  // Pin membership for this pass without freezing the caller's mutable collection
+  // Admit every member before journal checks so endpoint validation can share its checked catalog lookup
+  const catalogs = Object.isFrozen(state.planner.catalogs) ? state.planner.catalogs : Object.freeze([...state.planner.catalogs])
+  for (const catalog of catalogs) immutableCatalogSnapshot(catalog)
   if (state.planner.journal) {
     const { checkpoints, ...header } = state.planner.journal
     PlannerJournalSchema.omit({ checkpoints: true }).parse(header)
     if (!Array.isArray(checkpoints)) throw new Error('Invalid planner checkpoint collection')
     if (JSON.stringify(state.planner.journal.changes) !== JSON.stringify(state.planner.localData.changes)) throw new Error('Operative planner changes differ from journal')
-    for (const entry of checkpoints) { immutableHistory(entry); validateHistoryEndpoint(entry.before, state.planner.catalogs); validateHistoryEndpoint(entry.after, state.planner.catalogs) }
+    for (const entry of checkpoints) { immutableHistory(entry); validateHistoryEndpoint(entry.before, catalogs); validateHistoryEndpoint(entry.after, catalogs) }
   }
   if (state.planner.savedChanges) {
     if (new Set(state.planner.savedChanges.map(value => value.id)).size !== state.planner.savedChanges.length) throw new Error('Duplicate saved planner change')
@@ -28,12 +33,11 @@ export function validateWorkspace(state: WorkspaceState): void {
     const identities = new Set<string>()
     for (const value of state.planner[field]) { const key = JSON.stringify([value.id, ...('revisionId' in value ? [value.revisionId] : [])]); if (identities.has(key)) throw new Error('Duplicate planner identity'); identities.add(key) }
   }
-  for (const catalog of state.planner.catalogs) immutableCatalogSnapshot(catalog)
   for (const evidence of state.planner.evidence) NativeEvidenceSchema.parse(evidence)
   for (const history of state.planner.history) {
     immutableHistory(history)
-    validateHistoryEndpoint(history.before, state.planner.catalogs)
-    validateHistoryEndpoint(history.after, state.planner.catalogs)
+    validateHistoryEndpoint(history.before, catalogs)
+    validateHistoryEndpoint(history.after, catalogs)
   }
   for (const source of state.planner.sources) { const { original, ...metadata } = source; NativeSourceManifestSchema.omit({ path: true, size: true }).parse(metadata); WorkspaceBlobRefSchema.parse(original) }
   LibraryDefaultsSchema.parse(state.libraryDefaults)
@@ -41,7 +45,7 @@ export function validateWorkspace(state: WorkspaceState): void {
     const ids = new Set<string>()
     for (const value of values) { schema.parse(value); if (ids.has(value.id)) throw new Error('Duplicate workspace identity'); ids.add(value.id) }
   }
-  validateHistoryEndpoint(state.planner.localData, state.planner.catalogs)
+  validateHistoryEndpoint(state.planner.localData, catalogs)
   if (!Array.isArray(state.conflicts) || !Array.isArray(state.retainedContent) || state.libraryDefaults.version !== 1) throw new Error('Unsupported workspace version')
   const refs = new Map<string, WorkspaceBlobRef>()
   for (const { ref, content } of state.blobs) {

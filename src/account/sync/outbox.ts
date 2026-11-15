@@ -209,10 +209,12 @@ export function registerSyncProjectionGuard(token: ProfileToken, mayReplace: () 
 export async function runSyncIteration(token: ProfileToken, signal: AbortSignal): Promise<import('./scheduler').SyncOutcome> {
   const { AccountDatabase } = await import('../../persistence/account-database')
   const { stagePull, activatePulledState, readRemoteState, readRemoteHeads, RemoteStateSchema } = await import('./pull')
-  const { openRemoteProjection, readPublicationPages, assertProjectionAdvance, assertProjectionSuccessor } = await import('./projection')
+  const { captureRemoteProjection, openRemoteProjection, readPublicationPages, assertProjectionAdvance, assertProjectionSuccessor } = await import('./projection')
   const { preparePublicationAttempt, stagePublicationPages, publicationPageSchema } = await import('./publication')
   const client = new SyncClient(token, signal), database = new AccountDatabase(token.accountId), budget = transferBudget()
   let localRead: ReturnType<typeof captureAccountSyncWorkspace> | undefined
+  let remoteCapture: Awaited<ReturnType<typeof captureRemoteProjection>> | undefined
+  let nextRemoteCapture: Awaited<ReturnType<typeof captureRemoteProjection>> | undefined
   let managedProjection: Awaited<ReturnType<typeof prepareManagedAccountProjection>> | undefined
   let evidenceUnion: Awaited<ReturnType<typeof import('../../workspace/account-evidence-union').prepareAccountEvidenceUnion>> | undefined
   const commandEntry = z.strictObject({ mutationId: z.string(), ref: z.strictObject({ documentId: z.string(), revisionId: z.string() }) })
@@ -284,14 +286,20 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
     }
     if (reviewed?.value.state === 'active' && operation?.value.accepted) reviewed = await completeReviewedPublication(database, token, reviewed)
     const previousRemote = await readRemoteState(database, token)
-    let remote: Awaited<ReturnType<typeof openRemoteProjection>> = null
+    let remote: import('./projection').RemoteProjection | null = null
     const candidate = await stagePull(database, token, client, async heads => {
-      const local = await captureLocal(), next = await openRemoteProjection(database, token, heads, local.workspace.head, local.operativePlanner.localData.revision, local.validatedEvidence)
+      const local = await captureLocal()
+      nextRemoteCapture = await captureRemoteProjection(database, token, heads, local.workspace.head, local.operativePlanner.localData.revision, local.validatedEvidence, local.publicationValidatedEvidence)
+      const next = nextRemoteCapture.projection
       // Establish the persisted floor once per call, including the reconstructed predecessor on resume
       // Every subsequent group advances that validated predecessor transitively; downloads alone never establish authority
       if (!remote) await assertProjectionAdvance(database, token, next, previousRemote?.value.effective)
       // Every indivisible group must advance the preceding validated group, including within one downloaded page
       await assertProjectionSuccessor(database, token, next, remote)
+      // Keep only the selected predecessor and the next admission until successor checks finish
+      // Failed checks or retirement leave both owners reachable by the iteration's cleanup
+      await remoteCapture?.dispose()
+      remoteCapture = nextRemoteCapture; nextRemoteCapture = undefined
       remote = next
     }, budget)
     if (!candidate) return { state: 'syncing', moreWork: true }
@@ -301,8 +309,10 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
     }
     const local = await captureLocal()
     // The validator callback has completed before the candidate can be returned
-    const projection = remote as Awaited<ReturnType<typeof openRemoteProjection>>
+    const projection = remote as import('./projection').RemoteProjection | null
     const localEvidence = local.inheritedEvidence, remoteEvidence = projection?.inheritedEvidence
+    // Only this iteration's exact mapped, full-publication, or selected remote root can carry borrowed authority
+    const capturedEvidence = (ref: CipherRef | undefined) => ref ? [local.validatedEvidence, local.publicationValidatedEvidence, remoteCapture?.validatedEvidence].find(proof => proof?.root.documentId === ref.documentId && proof.root.revisionId === ref.revisionId) : undefined
     let chosenEvidence: import('../../persistence/account-database').CipherRef | undefined
     const chooseEvidence = async () => {
       if (chosenEvidence) return chosenEvidence
@@ -310,8 +320,8 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
       const { accountEvidenceContains, prepareAccountEvidenceUnion } = await import('../../workspace/account-evidence-union')
       // Independently encrypted equivalent archives must not cause reciprocal publication churn
       // Authenticated remote containment wins; only additional local members require publication
-      if (await accountEvidenceContains(database, token, remoteEvidence, localEvidence)) return chosenEvidence = remoteEvidence
-      if (await accountEvidenceContains(database, token, localEvidence, remoteEvidence)) return chosenEvidence = localEvidence
+      if (await accountEvidenceContains(database, token, capturedEvidence(remoteEvidence) ?? remoteEvidence, capturedEvidence(localEvidence) ?? localEvidence)) return chosenEvidence = remoteEvidence
+      if (await accountEvidenceContains(database, token, capturedEvidence(localEvidence) ?? localEvidence, capturedEvidence(remoteEvidence) ?? remoteEvidence)) return chosenEvidence = localEvidence
       evidenceUnion = await prepareAccountEvidenceUnion(database, token, localEvidence, remoteEvidence)
       return chosenEvidence = evidenceUnion.prepared.root
     }
@@ -357,7 +367,7 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
     const needsEvidenceSelection = remaining.length === 0 && JSON.stringify(selectedEvidence) !== JSON.stringify(projectionBase.inheritedEvidence)
     const prepared = state !== local.workspace.state || needsEvidenceSelection || needsEvidencePublication
       ? evidenceUnion ? await (await import('../../workspace/account-graph')).prepareAccountWorkspaceWithEvidence(database, token, state, evidenceUnion.prepared, projectionBase)
-        : selectedEvidence && (needsEvidenceSelection || needsEvidencePublication) ? await (await import('../../workspace/account-graph')).prepareAccountWorkspaceWithExistingEvidence(database, token, state, selectedEvidence, projectionBase)
+        : selectedEvidence && (needsEvidenceSelection || needsEvidencePublication) ? await (await import('../../workspace/account-graph')).prepareAccountWorkspaceWithExistingEvidence(database, token, state, capturedEvidence(selectedEvidence) ?? selectedEvidence, projectionBase, undefined, undefined, capturedEvidence(projectionBase.inheritedEvidence))
           : await prepareAccountWorkspace(database, token, state, projectionBase)
       : undefined
     let newEvidenceIntent: { readonly id: string; readonly ref: CipherRef; readonly records: readonly CipherRecord[] } | undefined
@@ -379,7 +389,18 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
     assertMayActivate()
     const bindingPages = publicationPageSchema(z.strictObject({ body: z.strictObject({ documentId: z.string(), revisionId: z.string() }), publication: z.strictObject({ documentId: z.string(), revisionId: z.string() }) }), 'local-publication-bindings')
     const acceptedBindings = operation?.value.accepted ? await readPublicationPages(database, token, operation.value.bindings, bindingPages, entry => [entry.body, entry.publication]) : []
-    if (prepared && local.managed) managedProjection = await prepareManagedAccountProjection(database, token, local.fence, prepared, newEvidenceIntent)
+    if (prepared && local.managed) {
+      let native = prepared
+      const proof = remoteCapture?.validatedEvidence
+      if (!native.validatedEvidence && proof) {
+        const { assertAccountInheritedEvidenceOwner } = await import('../../workspace/account-evidence-snapshots')
+        await assertAccountInheritedEvidenceOwner(proof, database, token)
+        // Ordinary graph preparation preserves the archive edge but carries no reader authority
+        // Borrow only its exact admitted root, keeping any existing preparation-owned proof intact
+        if (proof.root.documentId === native.opened.inheritedEvidence?.documentId && proof.root.revisionId === native.opened.inheritedEvidence.revisionId) native = { ...native, validatedEvidence: proof }
+      }
+      managedProjection = await prepareManagedAccountProjection(database, token, local.fence, native, newEvidenceIntent)
+    }
     await activatePulledState(database, token, committedCandidate, local.fence, prepared, completedRow && operation ? { intent: completedRow, publication: operation.row } : undefined, operation?.value.accepted && !completedRow ? operation.row : undefined, assertMayActivate, acceptedBindings.map(entry => entry.body.revisionId), newEvidenceIntent, managedProjection?.prepared, reviewed?.row)
     if (prepared && typeof window !== 'undefined') window.dispatchEvent(new Event('crykit-account-sync-applied'))
     if (needsEvidencePublication) return { state: 'syncing', moreWork: true }
@@ -550,9 +571,9 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
     let publicationTarget = convergence?.target ?? target
     if (first && projection && selectedEvidence && JSON.stringify(publicationTarget.inheritedEvidence) !== JSON.stringify(selectedEvidence)) {
       const { openAccountWorkspace, prepareAccountWorkspaceWithEvidence, prepareAccountWorkspaceWithExistingEvidence } = await import('../../workspace/account-graph')
-      const merged = evidenceUnion ? await prepareAccountWorkspaceWithEvidence(database, token, publicationTarget.state, evidenceUnion.prepared, publicationTarget) : await prepareAccountWorkspaceWithExistingEvidence(database, token, publicationTarget.state, selectedEvidence, publicationTarget)
+      const merged = evidenceUnion ? await prepareAccountWorkspaceWithEvidence(database, token, publicationTarget.state, evidenceUnion.prepared, publicationTarget) : await prepareAccountWorkspaceWithExistingEvidence(database, token, publicationTarget.state, capturedEvidence(selectedEvidence) ?? selectedEvidence, publicationTarget, undefined, undefined, capturedEvidence(publicationTarget.inheritedEvidence))
       await database.transaction('rw', database.encryptedRevisions, async () => { assertActiveProfile(token); await database.encryptedRevisions.bulkAdd(merged.records); assertActiveProfile(token) })
-      publicationTarget = await openAccountWorkspace(database, token, merged.head)
+      publicationTarget = await openAccountWorkspace(database, token, merged.head, merged.validatedEvidence)
     }
     const attempt = await preparePublicationAttempt(database, token, publicationTarget, projection, candidate.heads, candidate.state.publicationEpoch, installingLineages ? [] : publicationChanges, first?.value.mode, capturedLineage ? { lineageId: convergence ? projection!.lineageId : capturedLineage, parents: publicationParents } : undefined, installingLineages ? { installLineages: true } : convergence ? { authorities: convergence.authorities, resolutionParents, mappingResolutions, initialTombstones: convergence.initialTombstones } : undefined)
 
@@ -580,9 +601,15 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
     return { state: 'syncing', moreWork: true }
   } finally {
     try {
+      const failures: unknown[] = []
+      // Remote readers can borrow staged/local views, so retire them before stores and the database
+      // Attempt every owner even when one release fails; capture disposers remain retryable
+      for (const captured of [nextRemoteCapture, remoteCapture]) {
+        try { await captured?.dispose() } catch (error) { failures.push(error) }
+      }
       const captured = localRead ? await localRead.catch(() => undefined) : undefined
       const cleanup = await Promise.allSettled([managedProjection?.dispose(), evidenceUnion?.dispose(), captured?.dispose()])
-      const failures = cleanup.flatMap(result => result.status === 'rejected' ? [result.reason] : [])
+      failures.push(...cleanup.flatMap(result => result.status === 'rejected' ? [result.reason] : []))
       if (failures.length) throw new AggregateError(failures, 'Account sync capture cleanup failed')
     } finally { database.close() }
   }

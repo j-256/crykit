@@ -1,10 +1,14 @@
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
-import { expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
+import { BackupJsonReader } from './workspace-backup-json'
+import * as snapshots from '../workspace/snapshot'
 import * as evidence from './workspace-backup-evidence'
 import { editorClosureFixture } from '../workspace/test-helpers'
 import { assertWorkspaceSnapshotCurrent, disposeWorkspaceSnapshot, openHistoricalSnapshot, ownWorkspaceSnapshot, projectWorkspaceSnapshotV1, snapshotMetadata, type WorkspaceSnapshotV1 } from '../workspace/snapshot'
 import { exportWorkspaceBackup, readWorkspaceBackup } from './workspace-backup'
+
+afterEach(() => vi.restoreAllMocks())
 
 async function fixture() {
   const { state } = await editorClosureFixture()
@@ -96,4 +100,67 @@ it('rejects same-identity full-ref conflicts and cancellation without disposing 
   await assertWorkspaceSnapshotCurrent(current)
   expect(disposed).toBe(false)
   await disposeWorkspaceSnapshot(current)
+})
+
+it('decodes and validates one historical member at a time, with fresh later readers and imports', async () => {
+  const source = await fixture(), first = await inherited(source), second = await inherited({ ...source, snapshotId: 'other' })
+  const current = ownWorkspaceSnapshot({ ...source, snapshotId: 'current' }, { async check() {}, async dispose() {} })
+  const finish = BackupJsonReader.prototype.finish, validate = snapshots.validateWorkspaceSnapshotV1
+  const events: string[] = []
+  vi.spyOn(BackupJsonReader.prototype, 'finish').mockImplementation(function (this: BackupJsonReader) {
+    const value = finish.call(this) as { snapshotId?: string }
+    if (value.snapshotId === 'source' || value.snapshotId === 'other') events.push(`decode:${value.snapshotId}`)
+    return value
+  })
+  vi.spyOn(snapshots, 'validateWorkspaceSnapshotV1').mockImplementation(async (...args) => {
+    if (args[0].snapshotId === 'source' || args[0].snapshotId === 'other') events.push(`validate:${args[0].snapshotId}`)
+    return validate(...args)
+  })
+  const joined = await evidence.joinWorkspaceSnapshotEvidence(current, { members: [...first.members, ...second.members], bodies: first.bodies })
+  try {
+    expect(events).toHaveLength(4)
+    for (let index = 0; index < events.length; index += 2) expect(events[index + 1]).toBe(events[index].replace('decode:', 'validate:'))
+    events.length = 0
+    const child = await openHistoricalSnapshot(joined, first.members[0].id)
+    await disposeWorkspaceSnapshot(child)
+    expect(events).toEqual(['decode:source', 'validate:source'])
+    const bytes: Uint8Array[] = []
+    for await (const chunk of exportWorkspaceBackup(joined)) bytes.push(chunk)
+    events.length = 0
+    const imported = await readWorkspaceBackup((async function* () { yield* bytes })())
+    await disposeWorkspaceSnapshot(imported)
+    expect(new Set(events.filter(value => value.startsWith('decode:')))).toEqual(new Set(['decode:other', 'decode:source']))
+    expect(events.filter(value => value.startsWith('validate:')).sort()).toEqual(['validate:other', 'validate:source'])
+  } finally { await disposeWorkspaceSnapshot(joined) }
+})
+
+it('validates every duplicate member subset without retaining duplicate decoded metadata', async () => {
+  const source = await fixture(), history = await inherited(source)
+  let disposed = false
+  const current = ownWorkspaceSnapshot(source, { async check() { if (disposed) throw new Error('disposed') }, async dispose() { disposed = true } })
+  const member = history.members[0]
+  for (const subset of [[], [...member.subset, member.subset[0]], member.subset.map((ref, index) => index ? ref : { ...ref, encoding: 'utf8' as const })]) {
+    await expect(evidence.joinWorkspaceSnapshotEvidence(current, { ...history, members: [member, { ...member, subset }] })).rejects.toThrow(/subset/i)
+    expect(disposed).toBe(false)
+  }
+  const joined = await evidence.joinWorkspaceSnapshotEvidence(current, { ...history, members: [member, member] })
+  try { expect(joined.historicalEvidence.snapshots).toHaveLength(1) }
+  finally { await disposeWorkspaceSnapshot(joined) }
+})
+
+it('detaches source subset and body constraints before an awaited owner check', async () => {
+  const source = await fixture(), history = await inherited(source)
+  const bodies = [...history.bodies]
+  let release!: () => void, entered!: () => void, first = true
+  const held = new Promise<void>(resolve => { release = resolve }), checking = new Promise<void>(resolve => { entered = resolve })
+  const current = ownWorkspaceSnapshot(source, { async check() { if (first) { first = false; entered(); await held } }, async dispose() {} })
+  const pending = evidence.joinWorkspaceSnapshotEvidence(current, { ...history, bodies })
+  try {
+    await checking
+    history.members[0].subset = []
+    bodies[0] = { ...bodies[0], ref: { ...bodies[0].ref, sha256: '0'.repeat(64) } }
+  } finally { release() }
+  const joined = await pending
+  try { expect(joined.historicalEvidence.snapshots).toEqual([{ id: history.members[0].id }]) }
+  finally { await disposeWorkspaceSnapshot(joined) }
 })
