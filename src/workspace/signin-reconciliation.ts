@@ -13,7 +13,7 @@ import { createGuestCopyService, type GuestCopyPreview } from './guest-copy'
 import { GuestCopyJournalSchema, PENDING_COPY, SAVED_COPY_PREFIX } from './guest-copy-journal'
 import { captureWorkspaceDocuments, privateRecordKey, type WorkspaceState } from './documents'
 import { classifySigninLocalData, type SigninLocalSummary } from './signin-local-data'
-import { createReviewedReplacementService, stableWorkspaceSnapshotIdentity, type ReviewedAccountData, type ReviewedReplacement, type StableWorkspaceSnapshotIdentity } from './reviewed-replacement'
+import { assertReviewedDecisionActivation, createReviewedReplacementService, stableWorkspaceSnapshotIdentity, type ReviewedAccountData, type ReviewedReplacement, type StableWorkspaceSnapshotIdentity } from './reviewed-replacement'
 import { createAccountRecoveryService } from './account-recovery'
 import { captureAccountSyncWorkspace } from './account-sync-capture'
 import { captureAccountSnapshot } from './account-snapshot'
@@ -275,8 +275,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       const preview = await copy.previewSigninMerge(token, saved.value.copyId)
       await copy.commitGuestCopy(token, preview, { id: decisionKey, expected: saved.row, value: saved.value })
     } else if (saved.value.action !== 'account') {
-      const replacement = await service().status()
-      if (replacement?.operationId !== saved.value.operationId) throw new Error('SIGNIN_RECEIPT_MISMATCH')
+      await assertReviewedDecisionActivation(database!, token, saved.row, saved.value)
     }
   }
   async function inspect() {

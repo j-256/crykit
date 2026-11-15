@@ -2,11 +2,13 @@ import 'fake-indexeddb/auto'
 import { afterEach, expect, it, vi } from 'vitest'
 import { conflictService } from './sync-conflict-fixture'
 import { prepareManagedSync } from './managed-sync.test-helpers'
-import { runSyncIteration } from '../account/sync/outbox'
+import { runSyncIteration, registerSyncProjectionGuard } from '../account/sync/outbox'
 import { createBlankLocalData } from '../domain/local-data'
 import { workspace, progress, now } from '../workspace/signin-merge.test-helpers'
 import { ownWorkspaceSnapshot, type WorkspaceSnapshot } from '../workspace/snapshot'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
+import { createAccountRecoveryService } from '../workspace/account-recovery'
+import { createReviewedReplacementService } from '../workspace/reviewed-replacement'
 import * as reconciliation from '../workspace/signin-reconciliation'
 
 let service: Awaited<ReturnType<typeof conflictService>> | undefined
@@ -521,4 +523,128 @@ it.each(['pending', 'complete', 'cancelled', 'mismatched', 'ambiguous', 'manual'
     expect(await database.outbox.toArray()).toEqual(intent)
     expect(await reconciliation.readPendingRecoveryEntry(token)).toBeUndefined()
   }
+})
+
+it('opens the unchanged guest decision after a separate recovery replacement', async () => {
+  const service = await conflictService()
+  const owners: ReturnType<typeof reconciliation.createSigninReconciliation>[] = []
+  let unregister: (() => void) | undefined
+  try {
+    const device = await service.device(0, workspace(createBlankLocalData({ now })))
+    vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }))
+    vi.stubGlobal('window', new EventTarget()); vi.stubGlobal('navigator', { onLine: true })
+    const guest = progress('guest')
+    const create = (pointId?: string) => {
+      const owner = reconciliation.createSigninReconciliation({
+        ...(pointId ? {entry: {kind: 'recovery' as const, pointId}, admittedOffline: true} : {}),
+        captureGuest: async () => ({ snapshot: pointId ? await createAccountRecoveryService(device.token).capture(pointId) : ownWorkspaceSnapshot({version: 1, dataGeneration: LAUNCH_DATA_GENERATION, snapshotId: crypto.randomUUID(), capturedAt: now, revisionVector: { guest: 'same-instance', managedRevision: '1' }, state: guest}, {async check() {}, async dispose() {}})}),
+        run: async (token, signal) => { await prepareManagedSync(device.db, token); return runSyncIteration(token, signal) },
+        openAccount: async () => {}, continueLocal: async () => {},
+      })
+      owners.push(owner); return owner
+    }
+    const first = create(); await first.begin(device.token); await first.choose('device'); await first.confirm()
+    expect(first.getSnapshot().phase).toBe('complete'); await first.dispose()
+    const originalReceipt = await device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)
+    unregister = registerSyncProjectionGuard(device.token, () => true)
+    await device.settle(); unregister(); unregister = undefined
+    const original = await createReviewedReplacementService(device.db, device.token).status()
+    expect(original?.state).toBe('accepted')
+    const recovery = create(original!.recoveryOperationId)
+    await recovery.begin(device.token); expect(recovery.getSnapshot().phase).toBe('choosing')
+    await recovery.choose('device'); await recovery.confirm()
+    expect(recovery.getSnapshot().phase).toBe('complete'); await recovery.dispose()
+    expect(await device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toEqual(originalReceipt)
+    const replacement = await createReviewedReplacementService(device.db, device.token).status()
+    expect(replacement!.operationId).not.toBe(original!.operationId)
+    const again = create(); await again.begin(device.token)
+    expect(again.getSnapshot().phase).toBe('complete')
+    await again.dispose()
+    const fence = await device.db.profileMeta.get('active'), intents = await device.db.outbox.toArray()
+    vi.stubGlobal('navigator', { onLine: false })
+    const offline = create(); await offline.begin(device.token)
+    expect(offline.getSnapshot().phase).toBe('complete')
+    expect(await device.db.profileMeta.get('active')).toEqual(fence)
+    expect(await device.db.outbox.toArray()).toEqual(intents)
+    expect(await device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toEqual(originalReceipt)
+  } finally { unregister?.(); for (const owner of owners) await owner.dispose(); await service.dispose(); vi.restoreAllMocks() }
+})
+
+it('settles a lost completion acknowledgment after eligible recovery retirement', async () => {
+  const service = await conflictService()
+  const owners: ReturnType<typeof reconciliation.createSigninReconciliation>[] = []
+  let unregister: (() => void) | undefined
+  try {
+    const device = await service.device(0, workspace(createBlankLocalData({ now })))
+    vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }))
+    vi.stubGlobal('window', new EventTarget()); vi.stubGlobal('navigator', { onLine: true })
+    const owner = reconciliation.createSigninReconciliation({
+      captureGuest: async () => ({snapshot: ownWorkspaceSnapshot({version: 1, dataGeneration: LAUNCH_DATA_GENERATION, snapshotId: 'replacement', capturedAt: now, revisionVector: {guest: 'source'}, state: progress('guest')}, {async check() {}, async dispose() {}})}),
+      run: async (token, signal) => { await prepareManagedSync(device.db, token); return runSyncIteration(token, signal) },
+      openAccount: async () => {}, continueLocal: async () => {},
+    })
+    owners.push(owner)
+    await owner.begin(device.token); await owner.choose('device'); await owner.confirm()
+    expect(owner.getSnapshot().phase).toBe('complete'); await owner.dispose()
+    unregister = registerSyncProjectionGuard(device.token, () => true)
+    const originalFetch = globalThis.fetch
+    let lost = false
+    vi.stubGlobal('fetch', async (path: string, init: RequestInit) => {
+      const response = await originalFetch(path, init)
+      if (path.endsWith('/complete') && response.ok && !lost) { lost = true; throw new TypeError('lost completion acknowledgment') }
+      return response
+    })
+    await expect(device.settle()).rejects.toThrow('lost completion acknowledgment')
+    vi.stubGlobal('fetch', originalFetch)
+    const authority = (await createReviewedReplacementService(device.db, device.token).status())!
+    expect(authority.state).toBe('active')
+    const { SyncClient } = await import('../account/sync/client')
+    const client = new SyncClient(device.token, new AbortController().signal)
+    const point = (await client.listRecoveries()).points.find(point => point.operationId === authority.recoveryOperationId)!
+    expect(point.state).toBe('completed')
+    expect(await client.receipt(authority.final!.mutationId)).toBeTruthy()
+    expect((await client.removeRecovery(point.operationId)).state).not.toBe('blocked')
+    expect((await client.recoveryOperationStatus(point.operationId)).status).toBe('retired')
+    let error: unknown
+    try { await device.settle() } catch (caught) { error = caught }
+    expect(error).toBeUndefined()
+    expect((await createReviewedReplacementService(device.db, device.token).status())?.state).toBe('accepted')
+    expect(await device.db.outbox.count()).toBe(0)
+    expect((await client.listRecoveries()).points).toEqual([])
+    expect((await client.recoveryOperationStatus(point.operationId)).status).toBe('retired')
+  } finally { unregister?.(); for (const owner of owners) await owner.dispose(); await service.dispose(); vi.restoreAllMocks() }
+})
+
+it.each(['missing-preparation', 'missing-journal', 'ambiguous-journal', 'journal-revision', 'operation', 'source', 'head', 'receipt-head', 'unactivated', 'foreign-account', 'altered-ciphertext'] as const)('completed device decision rejects %s proof without reopening or reimporting', async mode => {
+  const fixture = await setup(), first = fixture.create()
+  await first.begin(fixture.device.token); await first.choose('device'); await first.confirm(); await first.dispose()
+  const { device } = fixture, authority = (await createReviewedReplacementService(device.db, device.token).status())!
+  const { openAccountJson, accountLocalId } = await import('../workspace/account-cache')
+  const { writeSyncState } = await import('../account/sync/outbox')
+  const { z } = await import('zod')
+  const key = `reviewed-preparation:${authority.operationId}`, row = (await device.db.syncState.get(key))!
+  const preparation = await openAccountJson(device.db, device.token, row.ref, z.record(z.string(), z.unknown()))
+  const record = (await device.db.encryptedRevisions.get(row.ref.revisionId))!
+  const receipt = (await device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY))!
+  const decision = await openAccountJson(device.db, device.token, receipt.ref, reconciliation.SigninDecisionSchema)
+  if (mode === 'missing-preparation') await device.db.syncState.delete(key)
+  if (mode === 'missing-journal') await device.db.migrationJournal.delete(authority.intentId)
+  if (mode === 'ambiguous-journal') await device.db.migrationJournal.add({ ...(await device.db.migrationJournal.get(authority.intentId))!, id: accountLocalId() })
+  if (mode === 'journal-revision') await device.db.migrationJournal.update(authority.intentId, { headRevision: 0 })
+  if (mode === 'operation') await writeSyncState(device.db, device.token, key, { ...preparation, operationId: accountLocalId() }, row, record.descriptor.dependencies)
+  if (mode === 'source') await writeSyncState(device.db, device.token, key, { ...preparation, sourceIdentity: 'changed' }, row, record.descriptor.dependencies)
+  if (mode === 'unactivated') await writeSyncState(device.db, device.token, key, { ...preparation, state: 'sealed' }, row, record.descriptor.dependencies)
+  if (mode === 'head') await writeSyncState(device.db, device.token, key, preparation, row, [authority.reviewedHeadRoot])
+  if (mode === 'receipt-head') await writeSyncState(device.db, device.token, receipt.id, decision, receipt, [authority.reviewedHeadRoot])
+  if (mode === 'foreign-account') await writeSyncState(device.db, device.token, receipt.id, { ...decision, accountId: accountLocalId() }, receipt, record.descriptor.dependencies)
+  if (mode === 'altered-ciphertext') {
+    const chunk = (await device.db.stagedCipherChunks.get([record.payloadId, 0]))!
+    chunk.bytes[0] ^= 1; await device.db.stagedCipherChunks.put(chunk)
+  }
+  const fence = await device.db.profileMeta.get('active'), intents = await device.db.outbox.toArray(), opens = fixture.opens
+  const next = fixture.create(); await next.begin(device.token)
+  expect(next.getSnapshot().phase).toBe('failed')
+  expect(fixture.opens).toBe(opens)
+  expect(await device.db.profileMeta.get('active')).toEqual(fence)
+  expect(await device.db.outbox.toArray()).toEqual(intents)
 })

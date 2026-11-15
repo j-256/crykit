@@ -3,6 +3,7 @@ import type { Table, Transaction } from 'dexie'
 import { assertActiveProfile, profileSignal, type ProfileToken } from '../account/profile'
 import { MAX_RECOVERY_BYTES, MAX_RECOVERY_POINTS, RECOVERY_CONTROL_BYTES, RECOVERY_REVISION_CONTROL_BYTES, type RecoveryPoint } from '../account/recovery-protocol'
 import { CommitRequestSchema, OpaqueIdSchema, RevisionDescriptorSchema, type CommitRequest, type RevisionDescriptor } from '../account/protocol'
+import { commitRequestDigest } from '../account/sync/commit-progress'
 import { SyncClient, SyncError } from '../account/sync/client'
 import { AccountDatabase } from '../persistence/account-database'
 import { exportWorkspaceBackup, readWorkspaceBackup } from '../interchange/workspace-backup'
@@ -333,10 +334,36 @@ export function createAccountRecoveryService(token: ProfileToken) {
     if (result.state !== 'blocked' && stored) await discardArchive(database, stored.value)
     return result
   })
-  const complete = async (operationId: string, mutationId: string) => {
+  const complete = async (operationId: string, mutationId: string, expectedPublication?: CommitRequest) => {
+    OpaqueIdSchema.parse(operationId); OpaqueIdSchema.parse(mutationId)
+    const retiredAcceptance = () => useDatabase(async database => {
+      const row = await database.syncState.get(`recovery-binding:${operationId}`)
+      if (!row) throw integrity()
+      const { publication } = await openAccountJson(database, token, row.ref, BindingSchema)
+      if (publication.recoveryOperationId !== operationId || publication.mutationId !== mutationId || !publication.heads.length
+        || expectedPublication && !exact(publication, CommitRequestSchema.parse(expectedPublication))) throw integrity()
+      // Retirement also covers cancellation and supersession, so it never proves acceptance
+      // The authenticated transition digest binds the complete saved request, including this
+      // recovery operation, after payload retention has ended; no archive is recreated
+      const status = await client.recoveryOperationStatus(operationId)
+      if (status.status !== 'retired') throw integrity()
+      const accepted = await client.mutationTransition(mutationId, [publication.heads[0].documentId])
+      if (accepted.kind !== 'mutation-transition' || accepted.requestDigest !== await commitRequestDigest(JSON.stringify(publication))
+        || !exact(accepted.receipt.heads, publication.heads) || accepted.previousPublicationEpoch !== publication.expectedPublicationEpoch) throw integrity()
+      if (!exact(await database.syncState.get(row.id), row)) throw integrity()
+      assertActiveProfile(token)
+      return { version: 1 as const, state: 'retired' as const, operationId, mutationId }
+    })
     const point = await find(operationId)
-    if (!point?.sealed || point.mutationId !== OpaqueIdSchema.parse(mutationId)) throw integrity()
-    const completed = await client.completeRecovery(operationId)
+    if (!point) return retiredAcceptance()
+    if (!point.sealed || point.mutationId !== mutationId) throw integrity()
+    let completed: RecoveryPoint
+    try { completed = await client.completeRecovery(operationId) }
+    catch (error) {
+      // Eligible retirement can race the retained-point read as well as a lost response
+      if (error instanceof SyncError && error.code === 'NOT_FOUND') return retiredAcceptance()
+      throw error
+    }
     if (completed.mutationId !== mutationId) throw integrity()
     await reconcilePoint(completed)
     return completed
