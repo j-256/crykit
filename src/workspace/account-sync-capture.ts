@@ -1,6 +1,6 @@
 import { SyncError } from '../account/sync/client'
 import { assertActiveProfile, type ProfileToken } from '../account/profile'
-import type { AccountDatabase, AccountFence } from '../persistence/account-database'
+import type { AccountDatabase, AccountFence, CipherRef } from '../persistence/account-database'
 import { openAccountJson } from './account-cache'
 import { z } from 'zod'
 import { openExactAccountWorkspace } from './account-intents'
@@ -22,14 +22,28 @@ export async function isManagedAccountHead(database: AccountDatabase, token: Pro
 
 // Cloud comparison uses the exact native mapping association while local merge/Undo uses the actual managed journal
 // Neither a newer selected root nor a later pending row may retarget this captured sync iteration
-export async function captureAccountSyncWorkspace(database: AccountDatabase, token: ProfileToken, input: AccountFence, signal?: AbortSignal) {
+async function captureAccountWorkspace(database: AccountDatabase, token: ProfileToken, input: AccountFence, signal: AbortSignal | undefined, publication: boolean) {
   const fence = structuredClone(input)
   if (!await isManagedAccountHead(database, token, fence)) {
     const captured = await openExactAccountWorkspace(database, token, fence)
-    return { ...captured, managed: false as const, inheritedEvidence: captured.workspace.inheritedEvidence, validatedEvidence: undefined, operativePlanner: captured.workspace.state.planner, dispose: async () => {} }
+    const result = { ...captured, managed: false as const, validatedEvidence: undefined, publicationValidatedEvidence: undefined, operativePlanner: captured.workspace.state.planner, dispose: async () => {} }
+    return publication ? { ...result, inheritedEvidence: captured.workspace.inheritedEvidence } : { ...result, inheritedEvidence: undefined }
   }
   const store = createAccountLocalStore(database, token)
   let validatedEvidence: AccountInheritedEvidence | undefined
+  let publicationValidatedEvidence: AccountInheritedEvidence | undefined
+  let releasePublication: (() => Promise<void>) | undefined
+  // Each retained role has one owner; aliases share the mapped owner and never add another release
+  // Keep failed releases retryable and attempt every owner even if another cleanup fails
+  const dispose = async () => {
+    const failures: unknown[] = []
+    // Retire proof readers before closing their enclosing local store
+    for (const release of [releasePublication, () => validatedEvidence?.dispose(), () => store.dispose()]) {
+      try { await release?.() } catch (error) { failures.push(error) }
+    }
+    if (failures.length === 1) throw failures[0]
+    if (failures.length) throw new AggregateError(failures, 'Account capture cleanup failed')
+  }
   const check = async () => {
     signal?.throwIfAborted(); assertActiveProfile(token)
     if (!guestPlannerValuesEqual(await database.profileMeta.get('active'), fence)) throw new SyncError('LOCAL_REVISION_CONFLICT')
@@ -52,12 +66,32 @@ export async function captureAccountSyncWorkspace(database: AccountDatabase, tok
     const workspace = await openAccountWorkspace(database, token, mapped, validatedEvidence)
     // Exact associated archives can reuse the authenticated mapped view
     // Migration origins can retain additional local originals that still need their own publication archive
-    const associated = await readIncrementalAccountEvidence(database, token, selected.root.inheritedEvidence)
-    const inheritedEvidence = associated && guestPlannerValuesEqual(associated, workspace.inheritedEvidence)
-      ? workspace.inheritedEvidence : await ensureIncrementalAccountEvidence(database, token, store, selected, check)
+    let inheritedEvidence: CipherRef | undefined
+    if (publication) {
+      const associated = await readIncrementalAccountEvidence(database, token, selected.root.inheritedEvidence)
+      if (associated && guestPlannerValuesEqual(associated, workspace.inheritedEvidence)) {
+        inheritedEvidence = workspace.inheritedEvidence
+        publicationValidatedEvidence = validatedEvidence
+      } else inheritedEvidence = await ensureIncrementalAccountEvidence(database, token, store, selected, check, (handle, release) => {
+        publicationValidatedEvidence = handle
+        releasePublication = release
+      })
+    }
     await check()
-    // Keep this independently opened archive proof only for the enclosing sync operation
-    // Exact own-publication readback can reuse it; another archive or later iteration validates afresh
-    return { fence, workspace, inheritedEvidence, validatedEvidence, managed: true as const, operativePlanner: selected.state.planner, dispose: async () => { try { await validatedEvidence?.dispose() } finally { await store.dispose() } } }
-  } catch (error) { try { await validatedEvidence?.dispose() } finally { await store.dispose() } throw error }
+    // Keep mapped and full-publication authority distinct and scoped to this capture
+    // Remote readback may borrow either exact root; another archive or later iteration validates afresh
+    const result = { fence, workspace, validatedEvidence, publicationValidatedEvidence, managed: true as const, operativePlanner: selected.state.planner, dispose }
+    return publication ? { ...result, inheritedEvidence } : { ...result, inheritedEvidence: undefined }
+  } catch (error) { await dispose(); throw error }
+}
+
+export async function captureAccountSyncWorkspace(database: AccountDatabase, token: ProfileToken, input: AccountFence, signal?: AbortSignal) {
+  return captureAccountWorkspace(database, token, input, signal, true)
+}
+
+// Review needs the admitted mapped view, not a publication of every local historical original
+// Omit that authority entirely; branch actions must recapture the complete archive at their exact review fence
+export async function captureAccountReviewWorkspace(database: AccountDatabase, token: ProfileToken, input: AccountFence, signal?: AbortSignal) {
+  const { inheritedEvidence: _publication, publicationValidatedEvidence: _publicationProof, ...review } = await captureAccountWorkspace(database, token, input, signal, false)
+  return review
 }

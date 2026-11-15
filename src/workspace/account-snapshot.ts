@@ -3,14 +3,20 @@ import type { AccountFence } from '../persistence/account-database'
 import type { AccountDatabase } from '../persistence/account-database'
 import type { ProfileToken } from '../account/profile'
 import type { OpenAccountWorkspace } from './account-graph'
+import type { AccountInheritedEvidence } from './account-evidence-snapshots'
 import { ARCHIVAL_DOCUMENT_KINDS, inspectWorkspaceClosures } from './closure'
 import { archiveWorkspaceUnit } from './pending-content'
 import { blobIdentity } from './blobs'
 import { splitWorkspace } from './documents'
 import { backupMetadataDigest, disposeWorkspaceSnapshot, ownWorkspaceSnapshot, validateWorkspaceSnapshot, type WorkspaceSnapshot } from './snapshot'
 
-export async function captureAccountSnapshot(workspace: OpenAccountWorkspace, fence: AccountFence, assertSource: () => Promise<void>, source?: { readonly database: AccountDatabase; readonly token: ProfileToken }): Promise<WorkspaceSnapshot> {
+export async function captureAccountSnapshot(workspace: OpenAccountWorkspace, fence: AccountFence, assertSource: () => Promise<void>, source?: { readonly database: AccountDatabase; readonly token: ProfileToken; readonly validatedEvidence?: AccountInheritedEvidence }): Promise<WorkspaceSnapshot> {
   await assertSource()
+  if (source?.validatedEvidence) {
+    // Even a nonmatching root must come from a real live owner before it can accompany this capture
+    const { assertAccountInheritedEvidenceOwner } = await import('./account-evidence-snapshots')
+    await assertAccountInheritedEvidenceOwner(source.validatedEvidence, source.database, source.token)
+  }
   const output = new Map(workspace.state.blobs.map(blob => [blobIdentity(blob.ref), blob]))
   const units: NonNullable<WorkspaceSnapshot['sourceEvidence']>['units'] = []
   const projected = new Map(splitWorkspace(workspace.state).map(document => [document.key, document]))
@@ -37,12 +43,17 @@ export async function captureAccountSnapshot(workspace: OpenAccountWorkspace, fe
   if (!source) { await disposeWorkspaceSnapshot(current); throw new Error('Account historical evidence requires its encrypted source') }
   const { accountInheritedSources, openAccountInheritedEvidence } = await import('./account-evidence-snapshots')
   const { joinWorkspaceSnapshotEvidence } = await import('../interchange/workspace-backup-evidence')
-  const inherited = await openAccountInheritedEvidence(source.database, source.token, workspace.inheritedEvidence)
+  // A fresh review can retain the exact archive already authenticated by its sync capture
+  // Borrow only that root, and leave its lifetime with the caller through joined construction
+  const verified = source.validatedEvidence
+  const borrowed = verified?.root.documentId === workspace.inheritedEvidence.documentId && verified.root.revisionId === workspace.inheritedEvidence.revisionId ? verified : undefined
+  let inherited: AccountInheritedEvidence | undefined
   let joined: WorkspaceSnapshot | undefined
   try {
+    inherited = borrowed ?? await openAccountInheritedEvidence(source.database, source.token, workspace.inheritedEvidence)
     joined = await joinWorkspaceSnapshotEvidence(current, await accountInheritedSources(inherited))
     await check(); await inherited.check()
     return joined
   } catch (error) { await disposeWorkspaceSnapshot(joined ?? current); throw error }
-  finally { await inherited.dispose() }
+  finally { if (!borrowed) await inherited?.dispose() }
 }

@@ -367,8 +367,10 @@ export async function prepareAccountWorkspaceWithEvidence(database: AccountDatab
   await assertAccountInheritedEvidenceOwner(inherited.handle, database, token)
   return { ...prepared, records: [...inherited.records, ...prepared.records], validatedEvidence: inherited.handle }
 }
-export async function prepareAccountWorkspaceWithExistingEvidence(database: AccountDatabase, token: ProfileToken, state: WorkspaceState, input: CipherRef | import('./account-evidence-snapshots').AccountInheritedEvidence, previous?: OpenAccountWorkspace, stableAllocations: OpenAccountWorkspace['allocations'] = previous?.allocations ?? [], historyReuse?: AccountHistoryReuse): Promise<PreparedAccountWorkspace> {
+export async function prepareAccountWorkspaceWithExistingEvidence(database: AccountDatabase, token: ProfileToken, state: WorkspaceState, input: CipherRef | import('./account-evidence-snapshots').AccountInheritedEvidence, previous?: OpenAccountWorkspace, stableAllocations: OpenAccountWorkspace['allocations'] = previous?.allocations ?? [], historyReuse?: AccountHistoryReuse, previousEvidence?: import('./account-evidence-snapshots').AccountInheritedEvidence): Promise<PreparedAccountWorkspace> {
   // A borrowed proof belongs to its caller; private registration, account and lifetime checks remain mandatory
+  // A valid different previous root grants no authority and falls back to fresh admission
+  if (previousEvidence) await assertAccountInheritedEvidenceOwner(previousEvidence, database, token)
   const borrowed = 'origin' in input
   const inherited = borrowed ? input : await openAccountInheritedEvidence(database, token, input)
   if (borrowed) await assertAccountInheritedEvidenceOwner(inherited, database, token)
@@ -376,7 +378,8 @@ export async function prepareAccountWorkspaceWithExistingEvidence(database: Acco
   try {
     if (previous?.inheritedEvidence) {
       const { accountEvidenceContains } = await import('./account-evidence-union')
-      if (!await accountEvidenceContains(database, token, inheritedEvidence, previous.inheritedEvidence)) throw new Error('Account successor cannot discard historical originals')
+      const previousProof = previousEvidence?.root.documentId === previous.inheritedEvidence.documentId && previousEvidence.root.revisionId === previous.inheritedEvidence.revisionId ? previousEvidence : previous.inheritedEvidence
+      if (!await accountEvidenceContains(database, token, inherited, previousProof)) throw new Error('Account successor cannot discard historical originals')
     }
     const prepared = await prepareWorkspace(database, token, state, previous, stableAllocations, undefined, { version: 2, inheritedEvidence }, historyReuse)
     await inherited.check()

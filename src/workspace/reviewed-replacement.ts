@@ -9,7 +9,7 @@ import { AccountDatabase, activateLocalAccountCommit, type AccountFence, type Ci
 import { prepareAccountSyncAttachment, combineAccountActivationAttachments, releaseAccountActivationAttachment, type AccountActivationAttachment, type AccountBranchRetirement } from '../persistence/account-activation-attachments'
 import { accountLocalId, cipherRef, openAccountJson, stageAccountJson } from './account-cache'
 import { createAccountRecoveryService } from './account-recovery'
-import { captureAccountSyncWorkspace } from './account-sync-capture'
+import { captureAccountReviewWorkspace, captureAccountSyncWorkspace } from './account-sync-capture'
 import { captureAccountSnapshot } from './account-snapshot'
 import { disposeWorkspaceSnapshot, backupMetadataDigest, snapshotMetadata, assertOwnedWorkspaceSnapshot, assertWorkspaceSnapshotCurrent, validateWorkspaceSnapshot, type WorkspaceSnapshot } from './snapshot'
 import { previewAccountWorkspaceRestore, stageAccountWorkspaceRestore, activateAccountWorkspaceRestore, releaseAccountWorkspaceRestorePreview, releaseAccountWorkspaceRestoreStage } from './account-restore'
@@ -151,8 +151,9 @@ export interface ReviewedAccountData {
 }
 interface Review {
   readonly database: AccountDatabase; readonly token: ProfileToken; readonly fence: AccountFence
-  readonly candidate: PullCandidate; readonly projection: RemoteProjection; readonly captured: Awaited<ReturnType<typeof captureAccountSyncWorkspace>>
+  readonly candidate: PullCandidate; readonly projection: RemoteProjection; readonly captured: Awaited<ReturnType<typeof captureAccountReviewWorkspace>>
   readonly previous?: StoredReviewedReplacement; readonly snapshot: WorkspaceSnapshot
+  readonly pendingSources: Set<() => Promise<void>>
   disposed: boolean
 }
 const reviews = new WeakMap<ReviewedAccountData, Review>()
@@ -160,7 +161,17 @@ export interface ReviewedReplacementStage {
   readonly id: string; readonly expected: AccountFence; readonly head: CipherRef
   dispose(): Promise<void>
 }
-interface Stage { readonly operationId: string; readonly review: Review; readonly restore?: Awaited<ReturnType<typeof stageAccountWorkspaceRestore>>; readonly prepared?: PreparedLocalActivation; readonly attachment: AccountActivationAttachment; ownedSource?: WorkspaceSnapshot }
+// Join concurrent releases and retain successful cleanup, but let failed storage cleanup retry
+// A rejected promise must not permanently hide a preparation owner's still-owned payloads
+function retryableRelease(release: () => Promise<void>): () => Promise<void> {
+  let pending: Promise<void> | undefined
+  return () => {
+    const attempt = pending ??= Promise.resolve().then(release)
+    return attempt.catch(error => { if (pending === attempt) pending = undefined; throw error })
+  }
+}
+interface OwnedBranchSource { readonly snapshot: WorkspaceSnapshot; dispose(): Promise<void> }
+interface Stage { readonly operationId: string; readonly review: Review; readonly restore?: Awaited<ReturnType<typeof stageAccountWorkspaceRestore>>; readonly prepared?: PreparedLocalActivation; readonly attachment: AccountActivationAttachment; ownedSource?: OwnedBranchSource }
 const stages = new WeakMap<ReviewedReplacementStage, Stage>()
 const branchSources = new WeakSet<WorkspaceSnapshot>()
 const branches = new WeakMap<object, { readonly database: AccountDatabase; readonly token: ProfileToken; readonly fence: AccountFence; readonly retirement: AccountBranchRetirement }>()
@@ -211,7 +222,7 @@ export function createReviewedReplacementService(database: AccountDatabase, toke
   async function refresh(): Promise<ReviewedAccountData> {
     const fence = await database.profileMeta.get('active')
     if (!fence) throw new SyncError('LOCAL_INTEGRITY_FAILED')
-    const captured = await captureAccountSyncWorkspace(database, token, fence, signal)
+    const captured = await captureAccountReviewWorkspace(database, token, fence, signal)
     let snapshot: WorkspaceSnapshot | undefined
     try {
       // A completed unactivated scan is a snapshot, not evidence that the account stayed unchanged
@@ -237,12 +248,20 @@ export function createReviewedReplacementService(database: AccountDatabase, toke
       const validated = projection as RemoteProjection | null
       if (!validated) throw new SyncError('ACCOUNT_PROJECTION_UNAVAILABLE')
       const previous = await readReviewedReplacement(database, token)
-      snapshot = await captureAccountSnapshot(validated.workspace, { ...fence, head: validated.workspace.head }, () => check(fence), { database, token })
-      const review: Review = { database, token, fence, captured, candidate, projection: validated, snapshot, previous, disposed: false }
-      const handle: ReviewedAccountData = Object.freeze({ epoch: candidate.state.publicationEpoch, heads: Object.freeze(refs(candidate.heads)), snapshot, async dispose() {
-        if (review.disposed) return
+      snapshot = await captureAccountSnapshot(validated.workspace, { ...fence, head: validated.workspace.head }, () => check(fence), { database, token, validatedEvidence: captured.validatedEvidence })
+      const review: Review = { database, token, fence, captured, candidate, projection: validated, snapshot, previous, pendingSources: new Set(), disposed: false }
+      const releaseSnapshot = retryableRelease(() => disposeWorkspaceSnapshot(review.snapshot))
+      const releaseCapture = retryableRelease(() => captured.dispose())
+      const release = retryableRelease(async () => {
+        try {
+          const outcomes = await Promise.allSettled([...review.pendingSources].map(dispose => dispose()))
+          const errors = outcomes.flatMap(result => result.status === 'rejected' ? [result.reason] : [])
+          if (errors.length) throw new AggregateError(errors, 'Reviewed branch cleanup failed')
+        } finally { try { await releaseSnapshot() } finally { await releaseCapture() } }
+      })
+      const handle: ReviewedAccountData = Object.freeze({ epoch: candidate.state.publicationEpoch, heads: Object.freeze(refs(candidate.heads)), snapshot, dispose() {
         review.disposed = true
-        try { await disposeWorkspaceSnapshot(review.snapshot) } finally { await captured.dispose() }
+        return release()
       } })
       reviews.set(handle, review)
       return handle
@@ -304,7 +323,19 @@ export function createReviewedReplacementService(database: AccountDatabase, toke
       const target = { expected: review.fence, head: restore.targetHead }
       const attachment = await prepareAccountSyncAttachment(database, token, target, [{ id: REVIEWED_REPLACEMENT_KEY, expected: previous?.row, value, dependencies: dependencies(value) }, { id: preparation.row.id, expected: preparation.row, value: { ...preparation.value, state: 'activated' } }], branch?.retirement)
       const staged = restore
-      const result: ReviewedReplacementStage = Object.freeze({ id: restore.id, ...target, async dispose() { const ownedSource = stages.get(result)?.ownedSource; stages.delete(result); try { await releaseAccountWorkspaceRestoreStage(staged) } finally { await releaseAccountActivationAttachment(attachment); if (ownedSource) await disposeWorkspaceSnapshot(ownedSource) } } })
+      const releaseRestore = retryableRelease(() => releaseAccountWorkspaceRestoreStage(staged))
+      const releaseAttachment = retryableRelease(() => releaseAccountActivationAttachment(attachment))
+      let ownedSource: OwnedBranchSource | undefined
+      const release = retryableRelease(async () => {
+        try { await releaseRestore() }
+        finally { try { await releaseAttachment() } finally { await ownedSource?.dispose() } }
+      })
+      const result: ReviewedReplacementStage = Object.freeze({ id: restore.id, ...target, dispose() {
+        // Revoke authority before any await, retaining the source so failed cleanup can retry
+        ownedSource ??= stages.get(result)?.ownedSource
+        stages.delete(result)
+        return release()
+      } })
       stages.set(result, { operationId, review, restore, attachment })
       return result
     } catch (error) { if (restore) await releaseAccountWorkspaceRestoreStage(restore); throw error }
@@ -319,18 +350,55 @@ export function createReviewedReplacementService(database: AccountDatabase, toke
       ? activateLocalAccountCommit(database, token, stage.prepared, undefined, attachment)
       : activateAccountWorkspaceRestore(stage.restore!, undefined, attachment))
   }
+  async function captureBranchSource(review: Review): Promise<OwnedBranchSource> {
+    await check(review.fence)
+    if (review.disposed) throw new SyncError('LOCAL_INTEGRITY_FAILED')
+    // The mapped review archive can omit local originals, so capture the complete branch only for an action
+    // Pin the original review fence and retain its independent owner until the stage releases the snapshot
+    let captured: Awaited<ReturnType<typeof captureAccountSyncWorkspace>> | undefined
+    let snapshot: WorkspaceSnapshot | undefined
+    let finishAcquisition!: () => void
+    const acquisition = new Promise<void>(resolve => { finishAcquisition = resolve })
+    const releaseSnapshot = retryableRelease(async () => { if (snapshot) await disposeWorkspaceSnapshot(snapshot) })
+    const releaseCapture = retryableRelease(async () => { await captured?.dispose() })
+    const dispose = retryableRelease(async () => {
+      await acquisition
+      try { await releaseSnapshot() } finally { await releaseCapture() }
+      review.pendingSources.delete(dispose)
+    })
+    // Register before acquisition can yield, so concurrent review disposal owns even a late capture
+    // Failed pre-stage cleanup stays reachable here until it succeeds or a stage takes ownership
+    review.pendingSources.add(dispose)
+    try {
+      try {
+        captured = await captureAccountSyncWorkspace(database, token, review.fence, signal)
+        await check(review.fence)
+        if (review.disposed) throw new SyncError('LOCAL_INTEGRITY_FAILED')
+        snapshot = await captureAccountSnapshot({ ...captured.workspace, inheritedEvidence: captured.inheritedEvidence }, review.fence, () => check(review.fence), { database, token, validatedEvidence: captured.publicationValidatedEvidence ?? captured.validatedEvidence })
+        await check(review.fence)
+        if (review.disposed) throw new SyncError('LOCAL_INTEGRITY_FAILED')
+        return { snapshot, dispose }
+      } finally { finishAcquisition() }
+    } catch (error) { await dispose(); throw error }
+  }
   async function approve(handle: ReviewedAccountData, operationId: string): Promise<ReviewedReplacementStage> {
     const review = ownedReview(handle)
     if (review.previous?.value.state !== 'paused') throw new SyncError('REPLACEMENT_REVIEW_REQUIRED')
-    const snapshot = await captureAccountSnapshot({ ...review.captured.workspace, inheritedEvidence: review.captured.inheritedEvidence }, review.fence, () => check(review.fence), { database, token })
+    const source = await captureBranchSource(review), snapshot = source.snapshot
     branchSources.add(snapshot)
-    try { const stage = await prepare(handle, snapshot, operationId); stages.get(stage)!.ownedSource = snapshot; return stage }
+    let stage: ReviewedReplacementStage | undefined
+    try {
+      stage = await prepare(handle, snapshot, operationId)
+      if (review.disposed) throw new SyncError('LOCAL_INTEGRITY_FAILED')
+      stages.get(stage)!.ownedSource = source
+      review.pendingSources.delete(source.dispose)
+      return stage
     // Restore retains its source through activation; the stage owns this capture until release
-    catch (error) { await disposeWorkspaceSnapshot(snapshot); throw error }
+    } catch (error) { try { await stage?.dispose() } finally { await source.dispose() } throw error }
   }
   async function prepareLatest(handle: ReviewedAccountData, operationId: string): Promise<ReviewedReplacementStage> {
     const review = ownedReview(handle), branch = await rejectedBranch(review)
-    const snapshot = await captureAccountSnapshot({ ...review.captured.workspace, inheritedEvidence: review.captured.inheritedEvidence }, review.fence, () => check(review.fence), { database, token })
+    const source = await captureBranchSource(review), snapshot = source.snapshot
     let managed: Awaited<ReturnType<typeof prepareManagedAccountProjection>> | undefined
     let stagedAttachment: AccountActivationAttachment | undefined
     try {
@@ -355,14 +423,26 @@ export function createReviewedReplacementService(database: AccountDatabase, toke
       ], branch.retirement)
       stagedAttachment = attachment
       await assertFresh(review)
+      if (review.disposed) throw new SyncError('LOCAL_INTEGRITY_FAILED')
       const owner = managed
-      const result: ReviewedReplacementStage = Object.freeze({ id: prepared.id, expected: review.fence, head: prepared.head, async dispose() {
+      const releaseManaged = retryableRelease(async () => { await owner?.dispose() })
+      const releaseAttachment = retryableRelease(() => releaseAccountActivationAttachment(attachment))
+      const release = retryableRelease(async () => {
+        try { await releaseManaged() }
+        finally { try { await releaseAttachment() } finally { await source.dispose() } }
+      })
+      const result: ReviewedReplacementStage = Object.freeze({ id: prepared.id, expected: review.fence, head: prepared.head, dispose() {
         stages.delete(result)
-        try { await owner?.dispose() } finally { await releaseAccountActivationAttachment(attachment); await disposeWorkspaceSnapshot(snapshot) }
+        return release()
       } })
       stages.set(result, { operationId, review, prepared, attachment })
+      review.pendingSources.delete(source.dispose)
       return result
-    } catch (error) { await managed?.dispose(); if (stagedAttachment) await releaseAccountActivationAttachment(stagedAttachment); await disposeWorkspaceSnapshot(snapshot); throw error }
+    } catch (error) {
+      try { await managed?.dispose() }
+      finally { try { if (stagedAttachment) await releaseAccountActivationAttachment(stagedAttachment) } finally { await source.dispose() } }
+      throw error
+    }
   }
   async function useLatest(handle: ReviewedAccountData, operationId: string): Promise<AccountFence> {
     const stage = await prepareLatest(handle, operationId)

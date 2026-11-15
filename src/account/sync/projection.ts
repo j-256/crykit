@@ -21,6 +21,7 @@ import { DIRECTORY_SHARDS, INDEX_PAGE_BYTES, directoryDocumentId, directoryShard
 import { BaselinePageSchema, DirectoryPageSchema, DirectorySchema, PublicationControlSchema, PublicationRecordSchema, RecoveryPageSchema, type PublicationBaselineEntry } from './publication'
 import { SyncError } from './client'
 import { createProjectionReader } from './projection-reader'
+import type { AccountInheritedEvidence } from '../../workspace/account-evidence-snapshots'
 import { projectionBookkeeping } from './projection-bookkeeping'
 
 export interface RemoteUnit { readonly key: string; readonly ref: CipherRef; readonly physical: string | null; readonly body: AccountWorkspaceEntry; readonly conflictAuthority?: ConflictAuthority }
@@ -77,131 +78,155 @@ async function descended(database: AccountDatabase, token: ProfileToken, head: C
   await visit(head)
   if (!found) throw new SyncError('INTEGRITY_FAILED')
 }
-export async function openRemoteProjection(database: AccountDatabase, token: ProfileToken, heads: ReadonlyMap<string, string>, localHead: CipherRef, localRevision: number, verified?: import('../../workspace/account-evidence-snapshots').AccountInheritedEvidence): Promise<RemoteProjection | null> {
-  const controlId = await withAccountKey(token, key => workspaceControlDocumentId(key, token.accountId))
-  const revisionId = heads.get(controlId)
-  if (!revisionId) { if (heads.size) throw new SyncError('INTEGRITY_FAILED'); return null }
-  const control = { documentId: controlId, revisionId }
-  const root = await openAccountJson(database, token, control, PublicationControlSchema)
-  await dependencies(database, token, control, [root.baseline, ...(root.recovery ? [root.recovery] : []), ...(root.version === 2 ? [root.inheritedEvidence] : [])])
-  if (root.version === 2) {
-    const { openAccountInheritedEvidence, assertAccountInheritedEvidenceOwner } = await import('../../workspace/account-evidence-snapshots')
-    // Only the exact archive admitted by this live sync capture can be borrowed
-    // All publication control, membership and causal checks below remain independent
-    const borrowed = verified && JSON.stringify(verified.root) === JSON.stringify(root.inheritedEvidence) ? verified : undefined
-    const inherited = borrowed ?? await openAccountInheritedEvidence(database, token, root.inheritedEvidence)
-    try { if (borrowed) await assertAccountInheritedEvidenceOwner(borrowed, database, token); await inherited.check() }
-    finally { if (!borrowed) await inherited.dispose() }
-  }
-  if (root.recovery) {
-    const recovery = await readPublicationPages(database, token, root.recovery, RecoveryPageSchema, entry => [entry.ref])
-    if (new Set(recovery.map(entry => entry.key)).size !== recovery.length || recovery.some(entry => entry.key !== entry.ref.documentId)) throw new SyncError('INTEGRITY_FAILED')
-    // Recovery has exact retained capability refs; it never contributes operative membership
-    if (!recovery.some(entry => entry.ref.documentId === controlId && entry.ref.revisionId !== control.revisionId)) throw new SyncError('INTEGRITY_FAILED')
-  }
-  const baseline = await readPublicationPages(database, token, root.baseline, BaselinePageSchema, entry => [entry.seed])
-  const directories = new Map<number, RemoteDirectory>(), unitSeeds = new Map<string, Exclude<PublicationBaselineEntry, { kind: 'directory' }>>()
-  const allocation = new Map<string, string>(), owners = new Map<string, string>()
-  const bind = (key: string, documentId: string) => {
-    if (allocation.has(key) && allocation.get(key) !== documentId || owners.has(documentId) && owners.get(documentId) !== key) throw new SyncError('INTEGRITY_FAILED')
-    allocation.set(key, documentId); owners.set(documentId, key)
-  }
-  for (const entry of baseline) {
-    if (entry.kind !== 'directory') {
-      if (unitSeeds.has(entry.key)) throw new SyncError('INTEGRITY_FAILED')
-      unitSeeds.set(entry.key, entry); bind(entry.key, entry.seed.documentId); continue
-    }
-    if (directories.has(entry.shard)) throw new SyncError('INTEGRITY_FAILED')
-    const documentId = await withAccountKey(token, key => directoryDocumentId(key, token.accountId, entry.shard))
-    if (entry.seed.documentId !== documentId) throw new SyncError('INTEGRITY_FAILED')
-    const physical = heads.get(documentId) ?? null
-    const selected = physical === entry.replacedHead ? entry.seed : physical ? { documentId, revisionId: physical } : undefined
-    if (!selected) throw new SyncError('INTEGRITY_FAILED')
-    const value = await openAccountJson(database, token, selected, DirectorySchema)
-    if (value.shard !== entry.shard || value.lineageId !== root.lineageId) throw new SyncError('INTEGRITY_FAILED')
-    if (selected.revisionId !== entry.seed.revisionId) await descended(database, token, selected, entry.seed)
-    await dependencies(database, token, selected, [value.index])
-    const allocations = await readPublicationPages(database, token, value.index, DirectoryPageSchema, () => [])
-    const keys = new Set<string>()
-    for (const value of allocations) {
-      if (keys.has(value.key) || await directoryShard(value.key) !== entry.shard) throw new SyncError('INTEGRITY_FAILED')
-      keys.add(value.key); bind(value.key, value.documentId)
-    }
-    directories.set(entry.shard, { shard: entry.shard, ref: selected, physical, allocations })
-  }
-  if (directories.size !== DIRECTORY_SHARDS) throw new SyncError('INTEGRITY_FAILED')
-  const captured = new Map<string, CapturedWorkspaceRecord>()
-  const pass = createProjectionReader(token, capturedRecordReader(database, token, new Map()))
-  const readCaptured = pass.read
-  try {
-    const lineages = new Map<string, PersonalLineagePublication>()
-    const units = new Map<string, RemoteUnit>(), entries: AccountWorkspaceEntry[] = [], documents: WorkspaceDocument[] = [], payloads = new Map<string, BlobSource>()
-    for (const [key, documentId] of allocation) {
-      const seed = unitSeeds.get(key), physical = heads.get(documentId) ?? null
-      if (isPersonalLineageKey(key)) {
-        if (seed && seed.kind !== 'lineage') throw new SyncError('INTEGRITY_FAILED')
-        const selected = seed && physical === seed.replacedHead ? seed.seed : physical ? { documentId, revisionId: physical } : undefined
-        if (!selected) throw new SyncError('INTEGRITY_FAILED')
-        const anchor = await readPersonalLineage(database, token, selected, readCaptured)
-        if (anchor.value.privateKey !== key || anchor.value.lineageId !== root.lineageId) throw new SyncError('INTEGRITY_FAILED')
-        if (seed && selected.revisionId !== seed.seed.revisionId) await descended(database, token, selected, seed.seed)
-        lineages.set(key, anchor); continue
-      }
-      if (seed?.kind === 'lineage') throw new SyncError('INTEGRITY_FAILED')
-      let selected: CipherRef, body: CipherRef, digest: string, valueKind: AccountWorkspaceEntry['kind'], sourceBookkeeping: SourceBookkeeping | undefined, conflictAuthority: ConflictAuthority | undefined
-      if (seed?.kind === 'immutable') {
-        selected = seed.seed; body = seed.seed; digest = seed.digest; valueKind = seed.valueKind
-      } else {
-        selected = seed && physical === seed.replacedHead ? seed.seed : physical ? { documentId, revisionId: physical } : (() => { throw new SyncError('INTEGRITY_FAILED') })()
-        const value = await openAccountJson(database, token, selected, PublicationRecordSchema)
-        if (value.privateKey !== key || value.lineageId !== root.lineageId || value.body.documentId !== documentId || value.body.revisionId === selected.revisionId) throw new SyncError('INTEGRITY_FAILED')
-        await dependencies(database, token, selected, [value.body, ...(value.sourceBookkeeping ? sourceBookkeepingRefs(value.sourceBookkeeping) : []), ...(value.conflictAuthority ? conflictAuthorityRefs(value.conflictAuthority) : [])])
-        sourceBookkeeping = value.sourceBookkeeping; conflictAuthority = value.conflictAuthority
-        if (seed && selected.revisionId !== seed.seed.revisionId) await descended(database, token, selected, seed.seed)
-        body = value.body; digest = value.digest; valueKind = value.valueKind
-      }
-      const original = { ...await readCaptured(body), ...(sourceBookkeeping ? { sourceBookkeeping } : {}) }
-      if (original.document.key !== key || original.document.kind !== valueKind || original.digest !== digest) throw new SyncError('INTEGRITY_FAILED')
-      const entry: AccountWorkspaceEntry = { key, kind: valueKind, ref: body, digest, ...(sourceBookkeeping ? { sourceBookkeeping } : {}), ...(original.retainingIndex ? { retainingIndex: original.retainingIndex } : {}) }
-      entries.push(entry); units.set(key, { key, ref: selected, physical, body: entry, ...(conflictAuthority ? { conflictAuthority } : {}) }); captured.set(blobIdentity(body), original); payloads.set(key, original.source)
-      if (valueKind !== 'tombstone') documents.push(original.document)
-    }
-    const definitions = Object.fromEntries(documents.filter(document => document.kind === 'personal-definition').map(document => { const value = document.value as unknown as PersonalDefinition; return [value.id, value] }))
-    const lineageData = { ...createBlankLocalData(), personalDefinitions: definitions }
-    const selectedKeys = new Set<string>()
-    for (const anchor of lineages.values()) for (const binding of anchor.entries) {
-      const body = units.get(binding.key)?.body
-      if (anchor.value.deleted) { if (body?.kind !== 'tombstone') throw new SyncError('INTEGRITY_FAILED'); continue }
-      if (!body || body.kind !== 'personal-definition' || !sameCipherRefs([body.ref], [binding.ref]) || body.digest !== binding.digest) throw new SyncError('INTEGRITY_FAILED')
-      selectedKeys.add(binding.key)
-    }
-    const inactive = new Set(documents.filter(document => {
-      if (document.kind !== 'personal-definition') return false
-      const definition = document.value as unknown as PersonalDefinition
-      const root = definitionLineageRootRef(lineageData, { kind: 'personal', definitionId: definition.id })
-      return lineages.has(personalLineageKey(root)) && !selectedKeys.has(document.key)
-    }).map(document => document.key))
-    for (let index = documents.length - 1; index >= 0; index--) if (inactive.has(documents[index].key)) documents.splice(index, 1)
-    for (let index = entries.length - 1; index >= 0; index--) if (inactive.has(entries[index].key)) entries.splice(index, 1)
-    const bookkeeping = await projectionBookkeeping(entries.filter(entry => entry.kind === 'scenario').map(entry => captured.get(blobIdentity(entry.ref))!), readCaptured, nowTimestamp())
-    const state = assembleWorkspace(documents, localRevision, { version: 1, changes: [], checkpoints: [], undoable: false }, bookkeeping)
-    const retained = await validatedWorkspaceRetentionEdges(state)
-    const supersededConflictIds = new Set<string>()
-    for (const conflict of state.conflicts) {
-      const authority = units.get(JSON.stringify(['conflict', conflict.id]))?.conflictAuthority
-      if (!authority) throw new SyncError('INTEGRITY_FAILED')
-      await validateConflictAuthority(database, token, state, conflict, authority, control)
-      if (authority.supersedes) supersededConflictIds.add(authority.supersedes.id)
-    }
-    const exactReader = capturedRecordReader(database, token, captured)
-    await validateCapturedWorkspaceRecords(capturedRecordReader(database, token, captured, readCaptured), entries.map(entry => entry.ref), allocation, retained)
-    // This projection is parented to the actual local graph on adoption. Its cache lineage must
-    // follow that head; the publication control has a separate lineage that bulk commits can change
-    const localRoot = await openAccountJson(database, token, localHead, z.union([AccountWorkspaceRootV1Schema, AccountWorkspaceRootV2Schema]))
-    assertActiveProfile(token)
-    return { control, ...(root.version === 2 ? { inheritedEvidence: root.inheritedEvidence } : {}), lineageId: root.lineageId, baseline, units, directories, lineages, supersededConflictIds, workspace: { state, head: localHead, ...(root.version === 2 ? { formatVersion: 2 as const, inheritedEvidence: root.inheritedEvidence } : {}), lineageId: localRoot.lineageId, entries, allocations: [...allocation].map(([key, documentId]) => ({ key, documentId })), payloads, readCaptured: exactReader } }
-  } finally { pass.dispose() }
+export async function openRemoteProjection(database: AccountDatabase, token: ProfileToken, heads: ReadonlyMap<string, string>, localHead: CipherRef, localRevision: number, verified?: AccountInheritedEvidence, publicationVerified?: AccountInheritedEvidence): Promise<RemoteProjection | null> {
+  const captured = await captureRemoteProjection(database, token, heads, localHead, localRevision, verified, publicationVerified)
+  try { return captured.projection } finally { await captured.dispose() }
 }
+
+export interface RemoteProjectionCapture {
+  readonly projection: RemoteProjection | null
+  readonly validatedEvidence?: AccountInheritedEvidence
+  dispose(): Promise<void>
+}
+// The caller owns fresh admission only until its iteration finishes; supplied proofs keep their original owner
+// Failure after admission still releases that reader, and a failed release can be retried by the owner
+export async function captureRemoteProjection(database: AccountDatabase, token: ProfileToken, heads: ReadonlyMap<string, string>, localHead: CipherRef, localRevision: number, verified?: AccountInheritedEvidence, publicationVerified?: AccountInheritedEvidence): Promise<RemoteProjectionCapture> {
+  let ownedEvidence: AccountInheritedEvidence | undefined
+  let validatedEvidence: AccountInheritedEvidence | undefined
+  const dispose = async () => { await ownedEvidence?.dispose() }
+  try {
+    const { openAccountInheritedEvidence, assertAccountInheritedEvidenceOwner } = await import('../../workspace/account-evidence-snapshots')
+    // Both capture roles must be live registered owners even when the selected remote root differs
+    // A valid nonmatching proof does not authorize that root and leaves fresh admission mandatory
+    for (const proof of new Set([verified, publicationVerified])) if (proof) await assertAccountInheritedEvidenceOwner(proof, database, token)
+    const controlId = await withAccountKey(token, key => workspaceControlDocumentId(key, token.accountId))
+    const revisionId = heads.get(controlId)
+    if (!revisionId) { if (heads.size) throw new SyncError('INTEGRITY_FAILED'); return { projection: null, dispose } }
+    const control = { documentId: controlId, revisionId }
+    const root = await openAccountJson(database, token, control, PublicationControlSchema)
+    await dependencies(database, token, control, [root.baseline, ...(root.recovery ? [root.recovery] : []), ...(root.version === 2 ? [root.inheritedEvidence] : [])])
+    if (root.version === 2) {
+      // Only the exact archive admitted by this live sync capture can be borrowed
+      // All publication control, membership and causal checks below remain independent
+      const borrowed = [verified, publicationVerified].find(proof => proof?.root.documentId === root.inheritedEvidence.documentId && proof.root.revisionId === root.inheritedEvidence.revisionId)
+      const inherited = borrowed ?? await openAccountInheritedEvidence(database, token, root.inheritedEvidence)
+      validatedEvidence = inherited
+      if (!borrowed) ownedEvidence = inherited
+      await inherited.check()
+    }
+    if (root.recovery) {
+      const recovery = await readPublicationPages(database, token, root.recovery, RecoveryPageSchema, entry => [entry.ref])
+      if (new Set(recovery.map(entry => entry.key)).size !== recovery.length || recovery.some(entry => entry.key !== entry.ref.documentId)) throw new SyncError('INTEGRITY_FAILED')
+      // Recovery has exact retained capability refs; it never contributes operative membership
+      if (!recovery.some(entry => entry.ref.documentId === controlId && entry.ref.revisionId !== control.revisionId)) throw new SyncError('INTEGRITY_FAILED')
+    }
+    const baseline = await readPublicationPages(database, token, root.baseline, BaselinePageSchema, entry => [entry.seed])
+    const directories = new Map<number, RemoteDirectory>(), unitSeeds = new Map<string, Exclude<PublicationBaselineEntry, { kind: 'directory' }>>()
+    const allocation = new Map<string, string>(), owners = new Map<string, string>()
+    const bind = (key: string, documentId: string) => {
+      if (allocation.has(key) && allocation.get(key) !== documentId || owners.has(documentId) && owners.get(documentId) !== key) throw new SyncError('INTEGRITY_FAILED')
+      allocation.set(key, documentId); owners.set(documentId, key)
+    }
+    for (const entry of baseline) {
+      if (entry.kind !== 'directory') {
+        if (unitSeeds.has(entry.key)) throw new SyncError('INTEGRITY_FAILED')
+        unitSeeds.set(entry.key, entry); bind(entry.key, entry.seed.documentId); continue
+      }
+      if (directories.has(entry.shard)) throw new SyncError('INTEGRITY_FAILED')
+      const documentId = await withAccountKey(token, key => directoryDocumentId(key, token.accountId, entry.shard))
+      if (entry.seed.documentId !== documentId) throw new SyncError('INTEGRITY_FAILED')
+      const physical = heads.get(documentId) ?? null
+      const selected = physical === entry.replacedHead ? entry.seed : physical ? { documentId, revisionId: physical } : undefined
+      if (!selected) throw new SyncError('INTEGRITY_FAILED')
+      const value = await openAccountJson(database, token, selected, DirectorySchema)
+      if (value.shard !== entry.shard || value.lineageId !== root.lineageId) throw new SyncError('INTEGRITY_FAILED')
+      if (selected.revisionId !== entry.seed.revisionId) await descended(database, token, selected, entry.seed)
+      await dependencies(database, token, selected, [value.index])
+      const allocations = await readPublicationPages(database, token, value.index, DirectoryPageSchema, () => [])
+      const keys = new Set<string>()
+      for (const value of allocations) {
+        if (keys.has(value.key) || await directoryShard(value.key) !== entry.shard) throw new SyncError('INTEGRITY_FAILED')
+        keys.add(value.key); bind(value.key, value.documentId)
+      }
+      directories.set(entry.shard, { shard: entry.shard, ref: selected, physical, allocations })
+    }
+    if (directories.size !== DIRECTORY_SHARDS) throw new SyncError('INTEGRITY_FAILED')
+    const captured = new Map<string, CapturedWorkspaceRecord>()
+    const pass = createProjectionReader(token, capturedRecordReader(database, token, new Map()))
+    const readCaptured = pass.read
+    try {
+      const lineages = new Map<string, PersonalLineagePublication>()
+      const units = new Map<string, RemoteUnit>(), entries: AccountWorkspaceEntry[] = [], documents: WorkspaceDocument[] = [], payloads = new Map<string, BlobSource>()
+      for (const [key, documentId] of allocation) {
+        const seed = unitSeeds.get(key), physical = heads.get(documentId) ?? null
+        if (isPersonalLineageKey(key)) {
+          if (seed && seed.kind !== 'lineage') throw new SyncError('INTEGRITY_FAILED')
+          const selected = seed && physical === seed.replacedHead ? seed.seed : physical ? { documentId, revisionId: physical } : undefined
+          if (!selected) throw new SyncError('INTEGRITY_FAILED')
+          const anchor = await readPersonalLineage(database, token, selected, readCaptured)
+          if (anchor.value.privateKey !== key || anchor.value.lineageId !== root.lineageId) throw new SyncError('INTEGRITY_FAILED')
+          if (seed && selected.revisionId !== seed.seed.revisionId) await descended(database, token, selected, seed.seed)
+          lineages.set(key, anchor); continue
+        }
+        if (seed?.kind === 'lineage') throw new SyncError('INTEGRITY_FAILED')
+        let selected: CipherRef, body: CipherRef, digest: string, valueKind: AccountWorkspaceEntry['kind'], sourceBookkeeping: SourceBookkeeping | undefined, conflictAuthority: ConflictAuthority | undefined
+        if (seed?.kind === 'immutable') {
+          selected = seed.seed; body = seed.seed; digest = seed.digest; valueKind = seed.valueKind
+        } else {
+          selected = seed && physical === seed.replacedHead ? seed.seed : physical ? { documentId, revisionId: physical } : (() => { throw new SyncError('INTEGRITY_FAILED') })()
+          const value = await openAccountJson(database, token, selected, PublicationRecordSchema)
+          if (value.privateKey !== key || value.lineageId !== root.lineageId || value.body.documentId !== documentId || value.body.revisionId === selected.revisionId) throw new SyncError('INTEGRITY_FAILED')
+          await dependencies(database, token, selected, [value.body, ...(value.sourceBookkeeping ? sourceBookkeepingRefs(value.sourceBookkeeping) : []), ...(value.conflictAuthority ? conflictAuthorityRefs(value.conflictAuthority) : [])])
+          sourceBookkeeping = value.sourceBookkeeping; conflictAuthority = value.conflictAuthority
+          if (seed && selected.revisionId !== seed.seed.revisionId) await descended(database, token, selected, seed.seed)
+          body = value.body; digest = value.digest; valueKind = value.valueKind
+        }
+        const original = { ...await readCaptured(body), ...(sourceBookkeeping ? { sourceBookkeeping } : {}) }
+        if (original.document.key !== key || original.document.kind !== valueKind || original.digest !== digest) throw new SyncError('INTEGRITY_FAILED')
+        const entry: AccountWorkspaceEntry = { key, kind: valueKind, ref: body, digest, ...(sourceBookkeeping ? { sourceBookkeeping } : {}), ...(original.retainingIndex ? { retainingIndex: original.retainingIndex } : {}) }
+        entries.push(entry); units.set(key, { key, ref: selected, physical, body: entry, ...(conflictAuthority ? { conflictAuthority } : {}) }); captured.set(blobIdentity(body), original); payloads.set(key, original.source)
+        if (valueKind !== 'tombstone') documents.push(original.document)
+      }
+      const definitions = Object.fromEntries(documents.filter(document => document.kind === 'personal-definition').map(document => { const value = document.value as unknown as PersonalDefinition; return [value.id, value] }))
+      const lineageData = { ...createBlankLocalData(), personalDefinitions: definitions }
+      const selectedKeys = new Set<string>()
+      for (const anchor of lineages.values()) for (const binding of anchor.entries) {
+        const body = units.get(binding.key)?.body
+        if (anchor.value.deleted) { if (body?.kind !== 'tombstone') throw new SyncError('INTEGRITY_FAILED'); continue }
+        if (!body || body.kind !== 'personal-definition' || !sameCipherRefs([body.ref], [binding.ref]) || body.digest !== binding.digest) throw new SyncError('INTEGRITY_FAILED')
+        selectedKeys.add(binding.key)
+      }
+      const inactive = new Set(documents.filter(document => {
+        if (document.kind !== 'personal-definition') return false
+        const definition = document.value as unknown as PersonalDefinition
+        const root = definitionLineageRootRef(lineageData, { kind: 'personal', definitionId: definition.id })
+        return lineages.has(personalLineageKey(root)) && !selectedKeys.has(document.key)
+      }).map(document => document.key))
+      for (let index = documents.length - 1; index >= 0; index--) if (inactive.has(documents[index].key)) documents.splice(index, 1)
+      for (let index = entries.length - 1; index >= 0; index--) if (inactive.has(entries[index].key)) entries.splice(index, 1)
+      const bookkeeping = await projectionBookkeeping(entries.filter(entry => entry.kind === 'scenario').map(entry => captured.get(blobIdentity(entry.ref))!), readCaptured, nowTimestamp())
+      const state = assembleWorkspace(documents, localRevision, { version: 1, changes: [], checkpoints: [], undoable: false }, bookkeeping)
+      const retained = await validatedWorkspaceRetentionEdges(state)
+      const supersededConflictIds = new Set<string>()
+      for (const conflict of state.conflicts) {
+        const authority = units.get(JSON.stringify(['conflict', conflict.id]))?.conflictAuthority
+        if (!authority) throw new SyncError('INTEGRITY_FAILED')
+        await validateConflictAuthority(database, token, state, conflict, authority, control)
+        if (authority.supersedes) supersededConflictIds.add(authority.supersedes.id)
+      }
+      const exactReader = capturedRecordReader(database, token, captured)
+      await validateCapturedWorkspaceRecords(capturedRecordReader(database, token, captured, readCaptured), entries.map(entry => entry.ref), allocation, retained)
+      // This projection is parented to the actual local graph on adoption. Its cache lineage must
+      // follow that head; the publication control has a separate lineage that bulk commits can change
+      const localRoot = await openAccountJson(database, token, localHead, z.union([AccountWorkspaceRootV1Schema, AccountWorkspaceRootV2Schema]))
+      assertActiveProfile(token)
+      if (validatedEvidence) await assertAccountInheritedEvidenceOwner(validatedEvidence, database, token)
+      const projection: RemoteProjection = { control, ...(root.version === 2 ? { inheritedEvidence: root.inheritedEvidence } : {}), lineageId: root.lineageId, baseline, units, directories, lineages, supersededConflictIds, workspace: { state, head: localHead, ...(root.version === 2 ? { formatVersion: 2 as const, inheritedEvidence: root.inheritedEvidence } : {}), lineageId: localRoot.lineageId, entries, allocations: [...allocation].map(([key, documentId]) => ({ key, documentId })), payloads, readCaptured: exactReader } }
+      return { projection, validatedEvidence, dispose }
+    } finally { pass.dispose() }
+  } catch (error) { await dispose(); throw error }
+}
+
 async function assertAdvance(database: AccountDatabase, token: ProfileToken, next: RemoteProjection | null, previous: { readonly control: CipherRef; readonly lineageId: string; readonly units: readonly { key: string; publication: CipherRef }[] }): Promise<void> {
   if (!next) throw new SyncError('INTEGRITY_FAILED')
   await descended(database, token, next.control, previous.control)

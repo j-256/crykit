@@ -114,7 +114,11 @@ export async function finishEvidenceSnapshot(current: BlobSource, documents: rea
 
 // The archive route parses framed stored bytes above; the join builds this exact value from its owned current
 // Avoid encoding and parsing that immutable current twice while historical members always retain stored bytes
-async function constructEvidenceSnapshot(raw: SnapshotMetadataV2, current: BlobSource, documents: readonly BackupDocument[], staging: Staging, signal?: AbortSignal, retainedOwner?: SnapshotOwner): Promise<WorkspaceSnapshotV2> {
+interface JoinedSubsets {
+  readonly members: ReadonlyMap<string, readonly WorkspaceBlobRef[]>
+  readonly bodies: ReadonlySet<string>
+}
+async function constructEvidenceSnapshot(raw: SnapshotMetadataV2, current: BlobSource, documents: readonly BackupDocument[], staging: Staging, signal?: AbortSignal, retainedOwner?: SnapshotOwner, joinedSubsets?: JoinedSubsets): Promise<WorkspaceSnapshotV2> {
   const { state: _state, ...header } = raw
   SnapshotHeaderV2Schema.parse(header)
   const { snapshots, blobs } = raw.historicalEvidence
@@ -141,6 +145,7 @@ async function constructEvidenceSnapshot(raw: SnapshotMetadataV2, current: BlobS
     return snapshot
   }
   const streamDigests = new Map<string, string>()
+  const historicalUsed = new Set<string>()
   // The registry is immutable encrypted staging owned by this archive invocation
   // Release digest reuse before exposing any reader; later opening validates afresh
   await withImmutableWorkspaceBodyValidation([...registry.values()], async bodyValidation => {
@@ -151,9 +156,22 @@ async function constructEvidenceSnapshot(raw: SnapshotMetadataV2, current: BlobS
       const identity = await historicalMetadataIdentity(content)
       streamDigests.set(id, identity.metadataStreamDigest)
       if (identity.id !== id) throw new Error('Historical metadata identity mismatch')
-      await validate(await readBackupMetadata(content) as SnapshotMetadataV1, bodyValidation)
+      const value = await readBackupMetadata(content) as SnapshotMetadataV1
+      // Join constraints share this serial decode with full admission, never retaining every historical catalog
+      // They bind the source subset to the staged original before current-only bodies can hide an orphan
+      if (joinedSubsets) {
+        const subset = joinedSubsets.members.get(id)
+        if (!subset || value.version !== 1 || !value.state || !Array.isArray(value.state.blobs) || value.state.blobs.length !== subset.length || value.state.blobs.some((ref, index) => !sameRef(ref, subset[index]))) throw new Error('Historical subset mismatch')
+        for (const ref of subset) {
+          const key = blobIdentity(ref), body = registry.get(key)
+          if (!joinedSubsets.bodies.has(key) || !body || !sameRef(ref, body.ref)) throw new Error('Historical subset body mismatch')
+          historicalUsed.add(key)
+        }
+      }
+      await validate(value, bodyValidation)
     }
   })
+  if (joinedSubsets && historicalUsed.size !== joinedSubsets.bodies.size) throw new Error('Orphan historical body')
   if (used.size !== registry.size) throw new Error('Orphaned shared backup body')
   let disposed = false, active = false
   const check = async () => { signal?.throwIfAborted(); if (disposed) throw new Error('Backup snapshot was released'); await retainedOwner?.check() }
@@ -230,34 +248,36 @@ export interface InheritedSnapshotSources {
 // Success adopts the current owner so frozen guest freshness survives terminal export
 // Failure leaves that owner with the caller; only this operation's new staging is deleted
 export async function joinWorkspaceSnapshotEvidence(current: WorkspaceSnapshotV1, inherited: InheritedSnapshotSources, options: { readonly signal?: AbortSignal } = {}): Promise<WorkspaceSnapshotV2> {
+  // Borrow byte sources, but detach constraint identities before any await can expose caller mutations
+  const sourceMembers = inherited.members.map(member => ({ ...member, subset: structuredClone([...member.subset]) }))
+  const sourceBodies = inherited.bodies.map(body => ({ ...body, ref: structuredClone(body.ref) }))
   await assertOwnedWorkspaceSnapshot(current)
   const staging = await createBackupStaging(options.signal)
   let ordinal = 0
   const stage = (source: BlobSource) => staging.stage(ordinal++, source)
   try {
-    const registry = new Map<string, BlobEntry>(), historicalBodies = new Set<string>(), used = new Set<string>()
-    for (const blob of inherited.bodies) {
+    const registry = new Map<string, BlobEntry>(), historicalBodies = new Set<string>()
+    for (const blob of sourceBodies) {
       const key = blobIdentity(blob.ref)
       if (historicalBodies.has(key)) throw new Error('Duplicate historical body')
       historicalBodies.add(key)
       registry.set(key, { ref: blob.ref, content: await stage(blob.content) })
     }
     const historical = new Map<string, BlobSource>()
-    for (const member of inherited.members) {
+    const subsets = new Map<string, readonly WorkspaceBlobRef[]>()
+    for (const member of sourceMembers) {
       const metadata = await stage(member.metadata)
       if (await historicalEvidenceId(metadata) !== member.id) throw new Error('Historical metadata identity mismatch')
-      const raw = await readBackupMetadata(metadata) as SnapshotMetadataV1
-      if (raw.version !== 1 || raw.state.blobs.length !== member.subset.length || raw.state.blobs.some((ref, index) => !sameRef(ref, member.subset[index]))) throw new Error('Historical subset mismatch')
       for (const ref of member.subset) {
-        const key = blobIdentity(ref), body = registry.get(key)
+        const body = registry.get(blobIdentity(ref))
         if (!body || !sameRef(ref, body.ref)) throw new Error('Historical subset body mismatch')
-        used.add(key)
       }
+      const previousSubset = subsets.get(member.id)
+      if (previousSubset && (previousSubset.length !== member.subset.length || previousSubset.some((ref, index) => !sameRef(ref, member.subset[index])))) throw new Error('Historical subset mismatch')
       const previous = historical.get(member.id)
       if (previous && !await equalMetadataStreams(previous, metadata)) throw new Error('Contradictory historical metadata')
-      if (!previous) historical.set(member.id, metadata)
+      if (!previous) { historical.set(member.id, metadata); subsets.set(member.id, member.subset) }
     }
-    if (used.size !== historicalBodies.size) throw new Error('Orphan historical body')
     for (const blob of current.state.blobs) {
       const key = blobIdentity(blob.ref), previous = registry.get(key)
       if (previous && (!sameRef(previous.ref, blob.ref) || !await equalMetadataStreams(previous.content, blob.content))) throw new Error('Contradictory shared backup body')
@@ -272,6 +292,6 @@ export async function joinWorkspaceSnapshotEvidence(current: WorkspaceSnapshotV1
     const metadata = metadataSource(raw)
     const documents: BackupDocument[] = [...members.map(([id, content]) => ({ key: `historical:${id}`, encoding: 'deflate-json-tokens-v1' as const, content })), ...blobs.map(blob => ({ key: blobIdentity(blob.ref), encoding: 'bytes' as const, content: blob.content }))]
     await assertOwnedWorkspaceSnapshot(current)
-    return await constructEvidenceSnapshot(raw, metadata, documents, staging, options.signal, { check: () => assertOwnedWorkspaceSnapshot(current), dispose: () => disposeWorkspaceSnapshot(current) })
+    return await constructEvidenceSnapshot(raw, metadata, documents, staging, options.signal, { check: () => assertOwnedWorkspaceSnapshot(current), dispose: () => disposeWorkspaceSnapshot(current) }, { members: subsets, bodies: historicalBodies })
   } catch (error) { await staging.dispose(); throw error }
 }
