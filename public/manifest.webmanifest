@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Crystal Kit",
   "short_name": "CryKit",
-  "description": "Plan and compare builds for Crystal Project. Explore classes, skills, and gear, then track your characters, inventory, and progress with Crystal Kit.",
+  "description": "A fan-made toolkit for Crystal Project. Plan builds, track progress, explore reference data and the world map, and edit mods and game saves in your browser.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

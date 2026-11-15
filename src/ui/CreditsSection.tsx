@@ -1,4 +1,5 @@
 import applicationLicenseUrl from '../../LICENSE?url'
+import { APP_TAGLINE } from '../branding'
 import { PrivacyTermsLink } from './PrivacyTermsLink'
 
 const SOURCE_URL = 'https://github.com/j-256/crykit'
@@ -7,7 +8,7 @@ export function CreditsSection() {
   return <div className="stack">
     <section className="settings-section">
       <h3>Crystal Kit</h3>
-      <p>An unofficial Crystal Project planner, independent of and not endorsed by the game's creators.</p>
+      <p>{APP_TAGLINE}, independent of and not endorsed by the game's creators.</p>
       <p>The original application code is available under <a href={applicationLicenseUrl} rel="noreferrer" target="_blank">AGPL-3.0-only</a>. <a href={SOURCE_URL} rel="noreferrer" target="_blank">Browse the source</a> or <a href={`${SOURCE_URL}/issues`} rel="noreferrer" target="_blank">report a problem</a>. Please leave personal backups, imports, and playthrough records out of public reports.</p>
     </section>
     <section className="settings-section">

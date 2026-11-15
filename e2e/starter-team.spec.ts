@@ -53,7 +53,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
     await expect(page.getByRole('button', { name: 'Choose Class', exact: true })).toContainText(className)
     await expect(page.getByRole('button', { name: 'Choose Main hand', exact: true })).toContainText(weapon)
     await page.locator('.member-record > summary').filter({ hasText: 'Observation details' }).click()
-    await expect(page.locator('.member-record > p').filter({ hasText: /^Sample data for exploring the planner/ })).toBeVisible()
+    await expect(page.locator('.member-record > p').filter({ hasText: /^Sample data for exploring CryKit/ })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }
   await page.screenshot({ path: testInfo.outputPath('sample-character.png'), fullPage: true })

@@ -335,7 +335,7 @@ async function scenario(page: Page, screen: string, shot: (state: string, descri
     return
   }
   if (screen === 'search') {
-    await page.getByRole('button', { name: /^(Search|Search planner)$/ }).filter({ visible: true }).click()
+    await page.getByRole('button', { name: /^(Search|Search CryKit)$/ }).filter({ visible: true }).click()
     const panel = page.getByRole('dialog', { name: 'Search CryKit', exact: true })
     await panel.getByRole('searchbox').fill('Potion')
     await expect(panel.getByRole('button', { name: /Potion/ }).first()).toBeVisible()

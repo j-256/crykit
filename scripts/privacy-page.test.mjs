@@ -55,7 +55,7 @@ test('standalone branding uses the actual local crystal, cricket, and menu font 
     const output = await compile('/nested/app/')
     const all = nodes(output.html)
     const header = all.find(node => node.tagName === 'header')
-    assert.match(normalize(plain(header)), /Crystal Kit.*A Crystal Project planner/)
+    assert.match(normalize(plain(header)), /Crystal Kit.*A fan-made toolkit for Crystal Project/)
     const images = all.filter(node => node.tagName === 'img')
     assert.deepEqual(images.map(node => attr(node, 'src')), ['./crystal-icon.svg', './crystal-cricket.svg'])
     for (const image of images) { assert.equal(attr(image, 'alt'), ''); assert.ok(attr(image, 'width')); assert.ok(attr(image, 'height')) }

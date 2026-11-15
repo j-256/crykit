@@ -61,7 +61,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('universal search focuses the input on shortcuts, reopening, and the search button', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
-  const trigger = page.getByRole('button', { name: isMobile ? 'Search planner' : /^Search/ }).filter({ visible: true })
+  const trigger = page.getByRole('button', { name: isMobile ? 'Search CryKit' : /^Search/ }).filter({ visible: true })
   const palette = page.getByRole('dialog', { name: 'Search CryKit', exact: true })
   const input = palette.getByRole('searchbox', { name: 'Search CryKit', exact: true })
   await trigger.focus()
@@ -142,7 +142,7 @@ test('starter picklists and universal search work without importing or inventing
   await expect(page.getByRole('heading', { name: 'Taunt', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Back to results', exact: true }).click()
 
-  const trigger = page.getByRole('button', { name: isMobile ? 'Search planner' : /^Search/ }).filter({ visible: true })
+  const trigger = page.getByRole('button', { name: isMobile ? 'Search CryKit' : /^Search/ }).filter({ visible: true })
   await trigger.click()
   await expect(palette).toBeVisible()
   await palette.getByRole('searchbox', { name: 'Search CryKit', exact: true }).fill('A nonempty query')

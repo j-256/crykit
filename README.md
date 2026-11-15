@@ -1,6 +1,6 @@
-# CryKit: Buildcrafting and progress for Crystal Project
+# CryKit: A fan-made toolkit for Crystal Project
 
-Crystal Kit (CryKit, pronounced "cricket") is a local-first build planner and progress tracker for **Crystal Project**. Plan classes, equipment, passives, growth, and teams in your browser. Track class seals, travel unlocks, summons, and Quintar breeding, or explore the bundled reference and world map. Character and inventory records are optional.
+Crystal Kit (CryKit, pronounced "cricket") is a local-first, fan-made toolkit for **Crystal Project**. Plan classes, equipment, passives, growth, and teams in your browser. Track class seals, travel unlocks, summons, and Quintar breeding, explore the bundled reference and world map, or edit mods and game saves locally. Character and inventory records are optional.
 
 **[Open Crystal Kit](https://crykit.lasers.app/)** · [User guide](docs/user-guide.md) · [Report a problem](https://github.com/j-256/crykit/issues)
 
@@ -34,7 +34,7 @@ Expand **Loadout > Stats & growth** to adjust level and class growth. If missing
 
 For an ability preview, open **Checks & notes > Ability and hit-chance preview**, choose an ability, then choose **Add battle scenario** and select a target. Character stats come from your build; monster stats use its Game Setup. The preview emphasizes damage or healing, with hit and critical thresholds alongside it. Expand **Damage breakdown** or **Base ability costs** for supporting values. Current HP, MP, and AP are optional: enter them under **Resources** when a result asks for them. Statuses and **Advanced conditions** let you refine the saved scenario. See [battle scenarios](docs/mod-calculations.md#battle-scenarios).
 
-Use **Reference** to browse, or press **Cmd+K** on macOS / **Ctrl+K** elsewhere to search across the planner.
+Use **Reference** to browse, or press **Cmd+K** on macOS / **Ctrl+K** elsewhere to search across CryKit.
 
 The bundled reference combines Crystal Project 1.6.9.0 game definitions and attributed community evidence. Fresh profiles browse the native base. Imported mod revisions provide their supported definitions through the local library. The compared Windows and macOS 1.6.9.0 builds share these native facts; see [verified platform coverage](docs/platform-coverage.md). Source versions stay visible, and Switch or mod-pack parity is not assumed. No game installation is needed to use the app. See [reference sources and coverage](docs/catalog-sources.md) for provenance, artwork, and unresolved details.
 

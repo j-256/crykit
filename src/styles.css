@@ -10,7 +10,8 @@
   --rail-width: 232px;
   --rail-padding-inline: 14px;
   --desktop-brand-width: 232px;
-  --desktop-header-height: 72px;
+  /* Reserve room for the two-line wordmark and wrapped tagline */
+  --desktop-header-height: 88px;
   --rail-control-size: 48px;
   --rail-toggle-size: 32px;
   --rail-local-note-height: 72px;

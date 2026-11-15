@@ -6,7 +6,7 @@ Start with the [first-build walkthrough](../README.md#try-your-first-build) if y
 
 ## Getting around
 
-The app opens to the build library. Builds, Teams, Reference, World Map, Mods, and Save Editor share the main menu. Characters, Inventory, and Progress live under Tracking. Buildcrafting works without entering a Playthrough or characters. Tracking connects plans to your observed game state when you choose to use it. On mobile, **More** opens every destination without scrolling the bottom menu.
+The app opens to the build library. Toolkit groups Builds, Teams, Reference, World Map, Mods, and Save Editor in the main menu. Characters, Inventory, and Progress live under Tracking. Buildcrafting works without entering a Playthrough or characters. Tracking connects plans to your observed game state when you choose to use it. On mobile, **More** opens every destination without scrolling the bottom menu.
 
 The first visit includes a labeled sample Playthrough with sample characters, their starting equipment, character sheets, four starting Builds matching the characters' spawn loadouts, a saved four-member Team using those Builds, and an active sample party plan. The Build Library also includes four sample nontrivial Builds with saved modded Game Setups. The Playthrough records are synthetic, and the additional Builds let you explore more complete plans. Start a new Build, create a blank Playthrough for your own tracked game, or replace all planner data with an import. Builds, Teams, and Game Setups are shared across Playthroughs. Reloading retains saved edits; clearing the browser's application data starts the sample again. Existing browser data is not reseeded when the app updates.
 

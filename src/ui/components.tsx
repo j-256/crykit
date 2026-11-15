@@ -3,6 +3,7 @@ import { Dropdown } from './Dropdown'
 import { Icon, type IconName } from './icons'
 import { createPortal } from 'react-dom'
 import { useWorkspaceHeader } from './WorkspaceHeader'
+import { APP_TAGLINE } from '../branding'
 
 export function Button({ children, className = '', tone = 'primary', icon, ...props }: ComponentPropsWithRef<'button'> & { tone?: 'primary' | 'secondary' | 'quiet' | 'danger'; icon?: IconName }) {
   return <button className={`button button--${tone} ${className}`} {...props}>{icon && <Icon name={icon} />}{children}</button>
@@ -115,7 +116,7 @@ export function LoadingScreen({ detail }: { detail: string }) {
   return <main aria-busy="true" className="loading-screen"><div className="loading-screen__content">
     <span aria-hidden="true" className="loading-screen__crystal"><Icon name="crystal"/></span>
     <h1><span className="loading-screen__opening">Opening </span>Crystal Kit</h1>
-    <p className="loading-screen__tagline">A Crystal Project planner</p>
+    <p className="loading-screen__tagline">{APP_TAGLINE}</p>
     <p className="loading-screen__status" role="status"><span aria-hidden="true" className="spinner"/>{detail}</p>
   </div></main>
 }

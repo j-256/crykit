@@ -114,7 +114,7 @@ Use a restrictive production CSP, no remote fonts, no runtime scraping, no dynam
 
 ## Presentation and accessibility
 
-Use Builds, Teams, Reference, World Map, and Mods as the planning destinations. Group Characters, Inventory, and Progress under Tracking. Data & Settings contains imports, backups, Playthrough selection, reusable Game Setups, history, storage, credits, and offline/update status. Planning pages use a persistent title and command header. Tracking pages show Playthrough and party-plan context where they affect results; saved builds and observations retain their own rule summaries.
+Group Builds, Teams, Reference, World Map, Mods, and Save Editor under Toolkit. Group Characters, Inventory, and Progress under Tracking. Data & Settings contains imports, backups, Playthrough selection, reusable Game Setups, history, storage, credits, and offline/update status. Toolkit pages use a persistent title and command header. Tracking pages show Playthrough and party-plan context where they affect results; saved builds and observations retain their own rule summaries.
 
 Desktop can use a navigation rail and adjacent selection/detail panels. Mobile uses a compact header and bottom navigation. Definition choices use searchable dropdowns anchored to their fields on both layouts, keeping the surrounding form usable. Larger editing workflows use centered dialogs with a dim, unblurred backdrop and a scrolling body constrained to the viewport. All core actions need visible keyboard focus, semantic labels, touch-sized controls, and no hover or dragging dependency. Status uses text as well as color. Empty states offer the next useful action.
 

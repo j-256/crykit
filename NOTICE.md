@@ -1,6 +1,6 @@
 # Credits and third-party notices
 
-Crystal Kit is an unofficial fan planner for Crystal Project. It is independent of the game's creators and is not endorsed by them. The original application code is licensed under [AGPL-3.0-only](LICENSE). That license does not grant rights to third-party artwork, reference content, or trademarks.
+Crystal Kit is a fan-made toolkit for Crystal Project. It is independent of the game's creators and is not endorsed by them. The original application code is licensed under [AGPL-3.0-only](LICENSE). That license does not grant rights to third-party artwork, reference content, or trademarks.
 
 ## Game artwork
 
