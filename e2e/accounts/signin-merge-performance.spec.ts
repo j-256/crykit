@@ -1,7 +1,7 @@
 import { performance } from 'node:perf_hooks'
 import { ApiErrorSchema } from '../../src/account/protocol'
 import { expect, test } from './test-fixture'
-import { ACCOUNT_PREPARATION_TIMEOUT_MS, assessSigninMergeResponsiveness, installSigninMergeResponsivenessProbe, observeSigninMergeReadback, readSigninMergeResponsivenessProbe, SIGNIN_MERGE_INPUT_TO_PAINT_TARGET_MS, SIGNIN_MERGE_REVIEW_TARGET_MS } from './signin-helpers'
+import { ACCOUNT_PREPARATION_TIMEOUT_MS, assessSigninMergeResponsiveness, installSigninMergeResponsivenessProbe, observeSigninMergeReadback, readSigninMergeResponsivenessProbe, SIGNIN_MERGE_INPUT_TO_PAINT_TARGET_MS, SIGNIN_MERGE_REVIEW_TARGET_MS, SIGNIN_MERGE_INPUT_CADENCE_MS, SIGNIN_MERGE_PREPARATION_PHASES, sampleSigninMergePreparation, assessScheduledSigninMergeInputs, type ScheduledSigninMergeInput } from './signin-helpers'
 
 const app = '/__accounts-proof/account-workspace.html'
 const password = 'synthetic merge measurement password'
@@ -10,8 +10,19 @@ const MEASUREMENT_ENABLED = process.env.CRYKIT_SIGNIN_MERGE_MEASUREMENT === '1'
 for (const fixture of ['default-guest', 'empty-control'] as const) test(`complete sign-in merge measurement: ${fixture}`, async ({ page, accountOrigin }, testInfo) => {
   test.skip(!MEASUREMENT_ENABLED, 'Opt-in controlled performance cohort')
   test.setTimeout(240_000)
-  const report: any = { fixture, conditions: { browser: testInfo.project.name, browserVersion: page.context().browser()?.version(), origin: accountOrigin, coldContext: true, appModuleCache: 'warm after fixture setup and reload', dataCache: 'fixture read before reload', source: process.env.CRYKIT_MEASUREMENT_SOURCE ?? null, build: process.env.CRYKIT_ACCOUNT_INPUTS ?? null, contention: process.env.CRYKIT_MEASUREMENT_CONTENTION ?? 'unknown', profiler: false }, targets: { reviewMs: SIGNIN_MERGE_REVIEW_TARGET_MS, inputToPaintMs: SIGNIN_MERGE_INPUT_TO_PAINT_TARGET_MS }, phases: [], network: [], errors: [], status: 'setup' }
+  const report: any = { fixture, conditions: { measurementVersion: 3, baseline: process.env.CRYKIT_MEASUREMENT_BASELINE === '1', timingEndpoint: 'trusted-click-to-interactive-ready-double-rAF-paint-opportunity', networkScope: 'finished API requests from setup through optional readback; diagnostic only, not complete transfer accounting', preparationPhases: SIGNIN_MERGE_PREPARATION_PHASES, inputCadenceMs: SIGNIN_MERGE_INPUT_CADENCE_MS, browser: testInfo.project.name, browserVersion: page.context().browser()?.version(), origin: accountOrigin, coldContext: true, appModuleCache: 'warm after fixture setup and reload', dataCache: 'fixture read before reload', source: process.env.CRYKIT_MEASUREMENT_SOURCE ?? null, build: process.env.CRYKIT_ACCOUNT_INPUTS ?? null, contention: process.env.CRYKIT_MEASUREMENT_CONTENTION ?? 'unknown', profiler: false }, targets: { reviewMs: SIGNIN_MERGE_REVIEW_TARGET_MS, inputToPaintMs: SIGNIN_MERGE_INPUT_TO_PAINT_TARGET_MS }, phases: [], network: [], workerRealms: [], errors: [], status: 'setup' }
+  page.on('worker', worker => {
+    const realm: { path: string; startedEpochMs: number; closedEpochMs?: number } = { path: new URL(worker.url()).pathname, startedEpochMs: Date.now() }
+    report.workerRealms.push(realm)
+    worker.on('close', () => { realm.closedEpochMs = Date.now() })
+  })
   const pendingNetwork = new Set<Promise<void>>()
+  // CDP command completion precedes renderer handling; native event timestamps bind the scheduled receipts
+  // Scheduled wall time and the browser time origin share this controlled host's clock
+  const cdp = await page.context().newCDPSession(page)
+  const responsivenessSamples: ScheduledSigninMergeInput[] = []
+  const samplePreparation = (phase: string, action: () => Promise<void>) => sampleSigninMergePreparation(cdp, phase, responsivenessSamples, action)
+  report.responsivenessSamples = responsivenessSamples
   const onFinished = (request: import('@playwright/test').Request) => {
     if (!new URL(request.url()).pathname.startsWith('/api/')) return
     const observedAt = performance.now()
@@ -73,24 +84,25 @@ for (const fixture of ['default-guest', 'empty-control'] as const) test(`complet
     await installSigninMergeResponsivenessProbe(page)
     report.status = 'measuring'
     const journeyStarted = performance.now()
+    report.journeyStartedEpochMs = Date.now()
     try {
-      await span('signin-to-chooser', async () => {
+      await span('signin-to-chooser', async () => samplePreparation('signin', async () => {
         await page.getByRole('button', { name: 'Sign in', exact: true }).click()
         await expect(page.getByRole('heading', { name: 'Choose what to keep', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-      })
+      }))
       await span('merge-to-interactive-review', async () => {
-        await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
-        const inputStarted = performance.now()
-        const input = page.keyboard.press('x').then(() => { report.inputDispatchRoundTripMs = performance.now() - inputStarted })
-        await expect(page.getByRole('button', { name: 'Confirm merge', exact: true })).toBeEnabled({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-        await input
+        await samplePreparation('review', async () => {
+          await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
+          await expect(page.getByRole('button', { name: 'Confirm merge', exact: true })).toBeEnabled({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+        })
       })
       report.pendingInputProbeAtReview = assessSigninMergeResponsiveness(await readSigninMergeResponsivenessProbe(page))
-      expect(report.pendingInputProbeAtReview.receiptStatus, 'Require a trusted input received during preparation and its paint receipt').toBe('pending')
       await span('confirm-to-interactive-local-open', async () => {
-        await page.getByRole('button', { name: 'Confirm merge', exact: true }).click()
-        await expect(page.getByRole('complementary', { name: 'Account sync' })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-        await expect(page.getByRole('button', { name: 'Account', exact: true }).first()).toBeEnabled()
+        await samplePreparation('confirm', async () => {
+          await page.getByRole('button', { name: 'Confirm merge', exact: true }).click()
+          await expect(page.getByRole('complementary', { name: 'Account sync' })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+          await expect(page.getByRole('button', { name: 'Account', exact: true }).first()).toBeEnabled()
+        })
       })
       await span('local-open-to-remote-accepted', async () => {
         await expect.poll(async () => { report.acceptance = await page.evaluate(() => (window as any).accountBootstrapProof.signinMergeAcceptance()); return report.acceptance.accepted }, { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS }).toBe(true)
@@ -98,7 +110,7 @@ for (const fixture of ['default-guest', 'empty-control'] as const) test(`complet
       })
       await page.evaluate(() => (window as any).accountBootstrapProof.recordSigninMergeBoundary('remote-accepted'))
       report.status = 'complete'
-    } finally { report.phases.push({ name: 'complete-journey', elapsedMs: performance.now() - journeyStarted, outcome: report.status === 'complete' ? 'complete' : 'failed' }) }
+    } finally { report.journeyEndedEpochMs = Date.now(); report.phases.push({ name: 'complete-journey', elapsedMs: performance.now() - journeyStarted, outcome: report.status === 'complete' ? 'complete' : 'failed' }) }
     // Post-timing readback can admit large retained metadata and must not extend the journey span
     report.after = {
       storage: await observeSigninMergeReadback(() => page.evaluate(async () => ({ rootVersion: (await (window as any).accountBootstrapProof.accountStorage()).rootVersion }))),
@@ -122,11 +134,63 @@ for (const fixture of ['default-guest', 'empty-control'] as const) test(`complet
     const review = report.phases.find((phase: any) => phase.name === 'merge-to-interactive-review')
     report.budgets = { review: review?.outcome === 'complete' ? review.elapsedMs <= SIGNIN_MERGE_REVIEW_TARGET_MS : null,
       sampledInputToPaint: report.pendingInputProbe.sampledInputToPaint, wholePreparationResponsiveness: null }
+    const assessment = assessScheduledSigninMergeInputs(report.responsiveness ?? null, responsivenessSamples)
+    Object.assign(report, { scheduledInputReceipts: assessment.scheduledInputReceipts, phaseInputCoverage: assessment.phaseInputCoverage, browserPhases: assessment.browserPhases })
+    report.budgets.driverReview = report.budgets.review
+    report.budgets.review = assessment.review
+    report.budgets.wholePreparationResponsiveness = assessment.wholePreparationResponsiveness
+    report.accountingBoundaries = Object.fromEntries(['local-open', 'remote-accepted'].map(stage => {
+      const matches = report.diagnostics?.filter((event: any) => event.stage === stage && event.outcome === 'complete') ?? []
+      const event = matches.length === 1 ? matches[0] : undefined
+      const worker = event?.workerAccounting
+      const complete = worker && worker.startedRequests === worker.reportedRequests && worker.incompleteRequests === 0
+      return [stage, { status: !event?.metadata ? 'unavailable' : report.conditions.baseline ? 'main-realm-lower-bound' : !complete ? 'incomplete-worker-accounting' : 'available', event: event ?? null }]
+    }))
     await testInfo.attach('signin-merge-measurement', { body: JSON.stringify(report), contentType: 'application/json' })
-    if (report.status === 'complete') {
-      const final = report.diagnostics?.at(-1)
+    if (report.status === 'complete' && process.env.CRYKIT_MEASUREMENT_BASELINE !== '1') {
+      const final = report.accountingBoundaries['remote-accepted'].event
+      expect(report.accountingBoundaries['remote-accepted'].status).toBe('available')
       expect(final?.ciphertextObservations?.worker?.completedPasses, 'Require actual worker observation accounting').toBeGreaterThan(0)
       expect(final?.ciphertextObservations?.main?.completedPasses, 'Require independent main observation accounting').toBeGreaterThan(0)
     }
   }
+})
+
+const CONTROL_BLOCK_MS = 500
+const CONTROL_BLOCK_START_MS = 25
+const CONTROL_READY_MS = 650
+for (const blocked of [false, true]) test(`controlled scheduled preparation detects delivery after readiness: ${blocked}`, async ({ page }, testInfo) => {
+  test.skip(!MEASUREMENT_ENABLED, 'Opt-in controlled responsiveness oracle')
+  await page.setContent('<h1>Choose what to keep</h1><button>Merge (recommended)</button>')
+  await installSigninMergeResponsivenessProbe(page)
+  await page.evaluate(({ blocked, blockMs, blockStartMs, readyMs }) => {
+    const ready = () => { document.querySelector('h1')!.textContent = 'Included records'; document.querySelector('button')!.textContent = 'Confirm merge' }
+    document.querySelector('button')!.addEventListener('click', () => {
+      document.querySelector('h1')!.textContent = 'Preparing your workspace'
+      if (blocked) setTimeout(() => {
+        const end = performance.now() + blockMs
+        while (performance.now() < end) { /* Deliberate synthetic blocked-renderer negative control */ }
+        // The input was scheduled during preparation but its handler sees the ready DOM
+        ready()
+      }, blockStartMs)
+      else setTimeout(ready, readyMs)
+    })
+  }, { blocked, blockMs: CONTROL_BLOCK_MS, blockStartMs: CONTROL_BLOCK_START_MS, readyMs: CONTROL_READY_MS })
+  const cdp = await page.context().newCDPSession(page), samples: ScheduledSigninMergeInput[] = []
+  await sampleSigninMergePreparation(cdp, 'review', samples, async () => {
+    await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Confirm merge', exact: true })).toBeEnabled()
+    await page.waitForFunction(() => (window as any).signinMergeResponsiveness.phases.some((phase: any) => phase.name === 'review' && phase.readyEpochMs))
+  })
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+  const probe = await readSigninMergeResponsivenessProbe(page)
+  const assessment = assessScheduledSigninMergeInputs(probe, samples, ['review'])
+  await testInfo.attach('controlled-scheduled-responsiveness', { body: JSON.stringify({ blocked, samples, probe, assessment }), contentType: 'application/json' })
+  expect(assessment.browserPhases[0].status).toBe('complete')
+  expect(assessment.wholePreparationResponsiveness).toBe(!blocked)
+  if (blocked) {
+    expect(probe.paints.some((receipt: any) => !receipt.pendingAtInput)).toBe(true)
+    expect(assessment.scheduledInputReceipts.some(receipt => receipt.inPhase && receipt.receiptStatus === 'associated' && receipt.scheduledToPaintOpportunityMs! > SIGNIN_MERGE_INPUT_TO_PAINT_TARGET_MS)).toBe(true)
+  }
+  await page.evaluate(() => (window as any).signinMergeResponsiveness.stop())
 })

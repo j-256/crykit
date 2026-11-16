@@ -1,4 +1,4 @@
-import { signinMergeDiagnosticsEnabled, recordSigninMergeWorkerWork, recordSigninMergeCiphertextWork, recordSigninMergeCiphertextFailure } from './signin-merge-diagnostics'
+import { signinMergeDiagnosticsEnabled, createSigninMergeWorkerObserver, recordSigninMergeCiphertextWork, recordSigninMergeCiphertextFailure } from './signin-merge-diagnostics'
 import { SigninDecisionSchema } from './signin-decision'
 import type { Transaction } from 'dexie'
 import { assertActiveProfile, profileSignal, type ProfileToken } from '../account/profile'
@@ -52,6 +52,7 @@ export async function createSigninMergeClient(database: AccountDatabase, token: 
   const previousDecision = await database.syncState.get(decisionId)
   const fence: SigninMergeFence = structuredClone({ selected, projection, epoch: review.epoch, heads })
   const source = structuredClone(locator), identity = structuredClone(sourceIdentity)
+  const codecObserver = createSigninMergeWorkerObserver()
   let closed = false, installed = false, worker: ProfileWorkerLease | undefined, lease: AccountPreparationLease | undefined
   let observations: MergeCipherObservation[] = [], installedDecision: AccountSyncAttachmentValue | undefined
   let mainOwner: ReturnType<typeof createAccountPreparationOwner> | undefined
@@ -68,7 +69,7 @@ export async function createSigninMergeClient(database: AccountDatabase, token: 
   }
   const acceptProgress = (value: unknown) => {
     const message = SigninMergeProgressSchema.parse(value)
-    if (message.codec) recordSigninMergeWorkerWork(message.codec)
+    if (message.codec) codecObserver?.work(message.codec)
     if (message.observations?.status === 'complete') recordSigninMergeCiphertextWork('worker', message.observations.records, message.observations.bytes)
     else if (message.observations?.status === 'failed') recordSigninMergeCiphertextFailure('worker')
     progress(message)
@@ -82,16 +83,19 @@ export async function createSigninMergeClient(database: AccountDatabase, token: 
   }
   const dispose = async () => {
     if (closed) return
+    codecObserver?.endRequest()
     closed = true; await releaseWorker(); await mainOwner?.abandon(); clearMergeCiphertext(observations); observations = []
     // Cleanup can leave inert bytes when another realm still owns a share; it never deletes installed data
     try { assertActiveProfile(token); await cleanupAccountPreparations(database, token) } catch { /* A later unlocked coordinator retries exact registered cleanup */ }
   }
   try {
     await checkCurrent()
+    codecObserver?.beginRequest()
     worker = await createProfileWorker(token, createWorker(), { ready: true, errorCodes: SIGNIN_MERGE_ERRORS, signal, ...(signinMergeDiagnosticsEnabled() ? { diagnostics: true } : {}) })
     const response = SigninMergeReviewSchema.parse(await worker.request({ kind: 'review', operationId, locator: source, fence }, signal, acceptProgress))
     if (response.preview.accountId !== token.accountId || !response.preview.signin || response.preview.resumable) throw mismatch()
     await checkCurrent()
+    codecObserver?.endRequest()
     const previewDigest = await backupMetadataDigest(response.preview)
     let started = false
     return { preview: response.preview, dispose, async prepare(decision: AccountSyncAttachmentValue): Promise<PreparedSigninMerge> {
@@ -103,7 +107,9 @@ export async function createSigninMergeClient(database: AccountDatabase, token: 
       if (confirmed.id !== decisionId || !jsonEqual(confirmed.expected, previousDecision)) throw mismatch()
       if (!confirmed.id.startsWith(ACCOUNT_RECEIPT_PREFIX) || confirmed.dependencies?.length || value.version !== 1 || value.kind !== 'signin-decision' || value.action !== 'merge' || value.status !== 'preparing' || value.accountId !== token.accountId || value.operationId !== operationId || value.copyId !== response.preview.copyId || !jsonEqual(value.source, identity)) throw mismatch()
       lease = await holdAccountPreparation(token, operationId, signal)
+      codecObserver?.beginRequest()
       const ticket = SigninMergeTicketSchema.parse(await worker!.request({ kind: 'prepare', operationId, handle: response.handle }, signal, acceptProgress))
+      codecObserver?.endRequest()
       if (ticket.operationId !== operationId || ticket.copyId !== response.preview.copyId || ticket.manifest.descriptor.accountId !== token.accountId || ticket.manifest.descriptor.dependencies.length) throw mismatch()
       assertSigninMergeBudget(ticket.manifest.descriptor.plainBytes, 0, 0)
       const reserved = async (records: readonly CipherRecord[]) => {
@@ -173,7 +179,9 @@ export async function createSigninMergeClient(database: AccountDatabase, token: 
         const receipt = Object.freeze({}); receipts.set(receipt, { proof, consumed: false })
         const activation = validated.managed ? (await import('./account-local-store')).admitInstalledMerge(database, token, prepared, receipt) : { ...prepared, preparationAdmission: receipt }
         // Main has independent bytes and a committed installation before worker ownership is retired
-        try { await worker!.request({ kind: 'release', operationId }, signal) } catch { /* Durable journal readback handles lost acknowledgments */ }
+        codecObserver?.beginRequest()
+        try { await worker!.request({ kind: 'release', operationId }, signal, acceptProgress) } catch { /* Durable journal readback handles lost acknowledgments */ }
+        finally { codecObserver?.endRequest() }
         await releaseWorker()
         return { copyId: ticket.copyId, async activate(complete: AccountSyncAttachmentValue) {
           check()
