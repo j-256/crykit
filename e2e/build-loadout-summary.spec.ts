@@ -5,6 +5,7 @@ const COLLAPSED_RAIL_MAX_WIDTH_PX = 80
 const RAIL_CONTROL_WIDTH_PX = 48
 const RAIL_TOGGLE_WIDTH_PX = 32
 const EXPANDED_RAIL_WIDTH_PX = 232
+const COMPACT_RAIL_FOOTER_MAX_HEIGHT_PX = 180
 const DENSE_LIBRARY_CARD_MAX_HEIGHT_PX = 230
 const DENSE_TEAM_CARD_MAX_HEIGHT_PX = 190
 const SHORT_DESKTOP_VIEWPORT_HEIGHTS = [720, 480]
@@ -218,12 +219,18 @@ test('selected builds open as loadouts and the desktop sidebar starts expanded a
   await expect(buildsNav.locator('span')).toBeVisible()
   const collapseToggle = page.getByRole('button', { name: 'Collapse sidebar', exact: true })
   const dataButton = page.getByRole('button', { name: 'Data & Settings', exact: true })
+  const accountButton = rail.getByRole('button', { name: 'Account', exact: true })
+  const accountBounds = (await accountButton.boundingBox())!
+  const toggleBounds = (await collapseToggle.boundingBox())!
+  expect(expandedFooter.height).toBeLessThanOrEqual(COMPACT_RAIL_FOOTER_MAX_HEIGHT_PX)
+  expect(toggleBounds.y + toggleBounds.height / 2).toBe(accountBounds.y + accountBounds.height / 2)
   expect((await collapseToggle.boundingBox())!.y).toBeGreaterThan((await dataButton.boundingBox())!.y)
   await collapseToggle.click()
   await expect(page.locator('.rail__toggle svg')).toHaveCSS('transform', 'matrix(-1, 0, 0, -1, 0, 0)')
   const collapsedRail = (await rail.boundingBox())!
   const collapsedBrandHeader = (await desktopBrandHeader.boundingBox())!
   const collapsedFooter = (await footer.boundingBox())!
+  const footerPaddingBottom = await footer.evaluate(element => Number.parseFloat(getComputedStyle(element).paddingBottom))
   const railBottomPadding = await rail.evaluate(element => Number.parseFloat(getComputedStyle(element).paddingBottom))
   expect(collapsedRail.width).toBeLessThanOrEqual(COLLAPSED_RAIL_MAX_WIDTH_PX)
   expect(collapsedFooter.y + collapsedFooter.height + railBottomPadding).toBe(collapsedRail.y + collapsedRail.height)
@@ -236,7 +243,9 @@ test('selected builds open as loadouts and the desktop sidebar starts expanded a
   expect(collapsedControls).toHaveLength(expandedControls.length)
   for (const [index, control] of collapsedControls.entries()) {
     const expandedControl = expandedControls[index]
-    const shiftY = control.isFooter ? collapsedFooter.y - expandedFooter.y : -expandedControl.hiddenSublistSpace
+    const shiftY = control.isToggle
+      ? collapsedFooter.y + collapsedFooter.height - footerPaddingBottom - control.height - expandedControl.y
+      : control.isFooter ? collapsedFooter.y - expandedFooter.y : -expandedControl.hiddenSublistSpace
     expect(control.width).toBe(control.isToggle ? RAIL_TOGGLE_WIDTH_PX : RAIL_CONTROL_WIDTH_PX)
     expect(control.y).toBe(expandedControl.y + shiftY)
     expect(control.height).toBe(expandedControl.height)
@@ -260,6 +269,34 @@ test('selected builds open as loadouts and the desktop sidebar starts expanded a
   await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await expect(page.getByRole('region', { name: 'Build mechanics', exact: true })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Equipment', exact: true })).not.toBeVisible()
+})
+
+test('desktop sidebar shows scroll cues only for hidden destinations', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'The desktop sidebar is replaced by bottom navigation')
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.goto('/#/builds/library')
+  await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
+  const rail = page.locator('.rail')
+  const navigation = rail.getByRole('navigation', { name: 'Primary navigation', exact: true })
+  const footer = rail.locator('.rail__footer')
+  const above = rail.locator('.rail__scroll-cue--above')
+  const below = rail.locator('.rail__scroll-cue--below')
+  for (const collapsed of [false, true]) {
+    if (collapsed) await rail.getByRole('button', { name: 'Collapse sidebar', exact: true }).click()
+    await navigation.evaluate(element => { element.scrollTop = 0 })
+    await expect(below).toBeVisible()
+    await expect(above).toHaveCount(0)
+    const fixedFooter = await footer.boundingBox()
+    await navigation.evaluate(element => { element.scrollTop = element.scrollHeight })
+    await expect(above).toBeVisible()
+    await expect(below).toHaveCount(0)
+    expect(await footer.boundingBox()).toEqual(fixedFooter)
+    await page.setViewportSize({ width: 1280, height: 1600 })
+    await expect(above).toHaveCount(0)
+    await expect(below).toHaveCount(0)
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await expect(below).toBeVisible()
+  }
 })
 
 test('desktop sidebar keeps navigation and footer tools reachable on short windows', async ({ page, isMobile }, testInfo) => {

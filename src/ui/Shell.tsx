@@ -21,6 +21,8 @@ export type { Destination } from './navigation'
 
 interface MenuDestination { readonly id: Destination; readonly label: string; readonly icon: IconName }
 
+const SCROLL_EDGE_TOLERANCE_PX = 1
+
 const MAIN_DESTINATIONS: readonly MenuDestination[] = [
   { id: 'builds', label: 'Builds', icon: 'sword' },
   { id: 'teams', label: 'Teams', icon: 'team' },
@@ -43,6 +45,35 @@ function positionSidebarLabels(rail: HTMLElement, includeInactive = false) {
     control.style.setProperty('--rail-label-center-y', `${bounds.top + bounds.height / 2}px`)
     control.style.setProperty('--rail-label-visibility', visible ? 'visible' : 'hidden')
   }
+}
+
+function SidebarNavigation({ children }: { children: ReactNode }) {
+  const menuRef = useRef<HTMLElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [edges, setEdges] = useState({ above: false, below: false })
+  useEffect(() => {
+    const menu = menuRef.current
+    const content = contentRef.current
+    if (!menu || !content) return
+    const measure = () => {
+      const above = menu.clientHeight > 0 && menu.scrollTop > SCROLL_EDGE_TOLERANCE_PX
+      const below = menu.clientHeight > 0 && menu.scrollHeight - menu.clientHeight - menu.scrollTop > SCROLL_EDGE_TOLERANCE_PX
+      setEdges(previous => previous.above === above && previous.below === below ? previous : { above, below })
+    }
+    measure()
+    // Group expansion changes content height without resizing the scroll viewport
+    const observer = new ResizeObserver(measure)
+    observer.observe(menu)
+    observer.observe(content)
+    menu.addEventListener('scroll', measure, { passive: true })
+    return () => { observer.disconnect(); menu.removeEventListener('scroll', measure) }
+  }, [])
+  // Decorative cues expose overflow when platform scrollbars hide without adding keyboard stops
+  return <div className="rail__navigation">
+    <nav aria-label="Primary navigation" className="menu-window" ref={menuRef}><div ref={contentRef}>{children}</div></nav>
+    {edges.above && <span aria-hidden="true" className="rail__scroll-cue rail__scroll-cue--above"><Icon name="arrow-up"/><span>More above</span></span>}
+    {edges.below && <span aria-hidden="true" className="rail__scroll-cue rail__scroll-cue--below"><Icon name="arrow-down"/><span>More below</span></span>}
+  </div>
 }
 
 function Brand() {
@@ -141,15 +172,14 @@ export function Shell({ localData, catalogs, destination, saveState, pendingLoca
   return <div className={`app-shell${sidebarExpanded ? '' : ' app-shell--sidebar-collapsed'}`}>
     <header className="desktop-brand-header"><Brand/></header>
     <aside className="rail" ref={railRef} onFocusCapture={event => positionSidebarLabels(event.currentTarget)} onPointerOver={event => positionSidebarLabels(event.currentTarget)} onScrollCapture={event => positionSidebarLabels(event.currentTarget)}>
-      <nav aria-label="Primary navigation" className="menu-window">
+      <SidebarNavigation>
         <p className="nav-section__label">Toolkit</p>
         <ul aria-label="Toolkit" className="nav-list">{MAIN_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}{item.id === 'mods' && <ModWorkspaceLinks/>}</li>)}</ul>
         <div aria-label="Tracking" className="nav-tracking" role="group"><p className="nav-section__label">Tracking</p><ul className="nav-list">{TRACKING_DESTINATIONS.map((item) => <li key={item.id}>{destinationButton(item)}{item.id === 'progress' && <ProgressBoards sidebar/>}</li>)}</ul></div>
-      </nav>
+      </SidebarNavigation>
       <div className="rail__footer">
         <button className="nav-link rail__search" onClick={openSearch} type="button"><Icon name="search"/><span>Search</span><kbd aria-hidden="true">⌘/Ctrl K</kbd></button>
-        <button aria-current={navigation.route.page.page === 'settings' && !accountPage ? 'page' : undefined} className="nav-link rail__data" onClick={onOpenData} type="button"><Icon name="settings"/><span>Data & Settings</span></button><button aria-current={accountPage ? 'page' : undefined} className="nav-link" onClick={openAccount} type="button"><Icon name="user"/><span>Account</span></button>
-        <div className="local-note">Export a backup to keep a separate copy.</div>
+        <button aria-current={navigation.route.page.page === 'settings' && !accountPage ? 'page' : undefined} className="nav-link rail__data" onClick={onOpenData} type="button"><Icon name="settings"/><span>Data & Settings</span></button><button aria-current={accountPage ? 'page' : undefined} className="nav-link rail__account" onClick={openAccount} type="button"><Icon name="user"/><span>Account</span></button>
         <button aria-expanded={sidebarExpanded} aria-label={sidebarToggleLabel} className="nav-link rail__toggle" onClick={toggleSidebar} title={sidebarToggleLabel} type="button"><Icon name="arrow-left"/></button>
       </div>
     </aside>
