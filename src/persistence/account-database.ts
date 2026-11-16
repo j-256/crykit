@@ -5,6 +5,7 @@ import { assertActiveProfile, profileSignal, type ProfileToken } from '../accoun
 import { WorkspaceError } from '../workspace/repository'
 
 export interface CipherRef { readonly documentId: string; readonly revisionId: string }
+export interface PreparationPayload { readonly operationId: string; readonly payloadId: string }
 export interface CipherChunk { readonly payloadId: string; readonly index: number; readonly bytes: Uint8Array }
 export interface CipherRecord { readonly revisionId: string; readonly payloadId: string; readonly descriptor: RevisionDescriptor }
 export interface EncryptedSyncState { readonly id: string; readonly ref: CipherRef }
@@ -12,7 +13,14 @@ export interface AccountFence { readonly key: 'active'; readonly headRevision: n
 export interface AccountIntentRecord { readonly id: string; readonly ref: CipherRef; readonly status: 'unmapped-local' | 'mapped-local'; readonly publicationBase?: CipherRef }
 export interface LocalActivationJournal { readonly id: string; readonly version: 1; readonly head: CipherRef; readonly headRevision: number; readonly intent?: CipherRef; readonly localStatus: 'active'; readonly cloudStatus: 'unmapped-local' | 'mapped-local' }
 
+const ACCOUNT_DATABASE_VERSION = 3
+const ACCOUNT_DATABASE_V1 = { stagedCipherChunks: '[payloadId+index], payloadId', encryptedRevisions: 'revisionId, payloadId', documentHeads: 'documentId', outbox: 'id', conflicts: 'id', profileMeta: 'key', migrationJournal: 'id' }
+const ACCOUNT_DATABASE_V2 = { syncState: 'id' }
+const ACCOUNT_DATABASE_V3 = { preparationPayloads: '[operationId+payloadId], operationId, &payloadId' }
+const ACCOUNT_DATABASE_STORES = { ...ACCOUNT_DATABASE_V1, ...ACCOUNT_DATABASE_V2, ...ACCOUNT_DATABASE_V3 }
+
 export class AccountDatabase extends Dexie {
+  preparationPayloads!: Table<PreparationPayload, [string, string]>
   stagedCipherChunks!: Table<CipherChunk, [string, number]>
   encryptedRevisions!: EntityTable<CipherRecord, 'revisionId'>
   documentHeads!: EntityTable<CipherRef, 'documentId'>
@@ -21,12 +29,31 @@ export class AccountDatabase extends Dexie {
   syncState!: EntityTable<EncryptedSyncState, 'id'>
   profileMeta!: EntityTable<AccountFence, 'key'>
   migrationJournal!: EntityTable<LocalActivationJournal, 'id'>
-  constructor(readonly accountId: string) {
-    super(`crykit-account-v1-${accountId}`)
+  constructor(readonly accountId: string, options?: { readonly existingOnly: true }) {
+    super(`crykit-account-v1-${accountId}`, { autoOpen: !options?.existingOnly, allowEmptyDB: false })
     OpaqueIdSchema.parse(accountId)
-    this.version(1).stores({ stagedCipherChunks: '[payloadId+index], payloadId', encryptedRevisions: 'revisionId, payloadId', documentHeads: 'documentId', outbox: 'id', conflicts: 'id', profileMeta: 'key', migrationJournal: 'id' })
-    // New opaque journal pointers leave the existing encrypted local cache and pending intents intact
-    this.version(2).stores({ syncState: 'id' })
+    if (options?.existingOnly) {
+      // Workers cannot upgrade or initialize storage, and Dexie's older-version fallback is not admission
+      // A schema-less open rejects absence; exact version/index checks reject newer or partial layouts
+      this.on('ready', () => {
+        const compatible = this.verno === ACCOUNT_DATABASE_VERSION && this.tables.length === Object.keys(ACCOUNT_DATABASE_STORES).length && Object.entries(ACCOUNT_DATABASE_STORES).every(([name, schema]) => {
+          const table = this.tables.find(value => value.name === name), [key, ...indexes] = schema.split(',').map(value => value.trim())
+          return table && table.schema.primKey.src === key && JSON.stringify(table.schema.indexes.map(index => index.src).sort()) === JSON.stringify(indexes.sort())
+        })
+        if (!compatible) throw new Error('The existing account storage layout is unsupported')
+        // Dynamic schema discovery does not bind the class's declared table fields
+        for (const name of Object.keys(ACCOUNT_DATABASE_STORES)) Object.assign(this, { [name]: this.table(name) })
+      }, true)
+      // A captured worker database never silently reopens after another client replaces its schema
+      this.on('versionchange', () => { this.close(); return false })
+      this.on('blocked', () => { this.close(); return false })
+    } else {
+      this.version(1).stores(ACCOUNT_DATABASE_V1)
+      // New opaque journal pointers leave the existing encrypted local cache and pending intents intact
+      this.version(2).stores(ACCOUNT_DATABASE_V2)
+      // Reservations identify only new inert merge payloads; older unregistered staging is never swept
+      this.version(ACCOUNT_DATABASE_VERSION).stores(ACCOUNT_DATABASE_V3)
+    }
   }
 }
 

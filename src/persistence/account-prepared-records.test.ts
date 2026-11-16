@@ -339,3 +339,50 @@ it('constrains streamed resolution to a captured record without granting payload
   for (const expected of variants) await expect(openAccountSource(database, token, cipherRef(record), undefined, expected)).rejects.toThrow(/changed/)
   await owner.abandon()
 })
+
+it('reserves each merge payload with chunk zero and refuses foreign operation adoption', async () => {
+  const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
+  database = new AccountDatabase(token.accountId)
+  const operationId = accountLocalId()
+  const reservation = { operationId, check() {} }
+  const owner = createAccountPreparationOwner(database, token, reservation)
+  const payloadId = accountLocalId()
+  await expect(runAccountStage(database, token, payloadId, owner, async lease => {
+    expect(await database!.preparationPayloads.count()).toBe(0)
+    await lease.write(0, new Uint8Array([1]))
+    expect(await database!.preparationPayloads.get([operationId, payloadId])).toEqual({ operationId, payloadId })
+    throw new Error('synthetic interruption')
+  })).rejects.toThrow('synthetic interruption')
+  const foreign = createAccountPreparationOwner(database, token, { operationId: accountLocalId(), check() {} })
+  await expect(foreign.adopt(owner)).rejects.toThrow()
+  await owner.abandon()
+  expect(await database.preparationPayloads.count()).toBe(1)
+  expect(await database.stagedCipherChunks.count()).toBe(1)
+})
+
+it('rolls back the reservation if chunk zero fails and rejects stolen subsequent writes', async () => {
+  const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
+  database = new AccountDatabase(token.accountId)
+  const operationId = accountLocalId(), payloadId = accountLocalId()
+  const owner = createAccountPreparationOwner(database, token, { operationId, check() {} })
+  const { IDBObjectStore } = await import('fake-indexeddb')
+  const originalAdd = IDBObjectStore.prototype.add
+  const add = vi.spyOn(IDBObjectStore.prototype, 'add').mockImplementation(function (this: IDBObjectStore, value: unknown, key?: IDBValidKey) {
+    if (this.name === 'stagedCipherChunks') throw new DOMException('synthetic quota', 'QuotaExceededError')
+    return originalAdd.call(this, value, key)
+  })
+  try { await expect(runAccountStage(database, token, payloadId, owner, async lease => { await lease.write(0, new Uint8Array([1])); throw new Error('unreachable') })).rejects.toThrow('synthetic quota') }
+  finally { add.mockRestore() }
+  expect(await database.preparationPayloads.count()).toBe(0)
+  expect(await database.stagedCipherChunks.count()).toBe(0)
+  await expect(runAccountStage(database, token, payloadId, owner, async lease => {
+    await lease.write(0, new Uint8Array([1]))
+    await database!.preparationPayloads.delete([operationId, payloadId])
+    await database!.preparationPayloads.add({ operationId: accountLocalId(), payloadId })
+    await lease.write(1, new Uint8Array([2]))
+    throw new Error('unreachable')
+  })).rejects.toThrow(/reservation/)
+  await owner.abandon()
+  expect(await database.preparationPayloads.count()).toBe(1)
+  expect(await database.stagedCipherChunks.count()).toBe(1)
+})
