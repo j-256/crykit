@@ -84,7 +84,12 @@ async function fixture(conflict = false, native = false, locator = true, retaine
           else if (input.kind === 'prepare') { await beforePrepare?.(value => this.onmessage?.({ data: { incarnation: input.incarnation, id: input.id, operationId: input.operationId, status: 'progress', value } } as MessageEvent)); const ticket = await this.operation!.prepare(input.handle); await afterTicket?.(ticket); value = ticket }
           else { await this.operation?.dispose(); if (loseAcknowledgment) { this.onerror?.(); return }; value = null }
           if (!this.terminated) this.onmessage?.({ data: { incarnation: input.incarnation, id: input.id, operationId: input.operationId, status: 'complete', value: structuredClone(value) } } as MessageEvent)
-        } catch (error) { if (!this.terminated) this.onmessage?.({ data: { incarnation: input.incarnation, id: input.id, operationId: input.operationId, status: 'failed', code: error instanceof Error ? error.message : '' } } as MessageEvent) }
+        } catch (error) {
+          const failed = this.operation
+          this.operation = undefined
+          try { await failed?.dispose() } catch { /* Match the worker's original-error preservation */ }
+          if (!this.terminated) this.onmessage?.({ data: { incarnation: input.incarnation, id: input.id, operationId: input.operationId, status: 'failed', code: error instanceof Error ? error.message : '' } } as MessageEvent)
+        }
       })()
     }
     terminate() { this.terminated = true; void this.operation?.dispose().finally(() => this.database.close()); if (!this.operation) this.database.close() }
@@ -270,6 +275,32 @@ it('cannot install a main receipt whose private staging failed', async () => {
   await expect(f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })).rejects.toThrow('synthetic receipt staging failure')
   expect(await f.device.db.encryptedRevisions.toArray()).toEqual(before)
   expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+}, 30_000)
+
+it('cleans real inert staged payloads after an acknowledged worker preparation failure without touching installed originals', async () => {
+  const f = await fixture(), database = f.device.db
+  const before = { selected: await database.profileMeta.toArray(), installed: await database.encryptedRevisions.toArray(), chunks: await database.stagedCipherChunks.toArray(), sync: await database.syncState.toArray(), outbox: await database.outbox.toArray(), journal: await database.migrationJournal.toArray() }
+  const observations = await import('../workspace/signin-merge-observations')
+  const { assertSigninMergeBudget, SIGNIN_MERGE_LIMITS } = await import('../workspace/signin-merge-protocol')
+  const original = observations.collectMergeClosure
+  let reserved = 0
+  vi.spyOn(observations, 'collectMergeClosure').mockImplementationOnce(async (...args) => {
+    const records = await original(...args)
+    reserved = await database.preparationPayloads.count()
+    // The actual small preparation has already staged under both leases; inject only its
+    // terminal guard outcome so this ownership test does not require a large byte fixture
+    assertSigninMergeBudget(0, records.length, SIGNIN_MERGE_LIMITS.observationBytes + 1)
+    return records
+  })
+  await expect(f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })).rejects.toThrow('SIGNIN_MERGE_RESOURCE_LIMIT')
+  expect(reserved).toBeGreaterThan(0)
+  expect(await database.preparationPayloads.count()).toBe(0)
+  expect(await database.stagedCipherChunks.toArray()).toEqual(before.chunks)
+  expect(await database.encryptedRevisions.toArray()).toEqual(before.installed)
+  expect(await database.profileMeta.toArray()).toEqual(before.selected)
+  expect(await database.syncState.toArray()).toEqual(before.sync)
+  expect(await database.outbox.toArray()).toEqual(before.outbox)
+  expect(await database.migrationJournal.toArray()).toEqual(before.journal)
 }, 30_000)
 
 it('refuses an ordinary guest without a locator instead of preparing in the caller realm', async () => {

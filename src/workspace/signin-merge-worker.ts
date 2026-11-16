@@ -79,6 +79,13 @@ self.onmessage = (event: MessageEvent<Request>) => {
         else { await preparation.dispose(); preparation = undefined; reply('complete', null) }
       }
     } catch (error) {
+      // Main cleans registered inert payloads after this reply; worker termination alone does
+      // not acknowledge release of the worker's shared lease before that nonwaiting cleanup
+      // Retire authority before awaiting disposal so cancellation cannot dispose it twice
+      const failed = preparation
+      preparation = undefined
+      try { await failed?.dispose() }
+      catch { /* Keep the original failure; the main registry cleaner still requires exclusive ownership */ }
       // Optional observation is request-bound and cannot replace the actual terminal failure
       if (stopCodec && captured === owner) try {
         const resourceFailure = signinMergeResourceFailure(error)
