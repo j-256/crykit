@@ -11,6 +11,8 @@ const markReserved = Symbol('markReserved')
 const registerCompleted = Symbol('registerCompleted')
 const trackStage = Symbol('trackStage')
 
+export interface AccountPreparationReservation { readonly operationId: string; check(): void }
+
 export interface AccountStageLease {
   check(): void
   write(index: number, bytes: Uint8Array): Promise<void>
@@ -36,10 +38,11 @@ class PreparationOwner {
   private transferred = false
   private cleanup?: Promise<void>
 
-  constructor(readonly database: AccountDatabase, readonly token: ProfileToken) { this.check() }
+  constructor(readonly database: AccountDatabase, readonly token: ProfileToken, readonly reservation?: AccountPreparationReservation) { if (reservation) OpaqueIdSchema.parse(reservation.operationId); this.check() }
 
   check(): void {
     assertActiveProfile(this.token)
+    this.reservation?.check()
     if (this.database.accountId !== this.token.accountId) throw integrity('Prepared ciphertext belongs to another workspace.')
     if (this.closed || this.transferred) throw integrity('This preparation has closed.')
   }
@@ -71,7 +74,7 @@ class PreparationOwner {
   async adopt(child: PreparationOwner): Promise<void> {
     this.check()
     child.check()
-    if (child === this || child.database !== this.database || child.token.accountId !== this.token.accountId || child.token.generation !== this.token.generation || child.#stages.size || child.#readers.size || child.cleanup) throw integrity('The child preparation is busy or belongs to another workspace.')
+    if (child === this || child.database !== this.database || child.token.accountId !== this.token.accountId || child.token.generation !== this.token.generation || child.#stages.size || child.#readers.size || child.cleanup || child.reservation !== this.reservation) throw integrity('The child preparation is busy or belongs to another workspace.')
     for (const [id, record] of child.#records) if (this.#records.has(id) || [...this.#records.values()].some(value => value.payloadId === record.payloadId)) throw integrity('Prepared record identity was reused.')
     for (const id of child.#reserved) if (this.#reserved.has(id)) throw integrity('Prepared payload identity was reused.')
     for (const id of child.#reserved) this.#reserved.add(id)
@@ -91,9 +94,10 @@ class PreparationOwner {
       }
       await Promise.allSettled(stages)
       await this.releaseReaders()
-      // Cleanup takes the same two stores as first-write and pull allocation, so an installed exact
-      // descriptor cannot be removed while a concurrent activation acquires its reference
-      for (const payloadId of this.#reserved) {
+      // A reserved operation can still have a main-realm installer holding its shared lease
+      // Leave its inert bytes to the exclusive registry cleaner after both realms release ownership
+      // Legacy owners retain their exact allocation cleanup without sweeping unregistered payloads
+      if (!this.reservation) for (const payloadId of this.#reserved) {
         await this.database.transaction('rw', this.database.stagedCipherChunks, this.database.encryptedRevisions, async () => {
           const installed = await this.database.encryptedRevisions.where('payloadId').equals(payloadId).toArray()
           if (installed.length) return
@@ -101,6 +105,7 @@ class PreparationOwner {
         })
         this.#reserved.delete(payloadId)
       }
+      this.#reserved.clear()
       this.abandoned = true
       this.#records.clear()
     })()
@@ -149,17 +154,23 @@ class StageLease implements AccountStageLease {
     if (!this.reserved) {
       // A generated ID is only a candidate until this transaction atomically excludes all orphan
       // chunks and installed descriptors, then adds chunk zero; losers never own cleanup rights
-      await this.database.transaction('rw', this.database.stagedCipherChunks, this.database.encryptedRevisions, async () => {
+      await this.database.transaction('rw', this.database.stagedCipherChunks, this.database.encryptedRevisions, this.database.preparationPayloads, async () => {
         this.check()
         if (await this.database.stagedCipherChunks.where('payloadId').equals(this.payloadId).count()
-          || await this.database.encryptedRevisions.where('payloadId').equals(this.payloadId).count()) throw integrity('Encrypted payload identity was reused.')
+          || await this.database.encryptedRevisions.where('payloadId').equals(this.payloadId).count()
+          || await this.database.preparationPayloads.where('payloadId').equals(this.payloadId).count()) throw integrity('Encrypted payload identity was reused.')
+        if (this.owner?.reservation) await this.database.preparationPayloads.add({ operationId: this.owner.reservation.operationId, payloadId: this.payloadId })
         await this.database.stagedCipherChunks.add({ payloadId: this.payloadId, index, bytes })
         this.check()
       })
       this.reserved = true
       this.owner?.[markReserved](this.payloadId)
     } else {
-      await this.database.stagedCipherChunks.add({ payloadId: this.payloadId, index, bytes })
+      await this.database.transaction('rw', this.database.stagedCipherChunks, this.database.preparationPayloads, async () => {
+        this.check()
+        if (this.owner?.reservation && !await this.database.preparationPayloads.get([this.owner.reservation.operationId, this.payloadId])) throw integrity('The preparation reservation changed.')
+        await this.database.stagedCipherChunks.add({ payloadId: this.payloadId, index, bytes })
+      })
     }
     this.nextIndex++
     this.check()
@@ -167,7 +178,7 @@ class StageLease implements AccountStageLease {
 }
 
 export type AccountPreparationOwner = PreparationOwner
-export function createAccountPreparationOwner(database: AccountDatabase, token: ProfileToken): AccountPreparationOwner { return new PreparationOwner(database, token) }
+export function createAccountPreparationOwner(database: AccountDatabase, token: ProfileToken, reservation?: AccountPreparationReservation): AccountPreparationOwner { return new PreparationOwner(database, token, reservation) }
 
 export function runAccountStage(database: AccountDatabase, token: ProfileToken, payloadId: string, owner: AccountPreparationOwner | undefined, produce: (lease: AccountStageLease) => Promise<CipherRecord>): Promise<CipherRecord> {
   if (owner && (owner.database !== database || owner.token.accountId !== token.accountId || owner.token.generation !== token.generation)) throw integrity('Prepared ciphertext belongs to another workspace.')
