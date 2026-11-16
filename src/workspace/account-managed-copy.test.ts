@@ -241,7 +241,7 @@ it('retains an unselected historical original through direct copy and the real c
   }
 }, 30_000)
 
-it.each(['live', 'cold', 'later-edit', 'forged-source-head', 'forged-source-entry', 'forged-destination-head'] as const)('activates a conflict-bearing managed copy before native mapping and reuses its exact mapping receipt: %s', async mode => {
+it.each((['live', 'cold', 'later-edit', 'forged-source-head', 'forged-source-entry', 'forged-destination-head'] as const).flatMap(mode => [true, false].map(baseline => ({ mode, baseline }))))('activates a conflict-bearing managed copy before native mapping and reuses its exact mapping receipt: $mode / baseline=$baseline', async ({ mode, baseline }) => {
   vi.spyOn(await import('./managed-copy-comparisons'), 'managedComparisonWritesEnabled').mockReturnValue(true)
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
   const fixture = await editorClosureFixture(), store = createAccountLocalStore(database, token), id = accountLocalId()
@@ -250,7 +250,7 @@ it.each(['live', 'cold', 'later-edit', 'forged-source-head', 'forged-source-entr
   try {
     const initial = await prepareLocalWorkspace(store.adapter, id, { ...fixture.state, editorDocuments: [fixture.file] }, store.lifetime)
     const before = await activation.activateLocalAccountCommit(database, token, await store.prepareActivation(id, initial, undefined)); store.committed(id)
-    await activateIncrementalBaseline(database, token, await prepareIncrementalBaseline(database, token, before))
+    if (baseline) await activateIncrementalBaseline(database, token, await prepareIncrementalBaseline(database, token, before))
     const graph = await import('./account-graph'), capture = await import('./account-sync-capture')
     const native = vi.spyOn(graph, 'prepareAccountWorkspaceWithEvidence'), sync = vi.spyOn(capture, 'captureAccountSyncWorkspace')
     let preview = await service.previewGuestCopy(token, ['["editor","editor-1"]'])
@@ -279,6 +279,7 @@ it.each(['live', 'cold', 'later-edit', 'forged-source-head', 'forged-source-entr
       await local.save(createPersonalDefinition(beforeEdit.localData, { kind: 'item', name: 'Intervening destination edit' }), beforeEdit.revision)
     }
     const laterFence = await database.profileMeta.get('active')
+    if (!baseline) expect(await readIncrementalMappedRoot(database, token, before)).toBeUndefined()
     if (mode.startsWith('forged-')) {
       const module = await import('./managed-copy-comparisons'), prove = module.proveManagedComparisonMapping
       vi.spyOn(module, 'proveManagedComparisonMapping').mockImplementationOnce((db, profile, admitted, nativeSource, destination, evidence) => prove(db, profile, admitted,
@@ -287,7 +288,11 @@ it.each(['live', 'cold', 'later-edit', 'forged-source-head', 'forged-source-entr
       await expect(prepareIncrementalMapping(database, token, pending)).rejects.toThrow(mode === 'forged-source-head' ? 'Selected account history association changed' : /Managed comparison native/)
       expect(await database.syncState.get(`incremental-mapping:${pending.id}`)).toBeUndefined()
       expect(await database.profileMeta.get('active')).toEqual(laterFence)
-      return
+      const established = await readIncrementalMappedRoot(database, token, before), baselineRecords = await database.encryptedRevisions.count()
+      expect(established).toBeDefined()
+      await activateIncrementalBaseline(database, token, await prepareIncrementalBaseline(database, token, before), undefined, before)
+      expect(await readIncrementalMappedRoot(database, token, before)).toEqual(established)
+      expect(await database.encryptedRevisions.count()).toBe(baselineRecords)
     }
     const ticket = await prepareIncrementalMapping(database, token, pending)
     const records = await database.encryptedRevisions.count()
@@ -302,12 +307,14 @@ it.each(['live', 'cold', 'later-edit', 'forged-source-head', 'forged-source-entr
     const original = await graph.openAccountWorkspace(database, token, comparisons[0].source)
     expect(original.state.editorDocuments).toEqual(source.state.editorDocuments)
     expect(comparisons[0].destination).toEqual(mapped.base)
+    expect((await graph.openAccountWorkspace(database, token, mapped.base)).state.editorDocuments).toEqual([fixture.file])
+    expect(await readIncrementalMappedRoot(database, token, before)).toEqual(mapped.base)
     expect(await database.profileMeta.get('active')).toEqual(laterFence)
     expect(await service.commitGuestCopy(token, preview)).toEqual(receipt)
   } finally { vi.unstubAllGlobals(); vi.restoreAllMocks(); await service.dispose(); await disposeWorkspaceSnapshot(source); await store.dispose(); database.close(); invalidateProfile() }
 }, 30_000)
 
-it.each(['sidecar', 'native-original'] as const)('rolls back a mapping receipt when authenticated comparison ciphertext changes before its transaction: %s', async kind => {
+it.each((['sidecar', 'native-original'] as const).flatMap(kind => [true, false].map(baseline => ({ kind, baseline }))))('rolls back a mapping receipt when authenticated comparison ciphertext changes before its transaction: $kind / baseline=$baseline', async ({ kind, baseline }) => {
   vi.spyOn(await import('./managed-copy-comparisons'), 'managedComparisonWritesEnabled').mockReturnValue(true)
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
   const fixture = await editorClosureFixture(), store = createAccountLocalStore(database, token), id = accountLocalId()
@@ -316,7 +323,7 @@ it.each(['sidecar', 'native-original'] as const)('rolls back a mapping receipt w
   try {
     const initial = await prepareLocalWorkspace(store.adapter, id, { ...fixture.state, editorDocuments: [fixture.file] }, store.lifetime)
     const before = await activation.activateLocalAccountCommit(database, token, await store.prepareActivation(id, initial, undefined)); store.committed(id)
-    await activateIncrementalBaseline(database, token, await prepareIncrementalBaseline(database, token, before))
+    if (baseline) await activateIncrementalBaseline(database, token, await prepareIncrementalBaseline(database, token, before))
     await service.commitGuestCopy(token, await service.previewGuestCopy(token, ['["editor","editor-1"]']))
     const selected = await database.profileMeta.get('active'), pending = (await database.outbox.toArray())[0]
     const { IncrementalWorkspaceIntentSchema } = await import('./account-mapping-origin')
@@ -397,3 +404,32 @@ it.each(['same-id', 'different-id', 'equivalent', 'ambiguous', 'playthrough-cont
     }
   } finally { vi.restoreAllMocks(); await service.dispose(); await disposeWorkspaceSnapshot(original); await store.dispose(); database.close(); invalidateProfile() }
 }, 30_000)
+
+it('waits for an earlier pending command instead of treating its head as a first comparison baseline', async () => {
+  vi.spyOn(await import('./managed-copy-comparisons'), 'managedComparisonWritesEnabled').mockReturnValue(true)
+  const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
+  const store = createAccountLocalStore(database, token), fixture = await editorClosureFixture(), operation = accountLocalId()
+  const source = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'pending-predecessor-original', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: { ...fixture.state, editorDocuments: [{ ...fixture.file, filename: 'incoming.json' }] } }, { async check() {}, async dispose() {} })
+  const service = createGuestCopyService(async () => source)
+  try {
+    const initial = await prepareLocalWorkspace(store.adapter, operation, { ...fixture.state, editorDocuments: [fixture.file] }, store.lifetime)
+    const fence = await activation.activateLocalAccountCommit(database, token, await store.prepareActivation(operation, initial, undefined)); store.committed(operation)
+    const repository = await openAccountManagedRepository(database, token, fence), loaded = await repository.load()
+    await repository.save(createPersonalDefinition(loaded.localData, { kind: 'item', name: 'Earlier pending edit' }), loaded.revision)
+    const earlier = (await database.outbox.toArray())[0], predecessor = (await database.profileMeta.get('active'))!
+    const copy = await service.commitGuestCopy(token, await service.previewGuestCopy(token, ['["editor","editor-1"]']))
+    const row = (await database.outbox.get(copy.copyId))!, selected = await database.profileMeta.get('active')
+    await expect(prepareIncrementalMapping(database, token, row)).rejects.toThrow('The mapping baseline is not an initial root')
+    expect(await readIncrementalMappedRoot(database, token, predecessor)).toBeUndefined()
+    expect(await database.syncState.get(`incremental-mapping:${row.id}`)).toBeUndefined()
+    expect(await database.profileMeta.get('active')).toEqual(selected)
+    await activateIncrementalMapping(database, token, await prepareIncrementalMapping(database, token, earlier))
+    const nativePredecessor = await readIncrementalMappedRoot(database, token, predecessor)
+    await activateIncrementalMapping(database, token, await prepareIncrementalMapping(database, token, row))
+    const { MappedWorkspaceIntentSchema } = await import('./account-intents'), { readCopiedConflicts } = await import('./copied-conflicts')
+    const mapped = await openAccountJson(database, token, (await database.outbox.get(row.id))!.ref, MappedWorkspaceIntentSchema)
+    expect(mapped.base).toEqual(nativePredecessor)
+    expect((await readCopiedConflicts(database, token, mapped)).map(entry => entry.destination)).toEqual([nativePredecessor])
+    expect(await database.profileMeta.get('active')).toEqual(selected)
+  } finally { vi.restoreAllMocks(); await service.dispose(); await disposeWorkspaceSnapshot(source); await store.dispose(); database.close(); invalidateProfile() }
+})

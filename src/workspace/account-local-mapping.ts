@@ -167,7 +167,17 @@ export async function prepareIncrementalMapping(database: AccountDatabase, token
   const journal = await database.migrationJournal.get(original.id)
   if (intent.operationId !== original.id || intent.sequence !== journal?.headRevision || !same(journal.head, intent.after)
     || !same(journal.intent, original.ref) || !same(intent.publicationBase, original.publicationBase)) throw new Error('Mapping intent admission changed')
-  const predecessor = await database.syncState.get(rootKey(intent.before))
+  let predecessor = await database.syncState.get(rootKey(intent.before))
+  if (!predecessor && intent.version === 2) {
+    // The first comparison needs a durable association before its native proof can be minted
+    // Establish only the captured no-command predecessor during background mapping, never
+    // the newer selected root or an earlier pending command, and reuse it after interrupted mapping
+    const fence: AccountFence = { key: 'active', head: intent.before, headRevision: intent.sequence - 1 }
+    const baseline = await prepareIncrementalBaseline(database, token, fence, check)
+    await activateIncrementalBaseline(database, token, baseline, check, fence)
+    predecessor = await database.syncState.get(rootKey(intent.before))
+    if (!predecessor) throw new Error('Mapping baseline association changed')
+  }
   let base: OpenAccountWorkspace | undefined
   if (predecessor) {
     const value = await openAccountJson(database, token, predecessor.ref, z.union([receiptSchema, AccountMappingOriginSchema]))
@@ -323,6 +333,7 @@ export async function prepareIncrementalBaseline(database: AccountDatabase, toke
     const evidenceCheck = prepared.validatedEvidence && accountInheritedEvidenceCheck(prepared.validatedEvidence, database, token)
     await mappingTransaction(database, token, [database.syncState, database.migrationJournal, database.encryptedRevisions, database.stagedCipherChunks], async () => {
       await evidenceCheck?.recheckInTransaction()
+      await store.recheckObservationsInTransaction()
       if (!same(await database.migrationJournal.get(journal.id), journal) || await database.syncState.get(baselineKey(journal.id)) || await database.syncState.get(rootKey(fence.head))) throw new Error('Mapping baseline preparation changed')
       await database.syncState.add({ id: baselineKey(journal.id), ref: cipherRef(record) })
     })
