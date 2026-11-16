@@ -1,3 +1,4 @@
+import { captureCompactCatalogSnapshot } from './catalog-capture'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import Dexie from 'dexie'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
@@ -215,7 +216,7 @@ export async function captureGuestSnapshot(binding: GuestBindings): Promise<Work
     const snapshot: WorkspaceSnapshot = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { guest: binding.manifest.id, capture: capture.id, metadata: await backupMetadataDigest({ ...state, blobs: state.blobs.map(({ ref }) => ref) }) }, state }
     await validateWorkspaceSnapshot(snapshot)
     await check()
-    return await joinWorkspaceSnapshotEvidence(ownWorkspaceSnapshot(snapshot, { check, dispose }), guestEvidenceSources(sidecar), { signal: epoch.signal })
+    return await joinWorkspaceSnapshotEvidence(await captureCompactCatalogSnapshot(ownWorkspaceSnapshot(snapshot, { check, dispose })), guestEvidenceSources(sidecar), { signal: epoch.signal })
   } catch (error) { await dispose(); throw error }
 }
 

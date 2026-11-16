@@ -1,3 +1,4 @@
+import { inheritCatalogSnapshot } from './workspace-backup-catalog-writer'
 import { BackupJsonReader, encodeBackupJson } from './workspace-backup-json'
 import { SnapshotHeaderV2Schema, WORKSPACE_BACKUP_LIMITS } from './workspace-backup-schema'
 import { createBackupStaging } from '../workspace/backup-staging'
@@ -5,7 +6,7 @@ import { getSodium } from '../account/crypto/sodium'
 import { withImmutableWorkspaceBodyValidation, type WorkspaceBodyValidation } from '../workspace/closure'
 import { blobIdentity, hashBlob } from '../workspace/blobs'
 import type { BlobSource, WorkspaceBlobRef, WorkspaceState } from '../workspace/documents'
-import { assertOwnedWorkspaceSnapshot, assertWorkspaceSnapshotCurrent, disposeWorkspaceSnapshot, ownWorkspaceSnapshot, projectWorkspaceSnapshotV1, registerHistoricalSnapshotReader, snapshotMetadata, validateWorkspaceSnapshotV1, vectorDigest, type WorkspaceSnapshot, type WorkspaceSnapshotV1, type WorkspaceSnapshotV2, type WorkspaceSnapshotV3, type SnapshotOwner } from '../workspace/snapshot'
+import { assertOwnedWorkspaceSnapshot, assertWorkspaceSnapshotCurrent, disposeWorkspaceSnapshot, ownWorkspaceSnapshot, projectWorkspaceSnapshotV1, registerHistoricalSnapshotReader, snapshotMetadata, validateWorkspaceSnapshotV1, vectorDigest, type WorkspaceSnapshot, type WorkspaceSnapshotV1, type WorkspaceSnapshotV2, type WorkspaceSnapshotV3, type SnapshotOwner, type InheritedWorkspaceSnapshot } from '../workspace/snapshot'
 
 type MetadataState = Omit<WorkspaceState, 'blobs'> & { blobs: WorkspaceBlobRef[] }
 export type SnapshotMetadataV1 = Omit<WorkspaceSnapshotV1, 'state'> & { state: MetadataState }
@@ -245,8 +246,10 @@ async function constructEvidenceSnapshot(raw: SnapshotMetadataV2, current: BlobS
 
 // This portable capture owns fresh encrypted staging and survives release of every input snapshot
 // Ordinary edits never call this producer: only an explicit inheritance operation adds a capture
-export async function inheritWorkspaceSnapshot(current: WorkspaceSnapshot, sources: readonly WorkspaceSnapshot[], options: { readonly signal?: AbortSignal } = {}): Promise<WorkspaceSnapshotV2> {
-  if ([current, ...sources].some(snapshot => snapshot.version === 3)) throw new Error('Compact snapshot inheritance writers are not enabled')
+export function inheritWorkspaceSnapshot(current: WorkspaceSnapshotV1 | WorkspaceSnapshotV2, sources: readonly (WorkspaceSnapshotV1 | WorkspaceSnapshotV2)[], options?: { readonly signal?: AbortSignal }): Promise<WorkspaceSnapshotV2>
+export function inheritWorkspaceSnapshot(current: WorkspaceSnapshot, sources: readonly WorkspaceSnapshot[], options?: { readonly signal?: AbortSignal }): Promise<InheritedWorkspaceSnapshot>
+export async function inheritWorkspaceSnapshot(current: WorkspaceSnapshot, sources: readonly WorkspaceSnapshot[], options: { readonly signal?: AbortSignal } = {}): Promise<InheritedWorkspaceSnapshot> {
+  if ([current, ...sources].some(snapshot => snapshot.version === 3)) return inheritCatalogSnapshot(current, sources, options)
   const staging = await createBackupStaging(options.signal)
   let document = 1
   const stage = (source: BlobSource) => staging.stage(document++, source)
@@ -292,8 +295,10 @@ export interface InheritedSnapshotSources {
 
 // Success adopts the current owner so frozen guest freshness survives terminal export
 // Failure leaves that owner with the caller; only this operation's new staging is deleted
-export async function joinWorkspaceSnapshotEvidence(current: WorkspaceSnapshotV1, inherited: InheritedSnapshotSources, options: { readonly signal?: AbortSignal } = {}): Promise<WorkspaceSnapshotV2> {
-  if (inherited.version === 2) throw new Error('Compact evidence join writers are not enabled')
+export function joinWorkspaceSnapshotEvidence(current: WorkspaceSnapshotV1, inherited: InheritedSnapshotSources & { version?: undefined }, options?: { readonly signal?: AbortSignal }): Promise<WorkspaceSnapshotV2>
+export function joinWorkspaceSnapshotEvidence(current: WorkspaceSnapshotV1 | WorkspaceSnapshotV3, inherited: InheritedSnapshotSources, options?: { readonly signal?: AbortSignal }): Promise<InheritedWorkspaceSnapshot>
+export async function joinWorkspaceSnapshotEvidence(current: WorkspaceSnapshotV1 | WorkspaceSnapshotV3, inherited: InheritedSnapshotSources, options: { readonly signal?: AbortSignal } = {}): Promise<InheritedWorkspaceSnapshot> {
+  if (inherited.version === 2 || current.version === 3) return inheritCatalogSnapshot(current, [], options, inherited)
   // Borrow byte sources, but detach constraint identities before any await can expose caller mutations
   const sourceMembers = inherited.members.map(member => ({ ...member, subset: structuredClone([...member.subset]) }))
   const sourceBodies = inherited.bodies.map(body => ({ ...body, ref: structuredClone(body.ref) }))

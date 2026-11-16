@@ -1,3 +1,4 @@
+import { captureCompactCatalogSnapshot } from './catalog-capture'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { captureGuestWorkspaceEpoch } from '../account/profile'
 import { joinWorkspaceSnapshotEvidence } from '../interchange/workspace-backup-evidence'
@@ -29,7 +30,7 @@ export async function captureManagedGuestSnapshot(database: GuestCoordinatorData
     } } })) }
     const value: WorkspaceSnapshotV1 = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { guest: manifest.id, managedRoot: JSON.stringify(manifest.root), managedRevision: String(manifest.revision) }, state }
     await validateWorkspaceSnapshot(value); await check()
-    const current = ownWorkspaceSnapshot(value, { check, dispose })
+    const current = await captureCompactCatalogSnapshot(ownWorkspaceSnapshot(value, { check, dispose }))
     return inherited ? await joinWorkspaceSnapshotEvidence(current, guestEvidenceSources(inherited), { signal: profile.signal }) : current
   } catch (error) { await dispose(); throw error }
 }

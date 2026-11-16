@@ -1,3 +1,4 @@
+import { captureCompactCatalogSnapshot } from './catalog-capture'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { assertActiveProfile, profileSignal, type ProfileToken } from '../account/profile'
 import type { AccountDatabase, AccountFence } from '../persistence/account-database'
@@ -45,7 +46,7 @@ export async function captureRetainedManagedAccountSnapshot(database: AccountDat
     } } })) }
     const value: WorkspaceSnapshotV1 = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { committed: JSON.stringify([fence.headRevision, fence.head.documentId, fence.head.revisionId]) }, state }
     await validateWorkspaceSnapshot(value); await check()
-    const current = ownWorkspaceSnapshot(value, { check, dispose })
+    const current = await captureCompactCatalogSnapshot(ownWorkspaceSnapshot(value, { check, dispose }))
     return inherited ? await joinWorkspaceSnapshotEvidence(current, guestEvidenceSources(inherited), { signal: profileSignal(token) }) : current
   } catch (error) { await dispose(); throw error }
 }

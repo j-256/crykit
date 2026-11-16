@@ -45,7 +45,8 @@ it('restores compact catalogs from self-contained retained frames and keeps meta
     expect(opened.version).toBe(3)
     expect(opened.state.planner.catalogs[0]).toEqual(CURRENT_CATALOG)
     expect(snapshotMetadata(opened)).toEqual(f.raw)
-    await expect((async () => { for await (const _chunk of exportWorkspaceBackup(opened)) { /* Consume the guarded writer */ } })()).rejects.toThrow()
+    const roundTrip = await readWorkspaceBackup(exportWorkspaceBackup(opened))
+    try { expect(snapshotMetadata(roundTrip)).toEqual(f.raw) } finally { await disposeWorkspaceSnapshot(roundTrip) }
   } finally { await disposeWorkspaceSnapshot(opened) }
 })
 it('rejects missing, orphan, and contradictory compact catalog registries', async () => {

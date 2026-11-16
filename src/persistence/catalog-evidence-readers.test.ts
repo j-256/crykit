@@ -181,7 +181,7 @@ it('refuses compact import and implicit projection before changing selected gues
     const participants = await guestParticipants(binding)
     const rows = () => Promise.all(participants.map(async participant => ({ kind: participant.kind, tables: await Promise.all(participant.database.tables.map(async table => ({ name: table.name, rows: await table.toArray() }))) })))
     const originalRows = await rows(), pointer = await binding.coordinator.active.get('active'), journal = await binding.coordinator.journal.toArray()
-    expect(() => projectWorkspaceSnapshotV1(source)).toThrow(/not enabled/)
+    expect(() => projectWorkspaceSnapshotV1(source)).toThrow(/cannot preserve exact compact catalog provenance.*2.2.0/)
     await expect(importGuestInheritedEvidence(binding, source)).rejects.toThrow(/not enabled/)
     expect(await binding.coordinator.active.get('active')).toEqual(pointer)
     expect(await binding.coordinator.journal.toArray()).toEqual(journal)

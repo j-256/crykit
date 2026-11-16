@@ -4,7 +4,7 @@ import { compareHeldLegacyBranch, compareLegacyBranch, captureLegacyBranch, hold
 import { requireGuestRestoreJournal, type GuestRestoreJournal, type GuestManifest, type GuestManifestV2 } from './guest-coordinator'
 import { withGuestOperationOwner } from './guest-ownership'
 import { equalLegacyValue } from './legacy-value'
-import { assertOwnedWorkspaceSnapshot, assertWorkspaceSnapshotCurrent, backupMetadataDigest, disposeWorkspaceSnapshot, snapshotMetadata, validateWorkspaceSnapshot, type WorkspaceSnapshot, type WorkspaceSnapshotV2 } from './snapshot'
+import { assertOwnedWorkspaceSnapshot, assertWorkspaceSnapshotCurrent, backupMetadataDigest, disposeWorkspaceSnapshot, snapshotMetadata, validateWorkspaceSnapshot, type WorkspaceSnapshot, type InheritedWorkspaceSnapshot } from './snapshot'
 import { inheritWorkspaceSnapshot } from '../interchange/workspace-backup-evidence'
 import { guestEvidenceFromSnapshot, guestEvidenceSources, emptyPlannerEvidence, mergeGuestEvidence, readGuestEvidence, compareGuestEvidence, databaseEvidenceRows, type GuestEvidenceStageWriter } from './guest-evidence'
 import { blobIdentity, hashBlob, memoryBlob, readBlob } from './blobs'
@@ -29,7 +29,7 @@ export interface GuestRestorePreview {
 interface PreviewAuthority {
   readonly binding: GuestBindings
   readonly input: WorkspaceSnapshot
-  readonly snapshot: WorkspaceSnapshotV2
+  readonly snapshot: InheritedWorkspaceSnapshot
   readonly expected: GuestManifest | GuestManifestV2
   readonly capture: LegacyCapture
   readonly participants: readonly LegacyParticipant[]

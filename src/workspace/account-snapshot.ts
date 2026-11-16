@@ -1,3 +1,4 @@
+import { captureCompactCatalogSnapshot } from './catalog-capture'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import type { AccountFence } from '../persistence/account-database'
 import type { AccountDatabase } from '../persistence/account-database'
@@ -38,7 +39,7 @@ export async function captureAccountSnapshot(workspace: OpenAccountWorkspace, fe
     await assertSource()
   }
   await check()
-  const current = ownWorkspaceSnapshot(snapshot, { check, async dispose() { disposed = true } })
+  const current = await captureCompactCatalogSnapshot(ownWorkspaceSnapshot(snapshot, { check, async dispose() { disposed = true } }))
   if (!workspace.inheritedEvidence) return current
   if (!source) { await disposeWorkspaceSnapshot(current); throw new Error('Account historical evidence requires its encrypted source') }
   const { accountInheritedSources, openAccountInheritedEvidence } = await import('./account-evidence-snapshots')

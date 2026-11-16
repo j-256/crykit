@@ -3,7 +3,7 @@ import { capturedManagedGuestRepository } from './guest-repository'
 import { managedGuestSelection, managedGuestRecoveryNotices, stageManagedGuestWorkspaceRestore } from './guest-managed-repository'
 import type { GuestManagedManifest } from './guest-managed-contract'
 import { guestPlannerValuesEqual } from '../persistence/guest-planner-equality'
-import { assertOwnedWorkspaceSnapshot, backupMetadataDigest, disposeWorkspaceSnapshot, snapshotMetadata, validateWorkspaceSnapshot, type WorkspaceSnapshot, type WorkspaceSnapshotV2 } from './snapshot'
+import { assertOwnedWorkspaceSnapshot, backupMetadataDigest, disposeWorkspaceSnapshot, snapshotMetadata, validateWorkspaceSnapshot, type WorkspaceSnapshot, type InheritedWorkspaceSnapshot } from './snapshot'
 import { inheritWorkspaceSnapshot } from '../interchange/workspace-backup-evidence'
 import { guestEvidenceFromSnapshot, guestEvidenceSources, emptyPlannerEvidence } from './guest-evidence'
 import { hashBlob } from './blobs'
@@ -13,7 +13,7 @@ export type { GuestRestorePreview } from './restore'
 interface ManagedPreview {
   readonly repository: WorkspaceRepository
   readonly input: WorkspaceSnapshot
-  readonly snapshot: WorkspaceSnapshotV2
+  readonly snapshot: InheritedWorkspaceSnapshot
   readonly selected: NonNullable<ReturnType<typeof managedGuestSelection>>
   readonly expected: GuestManagedManifest
   readonly digest: string

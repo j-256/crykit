@@ -29,6 +29,7 @@ export interface WorkspaceSnapshotV3 extends Omit<WorkspaceSnapshotV1, 'version'
   readonly catalogBodies: readonly import('./file-types').WorkspaceBlobRef[]
   readonly historicalEvidence?: z.infer<typeof HistoricalCatalogEvidenceSchema>
 }
+export type InheritedWorkspaceSnapshot = WorkspaceSnapshotV2 | (WorkspaceSnapshotV3 & { readonly historicalEvidence: NonNullable<WorkspaceSnapshotV3['historicalEvidence']> })
 export type WorkspaceSnapshot = WorkspaceSnapshotV1 | WorkspaceSnapshotV2 | WorkspaceSnapshotV3
 export type SnapshotMetadataV3 = Omit<WorkspaceSnapshotV3, 'state'> & { readonly state: Omit<WorkspaceState, 'planner' | 'blobs'> & { readonly planner: Omit<WorkspaceState['planner'], 'catalogs'> & { readonly catalogs: readonly StoredCatalog[] }; readonly blobs: readonly import('./file-types').WorkspaceBlobRef[] } }
 const compactMetadata = new WeakMap<WorkspaceSnapshotV3, { readonly metadata: SnapshotMetadataV3; readonly registry: OwnedCatalogRegistry }>()
@@ -45,7 +46,7 @@ export async function openHistoricalSnapshot(snapshot: WorkspaceSnapshot, id: st
 export function projectWorkspaceSnapshotV1(snapshot: WorkspaceSnapshot): WorkspaceSnapshotV1 {
   if (snapshot.version === 1) return snapshot
   const { historicalEvidence: _historicalEvidence, ...current } = snapshot
-  if (snapshot.version === 3) throw new WorkspaceBackupError('UNSUPPORTED_VERSION', 'Compact compatibility materialization is not enabled')
+  if (snapshot.version === 3) throw new WorkspaceBackupError('UNSUPPORTED_VERSION', 'Legacy conversion cannot preserve exact compact catalog provenance. Choose complete backup 2.2.0')
   return { ...current, version: 1 }
 }
 export interface SnapshotOwner { check(): Promise<void>; dispose(): Promise<void> }
