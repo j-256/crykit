@@ -24,6 +24,12 @@ export async function prepareManagedAccountProjection(database: AccountDatabase,
   }
   let snapshot: WorkspaceSnapshot | undefined
   let inherited: Awaited<ReturnType<typeof openAccountInheritedEvidence>> | undefined
+  const releaseSnapshot = async () => { if (snapshot) { await disposeWorkspaceSnapshot(snapshot); snapshot = undefined } }
+  const dispose = async () => {
+    const results = await Promise.allSettled([store.dispose(), releaseSnapshot(), inherited && inherited !== native.validatedEvidence ? inherited.dispose() : undefined])
+    const failures = results.flatMap(result => result.status === 'rejected' ? [result.reason] : [])
+    if (failures.length) throw new AggregateError(failures, 'Managed projection cleanup failed')
+  }
   try {
     await check()
     if (reviewedSelection) (await import('./reviewed-replacement')).assertReviewedBranchSelection(database, token, expected, reviewedSelection)
@@ -49,11 +55,12 @@ export async function prepareManagedAccountProjection(database: AccountDatabase,
     const admittedNative = inherited ? { ...native, validatedEvidence: inherited } : native
     const prepared = await store.prepareMappedActivation(operationId, result, expected, previous, admittedNative, intent, requireSettledSync)
     await check()
-    return { prepared, async dispose() { await store.dispose() } }
-  } catch (error) { await store.dispose(); throw error }
-  finally {
-    if (snapshot) await disposeWorkspaceSnapshot(snapshot)
-    // A supplied C handle belongs to its existing bulk preparation and must remain live through activation
-    if (inherited && inherited !== native.validatedEvidence) await inherited.dispose()
+    await releaseSnapshot()
+    // The selection CAS still needs its authenticated physical observations and live owner
+    // Borrowed native evidence remains owned by the enclosing bulk preparation
+    return { prepared, dispose }
+  } catch (error) {
+    try { await dispose() } catch (cleanup) { throw new AggregateError([error, cleanup], 'Managed projection preparation and cleanup failed') }
+    throw error
   }
 }

@@ -20,7 +20,7 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 interface Observation { readonly record: CipherRecord; readonly chunks: readonly CipherChunk[] }
 interface Admission {
   readonly database: AccountDatabase; readonly token: ProfileToken; readonly prepared: PreparedLocalActivation
-  readonly legacy?: Awaited<ReturnType<typeof prepareSelectedV1Check>>; readonly association?: EncryptedSyncState
+  readonly legacy?: Awaited<ReturnType<typeof prepareSelectedV1Check>>; readonly disposeLegacy?: () => Promise<void>; readonly association?: EncryptedSyncState
   readonly observations: readonly Observation[]; readonly retained: ReadonlySet<string>; readonly inline: readonly Observation[]; readonly check: () => void; readonly projection?: EncryptedSyncState
 }
 const admissions = new WeakMap<object, Admission>()
@@ -74,6 +74,7 @@ export function accountLocalActivationCheck(database: AccountDatabase, token: Pr
       admission.check()
     },
     async recheckSourceCapturesInTransaction() { admission.check(); await admission.legacy?.recheckSourceCapturesInTransaction() },
+    async disposeSelection() { await admission.disposeLegacy?.() },
   }
 }
 
@@ -129,7 +130,13 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
       })
     },
   }
-  const unregister = registerProfileCleanup(token, () => { closed = true; pending.clear(); inline.clear(); observations.clear(); void owner.abandon().catch(() => {}) })
+  const selections = new Set<Awaited<ReturnType<typeof prepareSelectedV1Check>>>()
+  const releaseSelections = async () => {
+    const results = await Promise.allSettled([...selections].map(async selection => { await selection.dispose(); selections.delete(selection) }))
+    const errors = results.flatMap(result => result.status === 'rejected' ? [result.reason] : [])
+    if (errors.length) throw new AggregateError(errors, 'Managed selection cleanup failed')
+  }
+  const unregister = registerProfileCleanup(token, () => { void releaseSelections().catch(() => {}); closed = true; pending.clear(); inline.clear(); observations.clear(); void owner.abandon().catch(() => {}) })
   async function prepareActivation(operationId: string, result: { readonly head: LocalRecordRef; readonly snapshot: AdmittedLocalSnapshot }, expected: AccountFence | undefined, previous?: AdmittedLocalSnapshot, intent?: LocalRecordRef, projection?: EncryptedSyncState, legacy?: Awaited<ReturnType<typeof prepareSelectedV1Check>>, association?: EncryptedSyncState, additional?: Pick<PreparedLocalActivation, 'records' | 'intentStatus' | 'requireSettledSync'>, saved = false): Promise<PreparedLocalActivation> {
     check()
     admittedLocalReferences(result.snapshot, adapter)
@@ -143,7 +150,7 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
       && !(saved && observations.has(result.head.revisionId) && !records.length)) throw new Error('Managed account operation lacks its root')
     const managedAdmission = Object.freeze({})
     const prepared: PreparedLocalActivation = { version: 1, id: operationId, expected, head: result.head, ...(intent ? { intent } : {}), intentStatus: additional?.intentStatus ?? 'unmapped-local', ...(additional?.requireSettledSync ? { requireSettledSync: true } : {}), records: structuredClone(records), managedAdmission }
-    admissions.set(managedAdmission, { database, token, prepared: structuredClone({ ...prepared, managedAdmission: undefined }), observations: [...observations.values()], inline: records.flatMap(record => inline.get(record.revisionId) ?? []), retained, check, legacy, association: association && structuredClone(association), projection: projection && structuredClone(projection) })
+    admissions.set(managedAdmission, { database, token, prepared: structuredClone({ ...prepared, managedAdmission: undefined }), observations: [...observations.values()], inline: records.flatMap(record => inline.get(record.revisionId) ?? []), retained, check, legacy, disposeLegacy: legacy && (async () => { await legacy.dispose(); selections.delete(legacy) }), association: association && structuredClone(association), projection: projection && structuredClone(projection) })
     return prepared
   }
   async function persistOperation(operationId: string, writeJournal: () => Promise<void>, assertMayPersist: () => void): Promise<void> {
@@ -229,24 +236,43 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
     // Only this bulk entrypoint admits a native predecessor; ordinary saves still require an admitted v3 view
     // The old selected codec and source-view associations retain their native transactional rechecks
     const legacy = await prepareSelectedV1Check(database, token, { head: predecessor.head, records: [] })
-    const projection = await database.syncState.get('projection')
-    const origin = AccountMappingOriginSchema.parse({ version: 1, kind: 'incremental-mapping-origin', accountId: token.accountId, operationId, localRoot: result.head, mappedRoot: predecessor.head, headRevision: predecessor.headRevision + 1 })
-    const bytes = new TextEncoder().encode(JSON.stringify(origin))
-    let ref: LocalRecordRef
-    try { ref = await adapter.stage(operationId, memoryBlob(bytes), [result.head, predecessor.head]) } finally { bytes.fill(0) }
-    return prepareActivation(operationId, result, predecessor, undefined, undefined, projection, legacy, { id: accountMappingRootKey(result.head), ref })
+    selections.add(legacy)
+    try {
+      const projection = await database.syncState.get('projection')
+      const origin = AccountMappingOriginSchema.parse({ version: 1, kind: 'incremental-mapping-origin', accountId: token.accountId, operationId, localRoot: result.head, mappedRoot: predecessor.head, headRevision: predecessor.headRevision + 1 })
+      const bytes = new TextEncoder().encode(JSON.stringify(origin))
+      let ref: LocalRecordRef
+      try { ref = await adapter.stage(operationId, memoryBlob(bytes), [result.head, predecessor.head]) } finally { bytes.fill(0) }
+      return await prepareActivation(operationId, result, predecessor, undefined, undefined, projection, legacy, { id: accountMappingRootKey(result.head), ref })
+    } catch (error) {
+      try { await legacy.dispose(); selections.delete(legacy) }
+      catch (cleanup) { throw new AggregateError([error, cleanup], 'Managed selection preparation and cleanup failed') }
+      throw error
+    }
   }
   async function prepareMappedActivation(operationId: string, result: { readonly head: LocalRecordRef; readonly snapshot: AdmittedLocalSnapshot }, expected: AccountFence, previous: AdmittedLocalSnapshot, native: import('./account-graph').PreparedAccountWorkspace, intent?: { readonly ref: LocalRecordRef; readonly records: readonly CipherRecord[] }, requireSettledSync?: true): Promise<PreparedLocalActivation> {
     check()
     const selection = await prepareSelectedV1Check(database, token, native)
-    const projection = await database.syncState.get('projection')
-    const origin = AccountMappingOriginSchema.parse({ version: 1, kind: 'incremental-mapping-origin', accountId: token.accountId, operationId, localRoot: result.head, mappedRoot: native.head, headRevision: expected.headRevision + 1 })
-    const bytes = new TextEncoder().encode(JSON.stringify(origin))
-    let ref: LocalRecordRef
-    try { ref = await adapter.stage(operationId, memoryBlob(bytes), [result.head, native.head]) } finally { bytes.fill(0) }
-    // Native projection and managed selection publish together; the existing native/source checks remain mandatory
-    // The exact association survives removal of a completed outbox row and supplies the next local command's base
-    return prepareActivation(operationId, result, expected, previous, intent?.ref, projection, selection, { id: accountMappingRootKey(result.head), ref }, { records: [...native.records, ...(intent?.records ?? [])], intentStatus: 'mapped-local', ...(requireSettledSync ? { requireSettledSync } : {}) })
+    selections.add(selection)
+    try {
+      const projection = await database.syncState.get('projection')
+      const origin = AccountMappingOriginSchema.parse({ version: 1, kind: 'incremental-mapping-origin', accountId: token.accountId, operationId, localRoot: result.head, mappedRoot: native.head, headRevision: expected.headRevision + 1 })
+      const bytes = new TextEncoder().encode(JSON.stringify(origin))
+      let ref: LocalRecordRef
+      try { ref = await adapter.stage(operationId, memoryBlob(bytes), [result.head, native.head]) } finally { bytes.fill(0) }
+      // Native projection and managed selection publish together; the existing native/source checks remain mandatory
+      // The exact association survives removal of a completed outbox row and supplies the next local command's base
+      return await prepareActivation(operationId, result, expected, previous, intent?.ref, projection, selection, { id: accountMappingRootKey(result.head), ref }, { records: [...native.records, ...(intent?.records ?? [])], intentStatus: 'mapped-local', ...(requireSettledSync ? { requireSettledSync } : {}) })
+    } catch (error) {
+      try { await selection.dispose(); selections.delete(selection) }
+      catch (cleanup) { throw new AggregateError([error, cleanup], 'Managed selection preparation and cleanup failed') }
+      throw error
+    }
   }
-  return { adapter, lifetime, persistOperation, prepareSavedActivation, preparePersistedActivation, prepareActivation: (operationId: string, result: { readonly head: LocalRecordRef; readonly snapshot: AdmittedLocalSnapshot }, expected: AccountFence | undefined, previous?: AdmittedLocalSnapshot, intent?: LocalRecordRef, projection?: EncryptedSyncState) => prepareActivation(operationId, result, expected, previous, intent, projection), prepareLegacyActivation, prepareMappedActivation, committed(operationId: string) { check(); for (const record of pending.get(operationId) ?? []) inline.delete(record.revisionId); pending.delete(operationId); observations.clear() }, finishAdmission() { check(); observations.clear() }, async dispose() { unregister(); closed = true; pending.clear(); inline.clear(); observations.clear(); await owner.abandon() } }
+  return { adapter, lifetime, persistOperation, prepareSavedActivation, preparePersistedActivation, prepareActivation: (operationId: string, result: { readonly head: LocalRecordRef; readonly snapshot: AdmittedLocalSnapshot }, expected: AccountFence | undefined, previous?: AdmittedLocalSnapshot, intent?: LocalRecordRef, projection?: EncryptedSyncState) => prepareActivation(operationId, result, expected, previous, intent, projection), prepareLegacyActivation, prepareMappedActivation, committed(operationId: string) { check(); for (const record of pending.get(operationId) ?? []) inline.delete(record.revisionId); pending.delete(operationId); observations.clear() }, finishAdmission() { check(); observations.clear() }, async dispose() {
+    unregister(); closed = true; pending.clear(); inline.clear(); observations.clear()
+    const results = await Promise.allSettled([releaseSelections(), owner.abandon()])
+    const errors = results.flatMap(result => result.status === 'rejected' ? [result.reason] : [])
+    if (errors.length) throw new AggregateError(errors, 'Managed store cleanup failed')
+  } }
 }

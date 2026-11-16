@@ -323,3 +323,39 @@ it('binds native history reuse to private admissions, exact predecessors and imm
     await expect(prepareAccountWorkspace(database, token, state, previous, undefined, proof)).rejects.toMatchObject({ code: 'PROFILE_CHANGED' })
   } finally { await store.dispose(); database.close(); invalidateProfile() }
 }, 30_000)
+
+it('rejects changed inherited ciphertext before publishing a mapping receipt', async () => {
+  const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
+  const database = new AccountDatabase(token.accountId), store = createAccountLocalStore(database, token)
+  const fixture = await editorClosureFixture()
+  const original = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'mapping-race-original', capturedAt: fixture.state.planner.localData.updatedAt, revisionVector: {}, state: fixture.state }, { check: async () => {}, dispose: async () => {} })
+  try {
+    const operation = accountLocalId(), evidence = await guestEvidenceFromFrozenCurrent(original)
+    const inherited = await prepareLocalEvidence(store.adapter, operation, evidence)
+    const prepared = await prepareLocalWorkspace(store.adapter, operation, fixture.state, store.lifetime, undefined, inherited)
+    await activateLocalAccountCommit(database, token, await store.prepareActivation(operation, prepared, undefined)); store.committed(operation)
+    const repository = await openAccountManagedRepository(database, token, (await database.profileMeta.get('active'))!)
+    await repository.save(createPersonalDefinition(fixture.state.planner.localData, { kind: 'item', name: 'Mapping race' }), fixture.state.planner.localData.revision)
+    const row = (await database.outbox.toArray())[0]!, fence = await database.profileMeta.get('active')
+    const cache = await import('./account-cache'), stage = cache.stageAccountJson
+    let corrupted = false
+    vi.spyOn(cache, 'stageAccountJson').mockImplementation(async (...args) => {
+      const record = await stage(...args)
+      const value = args[2] as { kind?: string; target?: import('../persistence/account-database').CipherRef }
+      if (value.kind === 'incremental-mapping-receipt' && value.target) {
+        const native = await openAccountWorkspace(database, token, value.target)
+        const archive = (await database.encryptedRevisions.get(native.inheritedEvidence!.revisionId))!
+        const chunk = (await database.stagedCipherChunks.get([archive.payloadId, 0]))!
+        chunk.bytes[0] ^= 1
+        await database.stagedCipherChunks.put(chunk)
+        corrupted = true
+      }
+      return record
+    })
+    await expect(prepareIncrementalMapping(database, token, row)).rejects.toThrow(/ciphertext changed/)
+    expect(corrupted).toBe(true)
+    expect(await database.syncState.get(`incremental-mapping:${row.id}`)).toBeUndefined()
+    expect(await database.outbox.get(row.id)).toEqual(row)
+    expect(await database.profileMeta.get('active')).toEqual(fence)
+  } finally { vi.restoreAllMocks(); await disposeWorkspaceSnapshot(original); await store.dispose(); database.close(); invalidateProfile() }
+})

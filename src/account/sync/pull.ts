@@ -314,70 +314,79 @@ export async function activatePulledState(database: AccountDatabase, token: Prof
   publicationOnly = structuredClone(publicationOnly)
   acceptedBodies = [...acceptedBodies]
   const { prepareSelectedV1Check } = await import('../../workspace/account-selection')
-  const selection = managedSelection ?? (selected ? await prepareSelectedV1Check(database, token, { ...selected, validatedEvidence }) : undefined)
-  const { stageAccountJson, cipherRef } = await import('../../workspace/account-cache')
-  const { profileSignal } = await import('../profile')
-  const record = await stageAccountJson(database, token, candidate.state, [candidate.state.heads, ...(candidate.state.effective ? [candidate.state.effective.control, candidate.state.effective.units] : [])])
-  const signal = profileSignal(token)
-  let transaction: import('dexie').Transaction | undefined
-  const abort = () => transaction?.abort()
-  signal.addEventListener('abort', abort, { once: true })
+  const ownedSelection = !managedSelection && selected ? await prepareSelectedV1Check(database, token, { ...selected, validatedEvidence }) : undefined
+  const selection = managedSelection ?? ownedSelection
+  let failed = false, primary: unknown
   try {
-    await database.transaction('rw', database.tables, async current => {
-      transaction = current
-      assertActiveProfile(token)
-      if (JSON.stringify(await database.profileMeta.get('active')) !== JSON.stringify(expected)
-        || JSON.stringify(await database.syncState.get('remote')) !== JSON.stringify(candidate.previous)
-        || JSON.stringify(await database.syncState.get('scan')) !== JSON.stringify(candidate.scanRow)) throw new SyncError('LOCAL_REVISION_CONFLICT')
-      if (JSON.stringify(await database.syncState.get('reviewed-replacement')) !== JSON.stringify(reviewedAuthority)) throw new SyncError('LOCAL_REVISION_CONFLICT')
-      const publication = completed?.publication ?? publicationOnly
-      if (publication && JSON.stringify(await database.syncState.get('publication')) !== JSON.stringify(publication)) throw new SyncError('LOCAL_REVISION_CONFLICT')
-      if (completed && JSON.stringify(await database.outbox.get(completed.intent.id)) !== JSON.stringify(completed.intent)) throw new SyncError('LOCAL_REVISION_CONFLICT')
-      if (newIntent && await database.outbox.count()) throw new SyncError('LOCAL_REVISION_CONFLICT')
-      await managedSelection?.installInlineInTransaction()
-      const records = [...(selected?.records ?? []), ...(managed ? [] : newIntent?.records ?? []), record]
-      for (const value of records) {
-        for (const chunk of managedSelection?.hasInlineRecord(value) ? [] : value.descriptor.chunks) if ((await database.stagedCipherChunks.get([value.payloadId, chunk.index]))?.bytes.length !== chunk.cipherBytes) throw new SyncError('LOCAL_INTEGRITY_FAILED')
-        await database.encryptedRevisions.add(value)
-      }
-      if (managedSelection) {
-        for (const value of records) for (const ref of value.descriptor.dependencies) {
-          if (managedSelection.isUnchangedDependency(ref) || managedSelection.preparedDependency(ref)) continue
-          const dependency = await database.encryptedRevisions.get(ref.revisionId)
-          if (!dependency || dependency.descriptor.documentId !== ref.documentId || dependency.descriptor.accountId !== token.accountId) throw new SyncError('LOCAL_INTEGRITY_FAILED')
+    const { stageAccountJson, cipherRef } = await import('../../workspace/account-cache')
+    const { profileSignal } = await import('../profile')
+    const record = await stageAccountJson(database, token, candidate.state, [candidate.state.heads, ...(candidate.state.effective ? [candidate.state.effective.control, candidate.state.effective.units] : [])])
+    const signal = profileSignal(token)
+    let transaction: import('dexie').Transaction | undefined
+    const abort = () => transaction?.abort()
+    signal.addEventListener('abort', abort, { once: true })
+    try {
+      await database.transaction('rw', database.tables, async current => {
+        transaction = current
+        assertActiveProfile(token)
+        if (JSON.stringify(await database.profileMeta.get('active')) !== JSON.stringify(expected)
+          || JSON.stringify(await database.syncState.get('remote')) !== JSON.stringify(candidate.previous)
+          || JSON.stringify(await database.syncState.get('scan')) !== JSON.stringify(candidate.scanRow)) throw new SyncError('LOCAL_REVISION_CONFLICT')
+        if (JSON.stringify(await database.syncState.get('reviewed-replacement')) !== JSON.stringify(reviewedAuthority)) throw new SyncError('LOCAL_REVISION_CONFLICT')
+        const publication = completed?.publication ?? publicationOnly
+        if (publication && JSON.stringify(await database.syncState.get('publication')) !== JSON.stringify(publication)) throw new SyncError('LOCAL_REVISION_CONFLICT')
+        if (completed && JSON.stringify(await database.outbox.get(completed.intent.id)) !== JSON.stringify(completed.intent)) throw new SyncError('LOCAL_REVISION_CONFLICT')
+        if (newIntent && await database.outbox.count()) throw new SyncError('LOCAL_REVISION_CONFLICT')
+        await managedSelection?.installInlineInTransaction()
+        const records = [...(selected?.records ?? []), ...(managed ? [] : newIntent?.records ?? []), record]
+        for (const value of records) {
+          for (const chunk of managedSelection?.hasInlineRecord(value) ? [] : value.descriptor.chunks) if ((await database.stagedCipherChunks.get([value.payloadId, chunk.index]))?.bytes.length !== chunk.cipherBytes) throw new SyncError('LOCAL_INTEGRITY_FAILED')
+          await database.encryptedRevisions.add(value)
         }
-      }
-      if (selected) {
-        await selection!.recheckInTransaction()
-        await selection!.recheckSourceCapturesInTransaction()
+        if (managedSelection) {
+          for (const value of records) for (const ref of value.descriptor.dependencies) {
+            if (managedSelection.isUnchangedDependency(ref) || managedSelection.preparedDependency(ref)) continue
+            const dependency = await database.encryptedRevisions.get(ref.revisionId)
+            if (!dependency || dependency.descriptor.documentId !== ref.documentId || dependency.descriptor.accountId !== token.accountId) throw new SyncError('LOCAL_INTEGRITY_FAILED')
+          }
+        }
+        if (selected) {
+          await selection!.recheckInTransaction()
+          await selection!.recheckSourceCapturesInTransaction()
+          assertMayActivate()
+          const fence = { ...expected, headRevision: expected.headRevision + 1, head: selected.head }
+          if (!Number.isSafeInteger(fence.headRevision)) throw new SyncError('LOCAL_INTEGRITY_FAILED')
+          await database.documentHeads.put(selected.head)
+          await database.profileMeta.put(fence)
+          await database.migrationJournal.add({ id: managed?.id ?? newIntent?.id ?? accountLocalId(), version: 1, head: selected.head, headRevision: fence.headRevision, ...(newIntent ? { intent: newIntent.ref } : {}), localStatus: 'active', cloudStatus: 'mapped-local' })
+        }
+        await database.syncState.put({ id: 'remote', ref: cipherRef(record) })
+        if (!candidate.state.projectionPending) await database.syncState.put({ id: 'projection', ref: cipherRef(record) })
+        if (newIntent) {
+          // Capture the same effective projection as ordinary local commands, within this head transaction
+          // Without this base, a later publication cannot prove the lineage used by the evidence-only command
+          const publicationBase = (await database.syncState.get('projection'))?.ref
+          await database.outbox.add({ id: newIntent.id, ref: newIntent.ref, status: 'mapped-local', ...(publicationBase ? { publicationBase } : {}) })
+        }
+        await database.syncState.delete('scan')
+        if (completed) await database.outbox.delete(completed.intent.id)
+        if (publication) {
+          // Retain accepted command bytes and body-to-authoritative-envelope bindings for captured bases
+          await database.syncState.put({ id: `accepted:${publication.ref.revisionId}`, ref: publication.ref })
+          for (const revisionId of acceptedBodies) {
+            const id = `binding:${revisionId}`
+            if (!await database.syncState.get(id)) await database.syncState.put({ id, ref: publication.ref })
+          }
+          await database.syncState.delete('publication')
+        }
         assertMayActivate()
-        const fence = { ...expected, headRevision: expected.headRevision + 1, head: selected.head }
-        if (!Number.isSafeInteger(fence.headRevision)) throw new SyncError('LOCAL_INTEGRITY_FAILED')
-        await database.documentHeads.put(selected.head)
-        await database.profileMeta.put(fence)
-        await database.migrationJournal.add({ id: managed?.id ?? newIntent?.id ?? accountLocalId(), version: 1, head: selected.head, headRevision: fence.headRevision, ...(newIntent ? { intent: newIntent.ref } : {}), localStatus: 'active', cloudStatus: 'mapped-local' })
-      }
-      await database.syncState.put({ id: 'remote', ref: cipherRef(record) })
-      if (!candidate.state.projectionPending) await database.syncState.put({ id: 'projection', ref: cipherRef(record) })
-      if (newIntent) {
-        // Capture the same effective projection as ordinary local commands, within this head transaction
-        // Without this base, a later publication cannot prove the lineage used by the evidence-only command
-        const publicationBase = (await database.syncState.get('projection'))?.ref
-        await database.outbox.add({ id: newIntent.id, ref: newIntent.ref, status: 'mapped-local', ...(publicationBase ? { publicationBase } : {}) })
-      }
-      await database.syncState.delete('scan')
-      if (completed) await database.outbox.delete(completed.intent.id)
-      if (publication) {
-        // Retain accepted command bytes and body-to-authoritative-envelope bindings for captured bases
-        await database.syncState.put({ id: `accepted:${publication.ref.revisionId}`, ref: publication.ref })
-        for (const revisionId of acceptedBodies) {
-          const id = `binding:${revisionId}`
-          if (!await database.syncState.get(id)) await database.syncState.put({ id, ref: publication.ref })
-        }
-        await database.syncState.delete('publication')
-      }
-      assertMayActivate()
-      assertActiveProfile(token)
-    })
-  } finally { signal.removeEventListener('abort', abort) }
+        assertActiveProfile(token)
+      })
+    } finally { signal.removeEventListener('abort', abort) }
+    await managedSelection?.disposeSelection()
+  } catch (error) { failed = true; primary = error; throw error }
+  finally {
+    try { await ownedSelection?.dispose() }
+    catch (cleanup) { if (failed) throw new AggregateError([primary, cleanup], 'Account activation and selection cleanup failed'); throw cleanup }
+  }
 }

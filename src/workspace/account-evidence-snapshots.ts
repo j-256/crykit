@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import { accountCleanupOnlyFailure, accountPreparationFailure, assertAccountCleanupJoinable, hasNewAccountCleanupFailure, readAccountCleanupOnlyFailure, readAccountPreparationFailure, type AccountCleanupGroup, type AccountCleanupJoin, type AccountCleanupResult, type AccountManagedCleanup } from './account-cleanup-attempt'
 import { assertActiveProfile, profileSignal, registerProfileCleanup, type ProfileToken } from '../account/profile'
-import { maxDependencies, maxDocumentBytes } from '../account/protocol'
-import type { AccountDatabase, CipherRecord, CipherRef } from '../persistence/account-database'
+import { maxDependencies, maxDocumentBytes, RevisionDescriptorSchema } from '../account/protocol'
+import type { AccountDatabase, CipherChunk, CipherRecord, CipherRef } from '../persistence/account-database'
 import { CipherRefSchema, cipherRef, stageAccountBytes } from './account-cache'
 import { beginPreparedRead, createAccountPreparationOwner, resolveAccountRecord, type AccountPreparationOwner } from './account-prepared-records'
 import { openAccountSource, stageAccountSource } from './account-streams'
@@ -36,11 +36,19 @@ const metadataPage = pageSchema('evidence-metadata-page', segmentSchema)
 type Body = z.infer<typeof bodySchema>
 type Segment = z.infer<typeof segmentSchema>
 type Member = z.infer<typeof memberSchema>
-type MemberStream = Member & { readonly segments: readonly Segment[]; readonly byteLength: number; readonly subset: readonly WorkspaceBlobRef[] }
+type MemberStream = Member & { readonly segments: readonly Segment[]; readonly byteLength: number; readonly subset: readonly WorkspaceBlobRef[]; readonly subsetBodies: readonly Body[] }
+const normalizedRecord = (record: CipherRecord) => ({ revisionId: record.revisionId, payloadId: record.payloadId, descriptor: RevisionDescriptorSchema.parse(record.descriptor) })
+const sameRecord = (left: CipherRecord, right: CipherRecord) => JSON.stringify(normalizedRecord(left)) === JSON.stringify(normalizedRecord(right))
 const refKey = (ref: CipherRef) => JSON.stringify([ref.documentId, ref.revisionId])
 const sameRef = (a: WorkspaceBlobRef, b: WorkspaceBlobRef) => compareBackupRefs(a, b) === 0 && a.encoding === b.encoding && a.byteLength === b.byteLength && a.sha256 === b.sha256
 const uniqueRefs = (refs: readonly CipherRef[]) => [...new Map(refs.map(ref => [refKey(ref), ref])).values()]
 const hashBytes = (bytes: Uint8Array) => hashBlob({ byteLength: bytes.length, async *open() { yield bytes } })
+// Only index objects use order-independent lookup; original metadata streams retain exact bytes
+function indexKey(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(indexKey).join(',')}]`
+  if (value && typeof value === 'object') return `{${Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, child]) => `${JSON.stringify(key)}:${indexKey(child)}`).join(',')}}`
+  return JSON.stringify(value)
+}
 const jsonBytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
 function freeze<T>(value: T): T {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) { for (const child of Object.values(value)) freeze(child); Object.freeze(value) }
@@ -178,6 +186,11 @@ interface Registration {
   readonly database: AccountDatabase
   readonly token: ProfileToken
   readonly lifetime: ReadLifetime
+  readonly reader: GraphReader
+  readonly owner?: AccountPreparationOwner
+  readonly streams: readonly MemberStream[]
+  readonly bodies: readonly Body[]
+  readonly assertLive: () => void
   readonly sources: (budget: Budget) => InheritedSnapshotSources
 }
 const registered = new WeakMap<AccountInheritedEvidence, Registration>()
@@ -194,6 +207,8 @@ export async function assertAccountInheritedEvidenceOwner(handle: AccountInherit
 
 class GraphReader {
   readonly records = new Map<string, CipherRecord>()
+  readonly indexes = new Map<string, CipherRef>()
+  readonly observations = new Map<string, { readonly record: CipherRecord; readonly chunks: readonly CipherChunk[] }>()
   constructor(readonly database: AccountDatabase, readonly token: ProfileToken, readonly budget: Budget, readonly check: () => Promise<void>, readonly owner?: AccountPreparationOwner, private readonly authenticationLifetime?: ReadLifetime) {}
   async record(ref: CipherRef, limit: number): Promise<CipherRecord> {
     await this.check()
@@ -216,7 +231,7 @@ class GraphReader {
     return { byteLength: captured.descriptor.plainBytes, async *open() {
       await reader.record(ref, limit)
       checked(reader.budget.read, captured.descriptor.plainBytes, WORKSPACE_BACKUP_LIMITS.bytes)
-      const source = await openAccountSource(reader.database, reader.token, ref, reader.owner, captured)
+      const source = await openAccountSource(reader.database, reader.token, ref, reader.owner, captured, (record, chunks) => { reader.observations.set(refKey(ref), { record, chunks }) })
       await reader.check()
       let length = 0
       // Retirement can run after the awaited check passes; admission, allocation and
@@ -252,6 +267,8 @@ class GraphReader {
     try {
       const value = schema.parse(parseBoundedJson(bytes, 'account evidence page', NATIVE_BACKUP_JSON_LIMITS))
       this.edges(this.records.get(refKey(ref))!, edges(value))
+      // Subset pages belong to one member even when their contents equal another member's
+      if ((value as { kind?: string }).kind !== 'evidence-subset-page') this.indexes.set(indexKey(value), ref)
       return value
     } finally { bytes.fill(0) }
   }
@@ -291,7 +308,8 @@ class GraphReader {
 export async function openAccountInheritedEvidence(database: AccountDatabase, token: ProfileToken, root: CipherRef, owner?: AccountPreparationOwner, cleanup?: AccountManagedCleanup): Promise<AccountInheritedEvidence> {
   root = freeze(CipherRefSchema.parse(root)); token = Object.freeze({ ...token })
   let unregister = () => {}
-  const lifetime = new ReadLifetime(async () => { assertActiveProfile(token); if (database.accountId !== token.accountId) throw new Error('Foreign account evidence database'); owner?.check() }, owner, () => unregister())
+  let releaseObservations = () => {}
+  const lifetime = new ReadLifetime(async () => { assertActiveProfile(token); if (database.accountId !== token.accountId) throw new Error('Foreign account evidence database'); owner?.check() }, owner, () => { unregister(); releaseObservations() })
   const join = cleanup?.reader(lifetime)
   const dispose = async () => {
     if (!join) return lifetime.dispose()
@@ -303,6 +321,7 @@ export async function openAccountInheritedEvidence(database: AccountDatabase, to
   unregister = registerProfileCleanup(token, () => { if (join) void join.request(); else void dispose().catch(() => {}) })
   if (join && join.observe().status !== 'not-started') unregister()
   const budget = new Budget(), reader = new GraphReader(database, token, budget, () => lifetime.check(), owner, lifetime)
+  releaseObservations = () => reader.observations.clear()
   try {
     budget.reserve(root, 'root')
     const header = await reader.json(root, rootSchema, value => [value.members, value.blobs])
@@ -351,7 +370,7 @@ export async function openAccountInheritedEvidence(database: AccountDatabase, to
           union.add(blobIdentity(body.source))
         }
         await validateWorkspaceSnapshotV1(attachBackupBodies(raw, new Map(bodies.map(body => [blobIdentity(body.ref), body]))), bodyValidation)
-        streams.push(freeze({ ...member, segments, byteLength: length, subset: subset.map(body => body.source) }))
+        streams.push(freeze({ ...member, segments, byteLength: length, subset: subset.map(body => body.source), subsetBodies: subset }))
       }
     })
     if (union.size !== registry.size) throw new Error('Orphan account historical native body')
@@ -363,7 +382,7 @@ export async function openAccountInheritedEvidence(database: AccountDatabase, to
       return freeze({ members: streams.map(member => ({ id: member.id, metadata: lifetime.source(lazy.metadata(member.segments, member.byteLength), true), subset: member.subset })), bodies: shared.map(body => ({ ref: body.source, content: lifetime.source(lazy.source(body.content, maxDocumentBytes)) })) })
     }
     const handle: AccountInheritedEvidence = Object.freeze({ origin: 'evidence-v1', root, setDigest: header.setDigest, members: freeze(members.map(({ id }) => ({ id }))), check: () => lifetime.check(), dispose })
-    registered.set(handle, { database, token, lifetime, sources })
+    registered.set(handle, { database, token, lifetime, sources, reader, owner, streams, bodies: freeze(shared), assertLive() { lifetime.assertOpen(); assertActiveProfile(token); owner?.check() } })
     return handle
   } catch (error) {
     if (join) {
@@ -387,6 +406,28 @@ export async function openAccountInheritedEvidence(database: AccountDatabase, to
     try { await dispose() } catch (cleanup) { throw new AggregateError([error, cleanup], 'Account evidence opening and cleanup failed') }
     throw error
   }
+}
+
+// The returned closure carries only private, completely authenticated physical observations
+// Recheck inside the publishing transaction so same-length ciphertext edits cannot race admission
+export function accountInheritedEvidenceCheck(handle: AccountInheritedEvidence, database: AccountDatabase, token: ProfileToken): { recheckInTransaction(): Promise<void> } {
+  const owned = registration(handle)
+  if (owned.database !== database || owned.token.accountId !== token.accountId || owned.token.generation !== token.generation) throw new Error('Foreign account evidence handle')
+  owned.assertLive()
+  const observations = owned.reader.observations
+  if (observations.size !== owned.reader.records.size) throw new Error('Incomplete account evidence authentication')
+  return { async recheckInTransaction() {
+    owned.assertLive()
+    for (const { record, chunks } of observations.values()) {
+      const actual = await database.encryptedRevisions.get(record.revisionId)
+      if (!actual || !sameRecord(actual, record)) throw new Error('Account evidence descriptor changed')
+      for (const chunk of chunks) {
+        const actual = await database.stagedCipherChunks.get([chunk.payloadId, chunk.index])
+        if (!actual || actual.bytes.length !== chunk.bytes.length || actual.bytes.some((byte, index) => byte !== chunk.bytes[index])) throw new Error('Account evidence ciphertext changed')
+      }
+    }
+    owned.assertLive()
+  } }
 }
 
 export async function accountInheritedSources(handle: AccountInheritedEvidence): Promise<InheritedSnapshotSources> {
@@ -425,6 +466,36 @@ function captureAdditions(additions: readonly WorkspaceSnapshotV2[]): readonly C
 async function prepareGraph(database: AccountDatabase, token: ProfileToken, owner: AccountPreparationOwner, input: PrepareAccountInheritedEvidenceInput, additions: readonly CapturedAddition[], lifetime: ReadLifetime, check: () => Promise<void>, sidecar?: InheritedSnapshotSources): Promise<{ root: CipherRef; records: readonly CipherRecord[] }> {
   const budget = new Budget(), inputs: InheritedSnapshotSources[] = [], sources = additions.map(value => value.snapshot)
   const base = input.base
+  const reusableRoots: AccountInheritedEvidence[] = []
+  const reusableMembers = new Map<string, MemberStream>(), reusableBodies = new Map<string, Body>(), reusableIndexes = new Map<string, CipherRef>()
+  for (const handle of [base, input.merge]) {
+    if (!handle) continue
+    await assertAccountInheritedEvidenceOwner(handle, database, token)
+    const owned = registration(handle)
+    let installed = 0
+    for (const record of owned.reader.records.values()) {
+      const actual = await database.encryptedRevisions.get(record.revisionId)
+      if (actual) {
+        if (!sameRecord(actual, record)) throw new Error('Account evidence descriptor changed')
+        installed++
+      }
+    }
+    // Another preparation still owns uninstalled payloads and can abandon them independently
+    if (!installed && owned.owner) continue
+    if (installed !== owned.reader.records.size) throw new Error('Incomplete installed account evidence')
+    const reader = new GraphReader(database, token, budget, async () => { await check(); await owned.lifetime.check() }, undefined, lifetime)
+    for (const [key, record] of owned.reader.records) {
+      if (!budget.visits.has(key)) { budget.reserve(cipherRef(record), 'body'); budget.declare(record.descriptor.plainBytes) }
+      reader.records.set(key, record)
+    }
+    // Reauthenticate every physical record, including index pages whose immutable parsed facts
+    // are reused below; a live handle alone proves neither descriptors nor chunks are unchanged
+    for (const record of owned.reader.records.values()) for await (const bytes of reader.source(cipherRef(record), maxDocumentBytes).open()) void bytes
+    for (const stream of owned.streams) if (!reusableMembers.has(stream.id)) { reusableMembers.set(stream.id, stream); for (const _segment of stream.segments) budget.segment() }
+    for (const body of owned.bodies) if (!reusableBodies.has(blobIdentity(body.source))) reusableBodies.set(blobIdentity(body.source), body)
+    for (const [key, ref] of owned.reader.indexes) if (!reusableIndexes.has(key)) reusableIndexes.set(key, ref)
+    reusableRoots.push(handle)
+  }
   if (input.sourceEvidence) {
     // This registered sidecar already supplies exact member subsets; an intermediate complete
     // backup would decode and restage the same metadata without adding validation authority
@@ -449,7 +520,8 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
         if (!bytes.length || bytes.length > WORKSPACE_BACKUP_LIMITS.payload) throw new Error('Account metadata token page limit')
         // Admit original identities before copying or decoder delivery, including the initial
         // subset decode; physical rereads still consume bytes but never reserve a second visit
-        budget.original(memberId, ordinal++)
+        if (!reusableMembers.has(memberId)) budget.original(memberId, ordinal)
+        ordinal++
       }
       budget.consume(bytes.length)
     }).open()
@@ -491,6 +563,17 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
       if (!previous) bodies.set(key, { ref: freeze(WorkspaceBlobRefSchema.parse(body.ref)), content: body.content })
     }
   }
+  // Valid older page groupings need not match the current builder's packing choices
+  // Every candidate contributed its exact originals to the comparisons above and every
+  // physical record was reauthenticated, so equal complete membership retains its root
+  for (const handle of reusableRoots) {
+    const owned = registration(handle)
+    if (owned.streams.length === members.size && owned.streams.every(member => members.has(member.id))
+      && owned.bodies.length === bodies.size && owned.bodies.every(body => { const candidate = bodies.get(blobIdentity(body.source)); return candidate && sameRef(body.source, candidate.ref) })) {
+      await sourceCheck()
+      return { root: handle.root, records: Object.freeze([]) }
+    }
+  }
   const records: CipherRecord[] = []
   const retain = async (job: Promise<CipherRecord>) => { const record = await job; records.push(freeze(structuredClone(record))); await sourceCheck(); return cipherRef(record) }
   const stageBytes = async (bytes: Uint8Array, dependencies: readonly CipherRef[]) => {
@@ -500,14 +583,25 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
     budget.reserve(ref, 'staged')
     return ref
   }
-  const stageJson = async (value: unknown, dependencies: readonly CipherRef[]) => {
+  const stageJson = async (value: unknown, dependencies: readonly CipherRef[], reuse = true) => {
+    const reused = reuse ? reusableIndexes.get(indexKey(value)) : undefined
+    if (reused) {
+      // Non-body graph nodes cannot alias across members in the frozen wire format
+      reusableIndexes.delete(indexKey(value))
+      await sourceCheck(); return reused
+    }
     const bytes = jsonBytes(value)
     try { if (bytes.length > INDEX_PAGE_BYTES || uniqueRefs(dependencies).length > maxDependencies) throw new Error('Account evidence page limit'); return await stageBytes(bytes, dependencies) } finally { bytes.fill(0) }
   }
-  const page = <T>(kind: string, entries: readonly T[], edges: (entry: T) => readonly CipherRef[]) => buildIndexPages(entries, value => stageJson({ ...value, kind }, [...value.children, ...value.entries.flatMap(edges)]), value => jsonBytes({ ...value, kind }).length)
+  const page = <T>(kind: string, entries: readonly T[], edges: (entry: T) => readonly CipherRef[], reuse = true) => buildIndexPages(entries, value => stageJson({ ...value, kind }, [...value.children, ...value.entries.flatMap(edges)], reuse), value => jsonBytes({ ...value, kind }).length)
   const shared: Body[] = [], stored = new Map<string, Body>()
   for (const body of [...bodies.values()].sort((a, b) => compareBackupRefs(a.ref, b.ref))) {
     if (body.ref.byteLength > maxDocumentBytes || body.ref.byteLength !== body.content.byteLength) throw new Error('Account historical native body exceeds document limit or has wrong length')
+    const reused = reusableBodies.get(blobIdentity(body.ref))
+    if (reused) {
+      if (!sameRef(reused.source, body.ref)) throw new Error('Account historical native body identity changed')
+      shared.push(reused); stored.set(blobIdentity(body.ref), reused); continue
+    }
     budget.room(1); budget.declare(body.ref.byteLength)
     await sourceCheck()
     const content = await retain(stageAccountSource(database, token, guarded(body.content), [], undefined, undefined, owner))
@@ -516,6 +610,14 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
   }
   const written: Member[] = []
   for (const member of [...members.values()].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)) {
+    const reused = reusableMembers.get(member.id)
+    if (reused) {
+      const subset = member.subset.map(ref => { const body = stored.get(blobIdentity(ref)); if (!body || !sameRef(ref, body.source)) throw new Error('Account historical subset body mismatch'); return body })
+      const unchanged = subset.length === reused.subsetBodies.length && subset.every((body, index) => refKey(body.content) === refKey(reused.subsetBodies[index].content))
+      const blobSubset = unchanged ? reused.blobSubset : await page('evidence-subset-page', subset, entry => [entry.content], false)
+      written.push({ id: member.id, metadata: reused.metadata, blobSubset })
+      continue
+    }
     budget.potential(member.metadata.byteLength)
     const segments: Segment[] = []
     let length = 0
@@ -533,7 +635,7 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
     const pages = await page('evidence-metadata-page', segments, entry => [entry.content])
     const metadata = await stageJson({ version: 1, kind: 'evidence-metadata-stream', codec: 'backup-json-tokens-v1', digest: identity.metadataStreamDigest, byteLength: length, pages }, [pages])
     const subset = member.subset.map(ref => { const body = stored.get(blobIdentity(ref)); if (!body || !sameRef(ref, body.source)) throw new Error('Account historical subset body mismatch'); return body })
-    const blobSubset = await page('evidence-subset-page', subset, entry => [entry.content])
+    const blobSubset = await page('evidence-subset-page', subset, entry => [entry.content], false)
     written.push({ id: member.id, metadata, blobSubset })
   }
   const memberRoot = await page('evidence-member-page', written, entry => [entry.metadata, entry.blobSubset])
