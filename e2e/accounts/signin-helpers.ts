@@ -39,11 +39,14 @@ export async function installSigninMergeResponsivenessProbe(page: Page) {
     const input = document.createElement('input')
     input.setAttribute('aria-label', 'Synthetic responsiveness probe')
     input.style.cssText = 'position:fixed;right:8px;bottom:8px;width:120px;z-index:9999'
+    let keydownStartTime: number | undefined
+    input.addEventListener('keydown', event => { keydownStartTime = event.isTrusted ? event.timeStamp : undefined })
     input.addEventListener('input', event => {
-      const requestedAt = event.timeStamp, handledAt = performance.now()
+      const requestedAt = event.timeStamp, handledAt = performance.now(), trusted = event.isTrusted
+      const keydown = keydownStartTime; keydownStartTime = undefined
       const pendingAtInput = Array.from(document.querySelectorAll('h1, h2')).some(heading => heading.textContent === 'Preparing your workspace')
       input.style.backgroundColor = input.value.length % 2 ? 'yellow' : 'white'
-      requestAnimationFrame(() => requestAnimationFrame(() => probe.paints.push({ requestedAt, handledAt, pendingAtInput, paintOpportunityAt: performance.now(), elapsedMs: performance.now() - requestedAt })))
+      requestAnimationFrame(() => requestAnimationFrame(() => probe.paints.push({ requestedAt, handledAt, pendingAtInput, trusted, keydownStartTime: keydown, paintOpportunityAt: performance.now(), elapsedMs: performance.now() - requestedAt })))
     })
     document.body.append(input)
     const focus = (event: Event) => {
@@ -59,7 +62,7 @@ export async function installSigninMergeResponsivenessProbe(page: Page) {
     }
     if (PerformanceObserver.supportedEntryTypes.includes('event')) {
       const observer = new PerformanceObserver(list => {
-        for (const entry of list.getEntries() as PerformanceEventTiming[]) if (entry.interactionId && ['keydown', 'keypress', 'keyup'].includes(entry.name)) probe.events.push({ name: entry.name, startTime: entry.startTime, duration: entry.duration, processingStart: entry.processingStart, processingEnd: entry.processingEnd, observedAt: performance.now() })
+        for (const entry of list.getEntries() as PerformanceEventTiming[]) if (entry.interactionId && ['keydown', 'keypress', 'keyup'].includes(entry.name)) probe.events.push({ name: entry.name, interactionId: entry.interactionId, syntheticTarget: entry.target === input, startTime: entry.startTime, duration: entry.duration, processingStart: entry.processingStart, processingEnd: entry.processingEnd, observedAt: performance.now() })
       })
       observer.observe({ type: 'event', durationThreshold: 16 } as PerformanceObserverInit); observers.push(observer)
     }
@@ -80,4 +83,42 @@ export async function observeSigninMergeReadback<T>(read: () => Promise<T>): Pro
   // Mandatory acceptance assertions run before this boundary and are never caught here
   try { return { outcome: 'complete', value: await read() } }
   catch { return { outcome: 'unavailable', errorCode: 'observation-unavailable' } }
+}
+
+interface SigninMergeInputReceipt {
+  readonly pendingAtInput: boolean
+  readonly trusted: boolean
+  readonly keydownStartTime?: number
+  readonly requestedAt: number
+  readonly handledAt: number
+  readonly paintOpportunityAt: number
+  readonly elapsedMs: number
+}
+interface SigninMergeInputTiming {
+  readonly name: string
+  readonly syntheticTarget: boolean
+  readonly startTime: number
+  readonly duration: number
+}
+interface SigninMergeResponsivenessReadback {
+  readonly paints: readonly SigninMergeInputReceipt[]
+  readonly events: readonly SigninMergeInputTiming[]
+  readonly eventTimingAvailable: boolean
+}
+export function assessSigninMergeResponsiveness(probe: SigninMergeResponsivenessReadback | null) {
+  const unavailable = (receiptStatus: 'missing' | 'off-phase' | 'untrusted' | 'unassociated' | 'pending', reason: 'probe-unavailable' | 'receipt-missing' | 'receipt-off-phase' | 'receipt-untrusted' | 'receipt-unassociated' | 'api-unsupported' | 'no-matching-entry') => ({ receiptStatus, eventTiming: { status: 'unavailable' as const, reason }, sampledInputToPaint: null })
+  if (!probe) return unavailable('missing', 'probe-unavailable')
+  if (!probe.paints.length) return unavailable('missing', 'receipt-missing')
+  const pending = probe.paints.filter(receipt => receipt.pendingAtInput)
+  if (!pending.length) return unavailable('off-phase', 'receipt-off-phase')
+  const trusted = pending.filter(receipt => receipt.trusted)
+  if (!trusted.length) return unavailable('untrusted', 'receipt-untrusted')
+  const receipt = trusted.find(receipt => Number.isFinite(receipt.keydownStartTime) && Number.isFinite(receipt.paintOpportunityAt) && receipt.paintOpportunityAt >= receipt.handledAt)
+  if (!receipt) return unavailable('unassociated', 'receipt-unassociated')
+  if (!probe.eventTimingAvailable) return unavailable('pending', 'api-unsupported')
+  // The native keydown timestamp and target identify this input, not another keyboard event in the interval
+  // A receipt is mandatory even when Event Timing omits the matching event or the API is unavailable
+  const timing = probe.events.find(event => event.name === 'keydown' && event.syntheticTarget && event.startTime === receipt.keydownStartTime && Number.isFinite(event.duration) && event.duration > 0)
+  if (!timing) return unavailable('pending', 'no-matching-entry')
+  return { receiptStatus: 'pending' as const, eventTiming: { status: 'available' as const, durationMs: timing.duration }, sampledInputToPaint: timing.duration <= SIGNIN_MERGE_INPUT_TO_PAINT_TARGET_MS }
 }

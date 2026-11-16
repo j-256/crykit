@@ -55,3 +55,28 @@ it('reports optional observation unavailable without exposing arbitrary error te
   expect(JSON.stringify(observation)).not.toMatch(/Private|password|credential/)
   expect(await observeSigninMergeReadback(async () => ({ catalogs: 2 }))).toEqual({ outcome: 'complete', value: { catalogs: 2 } })
 })
+
+it('rejects missing and off-phase synthetic paint receipts even when keyboard timing looks fast', async () => {
+  const { assessSigninMergeResponsiveness } = await import('../../e2e/accounts/signin-helpers')
+  const event = { name: 'keydown', startTime: 10, duration: 16, syntheticTarget: true }
+  expect(assessSigninMergeResponsiveness({ paints: [], events: [event], eventTimingAvailable: true })).toMatchObject({ receiptStatus: 'missing', sampledInputToPaint: null, eventTiming: { reason: 'receipt-missing' } })
+  const receipt = { requestedAt: 11, handledAt: 12, paintOpportunityAt: 30, elapsedMs: 19, pendingAtInput: false, trusted: true, keydownStartTime: 10 }
+  expect(assessSigninMergeResponsiveness({ paints: [receipt], events: [event], eventTimingAvailable: true })).toMatchObject({ receiptStatus: 'off-phase', sampledInputToPaint: null, eventTiming: { reason: 'receipt-off-phase' } })
+})
+
+it('associates pending synthetic input only with its own targeted keydown timing without enforcing latency', async () => {
+  const { assessSigninMergeResponsiveness } = await import('../../e2e/accounts/signin-helpers')
+  const receipt = { requestedAt: 11, handledAt: 12, paintOpportunityAt: 930, elapsedMs: 919, pendingAtInput: true, trusted: true, keydownStartTime: 10 }
+  const events = [{ name: 'keydown', startTime: 9, duration: 16, syntheticTarget: true }, { name: 'keydown', startTime: 10, duration: 16, syntheticTarget: false }, { name: 'keyup', startTime: 10, duration: 16, syntheticTarget: true }, { name: 'keydown', startTime: 10, duration: 900, syntheticTarget: true }]
+  expect(assessSigninMergeResponsiveness({ paints: [receipt], events, eventTimingAvailable: true })).toEqual({ receiptStatus: 'pending', eventTiming: { status: 'available', durationMs: 900 }, sampledInputToPaint: false })
+})
+
+it('distinguishes unsupported timing, absent matching entry, and untrusted input', async () => {
+  const { assessSigninMergeResponsiveness } = await import('../../e2e/accounts/signin-helpers')
+  const receipt = { requestedAt: 11, handledAt: 12, paintOpportunityAt: 30, elapsedMs: 19, pendingAtInput: true, trusted: true, keydownStartTime: 10 }
+  expect(assessSigninMergeResponsiveness({ paints: [receipt], events: [], eventTimingAvailable: false })).toMatchObject({ receiptStatus: 'pending', sampledInputToPaint: null, eventTiming: { reason: 'api-unsupported' } })
+  expect(assessSigninMergeResponsiveness({ paints: [receipt], events: [], eventTimingAvailable: true })).toMatchObject({ receiptStatus: 'pending', sampledInputToPaint: null, eventTiming: { reason: 'no-matching-entry' } })
+  expect(assessSigninMergeResponsiveness({ paints: [{ ...receipt, trusted: false }], events: [], eventTimingAvailable: true })).toMatchObject({ receiptStatus: 'untrusted', sampledInputToPaint: null, eventTiming: { reason: 'receipt-untrusted' } })
+  expect(assessSigninMergeResponsiveness({ paints: [{ ...receipt, keydownStartTime: undefined }], events: [], eventTimingAvailable: true })).toMatchObject({ receiptStatus: 'unassociated', sampledInputToPaint: null, eventTiming: { reason: 'receipt-unassociated' } })
+  expect(assessSigninMergeResponsiveness(null)).toMatchObject({ receiptStatus: 'missing', sampledInputToPaint: null, eventTiming: { reason: 'probe-unavailable' } })
+})
