@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { expect, test, type Page } from './test-fixture'
 import { beginSeededAccount } from './signin-helpers'
+import { assertOldCompactAdmissionRefusal, captureOldSyncTerminal, OldSyncRefusal } from './catalog-writer-terminal'
 
 const app = '/__accounts-proof/account-workspace.html'
 const oldApp = '/__accounts-proof/old-account-workspace.html'
@@ -73,7 +74,7 @@ async function oldAction(page: Page, action: 'prepare' | 'save' | 'sync' | 'expo
       return { exported: true }
     } catch (error) {
       const value = error as { code?: string; name?: string; issues?: { path: unknown; code: string }[] }
-      return { failed: value.code ?? value.name ?? 'unknown', response: (window as any).oldCatalogCommitResponse, issues: value.issues?.map(issue => ({ path: issue.path, code: issue.code })) }
+      return { failed: value.code ?? value.name ?? 'unknown', cachedCommitResponse: (window as any).oldCatalogCommitResponse, issues: value.issues?.map(issue => ({ path: issue.path, code: issue.code })) }
     } finally { if (action !== 'prepare') database.close() }
   }, action)
 }
@@ -92,9 +93,9 @@ async function settle(page: Page, old = false) {
   for (let step = 0; step < 200; step++) {
     const result = old ? await oldAction(page, 'sync') : await page.evaluate(() => (window as any).accountBootstrapProof.syncCatalogOnce())
     // The frozen service advances bounded certificate work through retriable 503 responses
-    const continuation = result.response?.body?.error?.continuation
+    const continuation = result.cachedCommitResponse?.body?.error?.continuation
     if (result.failed === 'SERVICE_UNAVAILABLE' && continuation && continuation.processed > (progress.get(continuation.workId) ?? 0)) { progress.set(continuation.workId, continuation.processed); continue }
-    if (result.failed) throw new Error(`Frozen sync refusal: ${JSON.stringify(result)}`)
+    if (result.failed) throw new OldSyncRefusal(result)
     if (!result.moreWork) return result
   }
   throw new Error('Synthetic publication exceeded its bounded iteration count')
@@ -188,8 +189,7 @@ for (const lostAcknowledgment of [false, true]) test(`preserves compact evidence
         await route.fulfill({ response })
       } else { requests.push({ path, heads: input?.heads.length }); await route.continue() }
     })
-    let terminal: unknown
-    const pending = (async () => { try { terminal = await settle(page, true) } catch (error) { terminal = { failed: (error as Error).message } } })()
+    const pending = captureOldSyncTerminal(() => settle(page, true))
     await expect.poll(() => !!paused, { timeout: 60_000 }).toBe(true)
     const before = await oldAction(page, 'digests')
     if (lostAcknowledgment) { await pending; await settle(candidate) }
@@ -209,11 +209,12 @@ for (const lostAcknowledgment of [false, true]) test(`preserves compact evidence
     const publishedSelection = await candidate.evaluate(() => (window as any).accountBootstrapProof.catalogPublicationState())
     const selectedTables = await candidate.evaluate(() => (window as any).accountBootstrapProof.comparisonStorageDigests())
     paused!.release()
-    await pending
+    let terminal = await pending
     if (lostAcknowledgment) {
       expect(paused!.response?.status).toBe(200)
-      try { terminal = await settle(page, true) } catch (error) { terminal = { failed: (error as Error).message } }
+      terminal = await captureOldSyncTerminal(() => settle(page, true))
     } else expect(paused!.response).toMatchObject({ status: 409, body: { error: { code: 'HEAD_CONFLICT' } } })
+    assertOldCompactAdmissionRefusal(terminal)
     const afterSelectedTables = await candidate.evaluate(() => (window as any).accountBootstrapProof.comparisonStorageDigests())
     expect(afterSelectedTables).toEqual(selectedTables)
     const after = await candidate.evaluate(() => (window as any).accountBootstrapProof.compactCatalogEvidence())
