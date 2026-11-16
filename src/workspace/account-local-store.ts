@@ -11,8 +11,8 @@ import { accountLocalId, cipherRef } from './account-cache'
 import { createAccountPreparationOwner, type AccountPreparationReservation } from './account-prepared-records'
 import { openAccountSource, openPreparedAccountSource, stageAccountSource } from './account-streams'
 import { admitLocalRoot, admittedLocalReferences, type AdmittedLocalSnapshot, type CapturedLocalLifetime, type LocalStoreAdapter, type LocalRecordRef } from './local-root'
-import { readLocalEvidence } from './local-evidence'
-import { mergeGuestEvidence, validateGuestCurrentBodies } from './guest-evidence'
+import { localEvidenceReadAdmission, prepareLocalEvidence, readLocalEvidence } from './local-evidence'
+import { mergeGuestEvidence, validateGuestCurrentBodies, type CapturedGuestEvidence } from './guest-evidence'
 import { parseBoundedJson } from '../interchange/json'
 import { encodeBytes, getSodium } from '../account/crypto/sodium'
 import { maxDocumentBytes, RevisionDescriptorSchema, streamOverheadBytes } from '../account/protocol'
@@ -27,13 +27,31 @@ interface Admission {
   readonly observations: readonly Observation[]; readonly retained: ReadonlySet<string>; readonly inline: readonly Observation[]; readonly check: () => void; readonly projection?: EncryptedSyncState
 }
 const admissions = new WeakMap<object, Admission>()
+interface EvidenceReuse {
+  readonly adapter: LocalStoreAdapter; readonly previous: CapturedGuestEvidence
+  readonly admission: ReturnType<typeof localEvidenceReadAdmission>
+  assert(): void; check(): Promise<void>
+}
+const evidenceReuses = new WeakMap<object, EvidenceReuse>()
+// Only the installed-store issuer below can mint this operation-scoped proof
+// The dynamic consumer avoids a static local-evidence/store initialization cycle
+export function resolveLocalEvidenceReuse(adapter: LocalStoreAdapter, handle: object) {
+  const proof = evidenceReuses.get(handle)
+  if (!proof || proof.adapter !== adapter) throw new Error('Unadmitted installed evidence reuse')
+  proof.assert()
+  return proof
+}
+const normalizedRecord = (value: CipherRecord) => ({ ...value, descriptor: RevisionDescriptorSchema.parse(value.descriptor) })
+function sameObservation(a: Observation, b: Observation) {
+  return same(normalizedRecord(a.record), normalizedRecord(b.record)) && a.chunks.length === b.chunks.length
+    && a.chunks.every((chunk, index) => { const other = b.chunks[index]; return chunk.payloadId === other.payloadId && chunk.index === other.index && chunk.bytes.length === other.bytes.length && chunk.bytes.every((byte, offset) => byte === other.bytes[offset]) })
+}
 
 async function recheckCiphertextObservations(database: AccountDatabase, observations: Iterable<Observation>) {
   for (const { record, chunks } of observations) {
     const actualRecord = await database.encryptedRevisions.get(record.revisionId)
     // Schema parsing normalizes field order without dropping any authenticated descriptor field
-    const normalized = (value: CipherRecord) => ({ ...value, descriptor: RevisionDescriptorSchema.parse(value.descriptor) })
-    if (!actualRecord || !same(normalized(actualRecord), normalized(record))) throw new Error('Consumed encrypted descriptor changed')
+    if (!actualRecord || !same(normalizedRecord(actualRecord), normalizedRecord(record))) throw new Error('Consumed encrypted descriptor changed')
     for (const captured of chunks) {
       const actual = await database.stagedCipherChunks.get([captured.payloadId, captured.index])
       if (!actual || actual.bytes.length !== captured.bytes.length || actual.bytes.some((byte, index) => byte !== captured.bytes[index])) throw new Error('Consumed encrypted bytes changed')
@@ -101,6 +119,9 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
   const owner = createAccountPreparationOwner(database, token, reservation)
   const inline = new Map<string, Observation>()
   const pending = new Map<string, CipherRecord[]>(), observations = new Map<string, Observation>()
+  const pinnedEvidence = new Set<string>()
+  let evidenceGeneration = 0
+  const clearEvidenceAdmission = () => { pinnedEvidence.clear(); observations.clear(); evidenceGeneration++ }
   const lifetime: CapturedLocalLifetime = { check, assertCurrent: async () => check() }
   const capture = async (record: CipherRecord): Promise<Observation> => {
     const chunks: CipherChunk[] = [], sodium = await getSodium()
@@ -143,7 +164,11 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
       }
       return openAccountSource(database, token, ref, owner, undefined, (record, chunks) => {
         // Capture the ciphertext actually authenticated by this read, without reading it again
-        check(); observations.set(record.revisionId, { record, chunks })
+        check()
+        const observed = { record, chunks }, previous = observations.get(record.revisionId)
+        // A later successful decrypt must not replace the exact installed bytes admitted for reuse
+        if (pinnedEvidence.has(record.revisionId) && (!previous || !sameObservation(previous, observed))) throw new Error('Retained managed evidence observation changed')
+        observations.set(record.revisionId, observed)
       })
     },
   }
@@ -153,7 +178,43 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
     const errors = results.flatMap(result => result.status === 'rejected' ? [result.reason] : [])
     if (errors.length) throw new AggregateError(errors, 'Managed selection cleanup failed')
   }
-  const unregister = registerProfileCleanup(token, () => { void releaseSelections().catch(() => {}); closed = true; pending.clear(); inline.clear(); observations.clear(); void owner.abandon().catch(() => {}) })
+  const unregister = registerProfileCleanup(token, () => { void releaseSelections().catch(() => {}); closed = true; pending.clear(); inline.clear(); clearEvidenceAdmission(); void owner.abandon().catch(() => {}) })
+  // Logical read admission cannot authorize reuse of this owner's uninstalled allocations
+  // Prove the exact selected graph is installed, then pin its authenticated observations through activation
+  async function prepareInheritedEvidence(operationId: string, evidence: CapturedGuestEvidence, previous: CapturedGuestEvidence | undefined, before: AdmittedLocalSnapshot, input: AccountFence): Promise<LocalRecordRef> {
+    const expected = structuredClone(input), generation = evidenceGeneration
+    const assert = () => { check(); if (evidenceGeneration !== generation) throw new Error('Managed evidence admission expired') }
+    const current = async () => {
+      assert()
+      if (!same(await database.profileMeta.get('active'), expected)) throw new Error('Managed evidence predecessor changed')
+      assert()
+    }
+    await current()
+    const admitted = admittedLocalReferences(before, adapter)
+    if (!same(before.head, expected.head) || !admitted.has(blobIdentity(before.root.inheritedEvidence))) throw new Error('Managed evidence predecessor changed')
+    if (!previous) return prepareLocalEvidence(adapter, operationId, evidence)
+    const admission = localEvidenceReadAdmission(previous, adapter, before.root.inheritedEvidence)
+    await admission.check(); await current()
+    const staged = new Set([...pending.values()].flat().map(record => record.revisionId))
+    const refs = [{ ref: before.head }, ...admission.dependencies]
+    const consumed: Observation[] = []
+    for (const entry of refs) {
+      const observed = observations.get(entry.ref.revisionId)
+      if (!observed || staged.has(entry.ref.revisionId) || inline.has(entry.ref.revisionId)
+        || observed.record.descriptor.documentId !== entry.ref.documentId || observed.record.descriptor.accountId !== token.accountId
+        || 'dependencies' in entry && !same(observed.record.descriptor.dependencies, entry.dependencies)) throw new Error('Evidence reuse requires exact installed source records')
+      const installed = await database.encryptedRevisions.get(entry.ref.revisionId)
+      if (!installed || !same(normalizedRecord(installed), normalizedRecord(observed.record))) throw new Error('Evidence reuse source is not installed')
+      consumed.push(observed); assert()
+    }
+    await recheckCiphertextObservations(database, consumed)
+    await current()
+    for (const observed of consumed) pinnedEvidence.add(observed.record.revisionId)
+    const handle = Object.freeze({})
+    evidenceReuses.set(handle, { adapter, previous, admission, assert, async check() { await admission.check(); await current() } })
+    try { return await prepareLocalEvidence(adapter, operationId, evidence, handle) }
+    finally { evidenceReuses.delete(handle) }
+  }
   async function prepareActivation(operationId: string, result: { readonly head: LocalRecordRef; readonly snapshot: AdmittedLocalSnapshot }, expected: AccountFence | undefined, previous?: AdmittedLocalSnapshot, intent?: LocalRecordRef, projection?: EncryptedSyncState, legacy?: Awaited<ReturnType<typeof prepareSelectedV1Check>>, association?: EncryptedSyncState, additional?: Pick<PreparedLocalActivation, 'records' | 'intentStatus' | 'requireSettledSync'>, saved = false): Promise<PreparedLocalActivation> {
     check()
     admittedLocalReferences(result.snapshot, adapter)
@@ -290,7 +351,7 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
   }
   // Mapping receipts use the same live adapter observations; callers cannot provide or revive authority
   // This closure performs only IDB reads inside the caller-owned descriptor/chunk transaction
-  return { adapter, lifetime,
+  return { adapter, lifetime, prepareInheritedEvidence,
     observedRecords() { check(); return structuredClone([...observations.values()].map(value => value.record)) },
     stagedRecords(operationId: string) { check(); return structuredClone(pending.get(operationId) ?? []) },
     describePreparation(prepared: PreparedLocalActivation) {
@@ -299,8 +360,8 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
       if (!admission || admission.database !== database || admission.token !== token || !same(admission.prepared, { ...prepared, managedAdmission: undefined })) throw new Error('Unadmitted managed preparation')
       return { records: structuredClone(prepared.records), consumed: structuredClone(admission.observations.map(value => value.record)), retained: [...admission.retained], native: admission.legacy?.observations(), association: admission.association && structuredClone(admission.association) }
     },
-    async recheckObservationsInTransaction() { check(); await recheckCiphertextObservations(database, observations.values()); check() }, persistOperation, prepareSavedActivation, preparePersistedActivation, prepareActivation: (operationId: string, result: { readonly head: LocalRecordRef; readonly snapshot: AdmittedLocalSnapshot }, expected: AccountFence | undefined, previous?: AdmittedLocalSnapshot, intent?: LocalRecordRef, projection?: EncryptedSyncState) => prepareActivation(operationId, result, expected, previous, intent, projection), prepareLegacyActivation, prepareMappedActivation, committed(operationId: string) { check(); for (const record of pending.get(operationId) ?? []) inline.delete(record.revisionId); pending.delete(operationId); observations.clear() }, finishAdmission() { check(); observations.clear() }, async dispose() {
-    unregister(); closed = true; pending.clear(); inline.clear(); observations.clear()
+    async recheckObservationsInTransaction() { check(); await recheckCiphertextObservations(database, observations.values()); check() }, persistOperation, prepareSavedActivation, preparePersistedActivation, prepareActivation: (operationId: string, result: { readonly head: LocalRecordRef; readonly snapshot: AdmittedLocalSnapshot }, expected: AccountFence | undefined, previous?: AdmittedLocalSnapshot, intent?: LocalRecordRef, projection?: EncryptedSyncState) => prepareActivation(operationId, result, expected, previous, intent, projection), prepareLegacyActivation, prepareMappedActivation, committed(operationId: string) { check(); for (const record of pending.get(operationId) ?? []) inline.delete(record.revisionId); pending.delete(operationId); clearEvidenceAdmission() }, finishAdmission() { check(); clearEvidenceAdmission() }, async dispose() {
+    unregister(); closed = true; pending.clear(); inline.clear(); clearEvidenceAdmission()
     const results = await Promise.allSettled([releaseSelections(), owner.abandon()])
     const errors = results.flatMap(result => result.status === 'rejected' ? [result.reason] : [])
     if (errors.length) throw new AggregateError(errors, 'Managed store cleanup failed')

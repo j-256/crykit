@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { prepareLocalIndex, readLocalIndex } from './local-index'
+import { admittedLocalIndexPages, prepareLocalIndex, readLocalIndex } from './local-index'
 import { INDEX_PAGE_ENTRIES, type IndexPage } from './directory'
 import type { CipherRef } from '../persistence/account-database'
 
@@ -50,4 +50,16 @@ it('rejects oversized, cyclic, duplicate and unavailable index pages', async () 
   db.values.set('cycle', { version: 1, entries: Array(INDEX_PAGE_ENTRIES + 1).fill('x'), children: [] })
   await expect(readLocalIndex(ref, db.read)).rejects.toThrow()
   await expect(readLocalIndex({ ...ref, revisionId: 'missing' }, db.read)).rejects.toThrow()
+})
+
+it('preserves distinct read page refs even when their encoded contents are equal', async () => {
+  const db = storage<string>()
+  const first = await db.write({ version: 1, entries: [], children: [] })
+  const second = await db.write({ version: 1, entries: [], children: [] })
+  const root = await db.write({ version: 1, entries: [], children: [first, second] })
+  const read = await readLocalIndex(root, db.read)
+  expect(admittedLocalIndexPages(read).map(page => page.ref)).toEqual([root, first, second])
+  expect(() => admittedLocalIndexPages({ ...read })).toThrow()
+  const prepared = await prepareLocalIndex([], db.write)
+  expect(() => admittedLocalIndexPages(prepared)).toThrow()
 })

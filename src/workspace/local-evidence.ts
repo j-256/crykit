@@ -1,11 +1,11 @@
 import { z } from 'zod'
-import { prepareLocalIndex, readLocalIndex } from './local-index'
+import { admittedLocalIndexPages, prepareLocalIndex, readLocalIndex, type LocalIndex } from './local-index'
 import type { LocalRecordRef, LocalStoreAdapter } from './local-root'
-import { GUEST_EVIDENCE_STORES, GUEST_FILES_V1_STORES, GUEST_EXTENSION_KEY, readGuestEvidence, writeCapturedGuestEvidence, type CapturedGuestEvidence } from './guest-evidence'
+import { GUEST_EVIDENCE_STORES, GUEST_FILES_V1_STORES, GUEST_EXTENSION_KEY, readGuestEvidence, writeCapturedGuestEvidence, prepareCapturedGuestEvidenceWrite, type CapturedGuestEvidence } from './guest-evidence'
 import { hashBlob, memoryBlob, readBlob, verifiedBlob } from './blobs'
 import { parseBoundedJson } from '../interchange/json'
 import { WORKSPACE_BACKUP_LIMITS } from '../interchange/workspace-backup-schema'
-import { INDEX_PAGE_BYTES } from './directory'
+import { INDEX_PAGE_BYTES, type IndexPage } from './directory'
 
 const refSchema = z.strictObject({ documentId: z.string().min(1), revisionId: z.string().min(1) })
 const keySchema = z.union([z.string(), z.tuple([z.string(), z.number().int().nonnegative().safe()])])
@@ -13,12 +13,30 @@ const rowSchema = z.strictObject({ table: z.enum(['documents', 'evidenceRoots', 
 const rootSchema = z.strictObject({ version: z.literal(1), kind: z.literal('local-inherited-evidence'), roots: z.array(z.strictObject({ kind: z.literal('guest-evidence-rows'), index: refSchema })).max(1) })
 const utf8 = new TextEncoder()
 const rowIdentity = (table: string, key: unknown) => JSON.stringify([table, key])
+type EvidenceRow = z.infer<typeof rowSchema>
+interface ReadAdmission {
+  readonly adapter: LocalStoreAdapter; readonly root: LocalRecordRef; readonly index: LocalIndex<EvidenceRow>
+  readonly dependencies: readonly { readonly ref: LocalRecordRef; readonly dependencies: readonly LocalRecordRef[] }[]
+  readonly check: () => Promise<void>
+}
+const readAdmissions = new WeakMap<CapturedGuestEvidence, ReadAdmission>()
+export function localEvidenceReadAdmission(evidence: CapturedGuestEvidence, adapter: LocalStoreAdapter, root: LocalRecordRef) {
+  const admitted = readAdmissions.get(evidence)
+  if (!admitted || admitted.adapter !== adapter || admitted.root.documentId !== root.documentId || admitted.root.revisionId !== root.revisionId) throw new Error('Foreign managed evidence read admission')
+  return admitted
+}
 
 // The existing strict evidence codec owns historical metadata, original body and orphan validation
 // This adapter only relocates its immutable rows into the managed transaction domain
-export async function prepareLocalEvidence(adapter: LocalStoreAdapter, operationId: string, evidence: CapturedGuestEvidence): Promise<LocalRecordRef> {
+export async function prepareLocalEvidence(adapter: LocalStoreAdapter, operationId: string, evidence: CapturedGuestEvidence, reuseHandle?: object): Promise<LocalRecordRef> {
+  // The optional route resolves a privately issued installed-store proof, never caller assertions
+  const reuse = reuseHandle && (await import('./account-local-store')).resolveLocalEvidenceReuse(adapter, reuseHandle)
+  const plan = reuse && await prepareCapturedGuestEvidenceWrite(evidence, reuse.previous, reuse.check)
+  await reuse?.check()
+  if (plan?.unchanged) { await evidence.check(); await reuse!.check(); return reuse!.admission.root }
+  const previousRows = new Map(reuse?.admission.index.entries.map(row => [rowIdentity(row.table, row.key), row]))
   const rows: z.infer<typeof rowSchema>[] = [], seen = new Set<string>()
-  await writeCapturedGuestEvidence(evidence, { async put(table, input) {
+  const writer = { async put(table: string, input: unknown) {
     const row = input as { key: string; index?: number; bytes?: Uint8Array }
     const key = table === 'evidenceChunks' ? [row.key, row.index!] as [string, number] : row.key
     const identity = rowIdentity(table, key)
@@ -27,12 +45,28 @@ export async function prepareLocalEvidence(adapter: LocalStoreAdapter, operation
     const binary = table === 'evidenceChunks' || table === 'evidenceSegments'
     if (binary && !(row.bytes instanceof Uint8Array)) throw new Error('Missing managed evidence bytes')
     const content = memoryBlob(binary ? row.bytes! : utf8.encode(JSON.stringify(input)))
-    const digest = await hashBlob(content), ref = await adapter.stage(operationId, content, [])
+    const digest = await hashBlob(content), previous = previousRows.get(identity)
+    let ref: LocalRecordRef
+    if (previous && previous.encoding === (binary ? 'bytes' : 'json')) {
+      await reuse!.check()
+      const { equalMetadataStreams } = await import('../interchange/workspace-backup-evidence')
+      const stored = verifiedBlob(await adapter.read(previous.ref), previous.digest)
+      ref = await equalMetadataStreams(stored, content) ? previous.ref : await adapter.stage(operationId, content, [])
+      await reuse!.check()
+    } else ref = await adapter.stage(operationId, content, [])
     rows.push(rowSchema.parse({ table, key, ref, digest, encoding: binary ? 'bytes' : 'json' }))
-  } })
-  const index = await prepareLocalIndex(rows, page => adapter.stage(operationId, memoryBlob(utf8.encode(JSON.stringify(page))), [...page.children, ...page.entries.map(row => row.ref)]))
+  } }
+  if (plan) await plan.write(writer)
+  else await writeCapturedGuestEvidence(evidence, writer)
+  // Keep surviving admitted rows in their original index order before appending new graph rows
+  const order = new Map(reuse?.admission.index.entries.map((row, index) => [rowIdentity(row.table, row.key), index]))
+  if (reuse) rows.sort((a, b) => (order.get(rowIdentity(a.table, a.key)) ?? Number.MAX_SAFE_INTEGER) - (order.get(rowIdentity(b.table, b.key)) ?? Number.MAX_SAFE_INTEGER))
+  const index = await prepareLocalIndex(rows, page => adapter.stage(operationId, memoryBlob(utf8.encode(JSON.stringify(page))), [...page.children, ...page.entries.map(row => row.ref)]), reuse?.admission.index)
   const root = rootSchema.parse({ version: 1, kind: 'local-inherited-evidence', roots: [{ kind: 'guest-evidence-rows', index: index.root }] })
-  return adapter.stage(operationId, memoryBlob(utf8.encode(JSON.stringify(root))), [index.root])
+  await reuse?.check()
+  const result = await adapter.stage(operationId, memoryBlob(utf8.encode(JSON.stringify(root))), [index.root])
+  await reuse?.check()
+  return result
 }
 
 // Current editing needs the authenticated archive reference, not every historical payload
@@ -58,9 +92,10 @@ export async function readLocalEvidence(adapter: LocalStoreAdapter, root: LocalR
     const identity = rowIdentity(row.table, row.key)
     if (rows.has(identity) || row.table === 'documents' && row.key !== GUEST_EXTENSION_KEY || (row.table === 'evidenceChunks') !== Array.isArray(row.key)
       || (row.table === 'evidenceChunks' || row.table === 'evidenceSegments') !== (row.encoding === 'bytes')) throw new Error('Invalid managed evidence row association')
+    Object.freeze(row.ref); Object.freeze(row.key); Object.freeze(row)
     rows.set(identity, row)
   }
-  return readGuestEvidence({
+  const evidence = await readGuestEvidence({
     tables: [...Object.keys(GUEST_FILES_V1_STORES), ...Object.keys(GUEST_EVIDENCE_STORES)],
     keys: async table => index.entries.filter(row => row.table === table).map(row => row.key),
     async get(table, key) {
@@ -71,4 +106,14 @@ export async function readLocalEvidence(adapter: LocalStoreAdapter, root: LocalR
       return Array.isArray(row.key) ? { key: row.key[0], index: row.key[1], bytes } : { key: row.key, bytes }
     },
   }, check)
+  // A custom bounded reader has its own authority; it cannot mint this adapter's row-reuse proof
+  if (!readBounded) {
+    const dependencies = [{ ref: structuredClone(root), dependencies: [index.root] }, ...admittedLocalIndexPages(index).map(({ ref, encoded }) => {
+      const page = JSON.parse(encoded) as IndexPage<EvidenceRow>
+      return { ref, dependencies: [...page.children, ...page.entries.map(row => row.ref)] }
+    }), ...index.entries.map(row => ({ ref: row.ref, dependencies: [] as LocalRecordRef[] }))]
+    for (const value of dependencies) { Object.freeze(value.ref); for (const ref of value.dependencies) Object.freeze(ref); Object.freeze(value.dependencies); Object.freeze(value) }
+    readAdmissions.set(evidence, Object.freeze({ adapter, root: Object.freeze(structuredClone(root)), index, dependencies: Object.freeze(dependencies), check }))
+  }
+  return evidence
 }

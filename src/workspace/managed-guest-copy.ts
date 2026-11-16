@@ -11,7 +11,7 @@ import { memoryBlob } from './blobs'
 import type { WorkspaceState } from './documents'
 import { mergeGuestEvidence, type CapturedGuestEvidence } from './guest-evidence'
 import { ManagedGuestCopyJournalSchema, PENDING_COPY, SAVED_COPY_PREFIX, type GuestCopyPreview, type ManagedGuestCopyJournal } from './guest-copy-journal'
-import { readLocalEvidence, prepareLocalEvidence } from './local-evidence'
+import { readLocalEvidence } from './local-evidence'
 import { admitLocalRoot, prepareLocalWorkspace } from './local-root'
 
 export async function stageManagedGuestCopy(database: AccountDatabase, token: ProfileToken, preview: GuestCopyPreview, input: AccountFence, incoming: CapturedGuestEvidence, mergeCurrent: (before: WorkspaceState) => Promise<WorkspaceState>, assertMayActivate: () => void, preparationAttachment?: AccountActivationAttachment, selected?: WorkspaceSnapshot, reservation?: AccountPreparationReservation) {
@@ -32,7 +32,7 @@ export async function stageManagedGuestCopy(database: AccountDatabase, token: Pr
     const previous = await readLocalEvidence(store.adapter, before.root.inheritedEvidence, check)
     await incoming.check()
     const evidence = previous ? await mergeGuestEvidence(previous, incoming, previous.planner) : incoming
-    const inherited = await prepareLocalEvidence(store.adapter, id, evidence)
+    const inherited = await store.prepareInheritedEvidence(id, evidence, previous, before, expected)
     const state = await mergeCurrent(before.state)
     const result = await prepareLocalWorkspace(store.adapter, id, state, store.lifetime, before, inherited)
     const source = selected ? await prepareLocalWorkspace(store.adapter, id, selected.state, store.lifetime, undefined, inherited) : undefined
