@@ -266,3 +266,56 @@ it('restores a compact account archive through the public preview and activation
     } finally { await restore.releaseAccountWorkspaceRestoreStage(stage); restore.releaseAccountWorkspaceRestorePreview(preview); await disposeWorkspaceSnapshot(source) }
   } finally { vi.unstubAllGlobals(); invalidateProfile(); await database.delete() }
 })
+
+it('does not encode discarded legacy metadata while capturing compact native bodies', async () => {
+  vi.stubGlobal('__CRYKIT_COMPACT_CATALOG_QUALIFICATION__', true)
+  const { observeBackupJsonWork } = await import('../interchange/workspace-backup-json')
+  const source = await fixture()
+  let encodedBytes = 0
+  const stop = observeBackupJsonWork((counter, bytes) => { if (counter === 'encodedOutputBytes') encodedBytes += bytes })
+  try {
+    const compact = await captureCompactCatalogSnapshot(source)
+    stop()
+    expect(encodedBytes).toBe(capturedBackupEvidence(compact).current.byteLength)
+    expect(capturedBackupEvidence(compact).blobs).toEqual(source.state.blobs)
+    await disposeWorkspaceSnapshot(compact)
+  } finally { stop(); vi.unstubAllGlobals() }
+})
+
+it('keeps newly selected merge catalogs compact while preserving exact legacy originals', async () => {
+  vi.stubGlobal('__CRYKIT_COMPACT_CATALOG_QUALIFICATION__', true)
+  const { AccountDatabase } = await import('../persistence/account-database')
+  const { installProfile, invalidateProfile } = await import('../account/profile')
+  const { accountLocalId } = await import('./account-cache')
+  const { seedManagedWorkspace } = await import('../persistence/managed-sync.test-helpers')
+  const { createGuestCopyService } = await import('./guest-copy')
+  const { captureManagedAccountSnapshot } = await import('./account-managed-snapshot')
+  const { readBackupMetadata } = await import('../interchange/workspace-backup-evidence')
+  const { workspace, now } = await import('./signin-merge.test-helpers')
+  const { createBlankLocalData } = await import('../domain/local-data')
+  const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
+  const base = await fixture()
+  const { createPlaythroughWithSetup } = await import('../domain/game-setups')
+  const catalog = base.state.planner.catalogs[0]
+  const localData = createPlaythroughWithSetup(base.state.planner.localData, { label: 'Synthetic pinned Progress', catalogLock: { [catalog.id]: catalog.revisionId }, now })
+  const legacy = ownWorkspaceSnapshot({ ...base, state: { ...base.state, planner: { ...base.state.planner, localData } } }, { async check() {}, async dispose() {} })
+  const exact = capturedBackupEvidence(legacy).current, legacyId = await historicalEvidenceId(exact)
+  const source = await inheritWorkspaceSnapshot(await captureCompactCatalogSnapshot(legacy), [legacy])
+  const service = createGuestCopyService(async () => source)
+  try {
+    await seedManagedWorkspace(database, token, workspace(createBlankLocalData({ now })))
+    const preview = await service.previewSigninMerge(token)
+    await service.commitGuestCopy(token, preview)
+    const saved = await captureManagedAccountSnapshot(database, token, (await database.profileMeta.get('active'))!)
+    try {
+      const evidence = capturedBackupEvidence(saved)
+      expect(await equalMetadataStreams(evidence.historical.get(legacyId)!, exact)).toBe(true)
+      const members = await Promise.all([...evidence.historical.values()].map(readBackupMetadata)) as { version: number; snapshotId: string; state: { planner: { catalogs: unknown[] } } }[]
+      const selection = members.find(member => member.snapshotId.endsWith(':selection'))!
+      expect(selection).toBeDefined()
+      expect(selection.version).toBe(3)
+      expect(selection.state.planner.catalogs).toEqual([expect.objectContaining({ kind: 'retained-catalog-reference' })])
+      expect(evidence.catalogBodies).toHaveLength(1)
+    } finally { await disposeWorkspaceSnapshot(saved) }
+  } finally { await service.dispose(); invalidateProfile(); await database.delete(); vi.unstubAllGlobals() }
+})
