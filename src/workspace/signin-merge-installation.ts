@@ -18,6 +18,11 @@ const mismatch = () => new Error('SIGNIN_RECEIPT_MISMATCH')
 export async function validateMergeInstallation(database: AccountDatabase, token: ProfileToken, manifest: SigninMergeManifest) {
   const all = uniqueMergeRecords([...manifest.output, ...manifest.consumed])
   if (all.length !== manifest.output.length + manifest.consumed.length) throw mismatch()
+  // Reachability's visited set terminates self-edges without rejecting them
+  // Check the entire inventory before reads or admission, including retained source descriptors
+  for (const { descriptor } of all) {
+    if (descriptor.dependencies.some(ref => ref.documentId === descriptor.documentId && ref.revisionId === descriptor.revisionId)) throw mismatch()
+  }
   mergeObservationBudget(all)
   const records = new Map(all.map(record => [record.revisionId, record])), output = new Set(manifest.output.map(record => record.revisionId))
   const get = (ref: CipherRef) => {
