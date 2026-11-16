@@ -109,3 +109,53 @@ it('rejects invalid UTF-8 in a complete token page', async () => {
   bytes[bytes.indexOf('k'.charCodeAt(0))] = 0xff
   await expect(readBackupMetadata(memoryBlob(bytes))).rejects.toThrow()
 })
+
+it('observes exact produced and consumed stream bytes without changing codec output', async () => {
+  const { observeBackupJsonWork } = await import('./workspace-backup-json')
+  const value = { text: 'Synthetic 雪 \ud800', repeated: ['a', 'b'] }
+  const expected = [...encodeBackupJson(value, 64)]
+  const counters: Record<string, number> = {}
+  const stop = observeBackupJsonWork((counter, bytes) => { counters[counter] = (counters[counter] ?? 0) + bytes })
+  try {
+    const actual = [...encodeBackupJson(value, 64)]
+    expect(actual).toEqual(expected)
+    const reader = new BackupJsonReader()
+    for (const page of actual) reader.consume(page)
+    expect(reader.finish()).toEqual(value)
+    const byteLength = actual.reduce((sum, page) => sum + page.byteLength, 0)
+    expect(counters).toEqual({ encodedOutputBytes: byteLength, decodedInputBytes: byteLength })
+  } finally { stop() }
+})
+
+it('isolates retired codec readers and generators from successor observers', async () => {
+  const { observeBackupJsonWork } = await import('./workspace-backup-json')
+  let oldBytes = 0, newBytes = 0
+  const stopOld = observeBackupJsonWork((_counter, bytes) => { oldBytes += bytes })
+  const oldReader = new BackupJsonReader(), oldGenerator = encodeBackupJson(['one', 'two', 'three'], 32)
+  oldGenerator.next()
+  const before = oldBytes
+  const stopNew = observeBackupJsonWork((_counter, bytes) => { newBytes += bytes })
+  stopOld()
+  try {
+    oldReader.consume(new TextEncoder().encode('[ ["value",1] ]'))
+    Array.from(oldGenerator)
+    expect(oldBytes).toBe(before)
+    expect(newBytes).toBe(0)
+    Array.from(encodeBackupJson(null))
+    expect(newBytes).toBeGreaterThan(0)
+  } finally { stopNew() }
+  const stopped = newBytes
+  Array.from(encodeBackupJson(true))
+  expect(newBytes).toBe(stopped)
+})
+
+it('keeps observer exceptions outside codec success and failure semantics', async () => {
+  const { observeBackupJsonWork } = await import('./workspace-backup-json')
+  const stop = observeBackupJsonWork(() => { throw new Error('Synthetic observer failure') })
+  try {
+    const reader = new BackupJsonReader()
+    for (const page of encodeBackupJson({ kept: true })) reader.consume(page)
+    expect(reader.finish()).toEqual({ kept: true })
+    expect(() => reader.consume(new Uint8Array([0xff]))).toThrow()
+  } finally { stop() }
+})

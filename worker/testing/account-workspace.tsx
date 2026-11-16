@@ -1,6 +1,7 @@
+import { enableSigninMergeDiagnostics, readSigninMergeDiagnostics, recordSigninMergeBoundary, stopSigninMergeDiagnostics } from '../../src/workspace/signin-merge-diagnostics'
 import { signInProfile } from '../../src/account/lifecycle'
 import { writeDeviceSelection } from '../../src/workspace/device-selection'
-import { assertActiveProfile, type ProfileToken } from '../../src/account/profile'
+import { assertActiveProfile, profileSignal, type ProfileToken } from '../../src/account/profile'
 import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from '../../src/App'
@@ -60,6 +61,43 @@ async function signinProgressFixture(label: string, marker: string) {
 const accountBootstrapProof = {
   // Fixture-only composition preserves the real auth choice while seeding before provider admission
   signIn: signInProfile,
+  enableSigninMergeDiagnostics,
+  signinMergeDiagnostics: readSigninMergeDiagnostics,
+  recordSigninMergeBoundary,
+  stopSigninMergeDiagnostics,
+  async signinMergeAcceptance() {
+    const token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
+    try {
+      const { openAccountJson } = await import('../../src/workspace/account-cache')
+      const { RemoteStateSchema } = await import('../../src/account/sync/pull')
+      const { SyncClient } = await import('../../src/account/sync/client')
+      const row = await database.syncState.get('remote')
+      const remote = row ? await openAccountJson(database, token, row.ref, RemoteStateSchema) : undefined
+      if (!remote) return { accepted: false }
+      const service = await new SyncClient(token, profileSignal(token)).changes(remote.cursor)
+      assertActiveProfile(token)
+      const pending = await database.outbox.count()
+      return { accepted: pending === 0 && remote.initialComplete && !remote.projectionPending && !service.hasMore && service.watermark === remote.watermark && service.publicationEpoch === remote.publicationEpoch,
+        pending, localWatermark: remote.watermark, serviceWatermark: service.watermark, localEpoch: remote.publicationEpoch, serviceEpoch: service.publicationEpoch, hasMore: service.hasMore }
+    } finally { database.close() }
+  },
+  async seedEmptyGuestControl() {
+    if (mounted) throw new Error('Empty control requires an unmounted fresh guest')
+    const { GuestCoordinatorDatabase } = await import('../../src/workspace/guest-coordinator')
+    const { createGuestLocalStore } = await import('../../src/workspace/guest-local-store')
+    const { prepareLocalWorkspace } = await import('../../src/workspace/local-root')
+    const database = new GuestCoordinatorDatabase()
+    try {
+      if (await database.active.get('active')) throw new Error('Empty control cannot replace an existing guest')
+      const store = createGuestLocalStore(database, () => {}), operationId = crypto.randomUUID()
+      const state = await signinProgressFixture('Synthetic empty-catalog control', 'from-device')
+      const prepared = await prepareLocalWorkspace(store.adapter, operationId, state, { check() {}, async assertCurrent() {} })
+      await store.flush(operationId)
+      await store.activate(operationId, prepared.head, undefined, () => {})
+    } finally { database.close() }
+    window.history.replaceState(null, '', `${window.location.pathname}#/settings/account`)
+    mountWorkspaceProof()
+  },
   async mount() {
     const token = currentProfileToken()!
     await writeDeviceSelection({ key: 'selected', version: 1, kind: 'guest' }, () => assertActiveProfile(token))
@@ -188,6 +226,26 @@ function WorkspaceProof() {
         if (!file) return undefined
         const content = await (await import('../../src/workspace/editor-document')).readEditorContent(state, file)
         return { original: Array.from(content.originalBytes), appliedText: content.lastAppliedText, unfinishedText: content.unfinishedText, fieldState: file.unfinished.fieldState, editedPath: file.unfinished.editedPath, validation: file.unfinished.validation, revision: file.revision }
+      },
+      async seedDefaultGuestProgress() {
+        if (workspace.repository.kind !== 'guest') throw new Error('Default fixture requires the device workspace')
+        const { createPlaythrough } = await import('../../src/domain/local-data')
+        const { upsertProgress } = await import('../../src/domain/characters')
+        const before = await workspace.repository.load()
+        const definition = createPersonalDefinition(before.localData, { kind: 'class', name: 'Synthetic performance class' })
+        const definitionId = Object.keys(definition.personalDefinitions).find(id => !before.localData.personalDefinitions[id])!
+        const playthrough = createPlaythrough(definition, { label: 'Synthetic default-workspace Progress' })
+        // Ordinary planner save preserves the initialized sample catalogs, source, and retained history
+        await workspace.repository.save(upsertProgress(playthrough, { subject: { kind: 'personal', definitionId: definitionId as never }, displayName: 'Synthetic performance class', unlocked: { state: 'known', value: true } }), before.revision)
+      },
+      async signinMergeFixtureSizes() {
+        const state = await workspace.repository.readWorkspace()
+        let blobBytes = 0
+        for (const blob of state.blobs) for await (const chunk of blob.content.open()) blobBytes += chunk.byteLength
+        return { catalogs: state.planner.catalogs.length, catalogJsonBytes: new TextEncoder().encode(JSON.stringify(state.planner.catalogs)).byteLength,
+          history: state.planner.history.length, historyJsonBytes: new TextEncoder().encode(JSON.stringify(state.planner.history)).byteLength, sources: state.planner.sources.length, blobs: state.blobs.length, blobBytes,
+          progress: Object.values(state.planner.localData.playthroughs).reduce((sum, value) => sum + Object.keys(value.progress).length, 0),
+          conflicts: state.conflicts.length }
       },
       async seedGuestProgress(label: string) {
         if (workspace.repository.kind !== 'guest') throw new Error('Guest fixture requires the device workspace')
