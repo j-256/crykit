@@ -1,9 +1,26 @@
 import { createHash } from 'node:crypto'
+import type { Page } from '@playwright/test'
 import { expect, test } from './test-fixture'
 import { beginSeededAccount, mountSeededAccount, finishAccountSignin, ACCOUNT_PREPARATION_TIMEOUT_MS } from './signin-helpers'
+import { loadAccountUpdate } from './workspace-updates'
 
 const app = '/__accounts-proof/account-workspace.html'
 const password = 'synthetic managed comparison qualification password'
+
+async function publishManagedDestination(page: Page) {
+  await page.evaluate(() => (window as any).accountBootstrapProof.seedManagedComparisonDestination())
+  // Empty initial catch-up can be accepted before any authored destination values publish
+  const publication = page.waitForResponse(response => response.url().endsWith('/sync/commits') && response.ok() && response.request().postDataJSON().heads.length > 0, { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+  await mountSeededAccount(page)
+  const accepted = await publication
+  await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+  await expect.poll(() => page.evaluate(() => (window as any).workspaceProof.signinMergeAcceptance()), { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS }).toMatchObject({ accepted: true, pending: 0 })
+  if (await page.getByRole('button', { name: 'Load updated data', exact: true }).isVisible()) await loadAccountUpdate(page)
+  const evidence = await page.evaluate(() => (window as any).workspaceProof.qualificationEvidence())
+  expect(evidence.progress).toContainEqual(expect.objectContaining({ id: 'account', unlocked: { state: 'known', value: true } }))
+  expect(evidence.editors).toContainEqual(expect.objectContaining({ id: 'editor-1', revision: 0 }))
+  return { status: accepted.status(), heads: accepted.request().postDataJSON().heads.length, evidence }
+}
 
 test('qualifies managed comparisons against an immutable old local reader', async ({ page, context, accountOrigin }, testInfo) => {
   test.skip(process.env.CRYKIT_MANAGED_COMPARISON_QUALIFICATION !== '1' || !process.env.CRYKIT_OLD_MAPPING_WORKER_PATH, 'Requires explicit synthetic candidate and immutable old assets')
@@ -16,9 +33,7 @@ test('qualifies managed comparisons against an immutable old local reader', asyn
   const emails = await (await page.request.get('/__accounts/emails')).json()
   await page.evaluate(capability => fetch('/api/v1/auth/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ capability }) }), emails.find((value: { recipient: string }) => value.recipient === email).capability)
   await beginSeededAccount(page, app, email, password)
-  await page.evaluate(() => (window as any).accountBootstrapProof.seedManagedComparisonDestination())
-  await mountSeededAccount(page)
-  await expect.poll(() => page.evaluate(() => (window as any).workspaceProof.signinMergeAcceptance()), { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS }).toMatchObject({ accepted: true })
+  await publishManagedDestination(page)
   // Both entry pages use this exact origin and BrowserContext, so they share the account IndexedDB
   // Service workers are blocked by the dedicated qualification context; immutable hashed imports stay distinct
   const old = await context.newPage()
@@ -65,12 +80,12 @@ test('publishes managed comparisons and preserves originals on an independent de
   const emails = await (await page.request.get('/__accounts/emails')).json()
   await page.evaluate(capability => fetch('/api/v1/auth/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ capability }) }), emails.find((value: { recipient: string }) => value.recipient === email).capability)
   await beginSeededAccount(page, app, email, password)
-  await page.evaluate(() => (window as any).accountBootstrapProof.seedManagedComparisonDestination())
-  await mountSeededAccount(page)
-  await expect.poll(() => page.evaluate(() => (window as any).workspaceProof.signinMergeAcceptance()), { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS }).toMatchObject({ accepted: true })
+  const destinationPublication = await publishManagedDestination(page)
   await beginSeededAccount(page, app, email, password)
   const staged = await page.evaluate(() => (window as any).accountBootstrapProof.stageManagedComparisonFixture())
   expect(staged).toMatchObject({ version: 2, status: 'unmapped-local' })
+  expect(staged.conflicts).toEqual(expect.arrayContaining(['["progress","play","account"]', '["editor","editor-1"]']))
+  expect(staged.progressMappings).toContainEqual({ version: 1, sourceKey: '["progress","play","local"]', destinationKey: '["progress","play","account"]', equivalent: false })
   const localOriginals = await page.evaluate(() => (window as any).accountBootstrapProof.managedComparisonOriginals())
   expect(localOriginals.originals).toHaveLength(1)
   expect(localOriginals.originals[0].state.editorDocuments[0].filename).toBe('incoming.json')
@@ -109,5 +124,5 @@ test('publishes managed comparisons and preserves originals on an independent de
     expect(downloaded.originals).toEqual(published.originals)
     expect(downloaded.branches).toEqual(published.branches)
   } finally { await otherContext.close() }
-  await testInfo.attach('candidate-publication-qualification', { body: JSON.stringify({ origin: accountOrigin, staged, exactOriginalsOnSecondDevice: true, exactBranchesOnSecondDevice: true }), contentType: 'application/json' })
+  await testInfo.attach('candidate-publication-qualification', { body: JSON.stringify({ origin: accountOrigin, destinationPublication, staged, exactOriginalsOnSecondDevice: true, exactBranchesOnSecondDevice: true }), contentType: 'application/json' })
 })

@@ -211,9 +211,14 @@ const accountBootstrapProof = {
     const snapshot = ownWorkspaceSnapshot({ dataGeneration: state.planner.localData.dataGeneration, version: 1, snapshotId: 'managed-comparison-qualification-original', capturedAt: now, revisionVector: {}, state }, { async check() { assertActiveProfile(token) }, async dispose() {} })
     const service = createGuestCopyService(async () => snapshot)
     try {
-      const preview = await service.previewSigninMerge(token), receipt = await service.commitGuestCopy(token, preview)
+      const preview = await service.previewSigninMerge(token)
+      // Refuse incomplete synthetic setup before creating a durable copy without the intended comparisons
+      const conflicts = preview.conflicts, progressMappings = preview.signin?.progressMappings ?? []
+      if (!['["progress","play","account"]', '["editor","editor-1"]'].every(key => conflicts.includes(key))
+        || !progressMappings.some(mapping => mapping.sourceKey === '["progress","play","local"]' && mapping.destinationKey === '["progress","play","account"]' && !mapping.equivalent)) throw new Error('Synthetic comparison fixture is missing its destination disagreements')
+      const receipt = await service.commitGuestCopy(token, preview)
       const row = (await database.outbox.get(receipt.copyId))!
-      return { copyId: receipt.copyId, version: (await openAccountJson(database, token, row.ref, IncrementalWorkspaceIntentSchema)).version, status: row.status }
+      return { copyId: receipt.copyId, version: (await openAccountJson(database, token, row.ref, IncrementalWorkspaceIntentSchema)).version, status: row.status, conflicts, progressMappings }
     } finally { await service.dispose(); await disposeWorkspaceSnapshot(snapshot); database.close() }
   },
   async comparisonStorageDigests() {
