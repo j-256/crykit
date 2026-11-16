@@ -1,16 +1,26 @@
 {
   "schemaVersion": 1,
-  "id": "pc-1.6.9-combat-v1",
+  "id": "native-combat-v1",
   "source": {
-    "gameVersion": "1.6.9.0",
+    "gameVersion": "1.7.0.1",
     "platform": "Windows PC",
-    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+    "executableSha256": "bd1ad18037edaa96250c52446e83c4cbc44cff0e833edbeaf570ed328748cff4",
+    "legacyResourceTiming": {
+      "gameVersion": "1.6.9.0",
+      "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+      "method": "Sang.Battle.Calculator.CalculateBaseAttack",
+      "sourceFile": "Sang/Battle/Calculator.cs",
+      "sourceSha256": "eec96d64039169f594aea6158be3b25f740c47d19fb7bcf856451c814c8df5c6",
+      "scope": "Only actor current/missing resource terms use this reviewed legacy branch. PC 1.6.6 and 1.6.6.0 use the maintainer-approved compatibility assumption, not a verified executable comparison."
+    },
     "files": {
-      "Sang/Window/Field/Learn/WindowLearnAbilitySelect.cs": "8f8bbe8e781f4483a4d168c62c97fa129ffd563100b9bee2c53ee26a36a47abf",
-      "Sang/Battle/Calculator.cs": "eec96d64039169f594aea6158be3b25f740c47d19fb7bcf856451c814c8df5c6",
+      "Sang/Battle/TurnFlags.cs": "9f0f40e4d2f6ab0299598e8f65749c95ec4c2a34ee0a0286dfbf1535a2a83e61",
+      "Sang/Battle/TurnProcessor.cs": "2ba6daa40b850f40b1cde459b3e6bfbadae27570be76f14cf7111a0025253bd6",
+      "Sang/Window/Field/Learn/WindowLearnAbilitySelect.cs": "7507308a17bbb1849176b01f9583fef91c484590bdde37382d82c0436dd3eb84",
+      "Sang/Battle/Calculator.cs": "be0a4745b337655d45b64cd84c301b17bc5408bfe058b3ed8a7521d638916643",
       "Sang/Battle/RollResolver.cs": "c7fd92270453b279fead1e404221091ad33549a6f47b9bd4a44adb0ce0c4004b",
-      "Sang/Battle/AbilityProcessor.cs": "ab222f7788f5d5b0f8e27054c05c093195712d48c773ec592877a2102add0aec",
-      "Sang/Battle/BattlerBase.cs": "327d5d6c8676f92bf6aa6b18d85e0df98e34e0c1562bdc61e4d077dbfb310ef8",
+      "Sang/Battle/AbilityProcessor.cs": "7ed5be20fe49dfb3c1f9cfdd511cb32c7edfef43197baed958778e279a3df272",
+      "Sang/Battle/BattlerBase.cs": "dcf5b0fc76a11404698a651097f2938eaebdf0f96e0999b886c6114579b3f676",
       "Sang/Battle/BattlerMonster.cs": "212a5980b93e409ce67f6c9770dcd287294cf0d2020b3d796d7f622c416f8ba9",
       "Sang/Battle/ThreatCollection.cs": "5c0964aea2bc3b7c94b17420b0259d0147fb2a9721520f75beb8f8f0bf449043",
       "Sang/Battle/HTurn.cs": "b68e8ed9af48295eb4da27861e7902234bee70fc9f54561a7d5b9c967e04e157",
@@ -44,10 +54,10 @@
     "fold": "fold(list,itemName,accumulatorName,indexName,initial,expression) visits items in order with zero-based index and lexical accumulator; an empty list returns initial"
   },
   "contracts": {
-    "user": "Effective battler: Stats has native BattlerStats fields, Tags is an array of native stat-tag numbers, and per-ability lists contain {ID, Value}. HPCurrent/MPCurrent/APCurrent are present resources. HPCriticalValue is trunc(Stats.HP/4). IsMember/IsMonster are booleans. Statuses is [{ID, Count}], with unique native IDs.",
+    "user": "Effective battler: Stats has native BattlerStats fields, Tags is an array of native stat-tag numbers, and per-ability lists contain {ID, Value}. HPCurrent/MPCurrent/APCurrent are present resources. TurnFlags.HPTurnStart/MPTurnStart/APTurnStart are independent captured resources, required only for actor current/missing terms selected with turnStart timing; absence is unknown and never inherits present resources. HPCriticalValue is trunc(Stats.HP/4). IsMember/IsMonster are booleans. Statuses is [{ID, Count}], with unique native IDs.",
     "target": "The same battler structure as user, independently supplied. Do not infer target Spirit, defense, HP, or statuses from the attacker.",
     "ability": "The native numeric ability record from data.records.ability. Preserve explicit zero vs null scaling overrides. AbilityMods remain in source order with numeric Tag, Value1, and Value2.",
-    "context": "Explicit config (battleConfig), sameBattler, calcTestMode, bottomThreat, topThreat, targetIsThreatTarget, targetCharging, repeatCount, targetDebuffCount, and userBuffCount. Unique buff/debuff counts, threat relationships, and recurrence come from live state, not guessed from stats. targetCharging means Turn.State == ReadyToExecute.",
+    "context": "Explicit userResourceTiming (current=0, turnStart=1), config (battleConfig), sameBattler, calcTestMode, bottomThreat, topThreat, targetIsThreatTarget, targetCharging, repeatCount, targetDebuffCount, and userBuffCount. Unique buff/debuff counts, threat relationships, and recurrence come from live state, not guessed from stats. targetCharging means Turn.State == ReadyToExecute. Select current timing for exact Game Setup versions 1.6.9 or 1.6.9.0 and the separately assumed-compatible 1.6.6 or 1.6.6.0; select turnStart for 1.7.0.1 or the default native scenario. Reject unsupported Game Setup versions separately. Timing changes only actor current/missing resource terms; target and maximum-resource terms retain their original behavior.",
     "randomness": "Random draws are supplied explicitly. Percent dice are integers 1..100; variance draws are integers 0..200. Luck failure counters and draw counts must be supplied for each attempt in native order."
   },
   "coverage": {
@@ -1506,7 +1516,7 @@
         "Sang.Battle.Calculator.CalculateBaseAttack"
       ],
       "notes": [
-        "Mode 0 is current, 1 missing, 2 maximum. Only positive contributions from the target HP pool receive PercentDmgTakenMult. User resource terms do not."
+        "Mode 0 is current, 1 missing, 2 maximum. Actor current and missing terms use the caller-selected resource timing: current values for the reviewed pre-1.7 behavior, explicit turn-start snapshots for 1.7. Target terms always use current resources. Only positive target HP contributions receive PercentDmgTakenMult."
       ],
       "requirements": [
         {
@@ -2353,7 +2363,16 @@
                     "call",
                     "resourceTerm",
                     0,
-                    "user.HPCurrent",
+                    [
+                      "if",
+                      [
+                        "eq",
+                        "context.userResourceTiming",
+                        0
+                      ],
+                      "user.HPCurrent",
+                      "user.TurnFlags.HPTurnStart"
+                    ],
                     0,
                     "mod.Value1",
                     false,
@@ -2379,7 +2398,16 @@
                       "call",
                       "resourceTerm",
                       0,
-                      "user.MPCurrent",
+                      [
+                        "if",
+                        [
+                          "eq",
+                          "context.userResourceTiming",
+                          0
+                        ],
+                        "user.MPCurrent",
+                        "user.TurnFlags.MPTurnStart"
+                      ],
                       0,
                       "mod.Value1",
                       false,
@@ -2405,7 +2433,16 @@
                         "call",
                         "resourceTerm",
                         0,
-                        "user.APCurrent",
+                        [
+                          "if",
+                          [
+                            "eq",
+                            "context.userResourceTiming",
+                            0
+                          ],
+                          "user.APCurrent",
+                          "user.TurnFlags.APTurnStart"
+                        ],
                         0,
                         "mod.Value1",
                         false,
@@ -2531,7 +2568,16 @@
                         "call",
                         "resourceTerm",
                         "user.Stats.HP",
-                        "user.HPCurrent",
+                        [
+                          "if",
+                          [
+                            "eq",
+                            "context.userResourceTiming",
+                            0
+                          ],
+                          "user.HPCurrent",
+                          "user.TurnFlags.HPTurnStart"
+                        ],
                         1,
                         "mod.Value1",
                         false,
@@ -2557,7 +2603,16 @@
                           "call",
                           "resourceTerm",
                           "user.Stats.MP",
-                          "user.MPCurrent",
+                          [
+                            "if",
+                            [
+                              "eq",
+                              "context.userResourceTiming",
+                              0
+                            ],
+                            "user.MPCurrent",
+                            "user.TurnFlags.MPTurnStart"
+                          ],
                           1,
                           "mod.Value1",
                           false,
@@ -2583,7 +2638,16 @@
                             "call",
                             "resourceTerm",
                             "user.Stats.AP",
-                            "user.APCurrent",
+                            [
+                              "if",
+                              [
+                                "eq",
+                                "context.userResourceTiming",
+                                0
+                              ],
+                              "user.APCurrent",
+                              "user.TurnFlags.APTurnStart"
+                            ],
                             1,
                             "mod.Value1",
                             false,

@@ -1,117 +1,117 @@
 {
   "schemaVersion": 1,
-  "contentDigest": "0d23c964921fde7518e30721b0b08da5e62f0ad505fc0a0ef0a389863297894e",
-  "catalogChecksum": "d218546d944ba7944cd1c631c8ddb2058be2d749848b3bb2883405204e9e8131",
-  "capturedAt": "2026-09-30T14:25:06.202Z",
+  "contentDigest": "0fb4a4d3399aa1cd5ee236a66a44f2d61dd7f52c97b255ebc8381f27c4ae3433",
+  "catalogChecksum": "25bbd0101645ff508992926d56176aec8ccc4c5da3c1361c67403ea1c7bd8918",
+  "capturedAt": "2026-11-16T23:17:58.408Z",
   "source": {
     "platform": "Windows",
-    "gameVersion": "1.6.9",
+    "gameVersion": "1.7.0.1",
     "executable": {
       "path": "Crystal Project.exe",
-      "sha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
-      "size": 2307072,
-      "gameVersion": "1.6.9",
-      "fileVersion": "1.6.9.0",
-      "productVersion": "1.6.9.0",
-      "assemblyVersion": "1.6.9.0",
+      "sha256": "bd1ad18037edaa96250c52446e83c4cbc44cff0e833edbeaf570ed328748cff4",
+      "size": 2341888,
+      "gameVersion": "1.7.0.1",
+      "fileVersion": "1.7.0.1",
+      "productVersion": "1.7.0.1",
+      "assemblyVersion": "1.7.0.1",
       "productName": "Crystal Project"
     },
     "files": [
       {
         "path": "Database/ability.dat",
-        "sha256": "9cad173af28266a109d8c6f682708cf32c639bf16996fa8a0589bd545f939b7b",
+        "sha256": "8cf03198a2b012f26741b2cf3993944a69ad2eb0d39ae4286903c7517cdffc07",
         "size": 792870,
-        "databaseVersion": 10
+        "databaseVersion": 11
       },
       {
         "path": "Database/actor.dat",
-        "sha256": "4f0e557a407c37e2de9c6f6c23cf25f056f2eb011f9de441c27316b90ac01655",
+        "sha256": "517a630b38bfa235f2730aeac23083a6d4606d6bfc73ca8f63048aed9f6a45fb",
         "size": 1909,
-        "databaseVersion": 10
+        "databaseVersion": 11
       },
       {
         "path": "Database/biome.dat",
-        "sha256": "f79487f55e45182841e976785ea2a0094950917024b68b5b88b3d8d56470f75d",
+        "sha256": "96c1ab1be8f05aca5fc775f6f84a2386997c393d63447715c80b22aea922db53",
         "size": 240478,
-        "databaseVersion": 10
+        "databaseVersion": 11
       },
       {
         "path": "Database/difficulty.dat",
-        "sha256": "670389619b796ee40a025b73fb76f4a036abd2565915a919c0aa1038ce2172d2",
+        "sha256": "619b76e66daacc0a056c525f54129a046db9ada5075997a2f41aa1ee7d0aa996",
         "size": 2715,
-        "databaseVersion": 10
+        "databaseVersion": 11
       },
       {
         "path": "Database/equipment.dat",
-        "sha256": "91fbeb8d4da59740c0addbed2faf9baa26b11d09ac421dec5f38664eeb380b84",
+        "sha256": "0cf99dfa1fa6ed08f202e5d471be5ee3121ecb8cf774cc100053abae12d1527f",
         "size": 511487,
-        "databaseVersion": 10
+        "databaseVersion": 11
       },
       {
         "path": "Database/gender.dat",
-        "sha256": "6a385f029f8f09df0c5c06b3a1033d80580852893f22ee34198e840b7f42e384",
+        "sha256": "ec8f1208e42901f44114b2f00546f3d92b5dd02982e3c401388b26491656eb30",
         "size": 611,
-        "databaseVersion": 10
+        "databaseVersion": 11
       },
       {
         "path": "Database/item.dat",
-        "sha256": "94fe2ec25845006bae808e8a5614d884876c8b396e6c796c369ccea41679bc2b",
+        "sha256": "017c38b6bde24cdb3410f0985d7dace2170ae9c2c97f26add270860adac11a3d",
         "size": 139104,
-        "databaseVersion": 10
+        "databaseVersion": 11
       },
       {
         "path": "Database/job.dat",
-        "sha256": "42b39e967355488775879008a7868c9bcc345e7079c92c30ace725b5cdd7787c",
-        "size": 141716,
-        "databaseVersion": 10
+        "sha256": "3d4e29c45b20a01e8eeadadb3159e39b6591e891d3db1207b3c1cfb28dc3b495",
+        "size": 142460,
+        "databaseVersion": 11
       },
       {
         "path": "Database/monster.dat",
-        "sha256": "38a21dc83e5b9b74934b4c5953f91e0917fe85661e1316364f5cdeb62c495489",
+        "sha256": "b89379266a8ef25761a0e87f76b985020062e96c5bf8009885db1d1b7ec4df07",
         "size": 1228750,
-        "databaseVersion": 10
+        "databaseVersion": 11
       },
       {
         "path": "Database/passive.dat",
-        "sha256": "9f9a5565e2fb85c3544e50e3a7a9339c4cb0c69526bfc71252dae42641ff13b5",
+        "sha256": "651010ac1aecacd4373feff226223e7bd2c844b35436c4d04bdc59c75bf30286",
         "size": 41874,
-        "databaseVersion": 10
+        "databaseVersion": 11
       },
       {
         "path": "Database/patch.dat",
-        "sha256": "561cd7995f2f6eef4b0a7527d18b484097f270ec787ea1e8608b532a5800349e",
-        "size": 2053258,
-        "databaseVersion": 10
+        "sha256": "e484bea52b62a9c0cd004b8c1f96e9b6065dfd6392f77d65787313dd79e18177",
+        "size": 2053468,
+        "databaseVersion": 11
       },
       {
         "path": "Database/recipe.dat",
-        "sha256": "049d39acb02e18c2e6600853c1e7aa74a24c2e8e89434df30a797bcc2c02ac09",
+        "sha256": "439ab0a84cdd6bef2cfdacdc9e5c8e19ec71ecd24e1fd9456463470684d5f48d",
         "size": 36620,
-        "databaseVersion": 10
+        "databaseVersion": 11
       },
       {
         "path": "Database/spark.dat",
-        "sha256": "7690c988fe0ffd42b55ff7bd18c9ea67e04aa25c84d6e67acff2e22d50ce4ca6",
+        "sha256": "f7c2c98b07a6493ab6919f2ea6dbba70dc520e495356aff05529856b9d6116e8",
         "size": 213513,
-        "databaseVersion": 10
+        "databaseVersion": 11
       },
       {
         "path": "Database/status.dat",
-        "sha256": "084782c0d0908b7ac220b0cf6885d7f14ada59996459d232c9c5b782953ea985",
+        "sha256": "1a7bf74f6d20ef1d144ecfe617a57b4437ec8af8ccd6be67faef8992d8141649",
         "size": 232396,
-        "databaseVersion": 10
+        "databaseVersion": 11
       },
       {
         "path": "Database/system.dat",
-        "sha256": "aeb36700a47795c8bda8ba3cbdb0ab9b131f4b56b1136f3dd5decf5ebb59178f",
-        "size": 191104,
-        "databaseVersion": 10
+        "sha256": "8ade3dee6bb3f23ea8ca6424677368c998b26b2afdf0c549805665695f19f7bb",
+        "size": 199814,
+        "databaseVersion": 11
       },
       {
         "path": "Database/troop.dat",
-        "sha256": "fe4aad0de6422ef52bbf717d558a5771a289e14ce4bd08f6f1265c4e706c42df",
+        "sha256": "c4f28c554c469a45b00ac76c85a4531054431b812b10aa606ee7d2fcf8f4a0f6",
         "size": 135938,
-        "databaseVersion": 10
+        "databaseVersion": 11
       }
     ]
   },
@@ -72359,6 +72359,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 7,
         "IsStartingJob": true,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Battle Skill",
@@ -72606,6 +72607,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 8,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Swordplay",
@@ -72848,6 +72850,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 9,
         "IsStartingJob": true,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Trickery",
@@ -73091,6 +73094,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 10,
         "IsStartingJob": true,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Black Magic",
@@ -73336,6 +73340,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 11,
         "IsStartingJob": true,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "White Magic",
@@ -73579,6 +73584,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 12,
         "IsStartingJob": true,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Martial Arts",
@@ -73821,6 +73827,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 13,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Reaping",
@@ -74066,6 +74073,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 14,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Hunt",
@@ -74310,6 +74318,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 15,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Hex Magic",
@@ -74552,6 +74561,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 16,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Beatmaker",
@@ -74794,6 +74804,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 17,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Chivalry",
@@ -75039,6 +75050,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 18,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Prayer Magic",
@@ -75284,6 +75296,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 19,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Waterbend",
@@ -75532,6 +75545,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 20,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Monster Magic",
@@ -75787,6 +75801,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 21,
         "IsStartingJob": true,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Mixed Magic",
@@ -76038,6 +76053,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 22,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Valhalla",
@@ -76282,6 +76298,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 23,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Time Magic",
@@ -76527,6 +76544,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 24,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Item",
@@ -76778,6 +76796,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 25,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Ninjutsu",
@@ -77021,6 +77040,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 26,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Execute",
@@ -77265,6 +77285,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 27,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Jikiden",
@@ -77508,6 +77529,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 28,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Summon",
@@ -77751,6 +77773,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 29,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Copycat",
@@ -78002,6 +78025,7 @@
         "IconTexturePath": "Icon/Command",
         "IconTextureIndex": 30,
         "IsStartingJob": false,
+        "IsNotCrystalJob": false,
         "IsUnselectableJob": false,
         "IsUnselectableSubJob": false,
         "AbilitiesName": "Wild Arts",
@@ -138569,6 +138593,7 @@
             "IconTexturePath": "Icon/Command",
             "IconTextureIndex": 12,
             "IsStartingJob": true,
+            "IsNotCrystalJob": false,
             "IsUnselectableJob": false,
             "IsUnselectableSubJob": false,
             "AbilitiesName": "Martial Arts",
@@ -138810,6 +138835,7 @@
             "IconTexturePath": "Icon/Command",
             "IconTextureIndex": 16,
             "IsStartingJob": false,
+            "IsNotCrystalJob": false,
             "IsUnselectableJob": false,
             "IsUnselectableSubJob": false,
             "AbilitiesName": "Beatmaker",
@@ -139052,6 +139078,7 @@
             "IconTexturePath": "Icon/Command",
             "IconTextureIndex": 23,
             "IsStartingJob": false,
+            "IsNotCrystalJob": false,
             "IsUnselectableJob": false,
             "IsUnselectableSubJob": false,
             "AbilitiesName": "Time Magic",
@@ -139295,6 +139322,7 @@
             "IconTexturePath": "Icon/Command",
             "IconTextureIndex": 24,
             "IsStartingJob": false,
+            "IsNotCrystalJob": false,
             "IsUnselectableJob": false,
             "IsUnselectableSubJob": false,
             "AbilitiesName": "Item",
@@ -139545,6 +139573,7 @@
             "IconTexturePath": "Icon/Command",
             "IconTextureIndex": 27,
             "IsStartingJob": false,
+            "IsNotCrystalJob": false,
             "IsUnselectableJob": false,
             "IsUnselectableSubJob": false,
             "AbilitiesName": "Jikiden",
@@ -139787,6 +139816,7 @@
             "IconTexturePath": "Icon/Command",
             "IconTextureIndex": 30,
             "IsStartingJob": false,
+            "IsNotCrystalJob": false,
             "IsUnselectableJob": false,
             "IsUnselectableSubJob": false,
             "AbilitiesName": "Wild Arts",
@@ -228931,12 +228961,15 @@
           "WarpToHomePoint": "Warp To @V.HomePoint",
           "NewHomePointSlot": "New Slot",
           "Crystal": "Crystal",
+          "CrystalColorIsSuffix": "0",
+          "CrystalColorDelim": " ",
           "PlayTime": "Play Time",
           "PlayTime_": "Play Time\u0040V.Sep",
           "Level": "Level",
           "Levels": "Levels",
           "Level_SHORT": "Lv",
           "Level_": "Level\u0040V.Sep",
+          "LevelLabelIsSuffix": "0",
           "Exp": "EXP",
           "Exp_": "@V.Exp\u0040V.Sep",
           "TotalExp_": "Total @V.Exp\u0040V.Sep",
@@ -229002,6 +229035,7 @@
           "Equipment": "Equipment",
           "BothHands": "Two Hands",
           "TwoHanded": "Two-Handed",
+          "TwoHandedIsSuffix": "0",
           "Artifact": "Key Item",
           "Artifacts": "Key Items",
           "Status": "Status",
@@ -229083,10 +229117,11 @@
           "Credits_Localization": "Localization",
           "Credits_English": "English",
           "Credits_French": "French",
+          "Credits_Italian": "Italian",
           "Credits_Spanish": "Spanish",
           "Credits_Portuguese": "Portuguese",
           "Credits_Japanese": "Japanese",
-          "Credits_Chinese": "Chinese",
+          "Credits_SimplifiedChinese": "Simplified Chinese",
           "Credits_SpecialThanks": "Special Thanks",
           "Achievements": "Achievements",
           "Journal": "Journal",
@@ -229200,6 +229235,7 @@
           "TURN_ORDER_COST": "Trn",
           "CT_ZERO": "--",
           "NoStatus": "No Status",
+          "Next": "Next",
           "Buff": "Buff",
           "Debuff": "Debuff",
           "Stance": "Stance",
@@ -229258,6 +229294,7 @@
           "Defeat": "Defeat",
           "ALERT_NAME_IS_IN_USE": "Note: A main story character has this name already.\nThat is OK, but it might be confusing if you keep it this way.",
           "AutoTopUp": "Auto Top Up",
+          "AutoTopUp_Cost": "Total Value:",
           "Difficulty": "Difficulty",
           "DifficultySelect": "Difficulty Select",
           "DifficultyCustom": "Custom",
@@ -229338,12 +229375,14 @@
           "MapLayer_DungeonL5": "Dungeon B4",
           "MapLayer_DungeonL6": "Dungeon B5",
           "Atlas_DateRegistered": "Date Registered:",
+          "Atlas_DateFormat": "yyyy-mm-dd hh:mi:ss",
           "Atlas_MapLayers": "Map Layers",
           "Atlas_CurrentCoordinate": "Current Coordinate",
           "Atlas_Abilities": "Abilities:",
           "Atlas_Drops": "Drops:",
           "Atlas_Steals": "Steals:",
           "Atlas_TrackDelim": " - ",
+          "Atlas_JournalDelim": " ",
           "Music_TitleTheme": "Title Theme",
           "Music_Battle": "Battle",
           "Music_DungeonBattle": "Dungeon Battle",
@@ -229428,6 +229467,7 @@
           "WinStatMod_HealingReturnMatch_p2": " of any healing given.",
           "WinStatMod_EnableEquipType_p1": "Enable equipping ",
           "WinStatMod_EnableEquipType_p2": " regardless of current @V.Job.",
+          "DESC_ABILITY_DRAW_ORDER": "[target][magical][weapon][skill]",
           "WinAbilityMod_WeaponSkill": "Weapon skill",
           "WinAbilityMod_Magic": "Magic",
           "WinAbilityMod_magic": " magic",
@@ -229437,26 +229477,41 @@
           "WinAbilityMod_StanceChange": "Stance change",
           "WinAbilityMod_stanceChange": " stance change",
           "WinAbilityMod_SelfOnly": "Self only",
+          "WinAbilityMod_selfOnly": " self only",
           "WinAbilityMod_SingleEnemy": "Single enemy",
+          "WinAbilityMod_singleEnemy": " single enemy",
           "WinAbilityMod_SingleAlly": "Single ally",
+          "WinAbilityMod_singleAlly": " single ally",
           "WinAbilityMod_SingleTarget": "Single target",
+          "WinAbilityMod_singleTarget": " single target",
           "WinAbilityMod_MultiEnemy": "Multi-enemy",
+          "WinAbilityMod_multiEnemy": " multi-enemy",
           "WinAbilityMod_MultiAlly": "Multi-ally",
+          "WinAbilityMod_multiAlly": " multi-ally",
           "WinAbilityMod_MultiTarget": "Multi-target",
+          "WinAbilityMod_multiTarget": " multi-target",
           "WinAbilityMod_EverythingTargeted": "Everything-targeted",
+          "WinAbilityMod_everythingTargeted": " everything-targeted",
+          "WinAbilityMod_BasicMagic": "Basic magic",
           "WinAbilityMod_basicMagic": " basic magic",
+          "WinAbilityMod_BasicAttack": "Basic attack",
           "WinAbilityMod_basicAttack": " basic attack",
+          "WinAbilityMod_Magical": "Magical",
           "WinAbilityMod_magical": " magical",
+          "WinAbilityMod_Weapon": "Weapon",
           "WinAbilityMod_weapon": " weapon",
+          "WinAbilityMod_Skill": "Skill",
           "WinAbilityMod_skill": " skill",
           "WinAbilityMod_Unarmed": "Unarmed",
+          "WinAbilityMod_DescEnd": ".",
           "WinAbilityMod_DoesNotUseTurn": "Does not use the turn.",
           "WinAbilityMod_DoesNotUseTurn_Charges": "Does not use the turn, but still needs to charge.",
           "WinAbilityMod_OtherOnly": "Cannot target self.",
           "WinAbilityMod_DeadOrAlive": "Affects living and dead targets.",
           "WinAbilityMod_Bonus": "Bonus",
           "WinAbilityMod_AccumulatesAP": "Accumulates AP.",
-          "WinAbilityMod_Elemental": "Elemental",
+          "WinAbilityMod_Elemental_p0": "",
+          "WinAbilityMod_Elemental": " Elemental",
           "WinAbilityMod_Ignores_p1": "Ignores ",
           "WinAbilityMod_Ignores_p2": ".",
           "WinAbilityMod_AffectedBy_p1": "Affected by ",
@@ -229493,7 +229548,7 @@
           "WinAbilityMod_Ratio_p1": " (",
           "WinAbilityMod_Ratio_p2": " ratio)",
           "WinAbilityMod_Times_p1": "",
-          "WinAbilityMod_Times_p2": "x ",
+          "WinAbilityMod_Times_p2": "x",
           "OPTION_CHOICE_Normal": "Normal",
           "OPTION_CHOICE_Short": "Short",
           "OPTION_CHOICE_Memory": "Memory",
@@ -229735,7 +229790,7 @@
           "OPTION_KeepPouches": "Keep Pouches",
           "OPTION_KeepMaps": "Keep Maps",
           "OPTION_KeepMapRevealData": "Keep Revealed Areas",
-          "OPTION_KeepMyQuintars": "Keep Hatchery",
+          "OPTION_KeepMyQuintars": "Keep Nursery",
           "OPTION_KeepArchive": "Keep @V.Atlas",
           "OPTION_DESC_NEW_GAME_PLUS_KeepCrystals": "Carry over discovered Crystals to the new adventure and unlock their associated @V.Jobs.",
           "OPTION_DESC_NEW_GAME_PLUS_KeepLevels": "Carry over accumulated @V.Exp and levels to the new adventure.",
@@ -229749,7 +229804,7 @@
           "OPTION_DESC_NEW_GAME_PLUS_KeepPouches": "Carry over acquired pouches to the new adventure.",
           "OPTION_DESC_NEW_GAME_PLUS_KeepMaps": "Carry over acquired maps to the new adventure. Does not include revealed map data.",
           "OPTION_DESC_NEW_GAME_PLUS_KeepMapRevealData": "Carry over revealed map data to the new adventure. Maps will need to be re-acquired before revealed map data will be viewable.",
-          "OPTION_DESC_NEW_GAME_PLUS_KeepMyQuintars": "Carry over Quintar and Quintar Eggs currently in the Quintar Hatchery to the new adventure's Quintar Hatchery.",
+          "OPTION_DESC_NEW_GAME_PLUS_KeepMyQuintars": "Carry over Quintar and Quintar Eggs currently in the Quintar Nursery to the new adventure's Quintar Nursery.",
           "OPTION_DESC_NEW_GAME_PLUS_KeepArchive": "Carry over unlocked @V.Atlas entries to the new adventure.",
           "OPTION_Font_Pixel": "Pixel",
           "OPTION_Font_Smooth": "Smooth",
@@ -229962,7 +230017,7 @@
           "DEMO_COMPLETION_3": "I hope you will choose to continue your adventure in the full version of Crystal Project!",
           "DEMO_COMPLETION_4": "Until then, please feel free to roam about at your leisure.",
           "POPUP_HoldConfirm_p1": "Hold ",
-          "POPUP_HoldConfirm_p2": " for 3 seconds to enable ",
+          "POPUP_HoldConfirm_p2": " for 3 seconds to enable OK.",
           "POPUP_InputWait": "Waiting for input...\nFor: ",
           "POPUP_MENU_WarpConfirmation_p1": "Warp to ",
           "POPUP_MENU_WarpConfirmation_p2": "?",
@@ -229980,7 +230035,7 @@
           "POPUP_LEARN_ABILITY_NOT_AVAILABLE": "This ability is not yet available.",
           "POPUP_LEARN_PASSIVE_NOT_AVAILABLE": "This passive is not yet available.",
           "POPUP_LEARN_FROM_MONSTER": "This ability must be learned from an enemy.",
-          "POPUP_LEARN_GO_TO_PASSIVES": "Congrats! This member has just learned their first passive!\n Passives must be \"set\" (equipped) in order to have any effect.\nGo to Passives menu now?",
+          "POPUP_LEARN_GO_TO_PASSIVES": "Congrats! This member has just learned their first passive!\nPassives must be \"set\" (equipped) in order to have any effect.\nGo to Passives menu now?",
           "POPUP_PASSIVE_NOT_YET_LEARNED": "Must first learn at least one passive.",
           "POPUP_PASSIVE_INSUFFICIENT_PP": "Insufficient PP.",
           "POPUP_PASSIVE_IS_INNATE": "This passive is automatically enabled for this @V.Job.",
@@ -230163,6 +230218,7 @@
           "TIP_CHALLENGES": "Challenge Options",
           "TIP_MODS": "Mods",
           "TIP_KEYBOARD_INPUT": "Keyboard Input",
+          "TIP_STAT_CHANGES": "Stat Changes",
           "DESC_REACTION_OnPDamageTaken": "Counter physical damage with",
           "DESC_REACTION_OnMDamageTaken": "Counter magical damage with",
           "DESC_REACTION_OnNearDeath": "Use when critically damaged",
@@ -230195,12 +230251,15 @@
           "DESC_REACTION_STATUS_OnHealingUsed": "After using healing ability, get",
           "DESC_REACTION_STATUS_OnPCritGiven": "After critical hit given, get",
           "DESC_REACTION_STATUS_OnBasicAbilityUsed": "After using basic ability, get",
-          "DESC_STATUS_DRAW_ORDER": "[apply][type][for][number][condition][chance]",
+          "DESC_STATUS_DRAW_ORDER": "[trigger][apply][type][for][number][condition][chance]",
           "DESC_STATUS_GENERIC_DURATION": "Ticks down on",
           "DESC_STATUS_APPLY": "Apply",
           "DESC_STATUS_INFLICT": "Inflict",
           "DESC_STATUS_SELF_APPLY": "Self-apply",
           "DESC_STATUS_SELF_INFLICT": "Self-inflict",
+          "DESC_STATUS_ON_APPLY": "",
+          "DESC_STATUS_ON_INFLICT": "",
+          "DESC_STATUS_ON_GET": "",
           "DESC_STATUS_ON_HIT_APPLY": "On hit, apply",
           "DESC_STATUS_ON_HIT_INFLICT": "On hit, inflict",
           "DESC_STATUS_ON_BATTLE_START": "At battle start, get",
@@ -230427,7 +230486,7 @@
           "@V.LCK while attacking\u0040V.Sep[v1s]%",
           "[v1]% chance to do [v2]% damage.",
           "Transfer all accumulated @V.Threat to target.",
-          "The target is @V.Banned.",
+          "The target is \u0040V.Banned.",
           "",
           "Can only be used by the party once per battle.",
           "Changes @V.SubJob for the remainder of the battle.",
@@ -230972,7 +231031,7 @@
           "",
           "",
           "",
-          "",
+          "Immune to\u0040V.Sep\u0040V.Ban",
           "",
           "Force ability usage:",
           "Ability selection is skipped.",
@@ -231067,7 +231126,7 @@
           "Survive killing blows with at least 1 HP when damaged from full HP.",
           "Auto-repeat the previously used action.",
           "Gain the innate passive(s) of your current @V.SubJob's @V.Job.",
-          "Abilities deal X% more damage/healing where X is equal to @X.DamageBonusFromAPCostRatethe ability's AP Cost.",
+          "Abilities deal X% more damage/healing where X is equal to @X.DamageBonusFromAPCostRate the ability's AP Cost.",
           "All multi-target actions become single-target and deal @X.TargetSingleWithBonusRate% more damage/healing.",
           "Single-target magic is reflected.",
           "Bonus is doubled when paired with another [l].",
@@ -231118,8 +231177,16 @@
         ],
         "InputCharField": "1234567890\nqwertyuiop\nasdfghjkl;\nzxcvbnm,./\n!@#$%^&*()\nQWERTYUIOP\nASDFGHJKL:\nZXCVBNM<>?",
         "NewLineStartRangeList": null,
+        "NewLineStartList": null,
         "NewLineEndList": null,
         "AllowNewLineAtAnyChar": false,
+        "IsImeInputRequired": false,
+        "FixShowHealingHpLabel": false,
+        "FixNoIndentMultiline": false,
+        "FixLowercaseProperNames": false,
+        "FixForInStatusAuto": false,
+        "FixNumberInStatusMultiCond": false,
+        "FixRepeatInAbilityDesc": null,
         "RandNamesM": [
           "Alain",
           "Alfonso",
@@ -231202,7 +231269,342 @@
           "Vanessa",
           "Xenia"
         ],
-        "TextReplacements": null
+        "ProfanityMatches": [
+          "shit",
+          "bullshit",
+          "damn",
+          "hell",
+          "bitching",
+          "ass"
+        ],
+        "ProfanityCensor": "!@#$%^&*()",
+        "TextReplacements": null,
+        "HomePoints": [
+          {
+            "ID": 2712,
+            "Name": "Labyrinth Encampment"
+          },
+          {
+            "ID": 941,
+            "Name": "@Z27.Name Port"
+          },
+          {
+            "ID": 3783,
+            "Name": "Poko Poko West Gate"
+          },
+          {
+            "ID": 1739,
+            "Name": "@Z56.Name Core"
+          },
+          {
+            "ID": 2452,
+            "Name": "Top Of @Z22.Name"
+          },
+          {
+            "ID": 2709,
+            "Name": "Beach Bird's Nest"
+          },
+          {
+            "ID": 3781,
+            "Name": "@Z135.Name"
+          },
+          {
+            "ID": 1660,
+            "Name": "Main Reservoir Chamber"
+          },
+          {
+            "ID": 1124,
+            "Name": "@Z30.Name Entrance"
+          },
+          {
+            "ID": 2005,
+            "Name": "Ibek's Cave"
+          },
+          {
+            "ID": 3776,
+            "Name": "@C\u0040Astley.Name's Shrine"
+          },
+          {
+            "ID": 3777,
+            "Name": "@C\u0040Astley.Name's Keep"
+          },
+          {
+            "ID": 3797,
+            "Name": "Discipline Hollow"
+          },
+          {
+            "ID": 3784,
+            "Name": "Poko Poko East Gate"
+          },
+          {
+            "ID": 3780,
+            "Name": "Platform A"
+          },
+          {
+            "ID": 127,
+            "Name": "Fish Hatchery"
+          },
+          {
+            "ID": 1559,
+            "Name": "Summit Shrine"
+          },
+          {
+            "ID": 2413,
+            "Name": "Ice Pass"
+          },
+          {
+            "ID": 3014,
+            "Name": "Ice Fisher's Hut"
+          },
+          {
+            "ID": 1550,
+            "Name": "@Z36.Name Entrance"
+          },
+          {
+            "ID": 152,
+            "Name": "@Z9.Name"
+          },
+          {
+            "ID": 367,
+            "Name": "@Z46.Name Entrance"
+          },
+          {
+            "ID": 3018,
+            "Name": "Triton Shrine"
+          },
+          {
+            "ID": 3047,
+            "Name": "@Z8.Name"
+          },
+          {
+            "ID": 44,
+            "Name": "@Z4.Name Entrance"
+          },
+          {
+            "ID": 148,
+            "Name": "@Z4.Name Ruins"
+          },
+          {
+            "ID": 66,
+            "Name": "@Z49.Name"
+          },
+          {
+            "ID": 2743,
+            "Name": "@Z36.Name Exit"
+          },
+          {
+            "ID": 160,
+            "Name": "@Z2.Name Peak"
+          },
+          {
+            "ID": 72,
+            "Name": "@Z3.Name Camp"
+          },
+          {
+            "ID": 186,
+            "Name": "@Z2.Name Falls"
+          },
+          {
+            "ID": 170,
+            "Name": "@Z23.Name"
+          },
+          {
+            "ID": 1260,
+            "Name": "Tall, Tall Souvenir Shop"
+          },
+          {
+            "ID": 1376,
+            "Name": "West Ramparts"
+          },
+          {
+            "ID": 2026,
+            "Name": "West Market District"
+          },
+          {
+            "ID": 3057,
+            "Name": "Training Grounds"
+          },
+          {
+            "ID": 112,
+            "Name": "Gaea Shrine"
+          },
+          {
+            "ID": 119,
+            "Name": "@Z7.Name Camp"
+          },
+          {
+            "ID": 231,
+            "Name": "@Z12.Name Exit"
+          },
+          {
+            "ID": 559,
+            "Name": "Know-It-All Ducks' House"
+          },
+          {
+            "ID": 890,
+            "Name": "Bulletin Square"
+          },
+          {
+            "ID": 643,
+            "Name": "@Z17.Name Entrance"
+          },
+          {
+            "ID": 915,
+            "Name": "@Z17.Name Dark Wing"
+          },
+          {
+            "ID": 514,
+            "Name": "@Z58.Name Foyer"
+          },
+          {
+            "ID": 2361,
+            "Name": "@Z91.Name"
+          },
+          {
+            "ID": 331,
+            "Name": "@Z12.Name Depths"
+          },
+          {
+            "ID": 637,
+            "Name": "@Z12.Name Entrance"
+          },
+          {
+            "ID": 374,
+            "Name": "East Market District"
+          },
+          {
+            "ID": 1127,
+            "Name": "@Z24.Name"
+          },
+          {
+            "ID": 1375,
+            "Name": "East Ramparts"
+          },
+          {
+            "ID": 462,
+            "Name": "Rent-A-Quintar"
+          },
+          {
+            "ID": 917,
+            "Name": "@Z39.Name"
+          },
+          {
+            "ID": 3055,
+            "Name": "@Z121.Name"
+          },
+          {
+            "ID": 968,
+            "Name": "Quintar Nameko"
+          },
+          {
+            "ID": 440,
+            "Name": "Quintar Enthusiast's House"
+          },
+          {
+            "ID": 366,
+            "Name": "Ninja Yashiki"
+          },
+          {
+            "ID": 335,
+            "Name": "@Z20.Name Base"
+          },
+          {
+            "ID": 165,
+            "Name": "@Z5.Name Summit"
+          },
+          {
+            "ID": 822,
+            "Name": "Boss Room"
+          },
+          {
+            "ID": 3037,
+            "Name": "@Z44.Name Peak"
+          },
+          {
+            "ID": 1420,
+            "Name": "East @Z24.Name"
+          },
+          {
+            "ID": 1595,
+            "Name": "Dione Shrine"
+          },
+          {
+            "ID": 2141,
+            "Name": "@Z76.Name"
+          },
+          {
+            "ID": 1573,
+            "Name": "Ganymede Shrine"
+          },
+          {
+            "ID": 576,
+            "Name": "Shoudu Fields"
+          },
+          {
+            "ID": 2474,
+            "Name": "Salmon Room"
+          },
+          {
+            "ID": 1266,
+            "Name": "@Z43.Name"
+          },
+          {
+            "ID": 3523,
+            "Name": "Shoudu Elevator"
+          },
+          {
+            "ID": 1402,
+            "Name": "Eaclaneya Entrance"
+          },
+          {
+            "ID": 672,
+            "Name": "Shoudu Port"
+          },
+          {
+            "ID": 577,
+            "Name": "Shoudu Market"
+          },
+          {
+            "ID": 2731,
+            "Name": "Prize Counter"
+          },
+          {
+            "ID": 1524,
+            "Name": "@Z71.Name"
+          },
+          {
+            "ID": 1626,
+            "Name": "Europa Shrine"
+          },
+          {
+            "ID": 1523,
+            "Name": "Shanty Inn"
+          },
+          {
+            "ID": 3775,
+            "Name": "Sailor's Raft"
+          },
+          {
+            "ID": 2564,
+            "Name": "Land's End Cottage"
+          },
+          {
+            "ID": 1792,
+            "Name": "@Z19.Name"
+          },
+          {
+            "ID": 59,
+            "Name": "Old Nan's Watering Hole"
+          },
+          {
+            "ID": 1076,
+            "Name": "Salmon Shack"
+          },
+          {
+            "ID": 94,
+            "Name": "Cabin On The Cliff"
+          }
+        ]
       }
     },
     "troop": [
@@ -238791,6 +239193,7 @@
       "417": "MaxBuffCount",
       "418": "MaxDebuffCount",
       "419": "ImmuneToStatusCategory",
+      "460": "ImmuneToRemoveFromBattle",
       "461": "SetStatusOnApply",
       "462": "ForceTurnAbility",
       "463": "NoInput",
@@ -239897,8 +240300,7 @@
     "passive:68": "base:mimic:passive:equip-all"
   },
   "identitySource": {
-    "sha256": "249447615b658fde0634b5120b2d8e56d3a276a335fda65f4afd48db0445c703",
-    "commit": "24c7bed075d5f2a2778ba8e61fd1de3774545441",
-    "classTreesSha256": "ad03ccd452514b0cca0bb20832df8e74a3cc72638aed317b3ad3b2fc798ce9a0"
+    "sha256": "1a6eaa4854219b067c7f7e1d52c18ed26285518d87e028b17788e082222068e9",
+    "classTreesSha256": "3c04602cde217dc1801fc87fdac9610c07f86f02ea0bb964f3cbac63e954ab76"
   }
 }

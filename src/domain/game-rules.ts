@@ -1,5 +1,6 @@
 import { NATIVE_GAME_DATA } from '../catalog/native-game'
-import { NATIVE_DATA } from './calculation-rules'
+import { CONSOLE_BASELINE_VERSIONS, LEGACY_RESOURCE_TIMING_VERSIONS, SUPPORTED_NATIVE_GAME_VERSIONS, supportsNativeGameplayPlatform } from './gameplay-compatibility'
+import { NATIVE_DATA, PC_CALCULATION_SCOPE } from './calculation-rules'
 import { nativeInteger } from './native-number'
 import { jsonRecord } from './crystal-edit'
 import { modCatalogForPin, modModelRecords } from './mod-layers'
@@ -15,9 +16,7 @@ export const IMPORTED_RULES_VERSION = 2
 const SUPPORTED_IMPORTED_RULES_VERSIONS = [1, IMPORTED_RULES_VERSION] as const
 export const IMPORTED_RULES_REVISION = `rules-v${IMPORTED_RULES_VERSION}`
 export const SUPPORTED_EDITOR_VERSION = CURRENT_CRYSTAL_EDIT_VERSION
-export const PC_GAME_RULES = Object.freeze({ ppLimit: 10, equipmentSlots: 6, version: '1.6.9' })
-export const ASSUMED_COMPATIBLE_PC_VERSIONS = ['1.6.6', '1.6.6.0'] as const
-const SUPPORTED_PC_CALCULATION_VERSIONS: readonly string[] = [PC_GAME_RULES.version, `${PC_GAME_RULES.version}.0`, ...ASSUMED_COMPATIBLE_PC_VERSIONS]
+export const PC_GAME_RULES = Object.freeze({ ppLimit: 10, equipmentSlots: 6, version: NATIVE_GAME_DATA.source.gameVersion })
 const SHEET_CONSTANTS = new Set(['TwoHandedPAtkFlat', 'TwoHandedPAtkRate', 'DualWieldPAtkRate', 'StrWhileUnarmedBonusFlat'])
 const CALCULATION_FAMILIES = Object.freeze({ Jobs: 'job', Equipment: 'equipment', Passives: 'passive', Abilities: 'ability', Statuses: 'status', Genders: 'gender' } as const)
 const BASE_CALCULATION_MODELS = new Set(Object.entries(CALCULATION_FAMILIES).flatMap(([family, database]) => NATIVE_DATA.records[database].map(record => `crystal-edit:${family}:${record.ID}`)))
@@ -26,6 +25,8 @@ export interface GameRuleChange { readonly field: string; readonly value: number
 export interface DifficultyDefinition { readonly id: number; readonly name: string; readonly order: number; readonly isDefault: boolean; readonly source: string; readonly sourceKind: 'native' | 'mod'; readonly values: Readonly<Record<string, number>>; readonly issues: readonly string[] }
 export interface GameRuleResolution {
   readonly mode?: BuildCalculationPlan['pcMode']
+  readonly userResourceTiming?: 'current' | 'turnStart'
+  readonly pairedWeaponBonuses?: boolean
   readonly battleConfig: Readonly<Record<string, number | boolean>>
   readonly changes: readonly GameRuleChange[]
   readonly issues: readonly string[]
@@ -55,12 +56,12 @@ function difficultyDefinition(record: Readonly<Record<string, JsonValue>>, sourc
 export function resolveGameRules(setup: SetupRules | undefined, catalogs: readonly CatalogSnapshot[]): GameRuleResolution {
   const baseline: Readonly<Record<string, number | boolean>> = NATIVE_DATA.battleConfig
   let battleConfig = baseline
-  let source = 'PC 1.6.9 game data'
+  let source = `${PC_CALCULATION_SCOPE} game data`
   let configIssues: string[] = []
   const issues: string[] = []
-  // Recorded Game Setup applicability is separate from the verified Windows/macOS gameplay comparison
-  if (setup?.platform?.state === 'known' && !['windows', 'pc'].includes(setup.platform.value.toLowerCase())) issues.push(`The calculation rules package has no recorded Game Setup applicability for ${setup.platform.value}.`)
-  if (setup?.gameVersion?.state === 'known' && !SUPPORTED_PC_CALCULATION_VERSIONS.includes(setup.gameVersion.value)) issues.push(`Native calculations do not support game version ${setup.gameVersion.value}.`)
+  const gameVersion = setup?.gameVersion?.state === 'known' ? setup.gameVersion.value : undefined
+  if (setup?.platform?.state === 'known' && !supportsNativeGameplayPlatform(setup.platform.value, gameVersion)) issues.push(`The calculation rules package has no recorded Game Setup applicability for ${setup.platform.value}.`)
+  if (setup?.gameVersion?.state === 'known' && !SUPPORTED_NATIVE_GAME_VERSIONS.includes(setup.gameVersion.value)) issues.push(`Native calculations do not support game version ${setup.gameVersion.value}.`)
   const unboundNames = setup?.mods?.state === 'known' ? setup.mods.value.filter(name => {
     // Imported titles corroborate an explicitly selected project pin, even without library metadata
     // Duplicate titles remain ambiguous; a name alone never supplies a source revision
@@ -92,7 +93,7 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
   if (mode && ['vanilla', 'chaos'].includes(mode)) {
     const patches = NATIVE_GAME_DATA.databases.patch
     const patch = Array.isArray(patches) ? patches.find(value => jsonRecord(value) && typeof value.Name === 'string' && value.Name.toLowerCase() === mode) : undefined
-    if (jsonRecord(patch)) applyDifficulties(patch.Difficulties, `PC 1.6.9 ${patch.Name}`, 'native')
+    if (jsonRecord(patch)) applyDifficulties(patch.Difficulties, `${PC_CALCULATION_SCOPE} ${patch.Name}`, 'native')
   } else if (setup && mode !== 'standard') difficultyIssues.push('Choose the game mode to resolve its difficulty definitions.')
   for (const layer of setup?.modComposition?.layers ?? []) {
     if (!layer.enabled) continue
@@ -152,7 +153,11 @@ export function resolveGameRules(setup: SetupRules | undefined, catalogs: readon
   const selection = setup?.difficulty?.selection
   const difficulty = selection?.state === 'known' ? difficulties.get(selection.value) : undefined
   if (!difficulty) difficultyIssues.push(selection?.state === 'known' ? 'The selected difficulty is missing from these game and mod definitions.' : 'Difficulty is unknown or custom. Results that depend on it are unavailable.')
-  return { mode, battleConfig, changes, issues: [...issues, ...configIssues], difficulties: [...difficulties.values()].sort((left, right) => left.order - right.order || left.id - right.id), difficulty, difficultyIssues: [...difficultyIssues, ...difficulty?.issues ?? []], genders: [...genders.values()].sort((left, right) => left.id - right.id) }
+  // Saved pre-1.7 setups retain current-resource damage semantics; new snapshots are never inferred
+  const userResourceTiming = setup?.gameVersion?.state === 'known' && LEGACY_RESOURCE_TIMING_VERSIONS.includes(setup.gameVersion.value) ? 'current' : 'turnStart'
+  // Native 1.6.6 doubles paired accessories only; weapon pairing was added in 1.6.7
+  const pairedWeaponBonuses = gameVersion === undefined || !CONSOLE_BASELINE_VERSIONS.includes(gameVersion)
+  return { mode, userResourceTiming, pairedWeaponBonuses, battleConfig, changes, issues: [...issues, ...configIssues], difficulties: [...difficulties.values()].sort((left, right) => left.order - right.order || left.id - right.id), difficulty, difficultyIssues: [...difficultyIssues, ...difficulty?.issues ?? []], genders: [...genders.values()].sort((left, right) => left.id - right.id) }
 }
 
 export function difficultyHitChance(base: number | null, rules: GameRuleResolution, attacker: 'member' | 'monster' = 'member'): number | null {

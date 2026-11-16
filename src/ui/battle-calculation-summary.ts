@@ -1,4 +1,4 @@
-import { BATTLE_RESOURCES, PERMANENT_STATUS_COUNT } from '../domain/battle-plan'
+import { BATTLE_RESOURCES, PERMANENT_STATUS_COUNT, unknownBattleResources } from '../domain/battle-plan'
 import type { BattleCalculationPlan, BattleResourceInputs, BattleStatusInput, EntityRef } from '../domain/types'
 
 export type BattleSummaryRow = readonly [label: string, value: string]
@@ -16,6 +16,7 @@ export function battleCalculationSummary(battle: BattleCalculationPlan, name: (r
     ['Elapsed actor turns', quantity(battle.turnCount)],
     ['Automatic statuses', battle.automaticStatuses ? 'Included when guaranteed' : 'Excluded'],
     ['Actor resources', resources(battle.user)],
+    ['Actor turn-start resources', resources(battle.userTurnStart ?? unknownBattleResources())],
     ['Actor active statuses', statuses(battle.statuses)],
     ['Statuses previously applied to actor', history(battle.userPreviouslyAppliedStatuses)],
     ['Battle target', battle.target === 'self' ? 'Self' : battle.target ? name(battle.target) : 'Unknown'],

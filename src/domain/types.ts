@@ -437,6 +437,8 @@ export interface BattleCalculationPlan {
   readonly automaticStatuses: boolean
   readonly statuses: readonly BattleStatusInput[]
   readonly user: BattleResourceInputs
+  // Historical current resources are separate from the native execution snapshot
+  readonly userTurnStart?: BattleResourceInputs
   readonly target: 'self' | EntityRef | null
   readonly targetResources: BattleResourceInputs
   readonly targetStatuses: readonly BattleStatusInput[]

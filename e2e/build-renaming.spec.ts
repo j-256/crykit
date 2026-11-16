@@ -29,7 +29,7 @@ async function rename(page: Page, title: string) {
 
 async function chooseWizard(page: Page) {
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Wizard')
-  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
+  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
 }
 
 test.beforeEach(async ({ page }) => {

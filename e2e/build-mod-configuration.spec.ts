@@ -6,7 +6,7 @@ import { expect, type Page } from '@playwright/test'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 
-async function choose(page: Page, label: string, name: string, source = 'PC 1.6.9.0') {
+async function choose(page: Page, label: string, name: string, source = 'PC 1.7.0.1') {
   await page.getByRole('combobox', { name: label, exact: true }).click()
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
   const results = page.getByRole('listbox', { name: `Choose ${label}`, exact: true })

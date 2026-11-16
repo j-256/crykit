@@ -34,6 +34,7 @@ const f32 = (a) => op('f32', a),
   fdiv = (a, b) => f32(div(a, b))
 const core = ['Str', 'Vit', 'Dex', 'Agi', 'Mnd', 'Spi', 'Spd', 'Lck']
 const common = ['user', 'target', 'ability', 'context']
+const USER_RESOURCE_TIMING = Object.freeze({ current: 0, turnStart: 1 })
 const calc = (name) => `Sang.Battle.Calculator.${name}`
 const abilitySource = (name) => `Sang.SangData.HAbility.${name}`
 
@@ -335,7 +336,7 @@ export function buildCombatRules(native) {
     ),
     calc('CalculateBaseAttack'),
     [
-      'Mode 0 is current, 1 missing, 2 maximum. Only positive contributions from the target HP pool receive PercentDmgTakenMult. User resource terms do not.',
+      'Mode 0 is current, 1 missing, 2 maximum. Actor current and missing terms use the caller-selected resource timing: current values for the reviewed pre-1.7 behavior, explicit turn-start snapshots for 1.7. Target terms always use current resources. Only positive target HP contributions receive PercentDmgTakenMult.',
     ],
   )
   const resourceTerms = []
@@ -348,6 +349,8 @@ export function buildCombatRules(native) {
       const name = `DamageRate${who === 'user' ? 'User' : ''}${suffix}_100`
       resourceTerms.push([abilityTag(name), who, mode])
     }
+  // The reviewed 1.6.9 body reads live actor resources; 1.7 reads captured values across costs and hits
+  // Version selection belongs to the caller, and neither branch invents the other branch's inputs
   let resourceExpr = 0
   for (const [id, who, mode] of resourceTerms.toReversed()) {
     let amount = 0
@@ -361,7 +364,9 @@ export function buildCombatRules(native) {
         call(
           'resourceTerm',
           mode === 0 ? 0 : `${who}.Stats.${resource}`,
-          mode === 2 ? 0 : `${who}.${resource}Current`,
+          mode === 2 ? 0 : who === 'user'
+            ? iff(eq('context.userResourceTiming', USER_RESOURCE_TIMING.current), `user.${resource}Current`, `user.TurnFlags.${resource}TurnStart`)
+            : `target.${resource}Current`,
           mode,
           'mod.Value1',
           who === 'target' && attr === 0,
@@ -2074,21 +2079,31 @@ export function buildCombatRules(native) {
   ]
   return {
     schemaVersion: 1,
-    id: 'pc-1.6.9-combat-v1',
+    id: 'native-combat-v1',
     source: {
-      gameVersion: '1.6.9.0',
+      gameVersion: '1.7.0.1',
       platform: 'Windows PC',
       executableSha256: native.source.executable.sha256,
+      legacyResourceTiming: {
+        gameVersion: '1.6.9.0',
+        executableSha256: '36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6',
+        method: 'Sang.Battle.Calculator.CalculateBaseAttack',
+        sourceFile: 'Sang/Battle/Calculator.cs',
+        sourceSha256: 'eec96d64039169f594aea6158be3b25f740c47d19fb7bcf856451c814c8df5c6',
+        scope: 'Only actor current/missing resource terms use this reviewed legacy branch. PC 1.6.6 and 1.6.6.0 use the maintainer-approved compatibility assumption, not a verified executable comparison.',
+      },
       files: {
-        'Sang/Window/Field/Learn/WindowLearnAbilitySelect.cs': '8f8bbe8e781f4483a4d168c62c97fa129ffd563100b9bee2c53ee26a36a47abf',
+        'Sang/Battle/TurnFlags.cs': '9f0f40e4d2f6ab0299598e8f65749c95ec4c2a34ee0a0286dfbf1535a2a83e61',
+        'Sang/Battle/TurnProcessor.cs': '2ba6daa40b850f40b1cde459b3e6bfbadae27570be76f14cf7111a0025253bd6',
+        'Sang/Window/Field/Learn/WindowLearnAbilitySelect.cs': '7507308a17bbb1849176b01f9583fef91c484590bdde37382d82c0436dd3eb84',
         'Sang/Battle/Calculator.cs':
-          'eec96d64039169f594aea6158be3b25f740c47d19fb7bcf856451c814c8df5c6',
+          'be0a4745b337655d45b64cd84c301b17bc5408bfe058b3ed8a7521d638916643',
         'Sang/Battle/RollResolver.cs':
           'c7fd92270453b279fead1e404221091ad33549a6f47b9bd4a44adb0ce0c4004b',
         'Sang/Battle/AbilityProcessor.cs':
-          'ab222f7788f5d5b0f8e27054c05c093195712d48c773ec592877a2102add0aec',
+          '7ed5be20fe49dfb3c1f9cfdd511cb32c7edfef43197baed958778e279a3df272',
         'Sang/Battle/BattlerBase.cs':
-          '327d5d6c8676f92bf6aa6b18d85e0df98e34e0c1562bdc61e4d077dbfb310ef8',
+          'dcf5b0fc76a11404698a651097f2938eaebdf0f96e0999b886c6114579b3f676',
         'Sang/Battle/BattlerMonster.cs':
           '212a5980b93e409ce67f6c9770dcd287294cf0d2020b3d796d7f622c416f8ba9',
         'Sang/Battle/ThreatCollection.cs':
@@ -2133,13 +2148,13 @@ export function buildCombatRules(native) {
       fold: 'fold(list,itemName,accumulatorName,indexName,initial,expression) visits items in order with zero-based index and lexical accumulator; an empty list returns initial',
     },
     contracts: {
-      user: 'Effective battler: Stats has native BattlerStats fields, Tags is an array of native stat-tag numbers, and per-ability lists contain {ID, Value}. HPCurrent/MPCurrent/APCurrent are present resources. HPCriticalValue is trunc(Stats.HP/4). IsMember/IsMonster are booleans. Statuses is [{ID, Count}], with unique native IDs.',
+      user: 'Effective battler: Stats has native BattlerStats fields, Tags is an array of native stat-tag numbers, and per-ability lists contain {ID, Value}. HPCurrent/MPCurrent/APCurrent are present resources. TurnFlags.HPTurnStart/MPTurnStart/APTurnStart are independent captured resources, required only for actor current/missing terms selected with turnStart timing; absence is unknown and never inherits present resources. HPCriticalValue is trunc(Stats.HP/4). IsMember/IsMonster are booleans. Statuses is [{ID, Count}], with unique native IDs.',
       target:
         'The same battler structure as user, independently supplied. Do not infer target Spirit, defense, HP, or statuses from the attacker.',
       ability:
         'The native numeric ability record from data.records.ability. Preserve explicit zero vs null scaling overrides. AbilityMods remain in source order with numeric Tag, Value1, and Value2.',
       context:
-        'Explicit config (battleConfig), sameBattler, calcTestMode, bottomThreat, topThreat, targetIsThreatTarget, targetCharging, repeatCount, targetDebuffCount, and userBuffCount. Unique buff/debuff counts, threat relationships, and recurrence come from live state, not guessed from stats. targetCharging means Turn.State == ReadyToExecute.',
+        'Explicit userResourceTiming (current=0, turnStart=1), config (battleConfig), sameBattler, calcTestMode, bottomThreat, topThreat, targetIsThreatTarget, targetCharging, repeatCount, targetDebuffCount, and userBuffCount. Unique buff/debuff counts, threat relationships, and recurrence come from live state, not guessed from stats. targetCharging means Turn.State == ReadyToExecute. Select current timing for exact Game Setup versions 1.6.9 or 1.6.9.0 and the separately assumed-compatible 1.6.6 or 1.6.6.0; select turnStart for 1.7.0.1 or the default native scenario. Reject unsupported Game Setup versions separately. Timing changes only actor current/missing resource terms; target and maximum-resource terms retain their original behavior.',
       randomness:
         'Random draws are supplied explicitly. Percent dice are integers 1..100; variance draws are integers 0..200. Luck failure counters and draw counts must be supplied for each attempt in native order.',
     },

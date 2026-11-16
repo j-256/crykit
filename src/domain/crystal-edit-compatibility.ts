@@ -3,7 +3,8 @@ import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library-metadata'
 import { jsonRecord } from './crystal-edit'
 import type { JsonValue, Knowledge } from './types'
 
-export const CURRENT_CRYSTAL_EDIT_VERSION = 34
+// Format 35 only changes source-only vocabulary conversion; planning fields retain the prior rules
+export const CURRENT_CRYSTAL_EDIT_VERSION = 35
 export const CRYSTAL_EDIT_VERSION_FIELD = 'Crystal Edit editor version'
 export const CRYSTAL_EDIT_LOCALIZATION_FIELD = 'Crystal Edit localization project'
 const LEGACY_STAT_TAG = Object.freeze({ COMMAND: 534, COOLDOWN: 482, ABILITY_MP: 483 })

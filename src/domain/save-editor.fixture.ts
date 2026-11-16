@@ -29,14 +29,14 @@ export function createSaveEditorFixture(version = 28): CrystalSave {
     Currency: { Val: 123 }, Items: { Stock: [{ Item: 0, Count: 2 }], TF: false }, Equipment: { Stock: [{ Equipment: 0, Count: 1 }] },
     GameplayFlags: { PatchMode: 0, MaxLevelUp: false, MaxLevelUpVal: 60, MaxLevelUpTS: '00:00:00', NoAssistOptions: false, MaxLevelDown: false, MaxLevelDownVal: 0, NoJobChange: false, NoSubJob: false, KeepEquipment: false, LimitlessEquipment: false },
     RandomizerFlags: { Seed: null, Crystals: false, Equipment: false }, Mods: { IsModded: false, Mods: [], Redirects: [] },
-    PlayTime: '00:10:00', Difficulty: 2, HomePointName: 'Synthetic camp',
+    PlayTime: '00:10:00', Difficulty: 2, HomePointName: 'Synthetic camp', ...(version >= 29 ? { HomePointID: 0x12345678 } : {}),
     Atlas: Object.fromEntries(['Jobs', 'Abilities', 'Passives', 'Items', 'Equipment'].map(key => [key, { Entries: [] }])),
     QuestState: { SyntheticQuest: 7 }, EntityVariables: { SyntheticEvent: 13 }, History: { SyntheticHistory: 'Untouched' },
   }) as BsonDocument
   party.value.SyntheticInt64 = { type: 'int64', value: 9_007_199_254_740_993n }
   return {
     originalBytes: new Uint8Array(),
-    header: { version, isDemo: false, isHardcoreDefeat: false, playTime: { days: 0, hours: 0, minutes: 10, seconds: 0, milliseconds: 0 }, lastUpdated: version >= 28 ? { year: 2026, month: 1, day: 2, hour: 3, minute: 4, second: 5 } : null, homePointName: 'Synthetic camp', currencyAmount: 123, members: names.map(name => ({ isPresent: true, name, level: 5, genderId: 0, jobId: 0 })), difficultyId: version >= 12 ? 2 : -1, patchMode: 0, assistFlags: 0, challengeFlags: 0, randomizerFlags: 0, newGamePlusCount: 0, isModded: false, mods: [], modIdMaps: [] },
+    header: { version, isDemo: false, isHardcoreDefeat: false, playTime: { days: 0, hours: 0, minutes: 10, seconds: 0, milliseconds: 0 }, lastUpdated: version >= 28 ? { year: 2026, month: 1, day: 2, hour: 3, minute: 4, second: 5 } : null, homePointId: version >= 29 ? 0x12345678 : -2, homePointName: 'Synthetic camp', currencyAmount: 123, members: names.map(name => ({ isPresent: true, name, level: 5, genderId: 0, jobId: 0 })), difficultyId: version >= 12 ? 2 : -1, patchMode: 0, assistFlags: 0, challengeFlags: 0, randomizerFlags: 0, newGamePlusCount: 0, isModded: false, mods: [], modIdMaps: [] },
     party, members,
     maps: [{ id: 1, originX: -3, originY: 7, lengthX: 3, lengthY: 3, data: new Uint8Array([1, 0]) }],
     combatBytes: new Uint8Array(12),

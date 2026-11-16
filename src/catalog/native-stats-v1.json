@@ -1,18 +1,18 @@
 {
   "schemaVersion": 1,
   "engine": "pc-1.6.9-v1",
-  "gameVersion": "1.6.9.0",
-  "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
-  "nativeDataDigest": "0d23c964921fde7518e30721b0b08da5e62f0ad505fc0a0ef0a389863297894e",
+  "gameVersion": "1.7.0.1",
+  "executableSha256": "bd1ad18037edaa96250c52446e83c4cbc44cff0e833edbeaf570ed328748cff4",
+  "nativeDataDigest": "0fb4a4d3399aa1cd5ee236a66a44f2d61dd7f52c97b255ebc8381f27c4ae3433",
   "inputs": {
-    "job": "42b39e967355488775879008a7868c9bcc345e7079c92c30ace725b5cdd7787c",
-    "equipment": "91fbeb8d4da59740c0addbed2faf9baa26b11d09ac421dec5f38664eeb380b84",
-    "passive": "9f9a5565e2fb85c3544e50e3a7a9339c4cb0c69526bfc71252dae42641ff13b5",
-    "gender": "6a385f029f8f09df0c5c06b3a1033d80580852893f22ee34198e840b7f42e384",
-    "ability": "9cad173af28266a109d8c6f682708cf32c639bf16996fa8a0589bd545f939b7b",
-    "status": "084782c0d0908b7ac220b0cf6885d7f14ada59996459d232c9c5b782953ea985",
-    "system": "aeb36700a47795c8bda8ba3cbdb0ab9b131f4b56b1136f3dd5decf5ebb59178f",
-    "patch": "561cd7995f2f6eef4b0a7527d18b484097f270ec787ea1e8608b532a5800349e"
+    "job": "3d4e29c45b20a01e8eeadadb3159e39b6591e891d3db1207b3c1cfb28dc3b495",
+    "equipment": "0cf99dfa1fa6ed08f202e5d471be5ee3121ecb8cf774cc100053abae12d1527f",
+    "passive": "651010ac1aecacd4373feff226223e7bd2c844b35436c4d04bdc59c75bf30286",
+    "gender": "ec8f1208e42901f44114b2f00546f3d92b5dd02982e3c401388b26491656eb30",
+    "ability": "8cf03198a2b012f26741b2cf3993944a69ad2eb0d39ae4286903c7517cdffc07",
+    "status": "1a7bf74f6d20ef1d144ecfe617a57b4437ec8af8ccd6be67faef8992d8141649",
+    "system": "8ade3dee6bb3f23ea8ca6424677368c998b26b2afdf0c549805665695f19f7bb",
+    "patch": "e484bea52b62a9c0cd004b8c1f96e9b6065dfd6392f77d65787313dd79e18177"
   },
   "battleConfig": {
     "TwoHandedPAtkFlat": 50,
@@ -50252,5 +50252,5 @@
       }
     }
   ],
-  "checksum": "edfcc795692d3e007fcd7b3cb9ad5a2e569492b76a2f8af386dd3ad5c8cd7828"
+  "checksum": "80e4e97b62f49f3a73328986be9b203b5a9dda61811414a7314a441822520103"
 }

@@ -840,10 +840,12 @@ describe('scenario revision locks', () => {
 
   it.each([
     ['Windows', '1.6.9', false],
-    ['Windows', '1.6.6', true],
-    ['Nintendo Switch', '1.6.6', true],
+    ['Windows', '1.6.6', false],
+    ['Nintendo Switch', '1.6.6', false],
     ['Nintendo Switch', '1.6.9', true],
-    ['PC', '1.6.9', true],
+    ['PC', '1.6.9', false],
+    ['Nintendo Switch', '1.7.0.1', true],
+    ['Linux', '1.7.0.1', false],
   ])('retains native version scope uncertainty for %s %s', (platform, gameVersion, uncertain) => {
     let localData = withCatalogLock(createTestLocalData())
     const setup = localData.gameSetups[TEST_GAME_SETUP_REVISION_ID]!

@@ -4,7 +4,7 @@ CryKit ships a static native reference catalog so a blank Playthrough can search
 
 ## Native launch baseline
 
-The bundled vanilla catalog uses fingerprinted Crystal Project 1.6.9.0 databases and reviewed implementation evidence. The [Windows/macOS comparison](platform-coverage.md) establishes their shared gameplay baseline. Executable fingerprints, extraction provenance, and platform-specific behavior retain their platform labels. Switch, Linux, other versions, randomizers, and mod configurations require separate evidence.
+The bundled vanilla catalog uses fingerprinted Crystal Project 1.7.0.1 databases and reviewed implementation evidence. Gameplay references use PC, covering Windows, macOS, and Linux; see [platform coverage](platform-coverage.md). Executable fingerprints, extraction provenance, and platform-specific behavior retain their platform labels. Nintendo Switch 1.6.6 uses the inspected PC console-branch proxy and the same definitions. Other Switch versions, randomizer changes, and mod configurations require separate evidence.
 
 The prelaunch native-only baseline replaces the former mixed community catalog. Full wiki and modding-guide snapshots, redundant community definitions, the broad community artwork snapshot, and historical source-disagreement records are not packaged. Small attributed guidance supplements retain practical directions and route choices where they add useful information beyond the native records. Old prelaunch bundled-catalog references are not remapped to the new revision. Personal records are not deleted, and missing exact sources remain unresolved. An old backup containing its own source bodies retains those bodies through the ordinary import rules; their presence does not make them part of the bundled baseline.
 

@@ -24,3 +24,7 @@ export const QUINTAR_GUIDE_SUPPLEMENT = Object.freeze({
     ocarina: { itemID: 115, entityIDs: [2227] },
   },
 })
+
+// The recovery pickup is a later native release fix, separate from the attributed community route
+export const BABEL_RANDOMIZER_VERSION_NOTE = 'Switch 1.6.6 randomizers can make Babel Quintar unobtainable. PC 1.6.7 adds a recovery pickup near the entrance to Dione Shrine for affected seeds.'
+export const BABEL_RECOVERY_ENTITY_ID = 729

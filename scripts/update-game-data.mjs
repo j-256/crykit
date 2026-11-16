@@ -144,7 +144,7 @@ async function update(input, decompiler) {
   snapshot.contentDigest = hash(Buffer.from(contentForDigest(snapshot)))
   snapshot.capturedAt = previous?.contentDigest === snapshot.contentDigest ? previous.capturedAt : new Date().toISOString()
   snapshot.catalogChecksum = catalogDigest(snapshot)
-  const bytes = `${JSON.stringify(snapshot, null, 2).replace(/[\u2014\u2018\u2019\u201c\u201d]/g, char => `\\u${char.charCodeAt(0).toString(16)}`).replace(/@(?=(?:V\.Sep|X\.(?:ConvertMpToHpRatio|ConvertMpToApRatio|ConvertApToMpRatio|StrWhileUnarmedBonusFlat)))/g, '\\u0040')}\n`
+  const bytes = `${JSON.stringify(snapshot, null, 2).replace(/[\u2014\u2018\u2019\u201c\u201d]/g, char => `\\u${char.charCodeAt(0).toString(16)}`).replace(/@(?=(?:V\.(?:Sep|Ban)|X\.(?:ConvertMpToHpRatio|ConvertMpToApRatio|ConvertApToMpRatio|StrWhileUnarmedBonusFlat)))/g, '\\u0040').replace(/(@C)@(?=[A-Za-z][A-Za-z0-9_]*\.Name)/g, '$1\\u0040')}\n`
   await writeFile(`${OUTPUT}.tmp`, bytes)
   await rename(`${OUTPUT}.tmp`, OUTPUT)
   console.log(`Saved Windows ${version.gameVersion} native gameplay definitions with numeric identities, mode overrides, enum labels, and source fingerprints`)

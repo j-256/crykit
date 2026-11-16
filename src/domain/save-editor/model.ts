@@ -11,7 +11,10 @@ export const MAX_JP = 10_000
 
 export const PASSIVE_POINT_BUDGET = 10
 
-export const LEGACY_HEADER = Object.freeze({ flags: 14, mods: 24 })
+export const LEGACY_HEADER = Object.freeze({ flags: 14, mods: 24, appearance: 29 })
+
+// Expanding the codec range must not relax the established requirements for format 28 fields
+export const SAVE_EDITOR_STRICT_FIELDS_VERSION = 28
 
 export const LEVEL_ASSIST_FLAG = 128
 

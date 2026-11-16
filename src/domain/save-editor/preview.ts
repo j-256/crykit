@@ -1,6 +1,6 @@
 import { type CrystalSave, type BsonValue } from '../../interchange/crystal-save.ts'
 import { type SaveEditorCatalog, type SaveEditorModSource, resolveSaveEditorMods } from '../save-editor-mods'
-import { type SaveEditorSummary } from './model.ts'
+import { type SaveEditorSummary, LEGACY_HEADER } from './model.ts'
 import { inspectSave } from './inspection.ts'
 import { object } from './values.ts'
 
@@ -48,6 +48,7 @@ export function previewSaveChanges(before: CrystalSave, after: CrystalSave, nati
     if (old.level === member.level && !sameBson(before.members[member.index]?.value.Levels, after.members[member.index]?.value.Levels)) result.push(`${member.name}: growth and experience bookkeeping updated`)
     if (!sameBson(before.members[member.index]?.value.Passives, after.members[member.index]?.value.Passives)) result.push(`${member.name}: equipped passives and available points updated`)
     if (!sameBson(before.members[member.index]?.value.Equipment, after.members[member.index]?.value.Equipment)) result.push(`${member.name}: equipped loadout updated and inventory reconciled`)
+    if (after.header.version >= LEGACY_HEADER.appearance && (old.jobId !== member.jobId || old.subJobId !== member.subJobId || !sameBson(before.members[member.index]?.value.Passives, after.members[member.index]?.value.Passives) || !sameBson(before.members[member.index]?.value.Equipment, after.members[member.index]?.value.Equipment))) result.push(`${member.name}: save-slot portrait retains its saved appearance until the game saves again`)
     if (!sameBson(before.members[member.index]?.value.AutoAbilityID, after.members[member.index]?.value.AutoAbilityID)) result.push(`${member.name}: unavailable automatic ability cleared`)
   }
   for (const kind of ['item', 'equipment'] as const) {

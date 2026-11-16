@@ -1,3 +1,4 @@
+import { BABEL_RANDOMIZER_VERSION_NOTE, BABEL_RECOVERY_ENTITY_ID } from '../catalog/quintar-guide-supplement'
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { BUNDLED_MOD_LIBRARY } from '../catalog/mod-library'
 import { createMapModLayerLoader, loadWorldMap, mapModPinKey, worldMapTargetRef } from '../catalog/world-map'
@@ -47,6 +48,7 @@ function MarkerDetails({ marker, manifest, catalogs, onClose }: { readonly marke
     <div className="world-map-details__heading"><span className={`world-map-detail-icon world-map-detail-icon--${marker.kind}`}><Icon name={MAP_KIND_ICONS[marker.kind]}/></span><div><p className="eyebrow">{isRegion ? 'Region' : MAP_KIND_LABELS[marker.kind]}</p>{marker.sourceId !== 'base' || marker.warnings?.length ? <Sources anchor={<h2>{marker.name}</h2>} label={`Sources for ${marker.name} location`}><p>{marker.sourceName} · {manifest.source.platform} {manifest.source.gameVersion}</p>{!isRegion && <p>Entity {marker.entityId} · {marker.change === 'base' ? 'Base placement' : marker.change === 'added' ? 'Added by mod' : 'Modified by mod'}</p>}<p>Uses base-game terrain with location and definition changes from mods.</p></Sources> : <h2>{marker.name}</h2>}</div><button aria-label="Close location details" className="icon-button" onClick={onClose} type="button"><Icon name="close"/></button></div>
     <MarkerSource marker={marker}/>
     <p className="world-map-details__description">{marker.description}</p>
+    {marker.sourceId === 'base' && marker.change === 'base' && marker.entityId === BABEL_RECOVERY_ENTITY_ID && <p className="field__hint">{BABEL_RANDOMIZER_VERSION_NOTE}</p>}
     <dl className="world-map-facts"><div><dt>Location</dt><dd>{marker.region ?? 'Area unrecorded'}</dd></div><div><dt>Layer</dt><dd>{layerName ?? 'Layer unrecorded'}</dd></div><div><dt>Coordinates</dt><dd>X {marker.x} · Z {marker.z}{!isRegion && <small>Height {marker.y}</small>}</dd></div></dl>
     {marker.targets.length > 0 && <div className="world-map-details__references"><h3>{marker.kind === 'chest' ? 'Contents' : marker.kind === 'resource' ? 'Gathered items' : marker.kind === 'boss' || marker.kind === 'encounter' ? 'Encounter' : 'Reference'}</h3>{marker.targets.map(target => {
       const ref = worldMapTargetRef(target, catalogs)
@@ -161,7 +163,7 @@ export default function WorldMapView({ localData, catalogs }: { readonly localDa
       </aside></div>
       {selectedId && !selected && !modLoading && <InlineNotice title="Location unavailable" tone="warning">This marker is not present in the selected source layers.<Button onClick={() => updateQuery({ marker: undefined })} tone="quiet">Clear selection</Button></InlineNotice>}
       <section aria-label="Map location list" className="world-map-results"><header><h2>{searching ? 'Search results' : 'In this view'}</h2><span>{matches.length} {matches.length === 1 ? 'location' : 'locations'}{searching && ' across all layers'}</span></header>{results.length > 0 ? <div className="world-map-result-grid">{results.map(marker => <button aria-label={`Show ${marker.name} on map`} aria-pressed={selected?.id === marker.id} className="world-map-result" key={marker.id} onClick={() => select(marker)} type="button"><span className={`world-map-result__icon world-map-result__icon--${marker.kind}`}><Icon name={MAP_KIND_ICONS[marker.kind]}/></span><span className="world-map-result__copy"><strong>{marker.name}</strong><small>{marker.region ?? 'Area unrecorded'}{marker.layer === null ? ' · Layer unrecorded' : ` · ${manifest.layers.find(layer => layer.id === marker.layer)?.label ?? 'Layer unrecorded'}`}</small></span>{marker.change !== 'base' && <span className="world-map-result__mod" title={marker.sourceName}>M</span>}</button>)}</div> : <p className="world-map-no-results">{searching ? 'No locations match this search and the selected filters.' : 'No selected marker types are in view. Pan, zoom out, or enable another filter.'}</p>}{matches.length > RESULT_LIMIT && <p className="field__hint">Showing the first {RESULT_LIMIT} locations. Narrow your search or zoom into an area to find more.</p>}</section>
-      <p className="world-map-footer">Story visibility, Switch, Linux, and other versions remain unverified.</p>
+      <p className="world-map-footer">Story visibility and other game versions remain unverified.</p>
     </>}
   </div>
 }

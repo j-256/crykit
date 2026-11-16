@@ -1,8 +1,9 @@
 import { buildModRequirements } from '../domain/build-mods'
-import { ASSUMED_COMPATIBLE_PC_VERSIONS, resolveGameRules } from '../domain/game-rules'
+import { resolveGameRules } from '../domain/game-rules'
+import { CONSOLE_BASELINE_VERSIONS } from '../domain/gameplay-compatibility'
 import { useMemo, useState } from 'react'
 import { benchmarkDamage, calculatePCStats, selectedPCStats } from '../domain/pc-stats'
-import { PC_LEVEL_CAP, PC_RULES } from '../domain/calculation-rules'
+import { PC_CALCULATION_SCOPE, PC_LEVEL_CAP, PC_RULES } from '../domain/calculation-rules'
 import { changeCalculationLevel, changeGrowthLevels, defaultCalculation, growthAllowance } from '../domain/calculation-plan'
 import { calculationGenderLabel } from '../domain/calculation-genders'
 import { STAT_LABELS, type CalculatedStat } from '../domain/build-stats'
@@ -51,7 +52,7 @@ export function CalculatedStats({ content, slots, localData, catalogs, gameSetup
   const total = selectedPCStats(estimate, plan.gender, plan.genderSelection)
   const hasResults = Object.values(total).some(value => value !== null)
   const version = gameSetup?.gameVersion.state === 'known' ? gameSetup.gameVersion.value : undefined
-  const assumedCompatible = version !== undefined && (ASSUMED_COMPATIBLE_PC_VERSIONS as readonly string[]).includes(version)
+  const consoleBaseline = version !== undefined && CONSOLE_BASELINE_VERSIONS.includes(version)
   const allPrimary = baseline ? selectedPCStats(baseline, plan.gender, plan.genderSelection) : undefined
   const genderLabel = plan.gender || plan.genderSelection ? calculationGenderLabel(plan, rules.genders) : NO_GENDER_BONUS_LABEL
   const maleLabel = calculationGenderLabel({ gender: 'male' }, rules.genders)
@@ -67,7 +68,7 @@ export function CalculatedStats({ content, slots, localData, catalogs, gameSetup
     <div aria-label="Calculation context" role="group">
       <p className="field__hint">{plan.battle ? 'Includes active statuses and elapsed turns from Checks & Notes.' : 'Resting stats, without active statuses or turn effects.'}</p>
       <p className="field__hint">Balance mode: {rules.mode ?? plan.pcMode ?? 'standard'} · {rules.mode ? 'from Game Setup' : 'calculation assumption; choose Game mode in Game Setup to confirm'}</p>
-      {assumedCompatible && <p className="field__hint">Uses PC 1.6.9.0 calculation rules for this version.</p>}
+      {consoleBaseline && <p className="field__hint">Uses the 1.6.6 console calculation baseline.</p>}
     </div>
     {exportError && <InlineNotice title="Calculation export failed"><p role="alert">{exportError}</p><p>Save your edits, reconnect, and reload before retrying. Preparing offline use also downloads the calculation package.</p></InlineNotice>}
     {onChange ? <><div className="cluster"><Field label="Calculation level"><input aria-label="Calculation level" max={PC_LEVEL_CAP} min="1" onChange={event => onChange?.(changeCalculationLevel(plan, event.target.value === '' ? null : Math.max(1, Math.min(PC_LEVEL_CAP, Math.trunc(Number(event.target.value)))), content.primaryClass))} type="number" value={plan.level ?? ''}/></Field><CalculationGenderField genders={rules.genders} onChange={onChange} plan={plan}/></div>
@@ -93,7 +94,7 @@ export function CalculatedStats({ content, slots, localData, catalogs, gameSetup
     <details><summary>Growth and loadout breakdown</summary><p>Compares your growth with leveling only in the primary class, using the same gender. Base before gear excludes gender bonuses.</p><div className="calculated-stats__table"><table aria-label="Growth stat differences"><thead><tr><th>Stat</th><th>Base before gear</th><th>All-primary total</th><th>Growth difference</th></tr></thead><tbody>{PC_RULES.coreStats.map(stat => <tr key={stat}><th scope="row">{stat}</th><td>{format(estimate.base[stat])}</td><td>{format(allPrimary?.[stat])}</td><td>{delta(total[stat], allPrimary?.[stat]) || 'Unknown'}</td></tr>)}</tbody></table></div></details>
     <details><summary>Sample damage calculations</summary><p>Synthetic benchmarks with {PC_RULES.benchmarks[0]!.targetMain} target VIT/SPI and {PC_RULES.benchmarks[0]!.defense} DEF/RES. Physical uses ATK + ATK × STR / 100; magic uses 100 + MND. Game integer steps and defense reduction apply. Uses the selected stats, including active scenario modifiers. Excludes further damage modifiers, crits, variance, elements, and reactions.</p><div className="calculated-stats__table"><table aria-label="Damage benchmarks"><thead><tr><th>Benchmark</th><th className="stat-breakdown__total">Total <small>{genderLabel}</small></th><th>{NO_GENDER_BONUS_LABEL}</th><th>{maleLabel}</th><th>{femaleLabel}</th></tr></thead><tbody>{PC_RULES.benchmarks.map(benchmark => <tr key={benchmark.id}><th scope="row">{benchmark.label}</th><td className="stat-breakdown__total"><strong>{format(benchmarkDamage(total, benchmark.id))}</strong></td>{[estimate.neutral, estimate.male, estimate.female].map((stats, index) => <td key={index}>{format(benchmarkDamage(stats, benchmark.id))}</td>)}</tr>)}</tbody></table></div></details>
     </>}
-    <details className="calculation-coverage"><summary>Calculation sources and coverage</summary><p className="field__hint">Uses PC 1.6.9.0 formulas and supported mods from this Game Setup.</p>
+    <details className="calculation-coverage"><summary>Calculation sources and coverage</summary><p className="field__hint">Uses {PC_CALCULATION_SCOPE} formulas and supported mods from this Game Setup.</p>
       <Button disabled={exporting} icon="download" onClick={exportRules} tone="quiet" type="button">{exporting ? 'Preparing calculation package...' : 'Export calculation package'}</Button></details>
     {estimate.effects.length > 0 && <details><summary>Additional loadout effects</summary><ul>{estimate.effects.map(effect => <li key={effect}>{effect}</li>)}</ul></details>}
   </section>

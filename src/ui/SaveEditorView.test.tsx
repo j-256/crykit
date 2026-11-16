@@ -505,10 +505,10 @@ describe('save editor session', () => {
   })
 
   it('offers unsupported formats unchanged without enabling editing', async () => {
-    const bytes = new Uint8Array([29, 0, 0, 1, 2, 3])
+    const bytes = new Uint8Array([30, 0, 0, 1, 2, 3])
     await open(bytes)
     expect(container.textContent).toContain('Read-only save')
-    expect(container.textContent).toContain('save format 29')
+    expect(container.textContent).toContain('save format 30')
     expect(container.querySelector('input[inputmode="numeric"]')).toBeNull()
     await act(async () => button('Download original').click())
     expect(vi.mocked(downloadBytes).mock.calls[0]![0]).toEqual(bytes)

@@ -198,6 +198,7 @@ export function resolveLinkedStatus(source: EntityRef, id: number, resolve: Defi
 }
 
 export interface EffectiveModifierOptions {
+  readonly pairedWeaponBonuses?: boolean
   readonly mode?: string
   readonly turnCount?: number | null
   readonly statuses?: readonly EntityRef[]
@@ -231,6 +232,8 @@ export function collectEffectiveModifiers(content: BuildRevisionContent, slots: 
   if (main?.selection?.allocationId && main.selection.allocationId === off?.selection?.allocationId && entityDefinitionKey(main.selection.ref) === entityDefinitionKey(off.selection.ref)) { off.selection = null; off.record = undefined }
   const paired = new Set<NativeRecord>()
   for (const role of ['hand', 'accessory']) {
+    // The console baseline predates native support for the tag on paired weapons
+    if (role === 'hand' && options.pairedWeaponBonuses === false) continue
     const candidates = gear.filter(entry => role === 'hand' ? ['mainHand', 'offHand'].includes(equipmentRole(entry.slot) ?? '') : equipmentRole(entry.slot) === 'accessory')
     if (candidates.length === 2 && candidates[0]!.record && candidates[1]!.record && candidates[0]!.record.ID === candidates[1]!.record.ID && nativeInteger(candidates[0]!.record.ID) && Array.isArray(candidates[0]!.record.StatMods) && candidates[0]!.record.StatMods.some(mod => jsonRecord(mod) && mod.Tag === PC_RULES.equipment.pairedTag)) candidates.forEach(entry => paired.add(entry.record!))
   }

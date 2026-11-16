@@ -4,6 +4,7 @@ import { cp, mkdtemp, mkdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
+import { buildClassTreeIdentities } from './update-class-tree-identities.mjs'
 
 const root = new URL('..', import.meta.url)
 
@@ -62,6 +63,15 @@ test('class trees use native job coordinates, skill IDs, and exact learning cost
     }
   }
   assert.equal(result.baselineSha256, undefined)
+})
+
+test('class learning costs retain the reviewed executable boundary', async () => {
+  const native = JSON.parse(await readFile(new URL('src/catalog/native-game-data.json', root)))
+  const result = buildClassTreeIdentities(native)
+  assert.equal(result.learningCostDisplay.executableSha256, native.source.executable.sha256)
+  assert.equal(result.learningCostDisplay.jpPerLp, 100)
+  assert.equal(result.learningCostDisplay.version, 'PC 1.7.0.1')
+  assert.throws(() => buildClassTreeIdentities({ ...native, source: { ...native.source, executable: { ...native.source.executable, sha256: 'synthetic-unreviewed' } } }), /needs review/)
 })
 
 test('numeric projection retains native records and mode patches without secondary identity inputs', async t => {

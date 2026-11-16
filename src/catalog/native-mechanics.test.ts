@@ -24,7 +24,7 @@ describe('standalone native mechanics', () => {
 
   it('keeps native source scope attached to unchanged mechanics and rejects altered claims', () => {
     const original = entry('mechanic:stat:467')
-    expect(nativeMechanic(original)?.scope).toBe('PC 1.6.9.0')
+    expect(nativeMechanic(original)?.scope).toBe('PC 1.7.0.1')
     expect(nativeMechanic({ ...original, name: 'Changed modifier' })).toBeUndefined()
     expect(nativeMechanic({ ...original, rawDescription: 'Changed claim' })).toBeUndefined()
     expect(nativeMechanic({ ...original, sources: [] })).toBeUndefined()

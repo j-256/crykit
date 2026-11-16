@@ -42,8 +42,8 @@ describe('source-bound native descriptions', () => {
     const recipe = DEFAULT_CATALOG.entities['base:recipe:34']!
     const before = JSON.stringify(recipe)
     expect(nativeDescription(recipe)).toMatchObject({ complete: false, lines: [] })
-    expect(referenceDescription(recipe)).toBe('PC 1.6.9.0 recipes base database.')
-    expect(recipe.rawDescription).toBe('Windows 1.6.9 recipes base database.')
+    expect(referenceDescription(recipe)).toBe('PC 1.7.0.1 recipes base database.')
+    expect(recipe.rawDescription).toBe('Windows 1.7.0.1 recipes base database.')
     expect(JSON.stringify(recipe)).toBe(before)
   })
 })

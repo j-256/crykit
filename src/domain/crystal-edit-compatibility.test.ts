@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { interpretCrystalEditBattleConfig, interpretCrystalEditRecord, supportsCrystalEditVersion } from './crystal-edit-compatibility'
 
-describe('Windows PC 1.6.9 legacy mod interpretation', () => {
-  it.each([0, 1, 4, 6, 7, 9, 14, 20, 27, 33, 34])('accepts supported editor format %s without changing its marker', version => {
+describe('native Crystal Edit planning interpretation', () => {
+  it.each([0, 1, 4, 6, 7, 9, 14, 20, 27, 33, 34, 35])('accepts supported editor format %s without changing its marker', version => {
     expect(supportsCrystalEditVersion(version)).toBe(true)
     const original = { ID: 9000, Name: 'Synthetic legacy passive', StatMods: [{ Tag: 482, Value1: 12, Value2: 0 }, { Tag: 483, Value1: -5, Value2: 0 }], Extension: { arbitrary: 'retained' } }
     const saved = structuredClone(original)
@@ -40,7 +40,7 @@ describe('Windows PC 1.6.9 legacy mod interpretation', () => {
     expect(interpretCrystalEditBattleConfig({ LearnAllJobZeroJPAbilities: true }, 7)).toEqual({ LearnAllJobZeroJPAbilities: true })
   })
 
-  it.each([-1, 3.5, 35, 99, undefined])('preserves unsupported editor marker %s without claiming compatibility', version => {
+  it.each([-1, 3.5, 36, 99, undefined])('preserves unsupported editor marker %s without claiming compatibility', version => {
     expect(supportsCrystalEditVersion(version)).toBe(false)
   })
 })

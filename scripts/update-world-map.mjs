@@ -18,7 +18,7 @@ const HASH_PATTERN = /^[a-f0-9]{64}$/
 const SCOPE = 'Fully revealed native field maps and normalized placement facts'
 const LAST_VANILLA_ENTITY_ID = 3824
 export const WORLD_MAP_SOURCE_PINS = Object.freeze({
-  voxel: { path: 'Content/Database/voxel.dat', sha256: '2767a8d1298dff7d44d9c440e7b8ff69e549c17a7fd0e01424b7da52123c137b', size: 190325 },
+  voxel: { path: 'Content/Database/voxel.dat', sha256: 'f2cb7206843f5ce3ae69d14c61432db85e34437cc5b8e5efadcfb210c1ca4b6e', size: 190325 },
   textures: { path: 'Content/Textures/Voxel.dat', sha256: '425990b2dd1732045afda604e422c8e3880d242b14ed8c99ec378b881a0b27c5', size: 689562 },
   atlas: { path: 'Voxel/VoxelAtlas', sha256: 'e1dcd938426bf3e52682c2ad9f2ef0dc37471991fe0272f203fa7d4b24d0cdcb', width: 432, height: 432 },
 })

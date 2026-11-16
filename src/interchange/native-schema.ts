@@ -258,6 +258,7 @@ const battleCalculation = z.object({
   automaticStatuses: z.boolean(),
   statuses: battleStatuses,
   user: battleResources,
+  userTurnStart: battleResources.optional(),
   target: z.union([z.literal('self'), entityRef]).nullable(),
   targetResources: battleResources,
   targetStatuses: battleStatuses,

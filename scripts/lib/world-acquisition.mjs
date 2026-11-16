@@ -47,6 +47,7 @@ export function projectWorldAcquisition(entities, system) {
         } else if (action.ActionType === 'AddInventory' || action.ActionType === 'AddToLostAndFound') {
           if (data.Count > 0) add(familyFor(data.LootType), data.LootValue, { kind: action.ActionType === 'AddInventory' ? 'reward' : 'recovery', ...place, label, path: locator, conditions, count: data.Count, costs: [...precedingCosts], redirects: !data.Redirect })
         } else if (action.ActionType === 'Shop' || action.ActionType === 'ShopRecipe') {
+          // The reviewed shop windows evaluate stock conditions against the originating NPC, so retain its identity and private variable scope
           for (const [stockIndex, stock] of (data.Stock ?? []).entries()) {
             add(action.ActionType === 'ShopRecipe' ? 'recipe' : familyFor(stock.LootType), stock.LootValue, { kind: action.ActionType === 'ShopRecipe' ? 'craft' : 'shop', ...place, label, path: `${locator}/Data/Stock/${stockIndex}`, conditions: [...conditions, acquisitionCondition(stock.Condition)], costRate: stock.CostRate })
           }

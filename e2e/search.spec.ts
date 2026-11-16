@@ -339,7 +339,7 @@ test('saved catalog versions preserve stock and checkpoints and can be collected
   await buildEditor.getByRole('combobox', { name: 'Main hand', exact: true }).click()
   const itemPicker = page.getByRole('listbox', { name: 'Choose Main hand', exact: true })
   await page.getByRole('combobox', { name: 'Main hand', exact: true }).fill('Iron Sword')
-  await itemPicker.getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Iron Sword$/ }) }).click()
+  await itemPicker.getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Iron Sword$/ }) }).click()
   await buildEditor.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await buildEditor.getByLabel('Checkpoint name').fill('Original catalog checkpoint')
   const palette = await search(page, 'Taunt')

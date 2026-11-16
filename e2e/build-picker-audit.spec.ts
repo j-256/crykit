@@ -8,7 +8,7 @@ const UNKNOWN_CATEGORY_MOD = { ID: 'synthetic-picker-audit', Title: 'Synthetic P
 
 async function choose(page: Page, label: string, name: string) {
   await page.getByRole('combobox', { name: label, exact: true }).fill(name)
-  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
+  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
 }
 
 test('equipment searches explain conflicts, search visible facts, and prioritize exact names', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
@@ -26,7 +26,7 @@ test('equipment searches explain conflicts, search visible facts, and prioritize
   await expect(list).toContainText('1 matching choice is hidden by equipment conflicts')
   await expect(list).toContainText('requires Dual Wield')
   await expect(list).toContainText('Choose a class that grants Dual Wield')
-  await expect(list.getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Silver Dagger$/ }) })).toHaveCount(0)
+  await expect(list.getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Silver Dagger$/ }) })).toHaveCount(0)
   await list.getByRole('button', { name: 'Show 1 conflict', exact: true }).click()
   const results = list.getByRole('option').filter({ has: page.locator('.picker-result__heading') })
   await expect(results.first().locator('strong')).toHaveText('Silver Dagger')
@@ -36,7 +36,7 @@ test('equipment searches explain conflicts, search visible facts, and prioritize
   await expect(offHand).toHaveValue('')
   const accessory = page.getByRole('combobox', { name: 'Accessory 1', exact: true })
   await accessory.fill('agility')
-  const shoes = page.getByRole('listbox', { name: 'Choose Accessory 1', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Acrobat Shoes$/ }) })
+  const shoes = page.getByRole('listbox', { name: 'Choose Accessory 1', exact: true }).getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Acrobat Shoes$/ }) })
   await expect(shoes).toContainText('Agility')
   await expect(shoes).toContainText('Matched details:')
   await openBuildPickerFilters(page)
@@ -51,7 +51,7 @@ test('equipment choices reserve the first screen for results and support sole-re
   await page.goto('/#/builds/library/new')
   await choose(page, 'Class', 'Warrior')
   const command = page.getByRole('combobox', { name: 'Sub-command', exact: true })
-  await command.fill('Hunter PC 1.6.9.0')
+  await command.fill('Hunter PC 1.7.0.1')
   await expect(page.getByRole('listbox', { name: 'Choose Sub-command', exact: true })).toContainText('1 result · Enter to select')
   await command.press('Enter')
   await expect(command).toHaveValue('Hunt (Hunter)')

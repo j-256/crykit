@@ -15,6 +15,7 @@ export interface CrystalSaveHeaderMember {
   name: string
   level: number
   genderId: number
+  // Format 29 stores appearance rather than the gameplay class
   jobId: number
 }
 
@@ -25,6 +26,7 @@ export interface CrystalSaveHeader {
   isHardcoreDefeat: boolean
   playTime: { days: number; hours: number; minutes: number; seconds: number; milliseconds: number }
   lastUpdated: { year: number; month: number; day: number; hour: number; minute: number; second: number } | null
+  homePointId: number
   homePointName: string
   currencyAmount: number
   members: CrystalSaveHeaderMember[]

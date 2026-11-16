@@ -11,7 +11,7 @@ export const VANILLA_CATALOG_REVISION_ID = STARTER_CATALOG_REVISION_ID
 export function vanillaSourceCatalog(): CatalogSnapshot {
   // Join reviewed numeric identities before compilation; this keeps learn-tree and innate links exact
   const { importedAt: _acquiredAt, ...source } = projectSourceCatalog(reconcileNativeSourceIdentities(buildNativeCatalog(NATIVE_GAME_DATA)))
-  return { ...source, id: STARTER_CATALOG_ID, revisionId: VANILLA_CATALOG_REVISION_ID, applicability: { state: 'known', value: 'Fingerprint-pinned Crystal Project 1.6.9.0 native definitions and reviewed implementation facts' } }
+  return { ...source, id: STARTER_CATALOG_ID, revisionId: VANILLA_CATALOG_REVISION_ID, applicability: { state: 'known', value: `Fingerprint-pinned Crystal Project ${NATIVE_GAME_DATA.source.gameVersion} native definitions and reviewed implementation facts` } }
 }
 
 export function vanillaCatalog(checksum: string): CatalogSnapshot {

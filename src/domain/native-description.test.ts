@@ -89,6 +89,12 @@ describe('native ability and item descriptions', () => {
     expect(describeAbility({ AbilityMods: [{ Tag: 43, Value1: -100, Value2: 3 }] })).toMatchObject({ complete: false, unresolved: ['Ability modifier: DamageRateMissing_100'] })
   })
 
+  it.each(['Elemental', ' Elemental'])('keeps one element separator for native vocabulary %j', elemental => {
+    const changed: NativeGameSnapshot = { ...snapshot, databases: { ...snapshot.databases, system: { ...system, Vocab: { ...vocabulary, General: { ...general, WinAbilityMod_Elemental: elemental } } } } }
+    const ability = { ...record('ability', 362), Element: 0 }
+    expect(describeNativeRecord(changed, 'ability', ability).lines).toContain(`${(vocabulary.ElementNames as string[])[0]} Elemental`)
+  })
+
   it('uses separate visibility rules for percentage power and modifier text', () => {
     expect(describeAbility({ HideModsFromDescription: true }).lines).toContain('Recovery:  100% Missing HP')
     expect(describeAbility({ HideDamageFromDescription: true }).lines).not.toContain('Recovery:  100% Missing HP')

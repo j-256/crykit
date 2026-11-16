@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "nativeSource": {
     "platform": "Windows",
-    "gameVersion": "1.6.9",
-    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
-    "contentDigest": "0d23c964921fde7518e30721b0b08da5e62f0ad505fc0a0ef0a389863297894e"
+    "gameVersion": "1.7.0.1",
+    "executableSha256": "bd1ad18037edaa96250c52446e83c4cbc44cff0e833edbeaf570ed328748cff4",
+    "contentDigest": "0fb4a4d3399aa1cd5ee236a66a44f2d61dd7f52c97b255ebc8381f27c4ae3433"
   },
   "rights": {
     "attribution": "Crystal Project Wiki contributors",

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "engine": "pc-1.6.9-v1",
-  "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+  "executableSha256": "bd1ad18037edaa96250c52446e83c4cbc44cff0e833edbeaf570ed328748cff4",
   "evidence": "BattlerStats.Clear, ApplyStatMod, Add; BattlerMember.RecalcEquipStats, RecalcPassiveStats, RecalcStatusStats",
   "defaults": {
     "HP": 0,
@@ -1157,7 +1157,7 @@
     "Sang/Utility/IDValuePair.cs": "d073049deb8a0f270a1e0294a4c314d302ef72a86d9285b29d8dc493fcef5c91",
     "Sang/Battle/Structs/StatusApply.cs": "6f12f5302270e8a570c8a4e93fa542b70c17402984febbc501e22ec2cea91fca",
     "Sang/Battle/Structs/Reaction.cs": "6d7ab981c1719b9ea3ff51512a91d5d8667e5c53a6db008a432b7d923e722cb1",
-    "Sang/SangData/SangDataEnums/SangStatModTag.cs": "98ccfe38b6d2e22c7e2595caeedceb383ac99b850e16d0932db6867eb1fe6d2c",
+    "Sang/SangData/SangDataEnums/SangStatModTag.cs": "24ffb29816c6c416bae5e17d4f7357daad9494de674369239a1a8eb2866372f0",
     "Sang/SangData/SangDataEnums/SangStatusCategory.cs": "26fd16a5cde8b3fa13085c73e8afd131272ae05d2b15e9a82d052a4fe0a84d66",
     "Sang/SangData/SangDataEnums/SangAbilityAttribute.cs": "ec0a58b8b57132034ede9fe288507a300a07d4ce58aa00640e37ae448d168888",
     "Sang/SangData/SangDataEnums/ElementType.cs": "fc9aaa19c99f413b96f1b81b526339722aa444cb7ebb06e611300c1f57306c96",

@@ -61,13 +61,11 @@ export async function generateModIndex({ check = false } = {}) {
     const { modSearchCatalog } = await server.ssrLoadModule('/src/domain/mod-search.ts')
     const receipts = JSON.parse(await readFile(join(ROOT, REVISION_RECEIPTS), 'utf8'))
     const outputs = []
-    for (const [factory, receiptPath, packedPath] of [[vanillaCatalog, VANILLA_RECEIPT, VANILLA_PACKED]]) {
-      const { checksum: _checksum, ...content } = factory('')
-      const checksum = `builtin:sha256:${digest(catalogContentForChecksum(content))}`
-      const receipt = { id: content.id, revisionId: content.revisionId, checksum }
-      receipts.sources = recordSourceRevision(receipts.sources, receipt)
-      outputs.push([receiptPath, `${JSON.stringify({ schemaVersion: 1, ...receipt }, null, 2)}\n`], [packedPath, packedJson(immutableCatalogSnapshot({ ...content, checksum }))])
-    }
+    const { checksum: _checksum, ...vanillaContent } = vanillaCatalog('')
+    const vanillaChecksum = `builtin:sha256:${digest(catalogContentForChecksum(vanillaContent))}`
+    const vanillaReceipt = { id: vanillaContent.id, revisionId: vanillaContent.revisionId, checksum: vanillaChecksum }
+    receipts.sources = recordSourceRevision(receipts.sources, vanillaReceipt)
+    outputs.push([VANILLA_RECEIPT, `${JSON.stringify({ schemaVersion: 1, ...vanillaReceipt }, null, 2)}\n`], [VANILLA_PACKED, packedJson(immutableCatalogSnapshot({ ...vanillaContent, checksum: vanillaChecksum }))])
     const sourceIds = Object.fromEntries(Object.values(vanillaSourceCatalog().entities).map(entity => [entity.id, compiledEntityId(entity)]))
     outputs.push([SOURCE_IDS, `${JSON.stringify(sourceIds, null, 2)}\n`])
     const catalogs = []

@@ -1,17 +1,17 @@
 {
   "source": {
     "platform": "Windows",
-    "gameVersion": "1.6.9",
-    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
-    "systemDataSha256": "aeb36700a47795c8bda8ba3cbdb0ab9b131f4b56b1136f3dd5decf5ebb59178f",
+    "gameVersion": "1.7.0.1",
+    "executableSha256": "bd1ad18037edaa96250c52446e83c4cbc44cff0e833edbeaf570ed328748cff4",
+    "systemDataSha256": "8ade3dee6bb3f23ea8ca6424677368c998b26b2afdf0c549805665695f19f7bb",
     "scope": "Static implementation evidence; Switch, mods, runtime state, geography, and redistribution rights require separate evidence"
   },
   "files": {
     "Sang/Battle/BattlerStats.cs": "96bc8e69894c36e6a83c878c35405f8fa68e78b0764140edc702625958b0e6a2",
     "Sang/SangData/HAbility.cs": "ae0eddc80a88cab3031629f6b2a14ae133e3606d12a0648adae03f57654db3ee",
-    "Sang/Battle/Calculator.cs": "eec96d64039169f594aea6158be3b25f740c47d19fb7bcf856451c814c8df5c6",
-    "Sang/Battle/AbilityProcessor.cs": "ab222f7788f5d5b0f8e27054c05c093195712d48c773ec592877a2102add0aec",
-    "Sang/Window/WindowHelper.cs": "18e54ebb4bfa355a813527b6c904bc9e1670dbc84d47e79de8488d179738399a"
+    "Sang/Battle/Calculator.cs": "be0a4745b337655d45b64cd84c301b17bc5408bfe058b3ed8a7521d638916643",
+    "Sang/Battle/AbilityProcessor.cs": "7ed5be20fe49dfb3c1f9cfdd511cb32c7edfef43197baed958778e279a3df272",
+    "Sang/Window/WindowHelper.cs": "448d89023ea913f9575e457ae438a40d185252d9678f3f430489919eb2b10fcb"
   },
   "calculationFiles": {
     "Sang/Battle/RollResolver.cs": "c7fd92270453b279fead1e404221091ad33549a6f47b9bd4a44adb0ce0c4004b"
@@ -63,7 +63,7 @@
       "id": "mechanic:calculations",
       "name": "Character and combat calculations",
       "category": "Formulas",
-      "description": "Character growth, resting loadout totals, and supported combat arithmetic use the verified PC 1.6.9.0 calculation package. The package records integer operations, rounding, modifier order, input requirements, and checks against compiled native methods. Combat calculations need explicit actor, target, ability, and battle context; a resting build preview does not simulate a complete encounter. Export the package from a Build or character calculation panel, or read the native calculation reference.",
+      "description": "Character growth, resting loadout totals, and supported combat arithmetic use the verified PC 1.7.0.1 calculation package. The package records integer operations, rounding, modifier order, input requirements, and checks against compiled native methods. Combat calculations need explicit actor, target, ability, and battle context; a resting build preview does not simulate a complete encounter. Export the package from a Build or character calculation panel, or read the native calculation reference.",
       "evidence": [
         "src/calculations/character-rules-v1.json",
         "src/calculations/combat-v1.json",

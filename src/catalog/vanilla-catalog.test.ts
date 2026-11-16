@@ -13,7 +13,7 @@ import { vanillaCatalog } from './vanilla-catalog'
 
 it('pins an independently assembled native base without source-backed mods or dated innate overrides', async () => {
   expect(CURRENT_CATALOG.id).toBe('crystal-project/vanilla')
-  expect(CURRENT_CATALOG.revisionId).toBe('v2')
+  expect(CURRENT_CATALOG.revisionId).toBe('v3')
   expect(CURRENT_CATALOG).toEqual(vanillaCatalog(CURRENT_CATALOG.checksum))
   const { checksum: _checksum, ...content } = CURRENT_CATALOG
   expect(CURRENT_CATALOG.checksum).toBe(`builtin:sha256:${await sha256(new TextEncoder().encode(catalogContentForChecksum(content)))}`)

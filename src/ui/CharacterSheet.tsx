@@ -1,3 +1,4 @@
+import { PC_CALCULATION_SCOPE } from '../domain/calculation-rules'
 import type { ReactNode } from 'react'
 import { gameSetupMode } from '../domain/game-rules'
 import { definitionModAvailability, type DefinitionModAvailability } from '../catalog/mods'
@@ -62,7 +63,7 @@ export function SnapshotValueView({ localData, catalogs, gameSetup: recordedGame
   if (value.kind === 'text') return <>{value.value === '' ? 'Empty text' : value.value ?? 'Unrecorded'}</>
   if (value.kind === 'calculation') {
     const plan = value.value
-    return plan ? <div><p>{`PC 1.6.9.0 (${gameSetupMode(recordedGameSetup) ?? plan.pcMode ?? 'standard'})`} · level {plan.level ?? 'unknown'} · {plan.growthMode === 'primary' ? 'follows primary class' : 'manual growth'}</p>{plan.growth.map((row, index) => <div key={index}>{row.classRef ? entityName(localData, catalogs, row.classRef) : 'Unknown class'}: {row.levels ?? '?'} levels</div>)}{plan.battle && <dl aria-label="Saved battle scenario" className="definition-list">{battleCalculationSummary(plan.battle, ref => entityName(localData, catalogs, ref)).map(([label, value]) => <div className="definition-row" key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}{plan.statuses.length > 0 && <p>Retained statuses: {plan.statuses.map(ref => entityName(localData, catalogs, ref)).join(', ')}</p>}{plan.bonuses.length > 0 && <p>Bonuses: {plan.bonuses.join(', ')}</p>}</div> : <>No saved calculation assumptions</>
+    return plan ? <div><p>{`${PC_CALCULATION_SCOPE} (${gameSetupMode(recordedGameSetup) ?? plan.pcMode ?? 'standard'})`} · level {plan.level ?? 'unknown'} · {plan.growthMode === 'primary' ? 'follows primary class' : 'manual growth'}</p>{plan.growth.map((row, index) => <div key={index}>{row.classRef ? entityName(localData, catalogs, row.classRef) : 'Unknown class'}: {row.levels ?? '?'} levels</div>)}{plan.battle && <dl aria-label="Saved battle scenario" className="definition-list">{battleCalculationSummary(plan.battle, ref => entityName(localData, catalogs, ref)).map(([label, value]) => <div className="definition-row" key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}{plan.statuses.length > 0 && <p>Retained statuses: {plan.statuses.map(ref => entityName(localData, catalogs, ref)).join(', ')}</p>}{plan.bonuses.length > 0 && <p>Bonuses: {plan.bonuses.join(', ')}</p>}</div> : <>No saved calculation assumptions</>
   }
   if (value.kind === 'selection') return value.value === undefined ? <>Unknown</> : value.value === null ? <>Empty</> : definition(value.value)
   if (value.kind === 'reference') return <RecordedKnowledge format={definition} value={value.value}/>

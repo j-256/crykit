@@ -2,22 +2,24 @@
   "schemaVersion": 1,
   "source": {
     "platform": "Windows",
-    "gameVersion": "1.6.9",
-    "editorVersion": 34,
-    "editorExecutableSha256": "315c0398646873fee6f61a8d01a0581b865b356ea9ae0d949672860200108a0f",
-    "gameExecutableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+    "gameVersion": "1.7.0.1",
+    "editorVersion": 35,
+    "editorExecutableSha256": "98da891d996b4215d571e707352c7a35577cc024d7814b6508a88d43b033ce1c",
+    "gameExecutableSha256": "bd1ad18037edaa96250c52446e83c4cbc44cff0e833edbeaf570ed328748cff4",
     "evidence": [
       "SangEdit model enum declarations and property types",
       "StatModList and AbilityModList parameter selector bindings",
       "MonsterActionConditionList selector bindings",
       "ModelIntegration model registration",
       "Editor ModelPicker, ModelList, ModelMinTotList, and prerequisite-tree converter bindings",
-      "Windows 1.6.9 ConditionEvaluator CheckAtlas and ModCompiler atlas remapping",
+      "Windows 1.7.0.1 ConditionEvaluator CheckAtlas and ModCompiler atlas remapping",
       "Crystal Edit ModelMod and ModManager editor format default, load conversion, and save stamping",
       "Windows ModManager AreModsIncompatible and ModCompiler VersionConversion",
-      "Crystal Edit ModelNode opt-in serialization, ModelTree sibling sorting, and navigation header bindings"
+      "Crystal Edit ModelNode opt-in serialization, ModelTree sibling sorting, and navigation header bindings",
+      "Crystal Edit 35 ModelMod.SaveModdedSortOrder and ModelSystemVocab declarations",
+      "Windows 1.7.0.1 CVocab.GetHomePointName entity ID lookup"
     ],
-    "entityWorldSha256": "a93405dccaf04289f84d38be5b994d62b12e207afc8762d0bf79086023401107"
+    "entityWorldSha256": "1ceb8aa08207046221f5b23db1dfef1d056479281859c88d181bd7dc125bc9bc"
   },
   "enums": {
     "ActionConditionEval": {
@@ -545,6 +547,7 @@
       "417": "MaxBuffCount",
       "418": "MaxDebuffCount",
       "419": "ImmuneToStatusCategory",
+      "460": "ImmuneToRemoveFromBattle",
       "461": "SetStatusOnApply",
       "462": "ForceTurnAbility",
       "463": "NoInput",
@@ -1941,6 +1944,7 @@
       "Timestamp": "DateTime",
       "IsLocalization": "bool",
       "Language": "string",
+      "SaveModdedSortOrder": "bool",
       "HasCustomContent": "bool",
       "Fonts": "ModelFonts",
       "System": "ModelSystem",
@@ -2257,11 +2261,22 @@
       "ElementNames": "List<string>",
       "InputCharField": "string",
       "NewLineStartRangeList": "string",
+      "NewLineStartList": "string",
       "NewLineEndList": "string",
       "AllowNewLineAtAnyChar": "bool",
+      "IsImeInputRequired": "bool",
+      "FixShowHealingHpLabel": "bool",
+      "FixNoIndentMultiline": "bool",
+      "FixLowercaseProperNames": "bool",
+      "FixForInStatusAuto": "bool",
+      "FixNumberInStatusMultiCond": "bool",
+      "FixRepeatInAbilityDesc": "string",
       "RandNamesM": "ObservableCollection<string>",
       "RandNamesF": "ObservableCollection<string>",
-      "TextReplacements": "ObservableCollection<ModelSystemVocabTextReplacement>"
+      "ProfanityMatches": "ObservableCollection<string>",
+      "ProfanityCensor": "string",
+      "TextReplacements": "ObservableCollection<ModelSystemVocabTextReplacement>",
+      "HomePoints": "List<ModelSystemVocabHomePoint>"
     },
     "ModelSystemVocabGeneral": {
       "Loading___": "string",
@@ -2279,12 +2294,15 @@
       "WarpToHomePoint": "string",
       "NewHomePointSlot": "string",
       "Crystal": "string",
+      "CrystalColorIsSuffix": "string",
+      "CrystalColorDelim": "string",
       "PlayTime": "string",
       "PlayTime_": "string",
       "Level": "string",
       "Levels": "string",
       "Level_SHORT": "string",
       "Level_": "string",
+      "LevelLabelIsSuffix": "string",
       "Exp": "string",
       "Exp_": "string",
       "TotalExp_": "string",
@@ -2350,6 +2368,7 @@
       "Equipment": "string",
       "BothHands": "string",
       "TwoHanded": "string",
+      "TwoHandedIsSuffix": "string",
       "Artifact": "string",
       "Artifacts": "string",
       "Status": "string",
@@ -2431,10 +2450,11 @@
       "Credits_Localization": "string",
       "Credits_English": "string",
       "Credits_French": "string",
+      "Credits_Italian": "string",
       "Credits_Spanish": "string",
       "Credits_Portuguese": "string",
       "Credits_Japanese": "string",
-      "Credits_Chinese": "string",
+      "Credits_SimplifiedChinese": "string",
       "Credits_SpecialThanks": "string",
       "Achievements": "string",
       "Journal": "string",
@@ -2548,6 +2568,7 @@
       "TURN_ORDER_COST": "string",
       "CT_ZERO": "string",
       "NoStatus": "string",
+      "Next": "string",
       "Buff": "string",
       "Debuff": "string",
       "Stance": "string",
@@ -2606,6 +2627,7 @@
       "Defeat": "string",
       "ALERT_NAME_IS_IN_USE": "string",
       "AutoTopUp": "string",
+      "AutoTopUp_Cost": "string",
       "Difficulty": "string",
       "DifficultySelect": "string",
       "DifficultyCustom": "string",
@@ -2686,12 +2708,14 @@
       "MapLayer_DungeonL5": "string",
       "MapLayer_DungeonL6": "string",
       "Atlas_DateRegistered": "string",
+      "Atlas_DateFormat": "string",
       "Atlas_MapLayers": "string",
       "Atlas_CurrentCoordinate": "string",
       "Atlas_Abilities": "string",
       "Atlas_Drops": "string",
       "Atlas_Steals": "string",
       "Atlas_TrackDelim": "string",
+      "Atlas_JournalDelim": "string",
       "Music_TitleTheme": "string",
       "Music_Battle": "string",
       "Music_DungeonBattle": "string",
@@ -2776,6 +2800,7 @@
       "WinStatMod_HealingReturnMatch_p2": "string",
       "WinStatMod_EnableEquipType_p1": "string",
       "WinStatMod_EnableEquipType_p2": "string",
+      "DESC_ABILITY_DRAW_ORDER": "string",
       "WinAbilityMod_WeaponSkill": "string",
       "WinAbilityMod_Magic": "string",
       "WinAbilityMod_magic": "string",
@@ -2785,25 +2810,40 @@
       "WinAbilityMod_StanceChange": "string",
       "WinAbilityMod_stanceChange": "string",
       "WinAbilityMod_SelfOnly": "string",
+      "WinAbilityMod_selfOnly": "string",
       "WinAbilityMod_SingleEnemy": "string",
+      "WinAbilityMod_singleEnemy": "string",
       "WinAbilityMod_SingleAlly": "string",
+      "WinAbilityMod_singleAlly": "string",
       "WinAbilityMod_SingleTarget": "string",
+      "WinAbilityMod_singleTarget": "string",
       "WinAbilityMod_MultiEnemy": "string",
+      "WinAbilityMod_multiEnemy": "string",
       "WinAbilityMod_MultiAlly": "string",
+      "WinAbilityMod_multiAlly": "string",
       "WinAbilityMod_MultiTarget": "string",
+      "WinAbilityMod_multiTarget": "string",
       "WinAbilityMod_EverythingTargeted": "string",
+      "WinAbilityMod_everythingTargeted": "string",
+      "WinAbilityMod_BasicMagic": "string",
       "WinAbilityMod_basicMagic": "string",
+      "WinAbilityMod_BasicAttack": "string",
       "WinAbilityMod_basicAttack": "string",
+      "WinAbilityMod_Magical": "string",
       "WinAbilityMod_magical": "string",
+      "WinAbilityMod_Weapon": "string",
       "WinAbilityMod_weapon": "string",
+      "WinAbilityMod_Skill": "string",
       "WinAbilityMod_skill": "string",
       "WinAbilityMod_Unarmed": "string",
+      "WinAbilityMod_DescEnd": "string",
       "WinAbilityMod_DoesNotUseTurn": "string",
       "WinAbilityMod_DoesNotUseTurn_Charges": "string",
       "WinAbilityMod_OtherOnly": "string",
       "WinAbilityMod_DeadOrAlive": "string",
       "WinAbilityMod_Bonus": "string",
       "WinAbilityMod_AccumulatesAP": "string",
+      "WinAbilityMod_Elemental_p0": "string",
       "WinAbilityMod_Elemental": "string",
       "WinAbilityMod_Ignores_p1": "string",
       "WinAbilityMod_Ignores_p2": "string",
@@ -3511,6 +3551,7 @@
       "TIP_CHALLENGES": "string",
       "TIP_MODS": "string",
       "TIP_KEYBOARD_INPUT": "string",
+      "TIP_STAT_CHANGES": "string",
       "DESC_REACTION_OnPDamageTaken": "string",
       "DESC_REACTION_OnMDamageTaken": "string",
       "DESC_REACTION_OnNearDeath": "string",
@@ -3549,6 +3590,9 @@
       "DESC_STATUS_INFLICT": "string",
       "DESC_STATUS_SELF_APPLY": "string",
       "DESC_STATUS_SELF_INFLICT": "string",
+      "DESC_STATUS_ON_APPLY": "string",
+      "DESC_STATUS_ON_INFLICT": "string",
+      "DESC_STATUS_ON_GET": "string",
       "DESC_STATUS_ON_HIT_APPLY": "string",
       "DESC_STATUS_ON_HIT_INFLICT": "string",
       "DESC_STATUS_ON_BATTLE_START": "string",
@@ -3736,6 +3780,10 @@
       "ModelID": "int",
       "SortOrder": "int",
       "IsExpanded": "bool"
+    },
+    "ModelSystemVocabHomePoint": {
+      "ID": "int",
+      "Name": "string"
     }
   },
   "parameters": {
@@ -4456,7 +4504,8 @@
         "BonusDoubledWhenPaired",
         "LearnAll",
         "CritFromMndAndSpi",
-        "HiddenIntent"
+        "HiddenIntent",
+        "ImmuneToRemoveFromBattle"
       ]
     },
     "ModelAbilityMod": {
@@ -5440,6 +5489,14 @@
           "Controls/StatusSetterList.xaml ModelIDToModelConverter"
         ]
       }
+    },
+    "ModelSystemVocabHomePoint": {
+      "ID": {
+        "target": "ModelEntityData",
+        "evidence": [
+          "Windows 1.7.0.1 CVocab.GetHomePointName and WindowHomePointSelect.RefreshContent"
+        ]
+      }
     }
   },
   "contextualReferences": {
@@ -5475,8 +5532,8 @@
         "Job": "ModelJob"
       },
       "evidence": [
-        "Windows 1.6.9 Field/ConditionEvaluator.cs CheckAtlas",
-        "Windows 1.6.9 SangData/ModCompiler.cs ConditionDataAtlas remapping"
+        "Windows 1.7.0.1 Field/ConditionEvaluator.cs CheckAtlas",
+        "Windows 1.7.0.1 SangData/ModCompiler.cs ConditionDataAtlas remapping"
       ]
     }
   },
@@ -5967,7 +6024,7 @@
       "model": "ModelVoxel",
       "field": "ID",
       "kind": "identity",
-      "detail": "Voxel record identity; supplemental Windows 1.6.9 name reference"
+      "detail": "Voxel record identity; supplemental Windows 1.7.0.1 name reference"
     },
     {
       "model": "PatchedModel",
@@ -5986,22 +6043,28 @@
       "field": "ModelID",
       "kind": "contextual",
       "detail": "Surrounding selector required"
+    },
+    {
+      "model": "ModelSystemVocabHomePoint",
+      "field": "ID",
+      "kind": "reference",
+      "detail": "ModelEntityData"
     }
   ],
   "baselines": {
     "animation": {
-      "scope": "Installed Windows 1.6.9 game database",
+      "scope": "Installed Windows 1.7.0.1 game database",
       "source": {
         "path": "Content/Database/animation.dat",
-        "sha256": "47f9eff0ca1ab2fe5812306f2384cabeebcce9a840b35cff9a4c52f4d8679690",
+        "sha256": "85e95c2796dbcb9bd50f3679e09ebb6edb49398aab589df6d8ad81673079ea0a",
         "platform": "Windows",
-        "gameVersion": "1.6.9",
-        "editorVersion": 34,
+        "gameVersion": "1.7.0.1",
+        "editorVersion": 35,
         "rights": "Source-specific game/editor data; no content license asserted",
         "evidence": [
           "Windows game SangData/SangDataManager.cs animation loader"
         ],
-        "databaseVersion": 10,
+        "databaseVersion": 11,
         "slotCount": 575
       },
       "records": [
@@ -8272,18 +8335,18 @@
       ]
     },
     "voxel": {
-      "scope": "Installed Windows 1.6.9 game database",
+      "scope": "Installed Windows 1.7.0.1 game database",
       "source": {
         "path": "Content/Database/voxel.dat",
-        "sha256": "2767a8d1298dff7d44d9c440e7b8ff69e549c17a7fd0e01424b7da52123c137b",
+        "sha256": "f2cb7206843f5ce3ae69d14c61432db85e34437cc5b8e5efadcfb210c1ca4b6e",
         "platform": "Windows",
-        "gameVersion": "1.6.9",
-        "editorVersion": 34,
+        "gameVersion": "1.7.0.1",
+        "editorVersion": 35,
         "rights": "Source-specific game/editor data; no content license asserted",
         "evidence": [
           "Windows game Voxel/CVoxel.cs InitializeVoxelTypes loader"
         ],
-        "databaseVersion": 10,
+        "databaseVersion": 11,
         "slotCount": 256
       },
       "records": [
@@ -8999,8 +9062,8 @@
         "path": "Crystal Edit/folder.json",
         "sha256": "9b5642cb82c068fd81a5a4eec489b02ff1c39948946f608b66f2152e0e292743",
         "platform": "Windows",
-        "gameVersion": "1.6.9",
-        "editorVersion": 34,
+        "gameVersion": "1.7.0.1",
+        "editorVersion": 35,
         "rights": "Source-specific game/editor data; no content license asserted",
         "evidence": [
           "SangEdit Models/ModelManager.cs folder load and Utilities/JsonHelper.cs current-directory fallback"
@@ -10667,15 +10730,16 @@
       ]
     }
   },
-  "baselineDigest": "cc961e50477a6eb0e2a647ddb7e47b4c6dbe146088826d6e6afa4294cc2a8d1b",
+  "baselineDigest": "c2f1a1ff701d059874383b1b2ae7fe8c89f8ae154406e71f79250a95ebc22d74",
   "metadata": {
     "EditorVersion": {
-      "referenceVersion": 34,
+      "referenceVersion": 35,
       "role": "Editor format migration marker, distinct from game release",
       "evidence": [
         "ModelMod constructor EditorVersion = 0",
-        "ModManager LoadData converts versions below 34 and SaveData writes 34",
-        "Windows ModManager AreModsIncompatible flags versions above 34"
+        "ModManager LoadData converts versions below 35 and SaveData writes 35",
+        "Windows ModManager AreModsIncompatible flags versions above 35",
+        "Editor and game conversions below 35 update vocabulary spacing; editor also supplies default profanity matches"
       ]
     },
     "Tree": {
@@ -10686,9 +10750,10 @@
         "ModelNode opt-in serialized fields",
         "ModelTree ApplyNewTree, Sort, and ConsolidateSortOrder",
         "ProjectNavigationView Children and model header bindings",
-        "Windows SangMod excludes Tree and Folders"
+        "Windows SangMod excludes Tree and Folders",
+        "ModManager.SaveData restores original SortOrder unless SaveModdedSortOrder is true and the mod is not a localization"
       ]
     }
   },
-  "contentDigest": "640280c713bc3d9e3bda2c4eb061f574b61152ad00def76806c4a60419f0e5de"
+  "contentDigest": "0434faba0b2e4f2de3d502d86cafc723b987183910e8d76a689e3573835740f3"
 }

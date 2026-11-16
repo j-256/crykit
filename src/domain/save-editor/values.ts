@@ -1,7 +1,7 @@
-import { type BsonValue, type BsonDocument, type CrystalSave, CRYSTAL_SAVE_VERSION } from '../../interchange/crystal-save.ts'
+import { type BsonValue, type BsonDocument, type CrystalSave } from '../../interchange/crystal-save.ts'
 import { type SaveEditorCatalog } from '../save-editor-mods'
 import { type NativeRecord } from '../native-game'
-import { type Family, type SaveInventoryKind, DEFAULT_LEVEL_CAP } from './model.ts'
+import { type Family, type SaveInventoryKind, DEFAULT_LEVEL_CAP, SAVE_EDITOR_STRICT_FIELDS_VERSION } from './model.ts'
 
 const MAX_STOCK = 99
 
@@ -55,22 +55,22 @@ export function known(catalog: SaveEditorCatalog, family: Family, id: number): N
 }
 
 // Legacy omissions use the native defaults; a missing modern field must still fail validation
-export function flags(save: CrystalSave): BsonDocument { return object(save.party.value.GameplayFlags ?? (save.header.version < CRYSTAL_SAVE_VERSION ? document({}) : undefined), 'GameplayFlags') }
+export function flags(save: CrystalSave): BsonDocument { return object(save.party.value.GameplayFlags ?? (save.header.version < SAVE_EDITOR_STRICT_FIELDS_VERSION ? document({}) : undefined), 'GameplayFlags') }
 
 export function subJob(member: BsonDocument, save: CrystalSave): number | null {
   const value = member.value.SubJob
-  return value?.type === 'null' || (!value && save.header.version < CRYSTAL_SAVE_VERSION) ? null : number(value, 'SubJob')
+  return value?.type === 'null' || (!value && save.header.version < SAVE_EDITOR_STRICT_FIELDS_VERSION) ? null : number(value, 'SubJob')
 }
 
 export function growthJob(member: BsonDocument, save: CrystalSave): number {
   const value = member.value.Growth
-  return number(save.header.version < CRYSTAL_SAVE_VERSION && (!value || value.type === 'null') ? member.value.Job : value, 'Growth')
+  return number(save.header.version < SAVE_EDITOR_STRICT_FIELDS_VERSION && (!value || value.type === 'null') ? member.value.Job : value, 'Growth')
 }
 
 export function growthHistory(levels: BsonDocument, save: CrystalSave): number[] {
   const growth = numbers(levels.value.Entries, 'Growth levels')
-  const history = levels.value.Hist ? numbers(levels.value.Hist, 'Growth history') : save.header.version < CRYSTAL_SAVE_VERSION ? [] : numbers(undefined, 'Growth history')
-  return save.header.version < CRYSTAL_SAVE_VERSION ? Array.from({ length: Math.max(growth.length, history.length) }, (_, id) => Math.max(history[id] ?? 0, growth[id] ?? 0)) : history
+  const history = levels.value.Hist ? numbers(levels.value.Hist, 'Growth history') : save.header.version < SAVE_EDITOR_STRICT_FIELDS_VERSION ? [] : numbers(undefined, 'Growth history')
+  return save.header.version < SAVE_EDITOR_STRICT_FIELDS_VERSION ? Array.from({ length: Math.max(growth.length, history.length) }, (_, id) => Math.max(history[id] ?? 0, growth[id] ?? 0)) : history
 }
 
 export function stock(save: CrystalSave, kind: SaveInventoryKind): BsonValue[] {

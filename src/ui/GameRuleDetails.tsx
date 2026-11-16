@@ -1,3 +1,4 @@
+import { PC_CALCULATION_SCOPE } from '../domain/calculation-rules'
 import type { ReactNode } from 'react'
 import { calculationGenderId, calculationGenderLabel, type GenderDefinition } from '../domain/calculation-genders'
 import { PC_GAME_RULES, type GameRuleResolution } from '../domain/game-rules'
@@ -51,7 +52,7 @@ export function GameRuleDetails({ rules, draft, legacyRules, calculation }: { re
       <div className="stack">
         {rules.difficulty && <div>{rules.difficulty.sourceKind === 'mod' || rules.difficultyIssues.length > 0 ? <Sources anchor={<h4>{rules.difficulty.name}</h4>} label={`Sources for ${rules.difficulty.name} difficulty`}><p>{rules.difficulty.source}</p></Sources> : <h4>{rules.difficulty.name}</h4>}<p>Enemy HP: {rules.difficulty.values.MonsterHPRate ?? 'Unknown'}%. Boss HP: {rules.difficulty.values.BossHPRate ?? 'Unknown'}%. Player hit modifier: {rules.difficulty.values.MemberHitChanceMod ?? 'Unknown'} percentage points.</p></div>}
         <dl className="definition-list"><div className="definition-row" data-game-setup-focus="passives"><dt>Saved PP budget</dt><dd>{knowledgeLabel(draft.ppLimit)}</dd></div><div className="definition-row" data-game-setup-focus="slots"><dt>Saved equipment layout</dt><dd>{draft.slots.map(slot => slot.label).join(', ') || 'Unspecified'}</dd></div></dl>
-        <p className="field__hint">PC 1.6.9.0 uses a {PC_GAME_RULES.ppLimit} PP budget and {PC_GAME_RULES.equipmentSlots} equipment slots. Supported mods can change growth, equipment, passives, gender bonuses, and calculation settings. Uses PC formulas, rounding, and caps. Switch, Linux, other versions, and full mod behavior are unverified.</p>
+        <p className="field__hint">{PC_CALCULATION_SCOPE} uses a {PC_GAME_RULES.ppLimit} PP budget and {PC_GAME_RULES.equipmentSlots} equipment slots. Supported mods can change growth, equipment, passives, gender bonuses, and calculation settings. Uses PC formulas, rounding, and caps. Switch 1.6.6 uses the console baseline. Other versions and full mod behavior are unverified.</p>
         {legacyRules && <InlineNotice title="Saved rules">Imported or custom rules stay unchanged when you edit version, difficulty, or mods. Start a new Game Setup to use standard rules.</InlineNotice>}
       </div>
     </details>

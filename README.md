@@ -36,7 +36,7 @@ For an ability preview, open **Checks & notes > Ability and hit-chance preview**
 
 Use **Reference** to browse, or press **Cmd+K** on macOS / **Ctrl+K** elsewhere to search across CryKit.
 
-The bundled reference combines Crystal Project 1.6.9.0 game definitions and attributed community evidence. Fresh profiles browse the native base. Imported mod revisions provide their supported definitions through the local library. The compared Windows and macOS 1.6.9.0 builds share these native facts; see [verified platform coverage](docs/platform-coverage.md). Source versions stay visible, and Switch or mod-pack parity is not assumed. No game installation is needed to use the app. See [reference sources and coverage](docs/catalog-sources.md) for provenance, artwork, and unresolved details.
+The bundled reference combines Crystal Project 1.7.0.1 game definitions and attributed community evidence. Fresh profiles browse the native base. Imported mod revisions provide their supported definitions through the local library. The reference covers PC 1.7.0.1; see [platform coverage](docs/platform-coverage.md). Switch 1.6.6 uses the inspected PC console-branch baseline. Source versions stay visible, and mod-pack compatibility needs its own evidence. No game installation is needed to use the app. See [reference sources and coverage](docs/catalog-sources.md) for provenance, artwork, and unresolved details.
 
 ## Track your own game when you are ready
 

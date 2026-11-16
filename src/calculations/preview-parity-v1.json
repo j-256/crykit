@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "evidence": {
-    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
-    "method": "Synthetic coefficient and curve stages compared with unchanged compiled native CalculateDamage.BaseAttack and CalculateHitChance methods. Learning arithmetic verified against inspected native learn-tree rendering and exact JP affordability expressions.",
+    "executableSha256": "bd1ad18037edaa96250c52446e83c4cbc44cff0e833edbeaf570ed328748cff4",
+    "method": "Synthetic coefficient and physical-curve inputs compared with compiled Crystal Project 1.7.0.1 CalculateDamage.BaseAttack and CalculateHitChance methods. Learning display retains JP divided by 100; source inspection confirms only the localized decimal separator changed.",
     "files": [
       {
         "file": "Sang/Battle/Calculator.cs",
-        "sha256": "eec96d64039169f594aea6158be3b25f740c47d19fb7bcf856451c814c8df5c6"
+        "sha256": "be0a4745b337655d45b64cd84c301b17bc5408bfe058b3ed8a7521d638916643"
       },
       {
         "file": "Sang/Battle/CBattle.cs",
@@ -14,7 +14,7 @@
       },
       {
         "file": "Sang/Window/Field/Learn/WindowLearnAbilitySelect.cs",
-        "sha256": "8f8bbe8e781f4483a4d168c62c97fa129ffd563100b9bee2c53ee26a36a47abf"
+        "sha256": "7507308a17bbb1849176b01f9583fef91c484590bdde37382d82c0436dd3eb84"
       }
     ]
   },

@@ -41,5 +41,5 @@ test('CLI distinguishes help, usage errors, and offline integrity verification',
   const script = new URL('./update-game-data.mjs', import.meta.url)
   assert.match(execFileSync(process.execPath, ['--experimental-strip-types', script.pathname, '--help'], { encoding: 'utf8' }), /Usage:/)
   for (const args of [[], ['--unknown'], ['--check', '--input', 'unused']]) assert.equal(spawnSync(process.execPath, ['--experimental-strip-types', script.pathname, ...args]).status, 2)
-  assert.match(execFileSync(process.execPath, ['--experimental-strip-types', script.pathname, '--check'], { encoding: 'utf8' }), /Verified Windows 1\.6\.9/)
+  assert.match(execFileSync(process.execPath, ['--experimental-strip-types', script.pathname, '--check'], { encoding: 'utf8' }), /Verified Windows 1\.7\.0\.1/)
 })

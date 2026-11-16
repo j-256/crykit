@@ -45,7 +45,7 @@ function residueJp(save: CrystalSave): BsonDocument {
 }
 
 describe('browser-local save editing', () => {
-  it.each(Array.from({ length: 29 }, (_, version) => version))('edits format %i without upgrading it or losing unknown records', version => {
+  it.each(Array.from({ length: 30 }, (_, version) => version))('edits format %i without upgrading it or losing unknown records', version => {
     const original = decodeCrystalSave(encodeCrystalSave(createSaveEditorFixture(version)))
     expect(inspectSave(original, catalog).editable).toBe(true)
     const edited = decodeCrystalSave(encodeCrystalSave(editSave(original, catalog, { type: 'overpowered' }, NOW)))
@@ -56,6 +56,47 @@ describe('browser-local save editing', () => {
     expect(edited.party.value.SyntheticInt64).toEqual(original.party.value.SyntheticInt64)
     expect(edited.party.value.QuestState).toEqual(original.party.value.QuestState)
     expect(edited.combatBytes).toEqual(original.combatBytes)
+  })
+
+  it('keeps format-29 display appearance separate from class and loadout edits with rollback on failure', () => {
+    const fixture = createSaveEditorFixture(29)
+    fixture.header.members[0]!.jobId = 5
+    const bytes = encodeCrystalSave(fixture)
+    const original = decodeCrystalSave(bytes)
+    const before = structuredClone(original)
+    expect(inspectSave(original, catalog)).toMatchObject({ editable: true, members: [{ jobId: 0 }, {}, {}, {}] })
+    const changed = editSave(original, catalog, { type: 'member', index: 0, jobId: 4 }, NOW)
+    expect(changed.header.members[0]!.jobId).toBe(5)
+    expect(num(changed.members[0]!.value.Job)).toBe(4)
+    expect(changed.header.homePointId).toBe(0x12345678)
+    const roundTrip = decodeCrystalSave(encodeCrystalSave(changed))
+    expect(inspectSave(roundTrip, catalog).editable).toBe(true)
+    expect(roundTrip.header.members[0]!.jobId).toBe(5)
+    expect(previewSaveChanges(original, changed, catalog)).toContain('Alex: save-slot portrait retains its saved appearance until the game saves again')
+    const loadout = editSave(original, catalog, { type: 'loadout', index: 0, jobId: 0, subJobId: 4, equipmentIds: [0, null, null, null, null, null], passiveIds: [0] }, NOW)
+    expect(loadout.header.members[0]!.jobId).toBe(5)
+    expect(inspectSave(decodeCrystalSave(encodeCrystalSave(loadout)), catalog).editable).toBe(true)
+    expect(() => editSave(original, catalog, { type: 'loadout', index: 0, jobId: 4, subJobId: 0, equipmentIds: [0, null, null, null, null, null], passiveIds: [90000] }, NOW)).toThrow()
+    expect(original).toEqual(before)
+    expect(encodeCrystalSave(original)).toEqual(bytes)
+  })
+
+  it.each([28, 29])('retains strict modern-field validation for format %i', version => {
+    const original = createSaveEditorFixture(version)
+    delete original.party.value.GameplayFlags
+    expect(inspectSave(original, catalog).editable).toBe(false)
+    const missingGrowth = createSaveEditorFixture(version)
+    delete missingGrowth.members[0]!.value.Growth
+    expect(inspectSave(missingGrowth, catalog).editable).toBe(false)
+    const missingHistory = createSaveEditorFixture(version)
+    delete doc(missingHistory.members[0]!.value.Levels).value.Hist
+    expect(inspectSave(missingHistory, catalog).editable).toBe(false)
+    const missingExperience = createSaveEditorFixture(version)
+    delete doc(missingExperience.members[0]!.value.Levels).value.TotExp
+    expect(() => editSave(missingExperience, catalog, { type: 'member', index: 0, level: 10 }, NOW)).toThrow('Lifetime experience')
+    const missingJp = createSaveEditorFixture(version)
+    delete doc(missingJp.members[0]!.value.JP).value.TotalJP
+    expect(() => editSave(missingJp, catalog, { type: 'master-jobs' }, NOW)).toThrow('Lifetime JP')
   })
 
   it('uses native legacy defaults without adding unrelated fields to simple edits', () => {

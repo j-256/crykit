@@ -1,3 +1,4 @@
+import { PC_GAME_RULES } from '../domain/game-rules'
 import { saveContextsEqual } from '../workspace/save-context-equality'
 import { jsonEqual } from '../persistence/local-data'
 import { saveDefinitionContext, saveSelectionContext } from '../workspace/save-context'
@@ -104,8 +105,9 @@ function SaveLoadoutEditor({ storage, save, summary, memberIndex, modSources, sc
     childMounted.current = true
     return () => { childMounted.current = false; queueMicrotask(() => { if (!childMounted.current) storage.controller.releaseChild(storage.view, child) }) }
   }, [storage, child])
+  // This preview uses the pinned reference model; the save header does not identify its game build
   const gameSetup = useMemo(() => ({
-    id: 'save-editor-setup', gameSetupId: 'save-editor', revision: 1, label: 'Open save', platform: { state: 'known', value: 'Windows' }, gameVersion: { state: 'known', value: '1.6.9' }, mode: { state: 'known', value: summary.mode.name }, mods: { state: 'known', value: save.header.mods.map(mod => mod.title) }, disabledMods: { state: 'known', value: [] }, ppLimit: { state: 'known', value: 10 }, ppCostsNonNegative: { state: 'known', value: true }, slots: SUGGESTED_BUILD_SLOTS, catalogLock: Object.fromEntries(scope.catalogs.map(catalog => [catalog.id, catalog.revisionId])), modComposition: { version: 2, baseline: { catalogId: scope.catalogs[0]!.id, catalogRevisionId: scope.catalogs[0]!.revisionId }, layers: scope.catalogs.slice(1).map(catalog => ({ catalogId: catalog.id, catalogRevisionId: catalog.revisionId, enabled: true })), links: [] }, createdAt: '2026-01-01T00:00:00.000Z',
+    id: 'save-editor-setup', gameSetupId: 'save-editor', revision: 1, label: 'Open save', platform: { state: 'known', value: 'Windows' }, gameVersion: { state: 'known', value: PC_GAME_RULES.version }, mode: { state: 'known', value: summary.mode.name }, mods: { state: 'known', value: save.header.mods.map(mod => mod.title) }, disabledMods: { state: 'known', value: [] }, ppLimit: { state: 'known', value: 10 }, ppCostsNonNegative: { state: 'known', value: true }, slots: SUGGESTED_BUILD_SLOTS, catalogLock: Object.fromEntries(scope.catalogs.map(catalog => [catalog.id, catalog.revisionId])), modComposition: { version: 2, baseline: { catalogId: scope.catalogs[0]!.id, catalogRevisionId: scope.catalogs[0]!.revisionId }, layers: scope.catalogs.slice(1).map(catalog => ({ catalogId: catalog.id, catalogRevisionId: catalog.revisionId, enabled: true })), links: [] }, createdAt: '2026-01-01T00:00:00.000Z',
   }) as unknown as GameSetupRevision, [save.header.mods, scope.catalogs, summary.mode.name])
   const compatibleBuilds = useMemo(() => Object.values(localData.builds).flatMap(build => {
     if (build.archived || !build.latestRevisionId) return []

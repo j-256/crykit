@@ -9,12 +9,13 @@ const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const OUTPUT = join(ROOT, 'src/catalog/class-tree-identities.json')
 const NATIVE = join(ROOT, 'src/catalog/native-game-data.json')
 const DATABASE_NAMES = ['job', 'ability', 'passive']
-const LP_DISPLAY = Object.freeze({ jpPerLp: 100, executableSha256: '36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6', locator: 'WindowLearnAbilitySelect.Draw; JP / 100', version: 'PC 1.6.9.0' })
+// Native Draw divides JP by 100; localization changes only its decimal separator
+const LP_DISPLAY = Object.freeze({ jpPerLp: 100, executableSha256: 'bd1ad18037edaa96250c52446e83c4cbc44cff0e833edbeaf570ed328748cff4', locator: 'WindowLearnAbilitySelect.Draw; JP / 100', version: 'PC 1.7.0.1' })
 const USAGE = `Usage: node scripts/update-class-tree-identities.mjs [-i|--input <Content>]
        node scripts/update-class-tree-identities.mjs --check
 Project class-tree positions, numeric skill identities, and LP costs from the
 bundled native snapshot. Optional input verifies original game file fingerprints.
-LP conversion requires the reviewed PC 1.6.9.0 executable beside Content.
+LP conversion requires the reviewed PC 1.7.0.1 executable beside Content.
 Requires Node.js and committed native gameplay data; no environment variables.
   -i, --input <Content>  Verify the owned game's Content directory while projecting
       --check            Verify the committed projection offline without writes
@@ -45,7 +46,7 @@ export function buildClassTreeIdentities(snapshot) {
     })).sort((a, b) => a.row - b.row || a.column - b.column)
     classes[entityId] = { nativeJobId: job.ID, nodes }
   }
-  return { schemaVersion: 1, source: { sourceId: 'crystal-project:pc-class-tree-identities', snapshot: LP_DISPLAY.version, applicability: 'Native class learning trees for PC 1.6.9.0; other versions and mod configurations require separate evidence' }, learningCostDisplay: LP_DISPLAY, databaseSha256, classes }
+  return { schemaVersion: 1, source: { sourceId: 'crystal-project:pc-class-tree-identities', snapshot: LP_DISPLAY.version, applicability: 'Native class learning trees for PC 1.7.0.1; other versions and mod configurations require separate evidence' }, learningCostDisplay: LP_DISPLAY, databaseSha256, classes }
 }
 
 async function main() {
