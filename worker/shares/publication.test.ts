@@ -1,4 +1,6 @@
-import { expect, it } from 'vitest'
+import * as shareIdentity from './identity'
+import { publishSnapshot } from './publication'
+import { expect, it, vi } from 'vitest'
 import { customer, fixture, id, post, direct } from '../sync/testing'
 import type { PublicSnapshot } from '../../src/interchange/public-share-schema'
 import { initializeRevocationLedger, readRevocation, readRevocationHead } from '../jobs/ledger'
@@ -229,4 +231,78 @@ it('rejects prelaunch publication and classifies unsupported stored shares witho
     await expect(publicSnapshot(id(), { ...context, env: { ...context.env, DB: db } })).rejects.toMatchObject({ code: 'UNSUPPORTED_VERSION' })
   }
   expect(await f.db.prepare('SELECT COUNT(*) FROM shares').first('COUNT(*)')).toBe(0)
+})
+
+it('allocates short public IDs and derives new URLs from the published kind, including kind updates', async () => {
+  const { f, owner } = await setup(), first = await created(f, owner)
+  expect(first.shareId).toMatch(/^[A-Za-z0-9_-]{11}$/)
+  expect(first.url).toBe(`http://127.0.0.1/b/${first.shareId}`)
+  const team: PublicSnapshot = { ...snapshot('Team'), kind: 'team', slots: [null, null, null, null] }
+  const response = await mutate(f, owner, first.shareId, 'PATCH', { mutationId: id(), expectedRevision: 1, snapshot: team, includeAttribution: false })
+  expect(await response.json()).toMatchObject({ shareId: first.shareId, url: `http://127.0.0.1/t/${first.shareId}` })
+  expect(await (await read(f, first.shareId)).json()).toMatchObject({ snapshot: { kind: 'team' } })
+  expect(await (await f.request('/api/v1/shares', { headers: owner.headers })).json()).toMatchObject({ shares: [{ url: `http://127.0.0.1/t/${first.shareId}` }] })
+})
+
+it('retries only occupied allocation IDs and retains exact committed mutation receipts', async () => {
+  const { f, owner } = await setup(), existing = await created(f, owner), { context, principal } = await direct(f, owner)
+  const allocate = vi.spyOn(shareIdentity, 'randomShareId').mockReturnValueOnce(existing.shareId).mockReturnValueOnce('Abc0123-_xy')
+  const input = { mutationId: id(), snapshot: snapshot('New'), includeAttribution: false }
+  const next = await publishSnapshot(principal, input, context)
+  expect(next.shareId).toBe('Abc0123-_xy')
+  expect(allocate).toHaveBeenCalledTimes(2)
+  expect(await publishSnapshot(principal, input, context)).toEqual(next)
+  expect(allocate).toHaveBeenCalledTimes(2)
+  expect(await (await read(f, existing.shareId)).json()).toMatchObject({ snapshot: snapshot(), revision: 1 })
+  expect(await f.db.prepare('SELECT COUNT(*) FROM shares').first('COUNT(*)')).toBe(2)
+})
+
+it('bounds allocation collisions without partial rows and never retries quota failure', async () => {
+  const { f, owner } = await setup(), existing = await created(f, owner), { context, principal } = await direct(f, owner)
+  const allocate = vi.spyOn(shareIdentity, 'randomShareId').mockReturnValue(existing.shareId)
+  const before = (await f.db.prepare('SELECT * FROM quota_counters ORDER BY scope').all()).results
+  await expect(publishSnapshot(principal, { mutationId: id(), snapshot: snapshot(), includeAttribution: false }, context)).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' })
+  expect(allocate).toHaveBeenCalledTimes(shareIdentity.MAX_SHARE_ID_ATTEMPTS)
+  expect((await f.db.prepare('SELECT * FROM quota_counters ORDER BY scope').all()).results).toEqual(before)
+  expect(await f.db.prepare('SELECT COUNT(*) FROM share_mutations').first('COUNT(*)')).toBe(1)
+  allocate.mockClear().mockReturnValue('Abc0123-_xy')
+  await f.db.prepare('UPDATE accounts SET capacity_bytes = 1 WHERE id = ?').bind(owner.accountId).run()
+  await expect(publishSnapshot(principal, { mutationId: id(), snapshot: snapshot(), includeAttribution: false }, context)).rejects.toMatchObject({ code: 'QUOTA_EXCEEDED' })
+  expect(allocate).toHaveBeenCalledTimes(1)
+})
+
+it('keeps persisted legacy IDs and exact legacy receipts readable, updatable, and revocable', async () => {
+  const { f, owner } = await setup(), { context, principal } = await direct(f, owner)
+  const legacyId = id(), input = { mutationId: id(), snapshot: snapshot(), includeAttribution: false }
+  // Seed the retained identifier generation; ordinary production allocation is covered independently
+  vi.spyOn(shareIdentity, 'randomShareId').mockReturnValueOnce(legacyId)
+  const value = await publishSnapshot(principal, input, context)
+  const oldReceipt = { ...value, url: `http://127.0.0.1/#/s/${legacyId}` }
+  await f.db.prepare('UPDATE share_mutations SET receipt = ? WHERE mutation_id = ?').bind(JSON.stringify(oldReceipt), input.mutationId).run()
+  expect(await (await publish(f, owner, snapshot(), false, input.mutationId)).json()).toEqual(oldReceipt)
+  expect((await read(f, legacyId)).status).toBe(200)
+  expect((await mutate(f, owner, legacyId, 'PATCH', { mutationId: id(), expectedRevision: 1, snapshot: snapshot('Updated old'), includeAttribution: false })).status).toBe(200)
+  await initializeRevocationLedger({ ...context, env: { ...context.env, REVOCATION_LEDGER: f.revocations as unknown as R2Bucket } })
+  expect((await mutate(f, owner, legacyId, 'DELETE', { mutationId: id(), expectedRevision: 2 })).status).toBe(200)
+  expect((await read(f, legacyId)).status).toBe(404)
+})
+
+it('serializes different mutations that collide on a candidate without overwriting either snapshot', async () => {
+  const { f, owner } = await setup(), { context, principal } = await direct(f, owner)
+  vi.spyOn(shareIdentity, 'randomShareId').mockReturnValueOnce('Abc0123-_xy').mockReturnValueOnce('Abc0123-_xy').mockReturnValue('Other123_xy')
+  const results = await Promise.all(['First', 'Second'].map(title => publishSnapshot(principal, { mutationId: id(), snapshot: snapshot(title), includeAttribution: false }, context)))
+  expect(new Set(results.map(value => value.shareId))).toEqual(new Set(['Abc0123-_xy', 'Other123_xy']))
+  expect(new Set(await Promise.all(results.map(async value => ((await (await read(f, value.shareId)).json()) as { snapshot: { title: string } }).snapshot.title)))).toEqual(new Set(['First', 'Second']))
+  expect(await f.db.prepare('SELECT COUNT(*) FROM share_mutations').first('COUNT(*)')).toBe(2)
+})
+
+it('recovers the original short ID after a lost committed publish response', async () => {
+  const { f, owner } = await setup(), mutationId = id()
+  f.failNext('shares.publish.after-batch')
+  expect((await publish(f, owner, snapshot(), false, mutationId)).status).toBe(503)
+  const original = await f.db.prepare('SELECT receipt FROM share_mutations WHERE mutation_id = ?').bind(mutationId).first<string>('receipt')
+  const response = await publish(f, owner, snapshot(), false, mutationId)
+  expect(response.status).toBe(200)
+  expect(await response.json()).toEqual(JSON.parse(original!))
+  expect(await f.db.prepare('SELECT COUNT(*) FROM shares').first('COUNT(*)')).toBe(1)
 })

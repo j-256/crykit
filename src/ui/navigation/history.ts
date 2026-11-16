@@ -1,6 +1,7 @@
+import { hostedSharePath, type HostedShareKind } from '../../account/share-identity'
 import { type EntityRouteNameResolver, bundledEntityRouteName } from '../entity-route-names'
 import { type AppRoute } from './types.ts'
-import { parseAppRoute, formatAppRoute } from './routes.ts'
+import { readBrowserRoute, formatAppRoute, browserRouteHref } from './routes.ts'
 
 export const NAVIGATION_EVENT = 'crykit:navigation'
 
@@ -32,7 +33,13 @@ export function withNavigationState(state: unknown, navigation: NavigationHistor
 }
 
 export function writeRouteHistory(next: AppRoute, replace: boolean, notify: boolean, resolveName: EntityRouteNameResolver = bundledEntityRouteName): number {
-  const currentRoute = parseAppRoute(window.location.hash)
+  // A beacon already running in this document can observe same-document path changes
+  // Cross-document navigation keeps public locators out of its SPA measurements
+  if (next.page.page === 'hosted-share' && hasPageAnalytics()) {
+    window.location[replace ? 'replace' : 'assign'](formatAppRoute(next, resolveName))
+    return navigationState(window.history.state)?.index ?? 0
+  }
+  const currentRoute = readBrowserRoute()
   const currentState = navigationState(window.history.state)
   const currentIndex = currentState?.index ?? 0
   const nextIndex = replace ? currentIndex : currentIndex + 1
@@ -46,7 +53,7 @@ export function writeRouteHistory(next: AppRoute, replace: boolean, notify: bool
       : remainingInSettings && currentState?.returnHash && currentState.returnIndex !== undefined ? { returnHash: currentState.returnHash, returnIndex: currentState.returnIndex }
       : {}),
   })
-  window.history[replace ? 'replaceState' : 'pushState'](state, '', formatAppRoute(next, resolveName))
+  window.history[replace ? 'replaceState' : 'pushState'](state, '', browserRouteHref(next, resolveName))
   if (notify) notifyNavigationWrite()
   return nextIndex
 }
@@ -58,4 +65,19 @@ export function writeNavigationRoute(route: AppRoute, mode: 'push' | 'replace' =
 export function notifyNavigationWrite(): void {
   // pushState/replaceState do not emit native traversal events; external writes must notify the controller
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(NAVIGATION_EVENT))
+}
+
+export function canonicalizeHostedShare(shareId: string, kind: HostedShareKind): void {
+  const current = readBrowserRoute()
+  if (current.page.page !== 'hosted-share' || current.page.shareId !== shareId) return
+  // Preserve the complete existing history entry, including other consumers and navigation return metadata
+  const path = hostedSharePath(shareId, kind)
+  if (hasPageAnalytics()) { window.location.replace(path); return }
+  window.history.replaceState(window.history.state, '', path)
+  notifyNavigationWrite()
+}
+
+function hasPageAnalytics(): boolean {
+  // Presence also covers a module beacon scheduled but not yet evaluated
+  return document.querySelector('script[data-cf-beacon], script[src^="https://static.cloudflareinsights.com/beacon.min.js"]') !== null
 }

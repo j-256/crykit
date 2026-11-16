@@ -1,3 +1,4 @@
+import { ShareIdSchema } from '../../src/account/share-identity'
 import { z } from 'zod'
 import { DigestSchema, OpaqueIdSchema, base64urlSchema } from '../../src/account/protocol'
 import type { ServiceContext } from '../context'
@@ -7,7 +8,7 @@ const version = z.literal(1)
 const uint = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER)
 const common = { version, intentId: OpaqueIdSchema, sessionEpoch: uint, timestamp: uint }
 export const RevocationEventSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ ...common, kind: z.literal('share-stopped'), accountId: OpaqueIdSchema, shareId: OpaqueIdSchema }),
+  z.strictObject({ ...common, kind: z.literal('share-stopped'), accountId: OpaqueIdSchema, shareId: ShareIdSchema }),
   z.strictObject({ ...common, kind: z.literal('account-deleted'), accountId: OpaqueIdSchema }),
   z.strictObject({ ...common, kind: z.literal('operator-revoked'), operatorId: OpaqueIdSchema }),
   z.strictObject({ ...common, kind: z.literal('invitation-revoked'), invitationId: OpaqueIdSchema, operatorId: OpaqueIdSchema }),

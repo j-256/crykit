@@ -1,3 +1,4 @@
+import { HOSTED_SHARE_SHELL } from './hosted-share-plugin.ts'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -335,7 +336,10 @@ self.addEventListener('fetch', event => {
         canonical.pathname += '/';
         return Response.redirect(canonical.href, 308);
       }
-      cacheUrl = assetUrlSet.has(pageUrl.href) ? pageUrl.href : assetUrlSet.has(directoryIndex.href) ? directoryIndex.href : indexUrl;
+      // Root hosted URLs need the root-base shell; nested portable installations keep their own index
+      const hostedShell = new URL('${HOSTED_SHARE_SHELL}', self.registration.scope).href;
+      const hostedNavigation = new URL(self.registration.scope).pathname === '/' && /^\\/[bts]\\/[^/]+$/.test(pageUrl.pathname) && assetUrlSet.has(hostedShell);
+      cacheUrl = hostedNavigation ? hostedShell : assetUrlSet.has(pageUrl.href) ? pageUrl.href : assetUrlSet.has(directoryIndex.href) ? directoryIndex.href : indexUrl;
     }
     const cached = await cache.match(cacheUrl, { ignoreVary: true });
     // Navigation requests reject responses whose fetch followed a redirect

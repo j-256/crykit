@@ -1,6 +1,6 @@
 export { type Destination, type CharacterTab, type SettingsSection, type InventoryPageRoute, type CharactersPageRoute, type BuildsPageRoute, type TeamsPageRoute, type ProgressPageRoute, PROGRESS_PAGES, type ReferencePageRoute, type SettingsPageRoute, type UnresolvedPageRoute, type PageRoute, type SearchOverlay, type DefinitionPickerOverlay, type DefinitionEditorOverlay, type RouteOverlay, type RouteQuery, type AppRoute, BUILDS_ROUTE } from './navigation/types.ts'
 export { formatEntityRefPath, parseEntityRefPath } from './navigation/entities.ts'
-export { parseAppRoute, formatAppRoute } from './navigation/routes.ts'
+export { parseAppRoute, formatAppRoute, readBrowserRoute } from './navigation/routes.ts'
 export { routeDestination, routeTitle, routeForDestination, parentRoute, isRouteWithin, isReferenceResearchRoute, routeWithOverlay, routeWithoutOverlays, replaceRouteQuery } from './navigation/hierarchy.ts'
 export { writeNavigationRoute, notifyNavigationWrite } from './navigation/history.ts'
 export { type NavigationBlocker, type NavigationController, useNavigationController } from './navigation/controller.ts'

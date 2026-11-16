@@ -4,7 +4,7 @@ const ACTION_TIMEOUT_MS = 20_000
 const NAVIGATION_TIMEOUT_MS = 30_000
 const PROOF_TIMEOUT_MS = 240_000
 export default defineConfig({
-  testDir: '.', testMatch: 'actual-app.spec.ts', fullyParallel: false, workers: 1, retries: 0,
+  testDir: '.', testMatch: 'actual-app.spec.ts', fullyParallel: false, workers: 1, retries: 0, forbidOnly: true,
   timeout: PROOF_TIMEOUT_MS, expect: { timeout: ACTION_TIMEOUT_MS },
   outputDir: resolve(process.env.CRYKIT_RUM_OUTPUT!, 'browser'),
   reporter: [['list']],

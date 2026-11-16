@@ -77,7 +77,7 @@ export interface UnresolvedPageRoute {
   readonly recovery: Destination
 }
 
-export type PageRoute = InventoryPageRoute | CharactersPageRoute | BuildsPageRoute | TeamsPageRoute | ProgressPageRoute | ReferencePageRoute | SettingsPageRoute | UnresolvedPageRoute | { readonly page: 'hosted-share'; readonly shareId: string } | { readonly page: 'share'; readonly encoded: string; readonly version: typeof PUBLIC_SHARE_VERSION } | { readonly page: 'mods'; readonly view: 'library' | 'editor' } | { readonly page: 'map' } | { readonly page: 'save-editor' }
+export type PageRoute = InventoryPageRoute | CharactersPageRoute | BuildsPageRoute | TeamsPageRoute | ProgressPageRoute | ReferencePageRoute | SettingsPageRoute | UnresolvedPageRoute | { readonly page: 'hosted-share'; readonly shareId: string; readonly kind?: 'build' | 'team' } | { readonly page: 'share'; readonly encoded: string; readonly version: typeof PUBLIC_SHARE_VERSION } | { readonly page: 'mods'; readonly view: 'library' | 'editor' } | { readonly page: 'map' } | { readonly page: 'save-editor' }
 
 export interface SearchOverlay {
   readonly kind: 'search'

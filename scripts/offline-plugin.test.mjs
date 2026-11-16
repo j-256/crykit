@@ -497,3 +497,15 @@ test('offline OCR retains self-contained browser cores without duplicating their
   assert.ok(emitted.has('ocr/worker.min.js'))
   assert.ok(emitted.has('ocr/eng.traineddata.gz'))
 })
+
+test('root hosted navigation uses the offline root-base shell but never caches hosted API responses', async () => {
+  for (const scope of ['https://example.test/', SCOPE]) {
+    const fixture = workerFixture(scope, { bundle: { 'hosted-share.html': { type: 'asset', source: '<base href="/">Hosted shell' } } })
+    await fixture.install()
+    for (const prefix of ['b', 't', 's']) {
+      const response = await fixture.response({ method: 'GET', mode: 'navigate', url: new URL(`${prefix}/Abc0123-_xy?unused=value`, scope).href })
+      assert.equal(await response.text(), new URL(scope === SCOPE ? 'index.html' : 'hosted-share.html', scope).href)
+    }
+    assert.equal(fixture.fetch({ method: 'GET', mode: 'navigate', url: 'https://example.test/api/public/v1/shares/Abc0123-_xy' }), false)
+  }
+})

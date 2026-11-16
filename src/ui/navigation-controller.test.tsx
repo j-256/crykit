@@ -1,3 +1,4 @@
+import { canonicalizeHostedShare } from './navigation/history'
 import { act, StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -51,7 +52,7 @@ function MissingDefinitionHarness() {
 
 beforeEach(() => {
   ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
-  window.history.replaceState(null, '', '#/inventory')
+  window.history.replaceState(null, '', '/#/inventory')
   originalClose = HTMLDialogElement.prototype.close
   originalShowModal = HTMLDialogElement.prototype.showModal
   shownLayers = []
@@ -254,4 +255,38 @@ describe('navigation controller history', () => {
     expect([...dialog.querySelectorAll('button')].some((button) => button.textContent?.includes('Save new override'))).toBe(false)
     await act(async () => root.unmount())
   })
+})
+
+it('replaces only a matching public route while preserving history state and clearing the path on private navigation', async () => {
+  const state = { other: 'retained', crykitNavigation: { index: 4, parentHash: '#/builds', returnHash: '#/inventory', returnIndex: 2 } }
+  window.history.replaceState(state, '', '/t/Abc0123-_xy?discard=value#unrelated')
+  const length = window.history.length
+  const root = createRoot(container)
+  await act(async () => { root.render(<Harness/>); await tick() })
+  expect(controller.route.page).toEqual({ page: 'hosted-share', shareId: 'Abc0123-_xy', kind: 'team' })
+  expect(window.location.pathname).toBe('/t/Abc0123-_xy')
+  await act(async () => { canonicalizeHostedShare('Abc0123-_xy', 'build'); await tick() })
+  expect(window.location.pathname).toBe('/b/Abc0123-_xy')
+  expect(window.location.search + window.location.hash).toBe('')
+  expect(window.history.state).toEqual(state)
+  expect(window.history.length).toBe(length)
+  expect(controller.route.page).toEqual({ page: 'hosted-share', shareId: 'Abc0123-_xy', kind: 'build' })
+  await act(async () => { controller.navigate(parseAppRoute('#/settings/account')); await tick() })
+  expect(window.location.pathname).toBe('/')
+  expect(window.location.hash).toBe('#/settings/account')
+  expect(window.history.state.crykitNavigation.returnHash).toBe('/b/Abc0123-_xy')
+  await act(async () => { canonicalizeHostedShare('Abc0123-_xy', 'team'); await tick() })
+  expect(window.location.hash).toBe('#/settings/account')
+  await act(async () => { controller.close(); await tick(); await tick() })
+  expect(controller.route.page).toEqual({ page: 'hosted-share', shareId: 'Abc0123-_xy', kind: 'build' })
+  await act(async () => root.unmount())
+})
+
+it('lets an explicit app hash leave a clean public path and rejects malformed share identities', async () => {
+  window.history.replaceState(null, '', '/s/Abc0123-_xy#/inventory')
+  const root = createRoot(container)
+  await act(async () => { root.render(<Harness/>); await tick() })
+  expect(controller.route.page.page).toBe('inventory')
+  expect(window.location.pathname).toBe('/')
+  await act(async () => root.unmount())
 })

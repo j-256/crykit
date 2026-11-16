@@ -121,7 +121,7 @@ import { Shell } from './ui/Shell'
 import { Button, InlineNotice, LoadingScreen } from './ui/components'
 import { catalogLocksMatch, formatAppError } from './ui/model'
 import { DefinitionProvider, type DefinitionEditorDraft } from './ui/definitions'
-import { isReferenceResearchRoute, isRouteWithin, NavigationProvider, routeDestination, routeForDestination, routeWithoutOverlays, useNavigationController, type AppRoute, type NavigationController } from './ui/navigation'
+import { readBrowserRoute, isReferenceResearchRoute, isRouteWithin, NavigationProvider, routeDestination, routeForDestination, routeWithoutOverlays, useNavigationController, type AppRoute, type NavigationController } from './ui/navigation'
 
 const ModsView = lazy(() => import('./ui/ModsView').then(module => ({ default: module.ModsView })))
 const ModCatalogReference = lazy(() => import('./ui/ModCatalogReference'))
@@ -198,7 +198,7 @@ export default function App() {
   const workspace = useWorkspace()
   const { repository } = workspace
   const { load: loadLocalData, save: saveLocalDataWithStatus, undo: undoLocalDataWithStatus, previewImport, commitImport, commitModSetup, prepareModCatalogs, exportPlannerBackup: exportBackup, subscribe: subscribeLocalData } = repository
-  const initialLanding = useRef(!window.location.hash || window.location.hash === '#/' )
+  const initialLanding = useRef((!window.location.hash || window.location.hash === '#/') && readBrowserRoute().page.page !== 'hosted-share')
   const [modSelectorOpen, setModSelectorOpen] = useState(false)
   const [loadedData, setLoadedData] = useState<LoadedLocalData>()
   const loadedDataRef = useRef<LoadedLocalData | undefined>(undefined)

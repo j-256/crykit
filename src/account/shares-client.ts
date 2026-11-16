@@ -1,6 +1,7 @@
 import type { z } from 'zod'
+import { ShareIdSchema } from './share-identity'
 import { serviceNoticeRequest } from './service-notice'
-import { ApiErrorSchema, OpaqueIdSchema } from './protocol'
+import { ApiErrorSchema } from './protocol'
 import { onProfileSessionChange, profileSignal, ProfileSessionChangedError, withProfileSession, type ProfileToken } from './profile'
 import { PublishedShareSchema, PublicShareSchema, OwnSharesSchema, PublishSnapshotSchema, UpdateSnapshotSchema, StopSharingSchema, shareRequestBytes, shareListLimit, type PublishSnapshot, type UpdateSnapshot, type StopSharing } from './shares-protocol'
 
@@ -52,13 +53,13 @@ async function request<T>(token: ProfileToken, path: string, schema: z.ZodType<T
 }
 // No private source identity is sent or inferred; the owner explicitly chooses the hosted link
 export const publishSnapshot = (token: ProfileToken, input: PublishSnapshot, signal?: AbortSignal) => request(token, '', PublishedShareSchema, 'POST', PublishSnapshotSchema.parse(input), undefined, signal)
-export const updatePublishedSnapshot = (token: ProfileToken, shareId: string, input: UpdateSnapshot, signal?: AbortSignal) => request(token, `/${OpaqueIdSchema.parse(shareId)}`, PublishedShareSchema, 'PATCH', UpdateSnapshotSchema.parse(input), undefined, signal)
-export const stopSharing = (token: ProfileToken, shareId: string, input: StopSharing, signal?: AbortSignal) => request(token, `/${OpaqueIdSchema.parse(shareId)}`, PublishedShareSchema, 'DELETE', StopSharingSchema.parse(input), undefined, signal)
-export const listPublishedSnapshots = (token: ProfileToken, after?: string, signal?: AbortSignal) => request(token, after ? `?after=${OpaqueIdSchema.parse(after)}` : '', OwnSharesSchema, 'GET', undefined, shareListLimit * 8192, signal)
+export const updatePublishedSnapshot = (token: ProfileToken, shareId: string, input: UpdateSnapshot, signal?: AbortSignal) => request(token, `/${ShareIdSchema.parse(shareId)}`, PublishedShareSchema, 'PATCH', UpdateSnapshotSchema.parse(input), undefined, signal)
+export const stopSharing = (token: ProfileToken, shareId: string, input: StopSharing, signal?: AbortSignal) => request(token, `/${ShareIdSchema.parse(shareId)}`, PublishedShareSchema, 'DELETE', StopSharingSchema.parse(input), undefined, signal)
+export const listPublishedSnapshots = (token: ProfileToken, after?: string, signal?: AbortSignal) => request(token, after ? `?after=${ShareIdSchema.parse(after)}` : '', OwnSharesSchema, 'GET', undefined, shareListLimit * 8192, signal)
 export async function readPublishedSnapshot(shareId: string, cancellation: AbortSignal) {
   const signal = AbortSignal.any([cancellation, AbortSignal.timeout(requestTimeoutMs)])
   const notice = serviceNoticeRequest(`public-share:${shareId}`, signal)
-  const response = await fetch(`/api/public/v1/shares/${OpaqueIdSchema.parse(shareId)}`, { signal, credentials: 'omit', cache: 'no-store' })
+  const response = await fetch(`/api/public/v1/shares/${ShareIdSchema.parse(shareId)}`, { signal, credentials: 'omit', cache: 'no-store' })
   signal.throwIfAborted()
   const result = await responseValue(response, PublicShareSchema, shareRequestBytes, notice)
   signal.throwIfAborted()

@@ -21,7 +21,7 @@ export async function reconcileLedger(context: ServiceContext): Promise<void> {
   if (event.kind !== 'share-stopped' || event.accountId !== row.account_id || event.shareId !== row.share_id || !Number.isSafeInteger(row.revision + 1)) throw new Error('Invalid pending revocation')
   await appendRevocation(event, context)
   context.checkpoint('jobs.share-ledger.acknowledged')
-  const receipt = JSON.stringify({shareId:row.share_id,revision:row.revision+1,active:false,url:`${context.env.SERVICE_ORIGIN}/#/s/${row.share_id}`})
+  const receipt = JSON.stringify({shareId:row.share_id,revision:row.revision+1,active:false,url:`${context.env.SERVICE_ORIGIN}/s/${row.share_id}`})
   await runGuardedBatch(db, {sql:"SELECT EXISTS (SELECT 1 FROM share_mutations m JOIN shares s ON s.id = m.share_id JOIN accounts a ON a.id = m.account_id WHERE m.account_id = ? AND m.mutation_id = ? AND m.digest = ? AND m.event = ? AND m.receipt IS NULL AND s.state = 'stopping' AND s.revision = ? AND a.access <> 'deleting')",bindings:[row.account_id,row.mutation_id,row.digest,row.event,row.revision]},[
     db.prepare("UPDATE shares SET state = 'stopped',revision = revision + 1,updated_at = ? WHERE id = ?").bind(context.now(),row.share_id),
     db.prepare('UPDATE share_mutations SET receipt = ? WHERE account_id = ? AND mutation_id = ?').bind(receipt,row.account_id,row.mutation_id),
