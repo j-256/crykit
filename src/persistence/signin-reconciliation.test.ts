@@ -29,6 +29,12 @@ async function setup(guest = progress('guest'), initial = workspace(createBlankL
   const create = () => { const controller = reconciliation.createSigninReconciliation(options); controllers.push(controller); return controller }
   return { device, options, create, guest, get opens() { return opens }, get locals() { return locals }, set failOpen(value: boolean) { failOpen = value } }
 }
+async function interruptMergeActivation(controller: ReturnType<typeof reconciliation.createSigninReconciliation>) {
+  const activation = await import('./account-database')
+  const failure = vi.spyOn(activation, 'activateLocalAccountCommit').mockRejectedValueOnce(new Error('QUOTA_EXCEEDED'))
+  try { await controller.confirm(); expect(controller.getSnapshot()).toMatchObject({ phase: 'failed', reason: 'quota' }) }
+  finally { failure.mockRestore() }
+}
 it('fresh remote projection precedes choices and account-only receipt skips unchanged recapture envelopes', async () => {
   expect(typeof reconciliation.createSigninReconciliation).toBe('function')
   const fixture = await setup(), controller = fixture.create()
@@ -59,10 +65,40 @@ it('publishes actual preparation boundaries and clears feedback when review is r
   expect(controller.getSnapshot().stage).toBeUndefined()
   observed.length = 0
   await controller.choose('merge')
-  expect(observed.map(value => value.stage).filter((stage, index, stages) => stage && stage !== stages[index - 1])).toEqual(['checking-source', 'checking-account', 'comparing-records', 'preparing-review'])
+  expect(observed.map(value => value.stage).filter((stage, index, stages) => stage && stage !== stages[index - 1])).toEqual(['checking-source', 'checking-account', 'comparing-records'])
   expect(controller.getSnapshot()).toMatchObject({ phase: 'confirming', action: 'merge' })
   expect(controller.getSnapshot().stage).toBeUndefined()
   expect(await fixture.device.db.outbox.count()).toBe(0)
+})
+
+it('merge review stays ephemeral across cancellation and reload until explicit confirmation', async () => {
+  const fixture = await setup(), controller = fixture.create()
+  await controller.begin(fixture.device.token)
+  const database = fixture.device.db
+  const before = await database.profileMeta.get('active')
+  // Fresh remote discovery replaces its authenticated scan, but grants no merge ownership
+  const retainedRows = async () => (await database.syncState.toArray()).filter(row => row.id !== 'scan')
+  const rows = await retainedRows()
+  const migrations = await database.migrationJournal.toArray()
+  const recoveries = await createAccountRecoveryService(fixture.device.token).list()
+  await controller.choose('merge')
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'confirming', action: 'merge' })
+  expect(await retainedRows()).toEqual(rows)
+  expect(await database.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toBeUndefined()
+  expect(await database.syncState.get('guest-copy:pending')).toBeUndefined()
+  expect(await database.syncState.where('id').startsWith('guest-copy:').count()).toBe(0)
+  expect(await database.migrationJournal.toArray()).toEqual(migrations)
+  expect(await createAccountRecoveryService(fixture.device.token).list()).toEqual(recoveries)
+  expect(await database.outbox.count()).toBe(0)
+  expect(await database.profileMeta.get('active')).toEqual(before)
+  await controller.dispose()
+  const reopened = fixture.create(); await reopened.begin(fixture.device.token)
+  expect(reopened.getSnapshot().phase).toBe('choosing')
+  await reopened.choose('merge'); await reopened.cancel()
+  expect(await database.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toBeUndefined()
+  expect(await database.syncState.get('guest-copy:pending')).toBeUndefined()
+  expect(await database.migrationJournal.toArray()).toEqual(migrations)
+  expect(fixture.locals).toBe(1)
 })
 
 it('merge activation survives failed UI selection and exact reload without importing twice', async () => {
@@ -123,11 +159,19 @@ it('fresh offline cache is not admission while an exact completed decision can o
 it('double confirmation installs only one exact merge and cancellation after activation cannot roll it back', async () => {
   const fixture = await setup(), controller = fixture.create()
   await controller.begin(fixture.device.token); await controller.choose('merge')
+  const copyId = controller.getSnapshot().preview!.copyId
+  const migrations = await fixture.device.db.migrationJournal.count()
   const one = controller.confirm(), two = controller.confirm()
   expect(two).toBe(one)
   await Promise.all([one, two])
   const fence = await fixture.device.db.profileMeta.get('active')
   expect(await fixture.device.db.outbox.count()).toBe(1)
+  expect(await fixture.device.db.migrationJournal.count()).toBe(migrations + 1)
+  expect(await fixture.device.db.migrationJournal.get(copyId)).toBeDefined()
+  expect(await fixture.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+  const { openAccountJson } = await import('../workspace/account-cache')
+  const row = (await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY))!
+  expect(await openAccountJson(fixture.device.db, fixture.device.token, row.ref, reconciliation.SigninDecisionSchema)).toMatchObject({ copyId, action: 'merge', status: 'complete' })
   await controller.cancel()
   expect(controller.getSnapshot().phase).toBe('complete')
   expect(fixture.locals).toBe(0)
@@ -150,7 +194,7 @@ it('cancel drains a delayed preparation before returning through the provider lo
   expect(fixture.locals).toBe(1); expect(fixture.opens).toBe(0)
   expect(await fixture.device.db.outbox.count()).toBe(0)
 })
-it('cancellation after durable review staging cannot publish a late confirmation', async () => {
+it('cancellation after confirmed staging cannot publish a late activation', async () => {
   const fixture = await setup(), copies = await import('../workspace/guest-copy')
   const createCopy = copies.createGuestCopyService
   let release!: () => void, prepared!: () => void
@@ -158,17 +202,19 @@ it('cancellation after durable review staging cannot publish a late confirmation
   const durable = new Promise<void>(resolve => { prepared = resolve })
   vi.spyOn(copies, 'createGuestCopyService').mockImplementation((...args) => {
     const copy = createCopy(...args)
-    return { ...copy, async prepareSigninMerge(...input) { await copy.prepareSigninMerge(...input); prepared(); await held } }
+    return { ...copy, async prepareReviewedSigninMerge(...input) { const staged = await copy.prepareReviewedSigninMerge(...input); prepared(); await held; return staged } }
   })
   const controller = fixture.create(), observed: reconciliation.SigninReconciliationState[] = []
   controller.subscribe(() => observed.push(controller.getSnapshot()))
   await controller.begin(fixture.device.token)
-  const choosing = controller.choose('merge')
+  await controller.choose('merge')
+  observed.length = 0
+  const choosing = controller.confirm()
   await durable
-  expect(controller.getSnapshot().stage).toBe('preparing-review')
+  expect(controller.getSnapshot().stage).toBe('preparing-merge')
   const cancelled = controller.cancel()
   release(); await Promise.all([choosing, cancelled])
-  expect(observed.some(value => value.phase === 'confirming')).toBe(false)
+  expect(observed.some(value => value.phase === 'committing')).toBe(false)
   expect(controller.getSnapshot()).toMatchObject({ phase: 'cancelled', stage: undefined })
   const { openAccountJson } = await import('../workspace/account-cache')
   const row = (await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY))!
@@ -495,6 +541,7 @@ it('recovery preparing decision resumes exactly and opening retry does not react
   fixture.options.entry = { kind: 'recovery', pointId: 'AAAAAAAAAAAAAAAAAAAAAA' }
   const first = fixture.create(); await first.begin(fixture.device.token); await first.choose('merge')
   const preview = first.getSnapshot().preview!
+  await interruptMergeActivation(first)
   await first.dispose()
   const resumed = fixture.create(); await resumed.begin(fixture.device.token)
   expect(resumed.getSnapshot()).toMatchObject({ phase: 'confirming', preview: { copyId: preview.copyId } })
@@ -534,6 +581,7 @@ it.each(['pending', 'complete', 'cancelled', 'mismatched', 'ambiguous', 'manual'
   fixture.options.entry = { kind: 'recovery', pointId }
   const first = fixture.create(); await first.begin(fixture.device.token); await first.choose('merge')
   const copyId = first.getSnapshot().preview!.copyId
+  await interruptMergeActivation(first)
   await first.dispose()
   const { openAccountJson } = await import('../workspace/account-cache')
   const { writeSyncState } = await import('../account/sync/outbox')
@@ -723,5 +771,207 @@ it.each(['point-count', 'account-bytes'] as const)('renders honest capacity guid
   expect(rendered).toContain('Pending recovery points stay protected')
   expect(rendered).toContain('does not free capacity')
   expect(rendered).not.toContain('Storage is full')
+  expect(await fixture.device.db.outbox.count()).toBe(0)
+})
+
+it.each(['quota', 'lost-response'] as const)('confirmed merge resolves %s staging without copying twice', async failure => {
+  const fixture = await setup(), controller = fixture.create()
+  await controller.begin(fixture.device.token)
+  const copies = await import('../workspace/guest-copy'), create = copies.createGuestCopyService
+  let failed = false
+  vi.spyOn(copies, 'createGuestCopyService').mockImplementation((...args) => {
+    const copy = create(...args)
+    return { ...copy, async prepareReviewedSigninMerge(...input) {
+      if (failed) return copy.prepareReviewedSigninMerge(...input)
+      failed = true
+      if (failure === 'quota') throw new Error('QUOTA_EXCEEDED')
+      await copy.prepareReviewedSigninMerge(...input)
+      throw new Error('lost successful stage response')
+    } }
+  })
+  await controller.choose('merge')
+  const copyId = controller.getSnapshot().preview!.copyId
+  const before = await fixture.device.db.profileMeta.get('active')
+  const migrations = await fixture.device.db.migrationJournal.count()
+  await controller.confirm()
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'failed', reason: failure === 'quota' ? 'quota' : 'preparation-failed' })
+  expect(await fixture.device.db.profileMeta.get('active')).toEqual(before)
+  expect(await fixture.device.db.outbox.count()).toBe(0)
+  expect(!!await fixture.device.db.syncState.get('guest-copy:pending')).toBe(failure === 'lost-response')
+  expect(!!await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toBe(failure === 'lost-response')
+  const { openAccountJson } = await import('../workspace/account-cache')
+  const row = await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)
+  const savedDecision = row ? await openAccountJson(fixture.device.db, fixture.device.token, row.ref, reconciliation.SigninDecisionSchema) : undefined
+  await controller.retry()
+  if (failure === 'quota') {
+    expect(controller.getSnapshot().phase).toBe('choosing')
+    await controller.choose('merge')
+  } else expect(controller.getSnapshot()).toMatchObject({ phase: 'confirming', preview: { copyId } })
+  const confirmedId = controller.getSnapshot().preview!.copyId
+  await controller.confirm()
+  expect(controller.getSnapshot().phase).toBe('complete')
+  expect(await fixture.device.db.migrationJournal.count()).toBe(migrations + 1)
+  expect(await fixture.device.db.migrationJournal.get(confirmedId)).toBeDefined()
+  expect(await fixture.device.db.outbox.count()).toBe(1)
+  if (savedDecision) {
+    const complete = (await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY))!
+    expect(await openAccountJson(fixture.device.db, fixture.device.token, complete.ref, reconciliation.SigninDecisionSchema)).toEqual({ ...savedDecision, status: 'complete' })
+  }
+})
+
+it('cancel before confirmed staging retires the live review without a saved decision', async () => {
+  const fixture = await setup(), controller = fixture.create()
+  await controller.begin(fixture.device.token)
+  const copies = await import('../workspace/guest-copy'), create = copies.createGuestCopyService
+  let entered!: () => void, release!: () => void
+  const started = new Promise<void>(resolve => { entered = resolve })
+  const held = new Promise<void>(resolve => { release = resolve })
+  vi.spyOn(copies, 'createGuestCopyService').mockImplementation((...args) => {
+    const copy = create(...args)
+    return { ...copy, async prepareReviewedSigninMerge(...input) { entered(); await held; return copy.prepareReviewedSigninMerge(...input) } }
+  })
+  await controller.choose('merge')
+  const copyId = controller.getSnapshot().preview!.copyId
+  const confirming = controller.confirm()
+  await started
+  const cancelled = controller.cancel()
+  release(); await Promise.all([confirming, cancelled])
+  expect(controller.getSnapshot().phase).toBe('cancelled')
+  expect(await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toBeUndefined()
+  expect(await fixture.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+  expect(await fixture.device.db.migrationJournal.get(copyId)).toBeUndefined()
+  expect(await fixture.device.db.outbox.count()).toBe(0)
+  expect(fixture.locals).toBe(1)
+})
+
+it.each(['source', 'account', 'profile'] as const)('Confirm rejects a stale %s owner before staging a merge', async changed => {
+  const fixture = await setup()
+  let sourceCurrent = true
+  const capture = fixture.options.captureGuest!
+  fixture.options.captureGuest = async () => {
+    const source = (await capture())!
+    return { snapshot: ownWorkspaceSnapshot(source.snapshot, { async check() { if (!sourceCurrent) throw new Error('SIGNIN_SOURCE_CHANGED') }, async dispose() {} }) }
+  }
+  const controller = fixture.create()
+  await controller.begin(fixture.device.token); await controller.choose('merge')
+  const copyId = controller.getSnapshot().preview!.copyId
+  if (changed === 'source') sourceCurrent = false
+  else if (changed === 'account') {
+    const repo = await fixture.device.open(), current = await repo.readWorkspace()
+    await repo.commitWorkspace({ ...current, planner: { ...current.planner, localData: { ...current.planner.localData, modSetup: { version: 1, state: 'completed' } } } }, current.planner.localData.revision)
+  } else (await import('../account/profile')).invalidateProfile()
+  await controller.confirm()
+  expect(controller.getSnapshot().phase).toBe('failed')
+  expect(await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toBeUndefined()
+  expect(await fixture.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+  expect(await fixture.device.db.migrationJournal.get(copyId)).toBeUndefined()
+  expect(fixture.opens).toBe(0)
+})
+
+it.each(['cloned', 'foreign-service', 'disposed', 'disposed-account'] as const)('sign-in preparation refuses a %s review handle', async invalid => {
+  const fixture = await setup(), controller = fixture.create()
+  await controller.begin(fixture.device.token)
+  const token = fixture.device.token, account = await createReviewedReplacementService(fixture.device.db, token).refresh()
+  const { createGuestCopyService } = await import('../workspace/guest-copy')
+  const copy = createGuestCopyService(async () => (await fixture.options.captureGuest!())!)
+  const other = createGuestCopyService(async () => (await fixture.options.captureGuest!())!)
+  const handle = await copy.previewSigninMergeReview(token, account)
+  const receipt = { id: reconciliation.SIGNIN_DECISION_KEY, expected: undefined, value: {} }
+  try {
+    if (invalid === 'disposed') await handle.dispose()
+    if (invalid === 'disposed-account') await account.dispose()
+    const operation = invalid === 'foreign-service' ? other : copy
+    await expect(operation.prepareReviewedSigninMerge(token, invalid === 'cloned' ? { ...handle } : handle, receipt)).rejects.toThrow('SIGNIN_REVIEW_REQUIRED')
+    expect(await fixture.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+    expect(await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toBeUndefined()
+  } finally { await copy.dispose(); await other.dispose(); await account.dispose() }
+})
+
+it('cancel during confirmed payload staging removes uninstalled data before returning locally', async () => {
+  const fixture = await setup(), controller = fixture.create()
+  await controller.begin(fixture.device.token); await controller.choose('merge')
+  const copyId = controller.getSnapshot().preview!.copyId
+  const before = await fixture.device.db.profileMeta.get('active')
+  const previousPayloads = new Set((await fixture.device.db.stagedCipherChunks.toArray()).map(chunk => chunk.payloadId))
+  const stores = await import('../workspace/account-local-store'), create = stores.createAccountLocalStore
+  let entered!: () => void, release!: () => void
+  const started = new Promise<void>(resolve => { entered = resolve })
+  const held = new Promise<void>(resolve => { release = resolve })
+  vi.spyOn(stores, 'createAccountLocalStore').mockImplementation((...args) => {
+    const store = create(...args)
+    return { ...store, async persistOperation(...input) { entered(); await held; return store.persistOperation(...input) } }
+  })
+  const confirming = controller.confirm()
+  try {
+    await started
+    expect(controller.getSnapshot().stage).toBe('preparing-merge')
+    expect(await fixture.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+    const cancelled = controller.cancel()
+    await Promise.resolve(); expect(fixture.locals).toBe(0)
+    release(); await Promise.all([confirming, cancelled])
+    expect(controller.getSnapshot().phase).toBe('cancelled')
+    expect(await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toBeUndefined()
+    expect(await fixture.device.db.syncState.get(`guest-copy:${copyId}`)).toBeUndefined()
+    expect(await fixture.device.db.migrationJournal.get(copyId)).toBeUndefined()
+    expect(await fixture.device.db.outbox.count()).toBe(0)
+    expect(await fixture.device.db.profileMeta.get('active')).toEqual(before)
+    // Fresh discovery may install scan records; only uninstalled staging payloads must disappear
+    const installed = new Set((await fixture.device.db.encryptedRevisions.toArray()).map(record => record.payloadId))
+    const abandoned = (await fixture.device.db.stagedCipherChunks.toArray()).filter(chunk => !previousPayloads.has(chunk.payloadId) && !installed.has(chunk.payloadId)).map(chunk => chunk.payloadId)
+    expect(abandoned).toEqual([])
+    expect(fixture.locals).toBe(1)
+  } finally { release(); await confirming }
+})
+
+it('disposing the exact merge review during staging cannot install its saved copy', async () => {
+  const fixture = await setup(), controller = fixture.create()
+  await controller.begin(fixture.device.token)
+  const token = fixture.device.token, account = await createReviewedReplacementService(fixture.device.db, token).refresh()
+  const { createGuestCopyService } = await import('../workspace/guest-copy')
+  const copy = createGuestCopyService(async () => (await fixture.options.captureGuest!())!)
+  const review = await copy.previewSigninMergeReview(token, account)
+  const stores = await import('../workspace/account-local-store'), create = stores.createAccountLocalStore
+  let entered!: () => void, release!: () => void
+  const started = new Promise<void>(resolve => { entered = resolve })
+  const held = new Promise<void>(resolve => { release = resolve })
+  vi.spyOn(stores, 'createAccountLocalStore').mockImplementation((...args) => {
+    const store = create(...args)
+    return { ...store, async persistOperation(...input) { entered(); await held; return store.persistOperation(...input) } }
+  })
+  const preparing = copy.prepareReviewedSigninMerge(token, review, { id: reconciliation.SIGNIN_DECISION_KEY, expected: undefined, value: {} })
+  try {
+    await started
+    await review.dispose()
+    const refused = expect(preparing).rejects.toThrow('SIGNIN_REVIEW_REQUIRED')
+    release(); await refused
+    expect(await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toBeUndefined()
+    expect(await fixture.device.db.syncState.get(`guest-copy:${review.preview.copyId}`)).toBeUndefined()
+    expect(await fixture.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+  } finally { release(); await preparing.catch(() => {}); await copy.dispose(); await account.dispose() }
+})
+
+it('Confirm refuses a preparing receipt changed after staging even when operation and copy IDs match', async () => {
+  const fixture = await setup(), controller = fixture.create()
+  await controller.begin(fixture.device.token)
+  const copies = await import('../workspace/guest-copy'), create = copies.createGuestCopyService
+  const { writeSyncState } = await import('../account/sync/outbox')
+  const { openAccountJson } = await import('../workspace/account-cache')
+  vi.spyOn(copies, 'createGuestCopyService').mockImplementation((...args) => {
+    const copy = create(...args)
+    return { ...copy, async prepareReviewedSigninMerge(...input) {
+      const prepared = await copy.prepareReviewedSigninMerge(...input)
+      const row = (await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY))!
+      const value = await openAccountJson(fixture.device.db, fixture.device.token, row.ref, reconciliation.SigninDecisionSchema)
+      await writeSyncState(fixture.device.db, fixture.device.token, row.id, { ...value, source: { ...value.source!, metadataDigest: 'different-source' } }, row)
+      return prepared
+    } }
+  })
+  await controller.choose('merge')
+  const copyId = controller.getSnapshot().preview!.copyId
+  const before = await fixture.device.db.profileMeta.get('active')
+  await controller.confirm()
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'failed', reason: 'receipt-mismatch' })
+  expect(await fixture.device.db.profileMeta.get('active')).toEqual(before)
+  expect(await fixture.device.db.migrationJournal.get(copyId)).toBeUndefined()
   expect(await fixture.device.db.outbox.count()).toBe(0)
 })

@@ -67,6 +67,7 @@ const preparationLabels: Record<SigninPreparationStage, string> = {
   'checking-source': 'Checking source records and retained history...',
   'comparing-records': 'Comparing source and account records...',
   'preparing-review': 'Preparing saved versions for review...',
+  'preparing-merge': 'Preparing your confirmed merge...',
 }
 
 function PreparationFeedback({ state, title }: { state: SigninReconciliationState; title: string }) {
@@ -130,6 +131,7 @@ export function SigninReconciliation({ state, actions, sourceLabel = 'This devic
       : state.phase === 'confirming' ? <section className="signin-review">
         {state.action === 'merge' ? <>
           <p>Combine meaningful work, keeping saved versions when records conflict. Progress matches by exact Playthrough identity, never by name.</p>
+          {!state.preview?.resumable && <p>This review is held until you confirm. Reloading before confirmation returns to choices.</p>}
           {state.preview && <>
             <h2><Icon name="layers"/>Included records</h2>
             <ul className="signin-records">{state.preview.closure.map(record => <li key={record.key}><Icon name="check"/><span>{recordLabel(record)}</span></li>)}</ul>

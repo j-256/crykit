@@ -689,3 +689,35 @@ it('fencesSavedCopyRecoveryAndDownloadWhenItsProfileIsRetired', async () => {
   expect(await database.outbox.count()).toBe(0)
   await service.dispose()
 })
+
+it('resumes a native V1 preparing sign-in receipt and its exact saved copy after reload', async () => {
+  const { token, database, capture } = await nativeCopySetup()
+  const { SigninDecisionSchema, SIGNIN_DECISION_KEY } = await import('../workspace/signin-reconciliation')
+  const { stableWorkspaceSnapshotIdentity } = await import('../workspace/reviewed-replacement')
+  const { GuestCopyJournalSchema } = await import('../workspace/guest-copy-journal')
+  const { disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
+  const source = await capture()
+  const identity = await stableWorkspaceSnapshotIdentity(source)
+  await disposeWorkspaceSnapshot(source)
+  const copy = createGuestCopyService(capture)
+  const preview = await copy.previewSigninMerge(token)
+  const value = SigninDecisionSchema.parse({ version: 1, kind: 'signin-decision', accountId: token.accountId, source: identity, action: 'merge', operationId: accountLocalId(), copyId: preview.copyId, status: 'preparing' })
+  await copy.prepareSigninMerge(token, preview, { id: SIGNIN_DECISION_KEY, expected: undefined, value })
+  const row = (await database.syncState.get(SIGNIN_DECISION_KEY))!
+  const saved = (await database.syncState.get(`guest-copy:${preview.copyId}`))!
+  expect(await openAccountJson(database, token, saved.ref, GuestCopyJournalSchema)).toMatchObject({ version: 1, preview: { copyId: preview.copyId } })
+  expect(await openAccountJson(database, token, row.ref, SigninDecisionSchema)).toEqual(value)
+  expect(await database.migrationJournal.count()).toBe(1)
+  expect(await database.outbox.count()).toBe(0)
+  await copy.dispose()
+  const resumed = createGuestCopyService(async () => { throw new Error('Must use the saved target') })
+  try {
+    const review = await resumed.previewSigninMerge(token, preview.copyId)
+    expect(review.resumable).toBe(true)
+    const receipt = await resumed.commitGuestCopy(token, review, { id: SIGNIN_DECISION_KEY, expected: row, value: { ...value, status: 'complete' } })
+    expect(receipt.copyId).toBe(preview.copyId)
+    expect(await database.syncState.get('guest-copy:pending')).toBeUndefined()
+    expect(await database.migrationJournal.get(preview.copyId)).toBeDefined()
+    expect(await database.outbox.count()).toBe(1)
+  } finally { await resumed.dispose() }
+})

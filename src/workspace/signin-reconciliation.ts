@@ -10,7 +10,7 @@ import { commitAccountReceipt, prepareAccountReceiptAttachment, releaseAccountAc
 import { jsonEqual } from '../persistence/local-data'
 import { accountLocalId, openAccountJson } from './account-cache'
 import { captureExistingGuestWorkspaceForSignin, type GuestCopySource } from './guest-repository'
-import { createGuestCopyService, type GuestCopyPreview } from './guest-copy'
+import { createGuestCopyService, type GuestCopyPreview, type SigninMergeReview, type PreparedSigninMerge } from './guest-copy'
 import { GuestCopyJournalSchema, PENDING_COPY, SAVED_COPY_PREFIX } from './guest-copy-journal'
 import { captureWorkspaceDocuments, privateRecordKey, type WorkspaceState } from './documents'
 import { classifySigninLocalData, type SigninLocalSummary } from './signin-local-data'
@@ -72,7 +72,7 @@ export async function readPendingRecoveryEntry(token: ProfileToken): Promise<Sig
   } finally { database.close() }
 }
 export type SigninAction = 'merge' | 'account' | 'device'
-export type SigninPreparationStage = 'waiting-for-sync' | 'reading-source' | 'opening-account' | 'syncing-account' | 'checking-account' | 'checking-source' | 'comparing-records' | 'preparing-review'
+export type SigninPreparationStage = 'waiting-for-sync' | 'reading-source' | 'opening-account' | 'syncing-account' | 'checking-account' | 'checking-source' | 'comparing-records' | 'preparing-review' | 'preparing-merge'
 export type SigninPhase = 'inspecting' | 'preparing' | 'choosing' | 'confirming' | 'committing' | 'opening' | 'complete' | 'cancelled' | 'failed'
 export interface SigninDisplaySummary extends SigninLocalSummary {
   readonly recordNames?: Readonly<Record<string, string>>
@@ -143,6 +143,9 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   let token: ProfileToken, database: AccountDatabase | undefined
   let source: GuestCopySource | undefined, identity: StableWorkspaceSnapshotIdentity | null = null
   let review: ReviewedAccountData | undefined, copy: ReturnType<typeof createGuestCopyService> | undefined
+  // This owner is deliberately absent from storage until Confirm; reload must ask again
+  let pendingMerge: { readonly review: SigninMergeReview; readonly decision: SigninDecision; readonly expected?: EncryptedSyncState } | undefined
+  let preparedMerge: PreparedSigninMerge | undefined
   let saved: { row: EncryptedSyncState; value: SigninDecision } | undefined
   let scheduler: SyncSchedulerOwner | undefined, unregister: (() => void) | undefined
   let active: Promise<void> | undefined, disposed = false, activated = false, cancelling = false
@@ -176,6 +179,8 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   }
   async function releaseReview() { const old = review; review = undefined; await old?.dispose() }
   async function releaseSource() {
+    await preparedMerge?.dispose(); preparedMerge = undefined
+    await pendingMerge?.review.dispose(); pendingMerge = undefined
     await copy?.dispose(); copy = undefined
     const old = source; source = undefined
     if (old) await disposeWorkspaceSnapshot(old.snapshot)
@@ -366,16 +371,16 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       publish({ phase: 'preparing', action, preview: undefined, reason: undefined })
       preparationStage('checking-source'); await currentSource()
       preparationStage('checking-account'); await freshReview()
+      await pendingMerge?.review.dispose(); pendingMerge = undefined
       const value: SigninDecision = { version: 1, kind: 'signin-decision', accountId: token.accountId, source: identity, action, operationId: accountLocalId(), status: 'preparing' }
       if (action === 'merge') {
         copy ??= createGuestCopyService(async () => { await currentSource(); return source! }, check)
         preparationStage('comparing-records')
-        const preview = await copy.previewSigninMerge(token)
-        value.copyId = preview.copyId
-        preparationStage('preparing-review')
-        await copy.prepareSigninMerge(token, preview, { id: decisionKey, expected: saved?.row, value })
-        saved = await readDecision(); operationId = value.operationId
-        check(); publish({ phase: 'confirming', preview })
+        const mergeReview = await copy.previewSigninMergeReview(token, review!)
+        value.copyId = mergeReview.preview.copyId
+        operationId = value.operationId
+        pendingMerge = { review: mergeReview, decision: value, expected: saved?.row }
+        check(); publish({ phase: 'confirming', preview: mergeReview.preview })
       } else { preparationStage('preparing-review'); await remember(value); check(); publish({ phase: 'confirming' }) }
     })
   }
@@ -385,16 +390,28 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       check()
       saved = await readDecision()
       if (activated || saved?.value.status === 'complete' && saved.value.operationId === operationId) { activated = true; await open(); return }
-      if (!saved || saved.value.status !== 'preparing' || state.phase !== 'confirming' || saved.value.operationId !== operationId || saved.value.action !== state.action || !jsonEqual(saved.value.source, identity)) throw new Error('SIGNIN_REVIEW_REQUIRED')
+      const pending = pendingMerge
+      const reviewed = pending?.decision ?? saved?.value
+      if (!reviewed || reviewed.status !== 'preparing' || state.phase !== 'confirming' || reviewed.operationId !== operationId || reviewed.action !== state.action || !jsonEqual(reviewed.source, identity)) throw new Error('SIGNIN_REVIEW_REQUIRED')
       // Preserve the exact reviewed action and preview while checking its authority again
       publish({ phase: 'preparing', reason: undefined })
       preparationStage('checking-account'); await freshReview()
+      if (pending) {
+        preparationStage('checking-source'); await currentSource(); check()
+        preparationStage('preparing-merge')
+        preparedMerge = await copy!.prepareReviewedSigninMerge(token, pending.review, { id: decisionKey, expected: pending.expected, value: pending.decision })
+        // Readback is authoritative when staging persisted but its response was lost
+        saved = await readDecision(); check()
+      }
+      // IDs alone cannot authorize a receipt rewritten while preparation was returning
+      if (!saved || !jsonEqual(saved.value, reviewed)) throw new Error('SIGNIN_RECEIPT_MISMATCH')
       const decision = { ...saved.value, status: 'complete' as const }
       const receipt = { id: decisionKey, expected: saved.row, value: decision }
       publish({ phase: 'committing', reason: undefined })
       if (decision.action === 'merge') {
         if (!copy || !state.preview || decision.copyId !== state.preview.copyId) throw new Error('SIGNIN_RECEIPT_MISMATCH')
-        await copy.commitGuestCopy(token, state.preview, receipt)
+        if (preparedMerge) await preparedMerge.activate(receipt)
+        else await copy.commitGuestCopy(token, state.preview, receipt)
       } else {
         const replacements = service()
         if (decision.action === 'device' && state.replacement?.state !== 'paused') await currentSource()

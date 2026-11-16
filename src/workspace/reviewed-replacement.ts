@@ -157,6 +157,17 @@ interface Review {
   disposed: boolean
 }
 const reviews = new WeakMap<ReviewedAccountData, Review>()
+// Merge review borrows this exact live account capture, never an equivalent public descriptor
+// Recheck captured ownership and the selected fence before granting preparation authority
+export async function assertReviewedAccountData(token: ProfileToken, handle: ReviewedAccountData, expected?: AccountFence): Promise<void> {
+  assertActiveProfile(token)
+  const review = reviews.get(handle)
+  if (!review || review.disposed || review.token !== token) throw new Error('SIGNIN_REVIEW_REQUIRED')
+  await assertOwnedWorkspaceSnapshot(review.snapshot)
+  await assertWorkspaceSnapshotCurrent(review.snapshot)
+  if (!same(await review.database.profileMeta.get('active'), review.fence) || expected && !same(expected, review.fence)) throw new Error('LOCAL_REVISION_CONFLICT')
+  assertActiveProfile(token)
+}
 export interface ReviewedReplacementStage {
   readonly id: string; readonly expected: AccountFence; readonly head: CipherRef
   dispose(): Promise<void>

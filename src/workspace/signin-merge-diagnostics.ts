@@ -1,7 +1,7 @@
 import { observeBackupJsonWork, type BackupJsonByteCounter } from '../interchange/workspace-backup-json'
 
 const MAX_EVENTS = 128
-const STAGES = ['signin', 'chooser', 'review', 'confirm', 'local-open', 'remote-accepted', 'journey', 'waiting-for-sync', 'reading-source', 'opening-account', 'syncing-account', 'checking-account', 'checking-source', 'comparing-records', 'preparing-review'] as const
+const STAGES = ['signin', 'chooser', 'review', 'confirm', 'local-open', 'remote-accepted', 'journey', 'waiting-for-sync', 'reading-source', 'opening-account', 'syncing-account', 'checking-account', 'checking-source', 'comparing-records', 'preparing-review', 'preparing-merge'] as const
 const OUTCOMES = ['started', 'complete', 'failed', 'cancelled'] as const
 const ERROR_CODES = ['quota', 'review-stale', 'source-changed', 'receipt-mismatch', 'offline', 'signin-required', 'cancelled', 'profile-changed', 'account-unavailable', 'saved-copy-review-required', 'replacement-review-required', 'opening-failed', 'preparation-failed', 'unexpected'] as const
 export type SigninMergeStage = typeof STAGES[number]

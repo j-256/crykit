@@ -159,3 +159,14 @@ it('shows elapsed waiting time without repeated live announcements and resets af
   expect(container.textContent).not.toContain('30 seconds elapsed')
   expect(container.textContent).not.toContain('This is taking longer than expected')
 })
+
+it('distinguishes unsaved merge review from confirmed durable preparation', async () => {
+  const controller = actions()
+  await act(async () => root.render(<SigninReconciliation state={{ ...state, phase: 'confirming', action: 'merge' }} actions={controller}/>))
+  expect(container.textContent).toContain('Reloading before confirmation returns to choices')
+  await click('Confirm merge')
+  expect(controller.confirm).toHaveBeenCalledOnce()
+  await act(async () => root.render(<SigninReconciliation state={{ ...state, phase: 'preparing', action: 'merge', stage: 'preparing-merge' }} actions={controller}/>))
+  expect(container.querySelector('[role="status"]')?.textContent).toContain('Preparing your confirmed merge')
+  expect(container.textContent).not.toContain('Reloading before confirmation')
+})
