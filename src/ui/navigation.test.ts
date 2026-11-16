@@ -373,6 +373,16 @@ it('routes hosted opaque shares without interpreting them as portable or private
   const id = 'AAAAAAAAAAAAAAAAAAAAAA'
   const route = parseAppRoute(`#/s/${id}`)
   expect(route.page).toEqual({ page: 'hosted-share', shareId: id })
-  expect(formatAppRoute(route)).toBe(`#/s/${id}`)
-  for (const suffix of ['short', `${id}/private`, `${id}?owner=private`, 'AAAAAAAAAAAAAAAAAAAAAB']) expect(parseAppRoute(`#/s/${suffix}`).page.page).toBe('unresolved')
+  expect(formatAppRoute(route)).toBe(`/s/${id}`)
+  for (const suffix of ['short', `${id}/private`, 'AAAAAAAAAAAAAAAAAAAAAB']) expect(parseAppRoute(`#/s/${suffix}`).page.page).toBe('unresolved')
+})
+
+it('round-trips clean kind hints and strips non-authoritative share query and fragment data', () => {
+  for (const id of ['Abc0123-_xy', 'AAAAAAAAAAAAAAAAAAAAAA']) for (const [prefix, kind] of [['b', 'build'], ['t', 'team'], ['s', undefined]] as const) {
+    const value = parseAppRoute(`/${prefix}/${id}?private=discard#ignored`)
+    expect(value).toEqual({ page: { page: 'hosted-share', shareId: id, ...(kind ? { kind } : {}) }, overlays: [], query: {} })
+    expect(formatAppRoute(value)).toBe(`/${prefix}/${id}`)
+    expect(parseAppRoute(formatAppRoute(value))).toEqual(value)
+    expect(parseAppRoute(`/${prefix}/${id}/extra`).page.page).toBe('unresolved')
+  }
 })

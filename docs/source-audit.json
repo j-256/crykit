@@ -53867,7 +53867,8 @@
       "files": [
         "docs/rum-deployment.md",
         "index.html",
-        "scripts/rum-plugin.ts"
+        "scripts/rum-plugin.ts",
+        "src/ui/navigation/history.ts"
       ],
       "catalogs": [],
       "outcomes": {

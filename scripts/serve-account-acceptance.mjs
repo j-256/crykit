@@ -59,9 +59,18 @@ for (const line of (await readFile(resolve(assets, '_headers'), 'utf8')).split('
   if (line.startsWith('/')) { rule = { path: line.trim(), headers: {} }; staticHeaders.push(rule) }
   else if (rule && /^\s+[^:]+:/.test(line)) { const split = line.indexOf(':'); rule.headers[line.slice(0, split).trim()] = line.slice(split + 1).trim() }
 }
+// Mirror only the shipped static single-segment proxies; all other missing paths remain 404
+const assetProxies = (await readFile(resolve(assets, '_redirects'), 'utf8').catch(error => { if (error.code === 'ENOENT') return ''; throw error })).split('\n').filter(line => line.trim() && !line.trim().startsWith('#')).map(line => {
+  const [from, to, status, extra] = line.trim().split(/\s+/)
+  const shell = /^\/[bts]\/:shareId$/.test(from) && to === '/hosted-share.html'
+  const recovery = /^\/[bts]\/assets\/startup-recovery-:hash\.js$/.test(from) && to === '/hosted-share-recovery.js'
+  if ((!shell && !recovery) || status !== '200' || extra) throw new Error('Unsupported acceptance asset proxy')
+  return { from: new RegExp('^' + from.replace('.', '\\.').replace(':shareId', '[^/]+').replace(':hash', '[^/]+') + '$'), to }
+})
 async function asset(request) {
   const url = new URL(request.url)
-  const path = resolve(assets, '.' + decodeURIComponent(url.pathname), url.pathname.endsWith('/') ? 'index.html' : '')
+  const pathname = assetProxies.find(rule => rule.from.test(url.pathname))?.to ?? url.pathname
+  const path = resolve(assets, '.' + decodeURIComponent(pathname), pathname.endsWith('/') ? 'index.html' : '')
   if (!path.startsWith(assets + '/')) return new LocalResponse('Not found', { status: 404 })
   const headers = { 'content-type': mime[extname(path)] ?? 'application/octet-stream' }
   for (const rule of staticHeaders) if (rule.path.endsWith('*') ? url.pathname.startsWith(rule.path.slice(0, -1)) : url.pathname === rule.path) Object.assign(headers, rule.headers)

@@ -81,7 +81,7 @@ export async function runDeletion(job: ServiceJob, context: ServiceContext): Pro
       await appendRevocation(event, context)
       context.checkpoint('deletion.share-ledger.acknowledged')
       const lease = jobGuard(job, context)
-      const receipt = JSON.stringify({shareId:stop.share_id,revision:stop.revision+1,active:false,url:`${context.env.SERVICE_ORIGIN}/#/s/${stop.share_id}`})
+      const receipt = JSON.stringify({shareId:stop.share_id,revision:stop.revision+1,active:false,url:`${context.env.SERVICE_ORIGIN}/s/${stop.share_id}`})
       await runGuardedBatch(db, {sql:`SELECT EXISTS (${lease.sql}) AND EXISTS (SELECT 1 FROM share_mutations m JOIN shares s ON s.id = m.share_id WHERE m.account_id = ? AND m.mutation_id = ? AND m.digest = ? AND m.event = ? AND m.receipt IS NULL AND s.state = 'stopping' AND s.revision = ?)`,bindings:[...lease.bindings,accountId,stop.mutation_id,stop.digest,stop.event,stop.revision]},[
         db.prepare("UPDATE shares SET state = 'stopped',revision = revision + 1,updated_at = ? WHERE id = ?").bind(context.now(),stop.share_id),
         db.prepare('UPDATE share_mutations SET receipt = ? WHERE account_id = ? AND mutation_id = ?').bind(receipt,accountId,stop.mutation_id),

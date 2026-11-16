@@ -2,7 +2,7 @@ import { bundledEntityRouteName, type EntityRouteNameResolver } from '../entity-
 import { entityDefinitionKey } from '../../domain/core'
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { type AppRoute, type Destination, BUILDS_ROUTE } from './types.ts'
-import { parseAppRoute, formatAppRoute } from './routes.ts'
+import { parseAppRoute, formatAppRoute, browserRouteHref, readBrowserRoute, isCurrentRouteHref } from './routes.ts'
 import { routeTitle, isRouteWithin, parentRoute, routeDestination } from './hierarchy.ts'
 import { navigationState, withNavigationState, NAVIGATION_EVENT, writeRouteHistory } from './history.ts'
 
@@ -26,7 +26,7 @@ export interface NavigationController {
 }
 
 export function useNavigationController(options: { readonly resolveEntityName?: EntityRouteNameResolver; readonly shouldBlock?: (from: AppRoute, to: AppRoute) => boolean; readonly onBlocked?: (to: AppRoute) => void } = {}): NavigationController {
-  const [route, setRoute] = useState(() => typeof window === 'undefined' ? BUILDS_ROUTE : parseAppRoute(window.location.hash))
+  const [route, setRoute] = useState(() => typeof window === 'undefined' ? BUILDS_ROUTE : readBrowserRoute())
   const acceptedRef = useRef(route)
   const acceptedIndexRef = useRef(0)
   const pendingReversalRef = useRef<{ readonly index: number; readonly hash: string } | undefined>(undefined)
@@ -51,6 +51,8 @@ export function useNavigationController(options: { readonly resolveEntityName?: 
   const href = useCallback((value: AppRoute) => formatAppRoute(value, optionsRef.current.resolveEntityName), [])
 
   const canCanonicalize = useCallback((value: AppRoute) => {
+    // Only the validated public read can choose a hosted kind, including when an Update changes it
+    if (value.page.page === 'hosted-share') return false
     const refs = [...('ref' in value.page ? [value.page.ref] : []), ...value.overlays.flatMap(overlay => 'ref' in overlay ? [overlay.ref] : [])]
     const resolve = optionsRef.current.resolveEntityName ?? bundledEntityRouteName
     // Missing exact sources keep the incoming descriptive slug until that source resolves
@@ -62,17 +64,17 @@ export function useNavigationController(options: { readonly resolveEntityName?: 
     const canonical = { ...next, ...(next.legacy ? { legacy: undefined } : {}), ...(sourceRef ? { page: { page: 'reference' as const, view: 'detail' as const, ref: sourceRef } } : {}) }
     acceptedRef.current = canonical
     setRoute(canonical)
-    const canonicalHash = href(canonical)
+    const canonicalHash = browserRouteHref(canonical, optionsRef.current.resolveEntityName)
     // Canonical slugs replace the current URL without adding a history entry or discarding state
-    if (canonical.page.page !== 'unresolved' && canCanonicalize(canonical) && window.location.hash !== canonicalHash) window.history.replaceState(window.history.state, '', canonicalHash)
+    if (canonical.page.page !== 'unresolved' && canCanonicalize(canonical) && !isCurrentRouteHref(canonicalHash)) window.history.replaceState(window.history.state, '', canonicalHash)
   }, [href, canCanonicalize])
 
   useEffect(() => {
     const page = acceptedRef.current.page
     const sourceRef = page.page === 'reference' && page.view === 'detail' && page.ref.kind === 'catalog' ? optionsRef.current.resolveEntityName?.sourceRef?.(page.ref) : undefined
     if (sourceRef && 'ref' in page && entityDefinitionKey(sourceRef) !== entityDefinitionKey(page.ref)) { accept(acceptedRef.current); return }
-    const canonicalHash = href(acceptedRef.current)
-    if (acceptedRef.current.page.page !== 'unresolved' && canCanonicalize(acceptedRef.current) && window.location.hash !== canonicalHash) window.history.replaceState(window.history.state, '', canonicalHash)
+    const canonicalHash = browserRouteHref(acceptedRef.current, optionsRef.current.resolveEntityName)
+    if (acceptedRef.current.page.page !== 'unresolved' && canCanonicalize(acceptedRef.current) && !isCurrentRouteHref(canonicalHash)) window.history.replaceState(window.history.state, '', canonicalHash)
   }, [accept, href, canCanonicalize, options.resolveEntityName])
 
   useEffect(() => {
@@ -82,7 +84,7 @@ export function useNavigationController(options: { readonly resolveEntityName?: 
     if (!existing) window.history.replaceState(withNavigationState(window.history.state, { index: initialIndex }), '', window.location.href)
     if (acceptedRef.current.legacy) accept(acceptedRef.current)
     const restore = (event: Event) => {
-      const next = parseAppRoute(window.location.hash)
+      const next = readBrowserRoute()
       const nextHash = href(next)
       const state = navigationState(event instanceof PopStateEvent ? event.state : window.history.state)
       const pending = pendingReversalRef.current
@@ -96,7 +98,7 @@ export function useNavigationController(options: { readonly resolveEntityName?: 
         return
       }
       if (!next.legacy && nextHash === href(acceptedRef.current)) {
-        if (window.location.hash !== nextHash) accept(next)
+        if (!isCurrentRouteHref(browserRouteHref(next, optionsRef.current.resolveEntityName))) accept(next)
         if (state) acceptedIndexRef.current = state.index
         return
       }

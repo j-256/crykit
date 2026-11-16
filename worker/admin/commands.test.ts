@@ -746,9 +746,9 @@ it('emailRetryAndCancelPreserveDeliveryOwnershipAndCumulativeBudget', async () =
   expect(listed.status).toBe(200)
   expect(((await listed.json()) as { items: unknown[] }).items).toHaveLength(1)
 })
-it('adminStopUsesActualFrozenPendingJournalAndTrustedLedgerReconciliation', async () => {
+it.each(['legacy', 'short'])('adminStopUsesActualFrozenPendingJournalAndTrustedLedgerReconciliation: %s', async generation => {
   const s = await setup(),
-    id = randomId(),
+    id = generation === 'legacy' ? randomId() : 'Abc0123-_xy',
     snapshot = {
       version: 6, dataGeneration: 'catalog-sources-1',
       kind: 'build',
@@ -783,6 +783,8 @@ it('adminStopUsesActualFrozenPendingJournalAndTrustedLedgerReconciliation', asyn
     .bind(id, s.accountId, JSON.stringify(snapshot))
     .run()
   expect((await s.f.request('/api/public/v1/shares/' + id)).status).toBe(200)
+  expect((await s.f.request('/api/admin/v1/shares/' + id, { headers: s.headers })).status).toBe(200)
+  expect((await s.f.request('/api/admin/v1/shares?shareId=' + id, { headers: s.headers })).status).toBe(200)
   const input = {
     ...s.input,
     target: { kind: 'share', id },

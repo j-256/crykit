@@ -1,3 +1,4 @@
+import { ShareIdSchema } from '../../src/account/share-identity'
 import { z } from 'zod'
 import { AdminListQuerySchema, adminLimits } from '../../src/account/admin-protocol'
 import { OpaqueIdSchema } from '../../src/account/protocol'
@@ -184,7 +185,7 @@ export async function adminQuery(
   }
   const detail = /^(accounts|shares|jobs)\/([^/]+)$/.exec(path)
   if (detail) {
-    if (url.search || !OpaqueIdSchema.safeParse(detail[2]).success) throw new ApiFailure('INVALID_REQUEST')
+    if (url.search || !(detail[1] === 'shares' ? ShareIdSchema : OpaqueIdSchema).safeParse(detail[2]).success) throw new ApiFailure('INVALID_REQUEST')
     const [kind, id] = [detail[1], detail[2]]
     if (kind === 'accounts') {
       // Commit sensitive-read evidence before even selecting the full email projection

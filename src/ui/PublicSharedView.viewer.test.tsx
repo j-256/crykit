@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, expect, it, vi } from 'vitest'
 import { addTestBuild, addTestDefinition, createTestLocalData, personalRef } from '../domain/test-helpers'
 import type { WorkspaceState } from '../workspace/documents'
-import { createPublicSnapshot, encodePublicSnapshot } from '../interchange/public-share'
+import { createPublicSnapshot, encodePublicSnapshot, decodePublicSnapshot } from '../interchange/public-share'
 import { CopiedPublicCheckpointView, PublicSharedView as SharedView, HostedSharedView } from './PublicSharedView'
 import { clearServiceNotice } from '../account/service-notice'
 import { preparePublicSnapshotCopy } from '../interchange/public-share-enrichment'
@@ -21,7 +21,7 @@ vi.mock('./WorkspaceProvider', () => ({ useOptionalWorkspace: () => context.curr
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 const container = document.createElement('div')
 let root = createRoot(container)
-afterEach(async () => { await act(async () => root.unmount()); root = createRoot(container); context.current = undefined; clearServiceNotice(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+afterEach(async () => { await act(async () => root.unmount()); root = createRoot(container); context.current = undefined; clearServiceNotice(); vi.restoreAllMocks(); vi.unstubAllGlobals(); window.history.replaceState(null, '', '/') })
 it('letsAViewerRetryTheSameRateLimitedLinkWithoutRequestingAReplacement', async () => {
   vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('limited', { status: 429 })).mockResolvedValueOnce(Response.json({ error: { code: 'NOT_FOUND', requestId: 'synthetic' } }, { status: 404 }))
   await act(async () => root.render(<HostedSharedView shareId="AAAAAAAAAAAAAAAAAAAAAA"/>))
@@ -221,4 +221,35 @@ it('explains an unsupported hosted generation without suggesting source substitu
   await act(async () => root.render(<HostedSharedView shareId="AAAAAAAAAAAAAAAAAAAAAA"/>))
   expect(container.textContent).toContain('unsupported data format')
   expect(container.textContent).toContain('Ask its owner to create a new link')
+})
+
+function HostedHarness({ shareId }: { shareId: string }) {
+  const controller = useNavigationController()
+  return <NavigationProvider controller={controller}><HostedSharedView shareId={shareId}/></NavigationProvider>
+}
+it.each(['/s/Abc0123-_xy', '/t/Abc0123-_xy', '/#/s/Abc0123-_xy'])('canonicalizes %s only from the validated current snapshot', async incoming => {
+  const snapshot = decodePublicSnapshot(fixture().encoded)
+  const state = { unrelated: 'retained', crykitNavigation: { index: 3 } }
+  window.history.replaceState(state, '', incoming)
+  const length = window.history.length
+  const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ snapshot, revision: 1 }))
+  await act(async () => root.render(<HostedHarness shareId="Abc0123-_xy"/>))
+  expect(window.location.pathname).toBe('/b/Abc0123-_xy')
+  expect(window.location.hash).toBe('')
+  expect(window.history.state).toEqual(state)
+  expect(window.history.length).toBe(length)
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(fetch.mock.calls[0]![0]).toBe('/api/public/v1/shares/Abc0123-_xy')
+})
+it('leaves unavailable and superseded hosted locations untouched', async () => {
+  window.history.replaceState(null, '', '/t/Abc0123-_xy')
+  vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(Response.json({ error: { code: 'NOT_FOUND', requestId: 'synthetic' } }, { status: 404 }))
+  await act(async () => root.render(<HostedHarness shareId="Abc0123-_xy"/>))
+  expect(window.location.pathname).toBe('/t/Abc0123-_xy')
+  let resolve!: (response: Response) => void
+  vi.spyOn(globalThis, 'fetch').mockReturnValueOnce(new Promise<Response>(ready => { resolve = ready }))
+  await act(async () => root.render(<HostedHarness shareId="Other123_xy"/>))
+  window.history.replaceState(null, '', '/#/inventory')
+  await act(async () => { resolve(Response.json({ snapshot: decodePublicSnapshot(fixture().encoded), revision: 1 })) })
+  expect(window.location.pathname + window.location.hash).toBe('/#/inventory')
 })

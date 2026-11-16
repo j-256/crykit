@@ -1,3 +1,4 @@
+import { canonicalizeHostedShare } from './navigation/history'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useBuildInput, useBuildInputState } from './build-input-session'
 import type { DraftActions, DraftChangeHandler } from './drafts'
@@ -41,7 +42,12 @@ export function HostedSharedView({ shareId, onSave }: { readonly shareId: string
   const [result, setResult] = useState<{ id: string; value?: PublicShare; failed?: boolean; deferred?: boolean; unsupported?: boolean }>()
   useEffect(() => {
     const controller = new AbortController()
-    void readPublishedSnapshot(shareId, controller.signal).then(value => { if (!controller.signal.aborted) setResult({ id: shareId, value }) }, error => { if (!controller.signal.aborted) setResult({ id: shareId, failed: true, unsupported: error instanceof Error && error.message === 'UNSUPPORTED_VERSION', deferred: error instanceof Error && ['RATE_LIMITED', 'SERVICE_PAUSED'].includes(error.message) }) })
+    void readPublishedSnapshot(shareId, controller.signal).then(value => {
+      if (controller.signal.aborted) return
+      setResult({ id: shareId, value })
+      // Prefixes are hints, never authority; a stale read cannot replace a successor route
+      canonicalizeHostedShare(shareId, value.snapshot.kind)
+    }, error => { if (!controller.signal.aborted) setResult({ id: shareId, failed: true, unsupported: error instanceof Error && error.message === 'UNSUPPORTED_VERSION', deferred: error instanceof Error && ['RATE_LIMITED', 'SERVICE_PAUSED'].includes(error.message) }) })
     return () => controller.abort()
   }, [shareId, attempt])
   if (!result || result.id !== shareId) return <p role="status">Opening shared snapshot...</p>

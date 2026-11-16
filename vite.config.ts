@@ -1,3 +1,4 @@
+import { hostedSharePlugin } from './scripts/hosted-share-plugin.ts'
 import { configDefaults, defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import NativeTestSequencer from './scripts/native-test-sequencer.ts'
@@ -75,6 +76,7 @@ export default defineConfig({
     previewPlugin(),
     rumPlugin(),
     privacyPagePlugin(),
+    hostedSharePlugin(),
     offlinePlugin(),
     {
       name: 'development-csp',

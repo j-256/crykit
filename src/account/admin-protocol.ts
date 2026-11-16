@@ -1,3 +1,4 @@
+import { ShareIdSchema } from './share-identity'
 import { z } from 'zod'
 import { OpaqueIdSchema, base64urlSchema, digestBytes } from './protocol'
 
@@ -122,7 +123,7 @@ export const AdminCommandSchema = z
     if (
       value.target.kind === 'service'
         ? value.target.id !== 'service'
-        : !OpaqueIdSchema.safeParse(value.target.id).success
+        : !(value.target.kind === 'share' ? ShareIdSchema : OpaqueIdSchema).safeParse(value.target.id).success
     )
       ctx.addIssue({ code: 'custom', message: 'Invalid target identifier' })
     const command = value.command
@@ -175,7 +176,7 @@ export const AdminListQuerySchema = z
       .regex(/^[a-z0-9_]{3,24}$/)
       .optional(),
     accountId: OpaqueIdSchema.optional(),
-    shareId: OpaqueIdSchema.optional(),
+    shareId: ShareIdSchema.optional(),
     jobId: OpaqueIdSchema.optional(),
     access: z.enum(['pending', 'active', 'read-only', 'blocked', 'deleting']).optional(),
     state: z.enum(['active', 'stopping', 'stopped']).optional(),
@@ -222,7 +223,7 @@ export const AdminAccountSummarySchema = z.strictObject({
   created_at: z.number().int(),
 })
 export const AdminShareSummarySchema = z.strictObject({
-  id: OpaqueIdSchema,
+  id: ShareIdSchema,
   account_id: OpaqueIdSchema,
   revision,
   state: z.enum(['active', 'stopping', 'stopped']),

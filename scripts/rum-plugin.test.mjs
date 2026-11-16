@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { test } from 'node:test'
 import { parse } from 'parse5'
 import { build, createServer } from 'vite'
+import { hostedSharePlugin } from './hosted-share-plugin.ts'
 import { rumPlugin } from './rum-plugin.ts'
 import { offlinePlugin } from './offline-plugin.ts'
 
@@ -29,12 +30,12 @@ async function fixture(run) {
     await writeFile(join(directory, 'index.html'), html)
     await writeFile(join(directory, 'admin.html'), html)
     await writeFile(join(directory, 'app.js'), 'document.querySelector("main").textContent = "Synthetic app"')
-    const config = { root: directory, configFile: false, publicDir: false, logLevel: 'silent', plugins: [rumPlugin(), offlinePlugin({ publicAssets: [] })], build: { outDir: join(directory, 'output'), rollupOptions: { input: { app: join(directory, 'index.html'), admin: join(directory, 'admin.html') } } } }
+    const config = { root: directory, configFile: false, publicDir: false, logLevel: 'silent', plugins: [rumPlugin(), hostedSharePlugin(), offlinePlugin({ publicAssets: [] })], build: { outDir: join(directory, 'output'), rollupOptions: { input: { app: join(directory, 'index.html'), admin: join(directory, 'admin.html') } } } }
     await run({ directory, config, compile: async token => {
       if (token === undefined) delete process.env.CRYKIT_RUM_SITE_TOKEN
       else process.env.CRYKIT_RUM_SITE_TOKEN = token
       await build(config)
-      return { app: await readFile(join(directory, 'output/index.html'), 'utf8'), admin: await readFile(join(directory, 'output/admin.html'), 'utf8'), worker: await readFile(join(directory, 'output/sw.js'), 'utf8') }
+      return { hosted: await readFile(join(directory, 'output/hosted-share.html'), 'utf8'), app: await readFile(join(directory, 'output/index.html'), 'utf8'), admin: await readFile(join(directory, 'output/admin.html'), 'utf8'), worker: await readFile(join(directory, 'output/sw.js'), 'utf8') }
     } })
   } finally {
     if (previous === undefined) delete process.env.CRYKIT_RUM_SITE_TOKEN
@@ -61,6 +62,9 @@ test('valid public token emits ordinary module beacon with SPA enabled only on t
     assert.equal(tags[0].type, 'module')
     assert.deepEqual(JSON.parse(tags[0]['data-cf-beacon']), { token: TOKEN, spa: true })
     assert.deepEqual(scripts(output.admin), [])
+    assert.deepEqual(scripts(output.hosted), [])
+    assert.ok(output.hosted.includes('<base href="/">'))
+    assert.ok(output.worker.includes('hosted-share.html'))
     assert.ok(output.app.indexOf('startup-recovery-') < output.app.indexOf(BEACON), 'Offline startup recovery must remain before module execution')
   })
 })

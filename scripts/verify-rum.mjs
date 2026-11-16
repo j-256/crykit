@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto'
 import { resolve } from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { completeRumProof } from './rum-proof/receipts.mjs'
 const root = resolve(import.meta.dirname, '..')
 const digest = '637381256384554e1cc3309a62fb238a51b83e7f10b2a56d8ba15dbc73ca762e'
 const help = `Usage: node scripts/verify-rum.mjs --beacon FILE [--output DIRECTORY]
@@ -44,7 +45,12 @@ const { chromium } = await import('playwright')
 try { await access(chromium.executablePath()) } catch { console.error('Missing Playwright Chromium browser; install the pinned browser'); process.exit(3) }
 const output = resolve(values.output ?? resolve(root, 'test-results/rum-proof'))
 await mkdir(output, { recursive: true })
+const startedAt = Date.now()
 const child = spawn(process.execPath, [fileURLToPath(playwright), 'test', '--config', resolve(root, 'scripts/rum-proof/playwright.config.ts')], { cwd: root, stdio: 'inherit', env: { ...process.env, CRYKIT_RUM_BEACON_PATH: resolve(values.beacon), CRYKIT_RUM_OUTPUT: output, CRYKIT_OWN_ACCOUNT_RUNTIME: '1' } })
 child.on('error', () => { console.error('Could not start RUM verification'); process.exitCode = 3 })
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => child.kill(signal))
-child.on('close', code => { process.exitCode = code === 0 ? 0 : 1 })
+child.on('close', async code => {
+  if (code !== 0) { process.exitCode = 1; return }
+  try { await completeRumProof(output, startedAt, digest); process.exitCode = 0 }
+  catch { console.error('Both bounded RUM proof cases must have fresh complete receipts'); process.exitCode = 1 }
+})

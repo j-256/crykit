@@ -44,9 +44,9 @@ test('hosted owner, recipient and anonymous lifecycle keeps private drafts and c
   await expect(dialog.getByRole('checkbox', { name: 'Include my public screen name' })).not.toBeChecked()
   await dialog.getByRole('button', { name: 'Share', exact: true }).click()
   await expect(dialog.getByText('Hosted link published.', { exact: true })).toBeVisible()
-  const url = await dialog.getByLabel('Hosted URL', { exact: true }).inputValue(), shareId = new URL(url).hash.slice(4)
-  expect(url).toBe(`${origin}/#/s/${shareId}`)
-  expect(shareId).toMatch(/^[A-Za-z0-9_-]{22}$/)
+  const url = await dialog.getByLabel('Hosted URL', { exact: true }).inputValue(), shareId = new URL(url).pathname.split('/')[2]!
+  expect(url).toBe(`${origin}/t/${shareId}`)
+  expect(shareId).toMatch(/^[A-Za-z0-9_-]{11}$/)
   const read = async () => {
     const response = await recipient.request.get(`${origin}/api/public/v1/shares/${shareId}`)
     expect(response.headers()['cache-control']).toContain('no-store')
@@ -64,6 +64,14 @@ test('hosted owner, recipient and anonymous lifecycle keeps private drafts and c
   await recipient.goto(url)
   await expect(recipient.getByRole('heading', { name: 'Portable Team', exact: true })).toBeVisible()
   await expect(recipient.getByText('Empty slot', { exact: true })).toHaveCount(2)
+  await expect(recipient).toHaveURL(url)
+  await recipient.reload()
+  await expect(recipient.getByRole('heading', { name: 'Portable Team', exact: true })).toBeVisible()
+  for (const alias of [`/s/${shareId}`, `/#/s/${shareId}`, `/b/${shareId}`]) {
+    await recipient.goto(`${origin}${alias}`)
+    await expect(recipient.getByRole('heading', { name: 'Portable Team', exact: true })).toBeVisible()
+    await expect(recipient).toHaveURL(url)
+  }
   for (const secret of [...secrets, email]) expect(await recipient.locator('body').textContent()).not.toContain(secret)
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   expect(await page.evaluate(() => (window as unknown as { workspaceProof: Proof }).workspaceProof.teamState())).toEqual(before)

@@ -1,0 +1,6 @@
+/b/:shareId /hosted-share.html 200
+/t/:shareId /hosted-share.html 200
+/s/:shareId /hosted-share.html 200
+/b/assets/startup-recovery-:hash.js /hosted-share-recovery.js 200
+/t/assets/startup-recovery-:hash.js /hosted-share-recovery.js 200
+/s/assets/startup-recovery-:hash.js /hosted-share-recovery.js 200

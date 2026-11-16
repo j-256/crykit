@@ -1,3 +1,5 @@
+import { hostedSharePath, type HostedShareKind } from '../../src/account/share-identity'
+import { MAX_SHARE_ID_ATTEMPTS, randomShareId } from './identity'
 import { PublishedShareSchema, PublishSnapshotSchema, UpdateSnapshotSchema, StopSharingSchema, shareListLimit, type PublishSnapshot, type UpdateSnapshot, type StopSharing, type PublishedShare } from '../../src/account/shares-protocol'
 import { validatePublicSnapshot, UnsupportedPublicSnapshotError } from '../../src/interchange/public-share-schema'
 import { randomId } from '../auth/identity'
@@ -9,8 +11,7 @@ import { authority, digest, encoder, syncBatch } from '../sync/storage'
 
 interface Mutation { digest: string; share_id: string; kind: string; event: string | null; receipt: string | null }
 export const publicUsernameSql = 'CASE WHEN a.username_withheld = 0 THEN a.username ELSE NULL END'
-const shareUrl = (id: string, context: ServiceContext) => `${context.env.SERVICE_ORIGIN}/#/s/${id}`
-function receipt(shareId: string, revision: number, active: boolean, context: ServiceContext): PublishedShare { return { shareId, revision, active, url: shareUrl(shareId, context) } }
+function receipt(shareId: string, revision: number, active: boolean, context: ServiceContext, kind?: HostedShareKind): PublishedShare { return { shareId, revision, active, url: `${context.env.SERVICE_ORIGIN}${hostedSharePath(shareId, kind)}` } }
 async function live(principal: CustomerPrincipal, context: ServiceContext, write: boolean) {
   const guard = authority(principal, context, write, 'publish')
   if (!await context.env.DB!.prepare(guard.sql).bind(...guard.bindings).first()) throw new ApiFailure(write ? 'FORBIDDEN' : 'AUTH_REQUIRED')
@@ -30,26 +31,32 @@ export async function publishSnapshot(principal: CustomerPrincipal, input: Publi
   const kind = shareId ? 'update' : 'publish', hash = await commandDigest(kind, shareId ?? null, input)
   const prior = await previous(principal, input.mutationId, hash, context)
   if (prior?.receipt) { await live(principal, context, true); return PublishedShareSchema.parse(JSON.parse(prior.receipt)) }
-  const db = context.env.DB!, id = shareId ?? randomId(), expected = shareId ? (input as UpdateSnapshot).expectedRevision : 0, next = expected + 1, now = context.now()
+  const db = context.env.DB!, expected = shareId ? (input as UpdateSnapshot).expectedRevision : 0, next = expected + 1
   if (!Number.isSafeInteger(next)) throw new ApiFailure('INVALID_REQUEST')
-  const result = receipt(id, next, true, context)
-  const condition = `NOT EXISTS (SELECT 1 FROM share_mutations WHERE account_id = ? AND mutation_id = ?)${shareId ? " AND EXISTS (SELECT 1 FROM shares WHERE id = ? AND account_id = ? AND state = 'active' AND revision = ?)" : ''}`
-  context.checkpoint('shares.publish.before-batch')
-  try {
-    await syncBatch(principal, condition, [principal.accountId, input.mutationId, ...(shareId ? [id, principal.accountId, expected] : [])], [
-      shareId ? db.prepare('UPDATE shares SET revision = ?, snapshot_revision = ?, include_attribution = ?, updated_at = ? WHERE id = ?').bind(next, next, Number(input.includeAttribution), now, id)
-        : db.prepare("INSERT INTO shares(id,account_id,revision,snapshot_revision,state,include_attribution,created_at,updated_at) VALUES (?,?,1,1,'active',?,?,?)").bind(id, principal.accountId, Number(input.includeAttribution), now, now),
-      db.prepare('INSERT INTO share_snapshots(share_id,account_id,revision,snapshot) VALUES (?,?,?,?)').bind(id, principal.accountId, next, JSON.stringify(input.snapshot)),
-      db.prepare('INSERT INTO share_mutations(account_id,mutation_id,share_id,digest,kind,receipt) VALUES (?,?,?,?,?,?)').bind(principal.accountId, input.mutationId, id, hash, kind, JSON.stringify(result)),
-    ], context, 'HEAD_CONFLICT', true, true, 'publish')
-  } catch (error) {
-    const raced = await previous(principal, input.mutationId, hash, context)
-    if (!raced?.receipt) throw error
-    await live(principal, context, true)
-    return PublishedShareSchema.parse(JSON.parse(raced.receipt))
+  for (let attempt = 0; attempt < MAX_SHARE_ID_ATTEMPTS; attempt++) {
+    const id = shareId ?? randomShareId(), now = context.now()
+    const result = receipt(id, next, true, context, input.snapshot.kind)
+    // ID absence is fenced in the same transaction as owner, mutation, and quota authority
+    const condition = `NOT EXISTS (SELECT 1 FROM share_mutations WHERE account_id = ? AND mutation_id = ?)${shareId ? " AND EXISTS (SELECT 1 FROM shares WHERE id = ? AND account_id = ? AND state = 'active' AND revision = ?)" : ' AND NOT EXISTS (SELECT 1 FROM shares WHERE id = ?)'}`
+    context.checkpoint('shares.publish.before-batch')
+    try {
+      await syncBatch(principal, condition, [principal.accountId, input.mutationId, ...(shareId ? [id, principal.accountId, expected] : [id])], [
+        shareId ? db.prepare('UPDATE shares SET revision = ?, snapshot_revision = ?, include_attribution = ?, updated_at = ? WHERE id = ?').bind(next, next, Number(input.includeAttribution), now, id)
+          : db.prepare("INSERT INTO shares(id,account_id,revision,snapshot_revision,state,include_attribution,created_at,updated_at) VALUES (?,?,1,1,'active',?,?,?)").bind(id, principal.accountId, Number(input.includeAttribution), now, now),
+        db.prepare('INSERT INTO share_snapshots(share_id,account_id,revision,snapshot) VALUES (?,?,?,?)').bind(id, principal.accountId, next, JSON.stringify(input.snapshot)),
+        db.prepare('INSERT INTO share_mutations(account_id,mutation_id,share_id,digest,kind,receipt) VALUES (?,?,?,?,?,?)').bind(principal.accountId, input.mutationId, id, hash, kind, JSON.stringify(result)),
+      ], context, 'HEAD_CONFLICT', true, true, 'publish')
+    } catch (error) {
+      // A lost response or concurrent identical request owns its original ID and exact receipt
+      const raced = await previous(principal, input.mutationId, hash, context)
+      if (raced?.receipt) { await live(principal, context, true); return PublishedShareSchema.parse(JSON.parse(raced.receipt)) }
+      if (!shareId && error instanceof ApiFailure && error.code === 'HEAD_CONFLICT' && await db.prepare('SELECT 1 FROM shares WHERE id = ?').bind(id).first()) continue
+      throw error
+    }
+    context.checkpoint('shares.publish.after-batch')
+    return result
   }
-  context.checkpoint('shares.publish.after-batch')
-  return result
+  throw new ApiFailure('SERVICE_UNAVAILABLE')
 }
 
 export async function stopSharing(principal: CustomerPrincipal, shareId: string, input: StopSharing, context: ServiceContext): Promise<PublishedShare> {
@@ -115,5 +122,5 @@ export async function ownShares(principal: CustomerPrincipal, after: string | nu
   const rows = await context.env.DB!.prepare(`SELECT s.id,s.revision,s.state,s.include_attribution,json_extract(p.snapshot,'$.title') AS title,json_extract(p.snapshot,'$.kind') AS kind,m.mutation_id AS stop_mutation FROM shares s JOIN share_snapshots p ON p.share_id = s.id AND p.revision = s.snapshot_revision LEFT JOIN share_mutations m ON m.share_id = s.id AND m.kind = 'stop' AND m.receipt IS NULL WHERE s.account_id = ? AND s.id > ? AND EXISTS (${guard.sql}) ORDER BY s.id LIMIT ?`).bind(principal.accountId, after ?? '', ...guard.bindings, shareListLimit + 1).all<{ id: string; revision: number; state: 'active' | 'stopping' | 'stopped'; include_attribution: number; title: string; kind: 'build' | 'team'; stop_mutation: string | null }>()
   await live(principal, context, false)
   const page = rows.results.slice(0, shareListLimit)
-  return { shares: page.map(row => ({ ...receipt(row.id, row.revision, row.state === 'active', context), title: row.title, kind: row.kind, includeAttribution: Boolean(row.include_attribution), state: row.state, ...(row.stop_mutation ? { stopMutationId: row.stop_mutation, stopExpectedRevision: row.revision } : {}) })), next: rows.results.length > shareListLimit ? page.at(-1)!.id : null }
+  return { shares: page.map(row => ({ ...receipt(row.id, row.revision, row.state === 'active', context, row.kind), title: row.title, kind: row.kind, includeAttribution: Boolean(row.include_attribution), state: row.state, ...(row.stop_mutation ? { stopMutationId: row.stop_mutation, stopExpectedRevision: row.revision } : {}) })), next: rows.results.length > shareListLimit ? page.at(-1)!.id : null }
 }
