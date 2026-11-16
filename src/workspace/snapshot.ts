@@ -1,7 +1,7 @@
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import type { WorkspaceRepository } from './repository'
 import { splitWorkspace, type WorkspaceState } from './documents'
-import { validateWorkspaceClosure, inspectWorkspaceClosures, ARCHIVAL_DOCUMENT_KINDS, type WorkspaceBodyValidation } from './closure'
+import { validateWorkspaceClosure, inspectWorkspaceClosures, ARCHIVAL_DOCUMENT_KINDS, type WorkspaceBodyValidation, type WorkspaceRetentionEdges } from './closure'
 import { blobIdentity, hashBlob, memoryBlob } from './blobs'
 import { SnapshotHeaderSchema, SnapshotHeaderV2Schema, WorkspaceBackupError, type HistoricalEvidenceSchema, type SourceEvidenceSchema } from '../interchange/workspace-backup-schema'
 import { encodeBackupJson } from '../interchange/workspace-backup-json'
@@ -87,20 +87,20 @@ export async function backupMetadataDigest(value: unknown): Promise<string> {
     throw error
   }
 }
-export async function validateWorkspaceSnapshot(snapshot: WorkspaceSnapshot): Promise<void> {
+export async function validateWorkspaceSnapshot(snapshot: WorkspaceSnapshot, retainEdges?: (edges: WorkspaceRetentionEdges) => void): Promise<void> {
   snapshotMetadata(snapshot)
   if (snapshot.version === 2 && !historicalReaders.has(snapshot)) throw new Error('Historical evidence requires an owned snapshot reader')
-  await validateWorkspaceSnapshotV1(projectWorkspaceSnapshotV1(snapshot))
+  await validateWorkspaceSnapshotV1(projectWorkspaceSnapshotV1(snapshot), undefined, retainEdges)
 }
 // Frozen complete-backup v1 admission includes recursive native/domain validation, not only the header
 // Preserve this route and its dependencies when evolving current formats: closure.ts, validation.ts,
 // file-schemas.ts, planner-journal.ts, documents.ts, document-codec.ts, domain-closure.ts,
 // interchange/native.ts and native-schema.ts, and persistence/local-data.ts
 // Parsers validate without replacing decoded values: key order binds sourceEvidence.projectedDigest
-export async function validateWorkspaceSnapshotV1(snapshot: WorkspaceSnapshotV1, bodyValidation?: WorkspaceBodyValidation): Promise<void> {
+export async function validateWorkspaceSnapshotV1(snapshot: WorkspaceSnapshotV1, bodyValidation?: WorkspaceBodyValidation, retainEdges?: (edges: WorkspaceRetentionEdges) => void): Promise<void> {
   const { state: _state, ...header } = snapshot
   SnapshotHeaderSchema.parse(header)
-  await validateWorkspaceClosure(snapshot.state, bodyValidation)
+  await validateWorkspaceClosure(snapshot.state, bodyValidation, retainEdges)
   if (!snapshot.sourceEvidence) return
   const declared = new Map(snapshot.state.blobs.map(blob => [blobIdentity(blob.ref), blob]))
   const annex = snapshot.sourceEvidence

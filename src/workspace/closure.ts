@@ -351,9 +351,11 @@ export async function withImmutableWorkspaceBodyValidation<T>(blobs: WorkspaceSt
   try { return await run(validation) } finally { validation.release() }
 }
 
-export async function validateWorkspaceClosure(state: WorkspaceState, bodyValidation?: WorkspaceBodyValidation): Promise<void> {
-  if (bodyValidation) await retentionEdges(state, false, undefined, bodyValidation)
-  else await validatedWorkspaceRetentionEdges(state)
+export type WorkspaceRetentionEdges = ReadonlyMap<string, readonly WorkspaceBlobRef[]>
+export async function validateWorkspaceClosure(state: WorkspaceState, bodyValidation?: WorkspaceBodyValidation, retainEdges?: (edges: WorkspaceRetentionEdges) => void): Promise<void> {
+  const edges = await retentionEdges(state, false, undefined, bodyValidation)
+  // Only a completed validation pass can expose graph facts to an operation-owned admission
+  retainEdges?.(edges)
 }
 
 async function retentionEdges(state: WorkspaceState, legacyLocal = false, checkedRefs?: Map<string, ReadonlySet<string>>, bodyValidation?: WorkspaceBodyValidation): Promise<ReadonlyMap<string, readonly WorkspaceBlobRef[]>> {
