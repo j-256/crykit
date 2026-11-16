@@ -42,14 +42,47 @@ export async function seedQualificationChoices(repository: import('../../src/wor
 }
 
 export async function qualificationEvidence(repository: import('../../src/workspace/repository').WorkspaceRepository) {
-  const { captureWorkspaceSnapshot, disposeWorkspaceSnapshot } = await import('../../src/workspace/snapshot')
+  const { captureWorkspaceSnapshot, openHistoricalSnapshot, disposeWorkspaceSnapshot } = await import('../../src/workspace/snapshot')
   const { capturedBackupEvidence } = await import('../../src/interchange/workspace-backup-evidence')
-  const { hashBlob } = await import('../../src/workspace/blobs')
-  const { inspectWorkspaceClosure } = await import('../../src/workspace/closure')
+  const { hashBlob, blobIdentity } = await import('../../src/workspace/blobs')
+  const { inspectWorkspaceClosure, archiveTypedReferences, publicationDocuments } = await import('../../src/workspace/closure')
+  const { splitWorkspace } = await import('../../src/workspace/documents')
   const snapshot = await captureWorkspaceSnapshot(repository)
   try {
     const evidence = capturedBackupEvidence(snapshot), state = snapshot.state
+    const historicalMembers: { id: string; format: 'legacy-v1' | 'compact-v2'; nativeRefs: readonly import('../../src/workspace/documents').WorkspaceBlobRef[]; catalogRefs: readonly import('../../src/workspace/documents').WorkspaceBlobRef[] }[] = []
+    if (snapshot.version !== 1) for (const member of snapshot.historicalEvidence?.snapshots ?? []) {
+      const historical = await openHistoricalSnapshot(snapshot, member.id)
+      try {
+        historicalMembers.push({ id: member.id, format: historical.version === 3 ? 'compact-v2' : 'legacy-v1', nativeRefs: historical.state.blobs.map(body => body.ref), catalogRefs: historical.version === 3 ? historical.catalogBodies : [] })
+      } finally { await disposeWorkspaceSnapshot(historical) }
+    }
+    const requiredRefs = splitWorkspace(state).filter(document => document.kind !== 'retained-content' || (document.value as { kind: string }).kind !== 'pending-content').flatMap(document => archiveTypedReferences(document.kind, document.value))
+    const requiredClosureBodies = new Set<string>()
+    const inspect = async (closure: import('../../src/workspace/documents').WorkspaceConflictClosure) => {
+      const result = await inspectWorkspaceClosure(state, closure)
+      for (const ref of result.refs) requiredClosureBodies.add(ref)
+      return result.value
+    }
+    const conflicts = await Promise.all(state.conflicts.map(async conflict => {
+      if (conflict.commonAncestor.kind === 'present') await inspect(conflict.commonAncestor.closure)
+      if (conflict.disposition.kind === 'resolved') await inspect(conflict.disposition.result)
+      return { key: conflict.unit.privateKey, disposition: conflict.disposition, branches: await Promise.all(conflict.branches.map(branch => inspect(branch.closure))) }
+    }))
+    for (const retained of state.retainedContent) if (retained.kind === 'file-history') await inspect(retained.content)
+    const published = new Set((await publicationDocuments(state)).filter(document => document.kind === 'blob').map(document => (JSON.parse(document.key) as string[])[1]))
+    // A publication projection alone cannot justify missing originals
+    // Preserve admitted member subsets separately: a current pending wrapper can also be an immutable historical original
+    // Only target wrappers without any current or inherited required role may stay local
+    const bodyRoles = {
+      historicalMembers,
+      currentNativeRefs: state.blobs.map(body => body.ref),
+      publishableNativeRefs: state.blobs.filter(body => published.has(blobIdentity(body.ref))).map(body => body.ref),
+      requiredRefs: [...requiredRefs, ...state.blobs.filter(body => requiredClosureBodies.has(blobIdentity(body.ref))).map(body => body.ref), ...evidence.catalogBodies?.map(body => body.ref) ?? []],
+      pendingTargets: state.retainedContent.flatMap(retained => retained.kind === 'pending-content' ? [{ kind: retained.kind, unit: retained.unit, root: retained.target.root, index: retained.target.index }] : []),
+    }
     return {
+      bodyRoles,
       members: snapshot.version === 1 ? [] : snapshot.historicalEvidence?.snapshots,
       metadata: await Promise.all([...evidence.historical].map(async ([id, body]) => ({ id, digest: await hashBlob(body) }))),
       bodies: await Promise.all([...evidence.blobs, ...evidence.catalogBodies ?? []].map(async body => ({ ref: body.ref, digest: await hashBlob(body.content) }))),
@@ -57,7 +90,7 @@ export async function qualificationEvidence(repository: import('../../src/worksp
       setups: Object.values(state.planner.localData.gameSetups).filter(setup => setup.label === 'Synthetic retained qualification setup'),
       progress: Object.values(state.planner.localData.playthroughs).flatMap(play => Object.values(play.progress)),
       sources: state.planner.sources, editors: state.editorDocuments, saves: state.saveDocuments, assets: state.assets,
-      conflicts: await Promise.all(state.conflicts.map(async conflict => ({ key: conflict.unit.privateKey, disposition: conflict.disposition, branches: await Promise.all(conflict.branches.map(async branch => (await inspectWorkspaceClosure(state, branch.closure)).value)) }))),
+      conflicts,
     }
   } finally { await disposeWorkspaceSnapshot(snapshot) }
 }

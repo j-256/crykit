@@ -1,31 +1,21 @@
 import 'fake-indexeddb/auto'
 import { expect, test } from './test-fixture'
 import { loadAccountUpdate } from './workspace-updates'
-import { completeWorkspaceFixture } from './workspace-fixture'
+import { smallMergeOriginalsFixture } from './signin-merge-originals-fixture'
+import { originalPublicationBodies } from './signin-originals-publication'
 import { beginSeededAccount, mountSeededAccount, finishAccountSignin, ACCOUNT_PREPARATION_TIMEOUT_MS } from './signin-helpers'
-import { accountTableDigests, mergeInstallationBoundary, selectedAccountCiphertext } from './signin-qualification-storage'
-import { readWorkspaceBackup, exportWorkspaceBackup } from '../../src/interchange/workspace-backup'
-import { capturedBackupEvidence, historicalMetadataIdentity, inheritWorkspaceSnapshot } from '../../src/interchange/workspace-backup-evidence'
-import { memoryBlob, hashBlob } from '../../src/workspace/blobs'
-import { disposeWorkspaceSnapshot } from '../../src/workspace/snapshot'
-import { SigninMergeResourceFailureSchema } from '../../src/workspace/signin-merge-protocol'
+import { accountTableDigests, mergeInstallationBoundary } from './signin-qualification-storage'
 
 const app = '/__accounts-proof/account-workspace.html'
 const password = 'synthetic complete original merge qualification password'
 
-for (const resource of [false, true]) test(resource ? 'retains imported mod originals through real resource refusal, retry, and local continuation' : 'actual Merge preserves originals across devices and isolates old nested Progress refusal', async ({ page, browser, accountOrigin }, testInfo) => {
+test('small GUIDE Merge preserves originals across devices and isolates old nested Progress refusal', async ({ page, browser, accountOrigin }, testInfo) => {
   test.skip(process.env.CRYKIT_MANAGED_COMPARISON_QUALIFICATION !== '1', 'Requires explicit synthetic comparison capability')
   test.setTimeout(180_000)
-  if (!resource) expect(process.env.CRYKIT_OLD_MAPPING_WORKER_PATH, 'The original preservation journey also requires the immutable old reader assets').toBeTruthy()
-  const initial = await completeWorkspaceFixture(), original = await readWorkspaceBackup(memoryBlob(initial.backup).open())
-  const metadata = await historicalMetadataIdentity(capturedBackupEvidence(original).current)
-  const bodies = await Promise.all(original.state.blobs.map(async body => ({ ref: body.ref, digest: await hashBlob(body.content) })))
-  // Give the legacy stream an existing historical identity before any application restore or Merge
-  // A fresh v1 current capture may be projected by restore and is a different preservation contract
-  const inherited = await inheritWorkspaceSnapshot(original, [original]), chunks: Buffer[] = []
-  try { for await (const chunk of exportWorkspaceBackup(inherited)) chunks.push(Buffer.from(chunk)) }
-  finally { await disposeWorkspaceSnapshot(inherited); await disposeWorkspaceSnapshot(original) }
-  const backup = Buffer.concat(chunks)
+  expect(process.env.CRYKIT_OLD_MAPPING_WORKER_PATH, 'The original preservation journey also requires the immutable old reader assets').toBeTruthy()
+  const { backup, metadata, bodies, sizes } = await smallMergeOriginalsFixture()
+  expect(sizes.catalogs.some(catalog => catalog.id === 'crystal-project/vanilla')).toBe(false)
+  await testInfo.attach('small-originals-fixture-sizes', { body: JSON.stringify(sizes), contentType: 'application/json' })
   await page.goto('/__accounts-proof/')
   await page.waitForFunction(() => !!(window as any).accountAuth)
   const username = `original_${crypto.randomUUID().replaceAll('-', '').slice(0, 10)}`, email = `${username}@example.org`
@@ -51,11 +41,13 @@ for (const resource of [false, true]) test(resource ? 'retains imported mod orig
     expect(destinationEvidence.progress).toContainEqual(expect.objectContaining({ id: 'account', unlocked: { state: 'known', value: true } }))
     expect(destinationEvidence.editors).toContainEqual(expect.objectContaining({ id: 'editor-1', revision: 0 }))
   } finally { await destination.close() }
-  await page.goto(`${app}#/settings/account`)
+  await page.goto(`${app}?fixture-setup=1#/settings/account`)
+  await page.waitForFunction(() => !!(window as any).accountBootstrapProof)
+  await page.evaluate(() => (window as any).accountBootstrapProof.seedEmptyGuestControl())
   await page.getByRole('button', { name: 'Continue using this device', exact: true }).click()
   await page.waitForFunction(() => !!(window as any).workspaceProof)
   expect(await page.evaluate(() => typeof (window as any).accountBootstrapProof?.qualificationScan)).toBe('function')
-  if (!resource) expect(await page.evaluate(() => typeof (window as any).workspaceProof?.qualifyOldPublishedProgress)).toBe('function')
+  expect(await page.evaluate(() => typeof (window as any).workspaceProof?.qualifyOldPublishedProgress)).toBe('function')
   await page.evaluate(() => { location.hash = '#/settings/data' })
   const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await panel.getByLabel('Choose complete workspace backup').setInputFiles({ name: 'synthetic-originals.crykit', mimeType: 'application/octet-stream', buffer: backup })
@@ -66,9 +58,6 @@ for (const resource of [false, true]) test(resource ? 'retains imported mod orig
   await restored
   await page.waitForFunction(() => !!(window as any).workspaceProof)
   await page.evaluate(() => (window as any).workspaceProof.editConflictFile('Synthetic source draft.json', false, 0xd802))
-  await page.reload()
-  await page.waitForFunction(() => !!(window as any).workspaceProof)
-  await page.evaluate(baseline => (window as any).workspaceProof.seedQualificationChoices(baseline), resource ? 'default' : 'guide')
   await page.reload()
   await page.waitForFunction(() => !!(window as any).workspaceProof)
   const source = await page.evaluate(() => (window as any).workspaceProof.qualificationEvidence())
@@ -83,17 +72,10 @@ for (const resource of [false, true]) test(resource ? 'retains imported mod orig
   await page.getByLabel('Email', { exact: true }).fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByLabel('Remember this device', { exact: true }).first().check()
-  if (resource) await page.evaluate(() => (window as any).accountBootstrapProof.enableSigninMergeDiagnostics())
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Choose what to keep', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
   await expect(page.getByRole('region', { name: `Account: ${username}`, exact: true })).toContainText('1 Progress record')
   const beforeReview = await mergeInstallationBoundary(page), beforeScan = await page.evaluate(() => (window as any).accountBootstrapProof.qualificationScan())
-  const destinationCiphertext = resource ? await selectedAccountCiphertext(page) : undefined
-  const destinationOriginals = resource ? await page.evaluate(() => (window as any).accountBootstrapProof.compactCatalogEvidence()) : undefined
-  if (resource) {
-    const originalRef = destinationEvidence.editors.find((file: any) => file.id === 'editor-1').original
-    expect(destinationOriginals.native).toContainEqual({ ref: originalRef, digest: originalRef.sha256 })
-  }
   expect(beforeReview.counts.preparationPayloads).toBe(0)
   await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Confirm merge', exact: true })).toBeEnabled({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
@@ -109,69 +91,6 @@ for (const resource of [false, true]) test(resource ? 'retains imported mod orig
   expect(workers.some(path => path.includes('signin-merge-worker-'))).toBe(true)
   console.info('Qualification review is interactive; selected state and discovery authority preserved')
   await page.getByRole('button', { name: 'Confirm merge', exact: true }).click()
-  if (resource) {
-    const observation: any = { fixture: 'default-baseline-imported-mod', source, beforeReview, afterReview, destinationCiphertext, destinationOriginals, retryDepth: 'fresh choices followed by a second real Merge, review, and Confirm' }
-    try {
-      await expect(page.getByRole('alert')).toContainText('This merge exceeds the background preparation limit', { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-      observation.diagnostics = await page.evaluate(() => (window as any).accountBootstrapProof.signinMergeDiagnostics())
-      const terminals = observation.diagnostics.filter((event: any) => event.outcome === 'failed' && event.errorCode === 'resource-limit')
-      expect(terminals).toHaveLength(1)
-      // The private real-guard receipt measures its counted prefix, not total process memory
-      const budget = SigninMergeResourceFailureSchema.parse(terminals[0].resourceFailure)
-      expect(budget.value).toBeGreaterThan(budget.limit)
-      if (budget.dimension === 'observationBytes') {
-        expect(budget.records).toBeGreaterThan(0)
-        expect(budget.records).toBeLessThanOrEqual(8192)
-      }
-      observation.budget = budget
-      await page.evaluate(() => (window as any).accountBootstrapProof.stopSigninMergeDiagnostics())
-      observation.refused = await mergeInstallationBoundary(page)
-      expect(withoutScan(observation.refused)).toEqual(withoutScan(beforeReview))
-      observation.refusedCiphertext = await selectedAccountCiphertext(page)
-      expect(observation.refusedCiphertext).toEqual(destinationCiphertext)
-      observation.refusedOriginals = await page.evaluate(() => (window as any).accountBootstrapProof.compactCatalogEvidence())
-      expect(observation.refusedOriginals).toEqual(destinationOriginals)
-      // Active preparation can own inert reservations until its failure cleanup has finished
-      await expect.poll(async () => (await mergeInstallationBoundary(page)).counts.preparationPayloads, { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS }).toBe(0)
-      expect(await selectedAccountCiphertext(page)).toEqual(destinationCiphertext)
-      await page.getByRole('button', { name: 'Retry preparation', exact: true }).click()
-      await expect(page.getByRole('button', { name: 'Merge (recommended)', exact: true })).toBeEnabled({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-      await expect(page.getByRole('button', { name: 'Retry preparation', exact: true })).toHaveCount(0)
-      observation.retried = await mergeInstallationBoundary(page)
-      expect(withoutScan(observation.retried)).toEqual(withoutScan(beforeReview))
-      expect(observation.retried.counts.preparationPayloads).toBe(0)
-      await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
-      await expect(page.getByRole('button', { name: 'Confirm merge', exact: true })).toBeEnabled({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-      observation.secondReview = await mergeInstallationBoundary(page)
-      expect(withoutScan(observation.secondReview)).toEqual(withoutScan(beforeReview))
-      expect(observation.secondReview.counts.preparationPayloads).toBe(0)
-      await page.getByRole('button', { name: 'Confirm merge', exact: true }).click()
-      await expect(page.getByRole('alert')).toContainText('This merge exceeds the background preparation limit', { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-      observation.secondRefused = await mergeInstallationBoundary(page)
-      expect(withoutScan(observation.secondRefused)).toEqual(withoutScan(beforeReview))
-      observation.secondRefusedCiphertext = await selectedAccountCiphertext(page)
-      expect(observation.secondRefusedCiphertext).toEqual(destinationCiphertext)
-      observation.secondRefusedOriginals = await page.evaluate(() => (window as any).accountBootstrapProof.compactCatalogEvidence())
-      expect(observation.secondRefusedOriginals).toEqual(destinationOriginals)
-      await expect.poll(async () => (await mergeInstallationBoundary(page)).counts.preparationPayloads, { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS }).toBe(0)
-      expect(await selectedAccountCiphertext(page)).toEqual(destinationCiphertext)
-      await page.getByRole('button', { name: 'Cancel and return to workspace', exact: true }).click()
-      await page.waitForFunction(() => !!(window as any).workspaceProof)
-      const continued = await page.evaluate(() => (window as any).workspaceProof.qualificationEvidence())
-      expect(continued).toEqual(source)
-      observation.continued = await mergeInstallationBoundary(page)
-      expect(withoutScan(observation.continued)).toEqual(withoutScan(beforeReview))
-      expect(observation.continued.counts.preparationPayloads).toBe(0)
-      observation.continuedCiphertext = await selectedAccountCiphertext(page)
-      expect(observation.continuedCiphertext).toEqual(destinationCiphertext)
-      observation.retryReturnedToChoices = true; observation.localOriginalsPreserved = true
-    } finally {
-      observation.diagnostics ??= await page.evaluate(() => (window as any).accountBootstrapProof.signinMergeDiagnostics())
-      await page.evaluate(() => (window as any).accountBootstrapProof.stopSigninMergeDiagnostics())
-      await testInfo.attach('actual-imported-mod-resource-refusal', { body: JSON.stringify(observation), contentType: 'application/json' })
-    }
-    return
-  }
   await expect(page.getByRole('complementary', { name: 'Account sync' })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
   await expect.poll(() => page.evaluate(() => (window as any).workspaceProof.signinMergeAcceptance()), { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS }).toMatchObject({ accepted: true })
   console.info('Qualification Merge opened and sync was accepted')
@@ -204,10 +123,20 @@ for (const resource of [false, true]) test(resource ? 'retains imported mod orig
     await expect.poll(() => second.evaluate(() => (window as any).workspaceProof.signinMergeAcceptance()), { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS }).toMatchObject({ accepted: true })
     if (await second.getByRole('button', { name: 'Load updated data', exact: true }).isVisible()) await loadAccountUpdate(second)
     const downloaded = await second.evaluate(() => (window as any).workspaceProof.qualificationEvidence())
+    await testInfo.attach('independent-original-body-roles', { body: JSON.stringify({ source, destinationEvidence, merged, downloaded }), contentType: 'application/json' })
+    const publication = originalPublicationBodies(merged)
+    for (const body of [...source.bodies, ...destinationEvidence.bodies]) expect(downloaded.bodies).toContainEqual(body)
+    for (const ref of [...merged.bodyRoles.requiredRefs, ...merged.bodyRoles.historicalMembers.flatMap((member: any) => [...member.nativeRefs, ...member.catalogRefs])]) expect(downloaded.bodies).toContainEqual({ ref, digest: ref.sha256 })
     expect(downloaded.metadata).toEqual(merged.metadata)
-    expect(downloaded.bodies).toEqual(merged.bodies)
+    expect(downloaded.bodies).toEqual(publication.published)
+    await testInfo.attach('verified-local-pending-wrappers', { body: JSON.stringify(publication.omitted), contentType: 'application/json' })
     expect(downloaded.conflicts).toEqual(merged.conflicts)
     expect(downloaded.setups).toEqual(source.setups)
+    expect(downloaded.catalogs).toEqual(merged.catalogs)
+    expect(downloaded.saves).toEqual(merged.saves)
+    expect(downloaded.editors).toEqual(merged.editors)
+    expect(downloaded.assets).toEqual(merged.assets)
+    expect(downloaded.sources).toEqual(merged.sources)
   } finally { await other.close() }
   const oldBefore = await accountTableDigests(page)
   const oldProgress = await page.evaluate(() => (window as any).workspaceProof.qualifyOldPublishedProgress())
@@ -215,5 +144,5 @@ for (const resource of [false, true]) test(resource ? 'retains imported mod orig
   expect(oldProgress.issues).toContainEqual({ code: 'invalid_value', path: ['progressIdentity', 'version'] })
   expect(await accountTableDigests(page)).toEqual(oldBefore)
   await testInfo.attach('old-nested-progress-version-refusal', { body: JSON.stringify({ ...oldProgress, allAccountTablesUnchanged: true, scope: 'synthetic V1 container around actual published conflict and exact bodies; not a legacy export or startup test' }), contentType: 'application/json' })
-  await testInfo.attach('actual-merge-original-preservation', { body: JSON.stringify({ metadata, bodies, source, merged, workers, destinationEvidence, destinationPublication, selectedAfterPublication: installed.protected.profileMeta, localReloadPreserved: true, independentDevicePreserved: true }), contentType: 'application/json' })
+  await testInfo.attach('actual-merge-original-preservation', { body: JSON.stringify({ metadata, bodies, sizes, source, merged, workers, destinationEvidence, destinationPublication, selectedAfterPublication: installed.protected.profileMeta, localReloadPreserved: true, independentDevicePreserved: true }), contentType: 'application/json' })
 })

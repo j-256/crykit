@@ -130,7 +130,7 @@ async function privateContent(bytes: Uint8Array, authoredDefinition?: PersonalDe
     }
     await inspect(snapshot.state, true)
     expect(authoredPending).toBe(authoredDefinition ? 1 : 0)
-    if (snapshot.version === 2) for (const evidence of snapshot.historicalEvidence.snapshots) {
+    if (snapshot.version !== 1 && snapshot.historicalEvidence) for (const evidence of snapshot.historicalEvidence.snapshots) {
       const history = await openHistoricalSnapshot(snapshot, evidence.id)
       try { await inspect(history.state) } finally { await disposeWorkspaceSnapshot(history) }
     }
