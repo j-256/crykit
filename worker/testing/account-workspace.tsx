@@ -65,6 +65,10 @@ const accountBootstrapProof = {
   signinMergeDiagnostics: readSigninMergeDiagnostics,
   recordSigninMergeBoundary,
   stopSigninMergeDiagnostics,
+  async seedSelectedNativeAccount() {
+    if (mounted) throw new Error('Native startup qualification requires an unmounted fixture')
+    return (await import('./signin-merge-qualification')).seedSelectedNativeAccount()
+  },
   async seedCompactCatalogDestination() {
     const { GUIDE_CATALOG } = await import('../../src/catalog/bundled')
     const { editorClosureFixture } = await import('../../src/workspace/test-helpers')
