@@ -13,7 +13,7 @@ import { createReviewedReplacementService, stableWorkspaceSnapshotIdentity } fro
 import { createSigninMergeClient, nativeMergeInstallationCheck } from '../workspace/signin-merge-client'
 import { admitInstalledMerge } from '../workspace/account-local-store'
 import { disposeWorkspaceSnapshot } from '../workspace/snapshot'
-import type { SigninMergeFence, SigninMergeLocator, SigninMergeTicket } from '../workspace/signin-merge-protocol'
+import type { SigninMergeFence, SigninMergeLocator, SigninMergeManifest, SigninMergeTicket } from '../workspace/signin-merge-protocol'
 
 let service: Awaited<ReturnType<typeof conflictService>> | undefined
 const cleanups: (() => Promise<unknown>)[] = []
@@ -161,6 +161,48 @@ it.each(['extra-reservation', 'orphan-output', 'foreign-source-root'] as const)(
   expect(await f.device.db.profileMeta.get('active')).toEqual(before)
   expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
   expect(await f.device.db.syncState.get('signin-receipt:decision')).toBeUndefined()
+}, 30_000)
+
+it.each(['output', 'consumed'] as const)('rejects an authenticated %s self-dependency before installing merge state', async inventory => {
+  const f = await fixture()
+  const selected = await f.device.db.profileMeta.get('active')
+  const state = await f.device.db.syncState.toArray()
+  let records = await f.device.db.encryptedRevisions.toArray()
+  let outputIds: string[] = []
+  f.afterTicket = async ticket => {
+    const { readAccountRecordBytes, cipherRef, stageAccountJson } = await import('../workspace/account-cache')
+    const { createAccountPreparationOwner } = await import('../workspace/account-prepared-records')
+    const owner = createAccountPreparationOwner(f.device.db, f.device.token, { operationId: ticket.operationId, check() {} })
+    cleanups.push(() => owner.abandon())
+    const bytes = await readAccountRecordBytes(f.device.db, f.device.token, cipherRef(ticket.manifest), ticket.manifest)
+    const manifest = JSON.parse(new TextDecoder().decode(bytes)) as SigninMergeManifest
+    bytes.fill(0)
+    const leaf = manifest[inventory].find(record => record.descriptor.dependencies.length === 0)!
+    expect(leaf).toBeDefined()
+    const malformed = { ...leaf, descriptor: { ...leaf.descriptor, dependencies: [cipherRef(leaf)] } }
+    manifest[inventory][manifest[inventory].indexOf(leaf)] = malformed
+    // Match the stored source descriptor so equality checks cannot mask a missing graph check
+    // Ciphertext stays unchanged, just as in the authenticated output mutation
+    if (inventory === 'consumed') {
+      await f.device.db.encryptedRevisions.put(malformed)
+      records = await f.device.db.encryptedRevisions.toArray()
+    }
+    outputIds = manifest.output.map(record => record.revisionId)
+    const replacement = await stageAccountJson(f.device.db, f.device.token, manifest, [], undefined, owner)
+    await f.device.db.preparationPayloads.delete([ticket.operationId, ticket.manifest.payloadId])
+    await f.device.db.stagedCipherChunks.where('payloadId').equals(ticket.manifest.payloadId).delete()
+    Object.assign(ticket, { manifest: replacement })
+  }
+  await expect(f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })).rejects.toThrow('SIGNIN_RECEIPT_MISMATCH')
+  expect(outputIds.length).toBeGreaterThan(0)
+  for (const id of outputIds) expect(await f.device.db.encryptedRevisions.get(id)).toBeUndefined()
+  expect(await f.device.db.encryptedRevisions.toArray()).toEqual(records)
+  expect(await f.device.db.profileMeta.get('active')).toEqual(selected)
+  expect(await f.device.db.syncState.toArray()).toEqual(state)
+  expect(await f.device.db.syncState.get(`guest-copy:${f.client.preview.copyId}`)).toBeUndefined()
+  expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+  expect(await f.device.db.syncState.get('signin-receipt:decision')).toBeUndefined()
+  expect(await f.device.db.outbox.count()).toBe(0)
 }, 30_000)
 
 it('rolls back descriptor installation, reservations, and transient deletion together', async () => {
