@@ -18,7 +18,7 @@
       "node"
     ]
   },
-  "exclude": ["worker/testing/local-save-performance.tsx", "worker/testing/local-save-workload.ts", "worker/testing/account-ui.tsx", "worker/testing/account-workspace.tsx", "worker/testing/signin-merge-qualification.ts", "worker/testing/crypto-proof-client.ts", "worker/testing/crypto-proof-worker.ts"],
+  "exclude": ["worker/testing/local-save-performance.tsx", "worker/testing/local-save-workload.ts", "worker/testing/account-ui.tsx", "worker/testing/account-workspace.tsx", "worker/testing/signin-merge-qualification.ts", "worker/testing/signin-resource-qualification.ts", "worker/testing/crypto-proof-client.ts", "worker/testing/crypto-proof-worker.ts"],
   "include": [
     "worker",
     "src/account/protocol.ts",

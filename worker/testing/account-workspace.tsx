@@ -66,6 +66,12 @@ const accountBootstrapProof = {
   recordSigninMergeBoundary,
   stopSigninMergeDiagnostics,
   async qualificationScan() { return (await import('./signin-merge-qualification')).qualificationScan() },
+  async seedCurrentOnlyResourceDestination() {
+    if (mounted) throw new Error('Resource qualification requires an unmounted fixture')
+    return (await import('./signin-resource-qualification')).seedCurrentOnlyResourceDestination()
+  },
+  async currentOnlyResourceEvidence() { return (await import('./signin-resource-qualification')).currentOnlyResourceEvidence() },
+  async resourceProjectionAuthority() { return (await import('./signin-resource-qualification')).resourceProjectionAuthority() },
   async seedSelectedNativeAccount() {
     if (mounted) throw new Error('Native startup qualification requires an unmounted fixture')
     return (await import('./signin-merge-qualification')).seedSelectedNativeAccount()
@@ -259,7 +265,7 @@ const accountBootstrapProof = {
     const backup = await readWorkspaceBackup(exportWorkspaceBackup(captured))
     try {
       const originals = []
-      if (backup.version === 2) for (const member of backup.historicalEvidence.snapshots) {
+      if (backup.version !== 1 && backup.historicalEvidence) for (const member of backup.historicalEvidence.snapshots) {
         const original = await openHistoricalSnapshot(backup, member.id)
         try {
           if (original.snapshotId !== 'managed-comparison-qualification-original') continue
