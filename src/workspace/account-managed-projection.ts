@@ -1,3 +1,4 @@
+import type { AccountPreparationReservation } from './account-prepared-records'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { assertActiveProfile, profileSignal, type ProfileToken } from '../account/profile'
 import type { AccountDatabase, AccountFence, CipherRef, CipherRecord } from '../persistence/account-database'
@@ -15,8 +16,8 @@ import { readIncrementalAccountEvidence } from './account-local-mapping'
 
 // Bulk pull/restore keeps one authoritative local pointer while retaining the exact native mapping target
 // This preparation owns no activation authority until the existing transaction rechecks both captured views
-export async function prepareManagedAccountProjection(database: AccountDatabase, token: ProfileToken, input: AccountFence, native: PreparedAccountWorkspace, intent?: { readonly id: string; readonly ref: CipherRef; readonly records: readonly CipherRecord[] }, requireSettledSync?: true, reviewedSelection?: object) {
-  const expected = structuredClone(input), store = createAccountLocalStore(database, token), operationId = intent?.id ?? accountLocalId()
+export async function prepareManagedAccountProjection(database: AccountDatabase, token: ProfileToken, input: AccountFence, native: PreparedAccountWorkspace, intent?: { readonly id: string; readonly ref: CipherRef; readonly records: readonly CipherRecord[] }, requireSettledSync?: true, reviewedSelection?: object, reservation?: AccountPreparationReservation) {
+  const expected = structuredClone(input), store = createAccountLocalStore(database, token, reservation), operationId = intent?.id ?? accountLocalId()
   const check = async () => {
     assertActiveProfile(token)
     if (!guestPlannerValuesEqual(await database.profileMeta.get('active'), expected)) throw new Error('The managed projection source changed')
@@ -58,7 +59,7 @@ export async function prepareManagedAccountProjection(database: AccountDatabase,
     await releaseSnapshot()
     // The selection CAS still needs its authenticated physical observations and live owner
     // Borrowed native evidence remains owned by the enclosing bulk preparation
-    return { prepared, dispose }
+    return { prepared, describe: () => store.describePreparation(prepared), dispose }
   } catch (error) {
     try { await dispose() } catch (cleanup) { throw new AggregateError([error, cleanup], 'Managed projection preparation and cleanup failed') }
     throw error

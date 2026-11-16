@@ -13,9 +13,11 @@ const selectedSchema = z.union([AccountProjectionSchema, AccountWorkspaceRootSch
 const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right)
 const integrity = () => new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'The selected encrypted workspace changed or has an unsupported format.')
 
+export interface NativeSelectionObservations { readonly records: readonly CipherRecord[]; readonly rows: readonly { readonly id: string; readonly expected: EncryptedSyncState | null }[]; readonly sourceCaptures: readonly EncryptedSyncState[] }
+
 // This invocation authenticates captured format inputs only; unchanged descriptors do not
 // prove ciphertext immutability or semantic equivalence of an older pending source view
-export async function prepareSelectedV1Check(database: AccountDatabase, token: ProfileToken, input: { readonly head: CipherRef; readonly records: readonly CipherRecord[]; readonly sourceCaptures?: readonly EncryptedSyncState[]; readonly validatedEvidence?: AccountInheritedEvidence }): Promise<{ recheckInTransaction(): Promise<void>; recheckSourceCapturesInTransaction(): Promise<void>; dispose(): Promise<void> }> {
+export async function prepareSelectedV1Check(database: AccountDatabase, token: ProfileToken, input: { readonly head: CipherRef; readonly records: readonly CipherRecord[]; readonly sourceCaptures?: readonly EncryptedSyncState[]; readonly validatedEvidence?: AccountInheritedEvidence }): Promise<{ recheckInTransaction(): Promise<void>; recheckSourceCapturesInTransaction(): Promise<void>; observations(): NativeSelectionObservations; dispose(): Promise<void> }> {
   let ownedEvidence: AccountInheritedEvidence | undefined
   let evidenceCheck: ReturnType<typeof accountInheritedEvidenceCheck> | undefined
   let disposed = false
@@ -93,7 +95,11 @@ export async function prepareSelectedV1Check(database: AccountDatabase, token: P
       if (effective) await checkView(effective, head)
     }
     assertActiveProfile(token)
-    return { dispose, async recheckInTransaction() {
+    return { dispose, observations() {
+      checkLive()
+      const records = [...checked.values(), ...(evidenceCheck?.observations() ?? [])]
+      return { records: structuredClone(records), rows: [...rows].map(([id, row]) => ({ id, expected: row ? structuredClone(row) : null })), sourceCaptures: structuredClone([...captures.values()]) }
+    }, async recheckInTransaction() {
       checkLive()
       await evidenceCheck?.recheckInTransaction()
       // Call after fresh inserts but before source captures or selected pointers are published

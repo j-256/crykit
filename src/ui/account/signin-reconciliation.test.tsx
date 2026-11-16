@@ -41,7 +41,7 @@ it('paused replacement has distinct keep-working and latest actions with confirm
   expect(controller.reviewReplacement).toHaveBeenCalledWith('latest')
   expect(controller.choose).not.toHaveBeenCalled()
 })
-it.each(['quota', 'offline', 'opening-failed'])('offers safe retry after %s without disclosing diagnostics', async reason => {
+it.each(['quota', 'offline', 'opening-failed', 'resource-limit', 'coordination-unavailable'])('offers safe retry after %s without disclosing diagnostics', async reason => {
   const controller = actions()
   await act(async () => root.render(<SigninReconciliation state={{ ...state, phase: 'failed', reason }} actions={controller}/>))
   expect(container.querySelector('[role="alert"]')).not.toBeNull()

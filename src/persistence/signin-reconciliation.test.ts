@@ -11,6 +11,17 @@ import { createAccountRecoveryService } from '../workspace/account-recovery'
 import { createReviewedReplacementService } from '../workspace/reviewed-replacement'
 import * as reconciliation from '../workspace/signin-reconciliation'
 
+// Coordinator state-machine tests keep their deterministic captured-source fixture
+// The separate client tests exercise reserved preparation, manifests, and private installation
+vi.mock('../workspace/signin-merge-client', () => ({
+  createSigninMergeClient: async (_database: unknown, token: Parameters<typeof import('../workspace/signin-merge-client').createSigninMergeClient>[1], _operationId: string, source: import('../workspace/guest-repository').GuestCopySource, _identity: unknown, account: import('../workspace/reviewed-replacement').ReviewedAccountData, check: () => Promise<void>, _progress: unknown, signal: AbortSignal) => {
+    const { createGuestCopyService } = await import('../workspace/guest-copy')
+    const copy = createGuestCopyService(async () => { await check(); return source }, () => signal.throwIfAborted())
+    const review = await copy.previewSigninMergeReview(token, account)
+    return { preview: review.preview, prepare: (receipt: import('./account-activation-attachments').AccountSyncAttachmentValue) => copy.prepareReviewedSigninMerge(token, review, receipt), async dispose() { await review.dispose(); await copy.dispose() } }
+  },
+}))
+
 let service: Awaited<ReturnType<typeof conflictService>> | undefined
 const controllers: ReturnType<typeof reconciliation.createSigninReconciliation>[] = []
 afterEach(async () => { for (const controller of controllers.splice(0)) await controller.dispose(); await service?.dispose(); service = undefined; vi.restoreAllMocks() })
@@ -1123,4 +1134,27 @@ it.each(['foreign', 'disposed', 'fence', 'body', 'epoch', 'high-water', 'interme
     expect(await database.syncState.get('guest-copy:pending')).toBeUndefined()
     expect(await database.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toBeUndefined()
   } finally { await review.dispose() }
+})
+
+it('automatically prepares a missing mapping once with visible feedback before retrying worker review', async () => {
+  const f = await setup(), controller = f.create(), client = await import('../workspace/signin-merge-client'), mapping = await import('../workspace/account-local-mapping-client')
+  await controller.begin(f.device.token)
+  const start = vi.spyOn(client, 'createSigninMergeClient').mockRejectedValueOnce(new Error('SIGNIN_MAPPING_REQUIRED'))
+  const prepare = vi.spyOn(mapping, 'mapIncrementalAccountBaseline')
+  const stages: unknown[] = []; controller.subscribe(() => stages.push(controller.getSnapshot().stage))
+  await controller.choose('merge')
+  expect(controller.getSnapshot().phase).toBe('confirming')
+  expect(stages).toContain('preparing-mapping')
+  expect(start).toHaveBeenCalledTimes(2)
+  expect(prepare).toHaveBeenCalledOnce()
+})
+
+it('does not fall back to caller preparation when the guest worker fails', async () => {
+  const f = await setup(), client = await import('../workspace/signin-merge-client')
+  vi.spyOn(client, 'createSigninMergeClient').mockRejectedValueOnce(new Error('SIGNIN_PREPARATION_FAILED'))
+  const controller = f.create(); await controller.begin(f.device.token)
+  await controller.choose('merge')
+  expect(controller.getSnapshot().phase).toBe('failed')
+  expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+  expect(await f.device.db.syncState.get('signin-receipt:decision')).toBeUndefined()
 })

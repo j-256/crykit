@@ -123,5 +123,10 @@ for (const fixture of ['default-guest', 'empty-control'] as const) test(`complet
     report.budgets = { review: review?.outcome === 'complete' ? review.elapsedMs <= SIGNIN_MERGE_REVIEW_TARGET_MS : null,
       sampledInputToPaint: report.pendingInputProbe.sampledInputToPaint, wholePreparationResponsiveness: null }
     await testInfo.attach('signin-merge-measurement', { body: JSON.stringify(report), contentType: 'application/json' })
+    if (report.status === 'complete') {
+      const final = report.diagnostics?.at(-1)
+      expect(final?.ciphertextObservations?.worker?.completedPasses, 'Require actual worker observation accounting').toBeGreaterThan(0)
+      expect(final?.ciphertextObservations?.main?.completedPasses, 'Require independent main observation accounting').toBeGreaterThan(0)
+    }
   }
 })

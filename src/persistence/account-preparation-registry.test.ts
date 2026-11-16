@@ -69,7 +69,15 @@ it('preserves every old table and row through the additive v2 upgrade', async ()
   old.version(1).stores({ stagedCipherChunks: '[payloadId+index], payloadId', encryptedRevisions: 'revisionId, payloadId', documentHeads: 'documentId', outbox: 'id', conflicts: 'id', profileMeta: 'key', migrationJournal: 'id' })
   old.version(2).stores({ syncState: 'id' })
   await old.open()
-  await old.table('syncState').add({ id: 'synthetic-old-row', ref: { documentId: accountLocalId(), revisionId: accountLocalId() } })
+  const reference = { documentId: accountLocalId(), revisionId: accountLocalId() }
+  const fixtures: Record<string, unknown> = {
+    stagedCipherChunks: { payloadId: accountLocalId(), index: 0, bytes: new Uint8Array([13, 27]) },
+    encryptedRevisions: { revisionId: reference.revisionId, payloadId: accountLocalId(), descriptor: { retainedUnknown: 'legacy synthetic shape' } },
+    documentHeads: reference, outbox: { id: accountLocalId(), ref: reference, status: 'unmapped-local' },
+    conflicts: { id: accountLocalId(), retainedUnknown: null }, profileMeta: { key: 'active', headRevision: 9, head: reference },
+    migrationJournal: { id: accountLocalId(), localStatus: 'active', retainedUnknown: 'preserve' }, syncState: { id: 'synthetic-old-row', ref: reference },
+  }
+  for (const [table, row] of Object.entries(fixtures)) await old.table(table).add(row)
   const before = await Promise.all(old.tables.map(async table => [table.name, await table.toArray()] as const))
   old.close()
   database = new AccountDatabase(token.accountId)
@@ -167,4 +175,22 @@ it('rolls back a failed additive upgrade without replacing old recovery rows', a
     expect(inspect.tables.some(table => table.name === 'preparationPayloads')).toBe(false)
     expect(await inspect.table('syncState').get('old-pending-copy')).toEqual(row)
   } finally { inspect.close() }
+})
+
+it('refuses a malformed same-version layout without modifying its existing rows', async () => {
+  const token = installProfile(accountLocalId(), new Uint8Array(32)), malformed = new Dexie(`crykit-account-v1-${token.accountId}`)
+  malformed.version(3).stores({ syncState: 'id', preparationPayloads: '[operationId+payloadId], operationId, payloadId' })
+  await malformed.table('syncState').add({ id: 'keep', unknown: [1, 2, 3] }); malformed.close()
+  database = new AccountDatabase(token.accountId, { existingOnly: true })
+  await expect(database.open()).rejects.toThrow(/unsupported/)
+  const inspect = new Dexie(database.name); await inspect.open()
+  expect(await inspect.table('syncState').toArray()).toEqual([{ id: 'keep', unknown: [1, 2, 3] }]); inspect.close()
+})
+
+it('cancels a pending lock acquisition without granting or reserving ownership', async () => {
+  vi.stubGlobal('navigator', { locks: { request: (_name: string, options: LockOptions) => new Promise((_resolve, reject) => options.signal!.addEventListener('abort', () => reject(options.signal!.reason), { once: true })) } })
+  const token = installProfile(accountLocalId(), new Uint8Array(32)); database = new AccountDatabase(token.accountId)
+  const controller = new AbortController(), pending = holdAccountPreparation(token, accountLocalId(), controller.signal)
+  const rejected = expect(pending).rejects.toThrow(); controller.abort(); await rejected
+  expect(await database.preparationPayloads.count()).toBe(0)
 })

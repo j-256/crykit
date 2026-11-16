@@ -70,6 +70,7 @@ export interface PreparedLocalActivation {
   readonly validatedEvidence?: import('../workspace/account-evidence-snapshots').AccountInheritedEvidence
   readonly requireSettledSync?: true
   readonly managedAdmission?: object
+  readonly preparationAdmission?: object
 }
 
 export async function activateLocalAccountCommit(database: AccountDatabase, token: ProfileToken, prepared: PreparedLocalActivation, assertMayActivate: () => void = () => {}, attachment?: AccountActivationAttachment): Promise<AccountFence> {
@@ -77,8 +78,9 @@ export async function activateLocalAccountCommit(database: AccountDatabase, toke
   assertMayActivate()
   if (database.accountId !== token.accountId || prepared.version !== 1) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'The prepared operation belongs to another workspace.')
   // One captured envelope controls authentication, transaction writes and the returned fence
-  const validatedEvidence = prepared.validatedEvidence, managedAdmission = prepared.managedAdmission
-  prepared = { ...structuredClone({ ...prepared, validatedEvidence: undefined, managedAdmission: undefined }), ...(managedAdmission ? { managedAdmission } : {}) }
+  const validatedEvidence = prepared.validatedEvidence, managedAdmission = prepared.managedAdmission, preparationAdmission = prepared.preparationAdmission
+  if (managedAdmission && preparationAdmission) throw new Error('SIGNIN_RECEIPT_MISMATCH')
+  prepared = { ...structuredClone({ ...prepared, validatedEvidence: undefined, managedAdmission: undefined, preparationAdmission: undefined }), ...(managedAdmission ? { managedAdmission } : {}), ...(preparationAdmission ? { preparationAdmission } : {}) }
   OpaqueIdSchema.parse(prepared.id)
   for (const record of prepared.records) {
     RevisionDescriptorSchema.parse(record.descriptor)
@@ -86,8 +88,9 @@ export async function activateLocalAccountCommit(database: AccountDatabase, toke
   }
   const { prepareSelectedV1Check } = await import('../workspace/account-selection')
   const managedSelection = managedAdmission ? (await import('../workspace/account-local-store')).accountLocalActivationCheck(database, token, prepared) : undefined
-  const ownedSelection = managedSelection ? undefined : await prepareSelectedV1Check(database, token, { ...prepared, validatedEvidence })
-  const selection = managedSelection ?? ownedSelection!
+  const bridgeSelection = preparationAdmission ? (await import('../workspace/signin-merge-client')).nativeMergeInstallationCheck(database, token, prepared) : undefined
+  const ownedSelection = managedSelection || bridgeSelection ? undefined : await prepareSelectedV1Check(database, token, { ...prepared, validatedEvidence })
+  const selection = managedSelection ?? bridgeSelection ?? ownedSelection!
   let failed = false, primary: unknown
   try {
     const attached = accountAttachmentCheck(database, token, prepared, attachment)

@@ -1,3 +1,6 @@
+import { captureReadonlyMergeDestination } from './signin-merge-native'
+import { prepareSelectedV1Check } from './account-selection'
+import type { AccountPreparationReservation } from './account-prepared-records'
 import { readIncrementalMappedIntent } from './account-mapping-origin'
 import { managedComparisonWritesEnabled } from './managed-copy-comparisons'
 import { admitWorkspaceMetadata, createMergeOperationScope, metadataAdmissionFacts, validateSnapshotBodies, type MergeOperationScope, type WorkspaceMetadataAdmission } from './snapshot-admission'
@@ -269,10 +272,10 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
   let busy = false
   let generation = 0
   const dispose = async () => { generation++; reviewScope?.dispose(); reviewScope = undefined; await Promise.all([...preparedMerges].map(prepared => prepared.dispose())); const prior = captured; captured = undefined; await Promise.all([...originalReaders].map(reader => reader.dispose())); originalReaders.clear(); retainedPreviews.clear(); for (const database of inspectionDatabases) database.close(); inspectionDatabases.clear(); if (prior) await disposeWorkspaceSnapshot(prior.snapshot) }
-  async function previewCopy(token: ProfileToken, selection: readonly string[] = [], signin = false, savedCopyId?: string, reviewOnly = false): Promise<GuestCopyPreview> {
+  async function previewCopy(token: ProfileToken, selection: readonly string[] = [], signin = false, savedCopyId?: string, reviewOnly = false, readonlyDatabase?: AccountDatabase): Promise<GuestCopyPreview> {
     assertActiveProfile(token); assertMayActivate()
     if (busy) throw new Error('A local copy is already being prepared')
-    const database = new AccountDatabase(token.accountId)
+    const database = readonlyDatabase ?? new AccountDatabase(token.accountId)
     try {
       const pending = await database.syncState.get(savedCopyId !== undefined ? `${SAVED_COPY_PREFIX}${savedCopyId}` : PENDING_COPY)
       if (savedCopyId !== undefined && !pending) throw new Error('The saved sign-in copy is unavailable')
@@ -314,9 +317,13 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
       }
       let expected = await database.profileMeta.get('active')
       if (!expected) {
+        if (readonlyDatabase) throw new Error('LOCAL_REVISION_CONFLICT')
         expected = await initializeAccountWorkspace(database, token, blankState())
       }
-      const target = await copyPreviewState(database, token, expected)
+      const readonlyCapture = readonlyDatabase ? await captureReadonlyMergeDestination(database, token, expected) : undefined
+      let target: WorkspaceState
+      try { target = readonlyCapture ? readonlyCapture.workspace.state : await copyPreviewState(database, token, expected) }
+      finally { await readonlyCapture?.dispose() }
       const existing = new Map(splitWorkspace(target).map(document => [document.key, document]))
       const conflicts = splitWorkspace(chosen.selectedSnapshot.state).filter(document => (!INFRASTRUCTURE.has(document.kind) || document.kind === 'workspace-preferences' && selection.includes(document.key) && !emptyPreferences(existing.get(document.key)?.value)) && !isBlobSource(document.value) && !(document.kind === 'library-defaults' && !selection.includes(document.key)) && existing.has(document.key) && !(signin ? signinDocumentsEqual(existing.get(document.key)!, document) : jsonEqual(existing.get(document.key)!.value, document.value))).map(document => document.key)
       const incomingLineages = personalLineageChains(chosen.selectedSnapshot.state.planner.localData)
@@ -337,10 +344,63 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
       if (started !== generation) throw new Error('Local copy preview was cancelled')
       authorities.set(preview, { token, generation, expected, snapshot: captured.snapshot, selected: chosen.selectedSnapshot, originals: captured.originals, admission })
       assertActiveProfile(token); assertMayActivate(); return preview
-    } finally { database.close() }
+    } finally { if (!readonlyDatabase) database.close() }
   }
   async function previewGuestCopy(token: ProfileToken, selection: readonly string[] = [], signin = false, savedCopyId?: string): Promise<GuestCopyPreview> {
     return previewCopy(token, selection, signin, savedCopyId)
+  }
+  // This path shares the private reviewed selection but cannot publish a descriptor or pointer
+  // All owners remain live until the main installer acknowledges or the worker is terminated
+  async function stageReadonlySigninMerge(database: AccountDatabase, token: ProfileToken, preview: GuestCopyPreview, reservation: AccountPreparationReservation) {
+    const authority = authorities.get(preview)
+    const check = async () => {
+      assertActiveProfile(token); assertMayActivate(); reservation.check()
+      if (!authority || authority.token !== token || authority.generation !== generation || !authority.snapshot || !authority.selected || busy) throw new Error('SIGNIN_REVIEW_REQUIRED')
+      if (!jsonEqual(await database.profileMeta.get('active'), authority.expected)) throw new Error('LOCAL_REVISION_CONFLICT')
+      await assertOwnedWorkspaceSnapshot(authority.snapshot)
+    }
+    await check()
+    if (!authority?.snapshot || !authority.selected || !preview.signin || preview.problems.length || !preview.selectedKeys.length) throw new Error('SIGNIN_REVIEW_REQUIRED')
+    const snapshot = authority.snapshot, selected = authority.selected, expected = authority.expected
+    const captured = await captureReadonlyMergeDestination(database, token, expected)
+    let stage: Awaited<ReturnType<typeof stageManagedGuestCopy>> | undefined
+    let operation: ReturnType<typeof createAccountInheritedEvidencePreparation> | undefined
+    let projection: Awaited<ReturnType<typeof prepareManagedAccountProjection>> | undefined
+    let selection: Awaited<ReturnType<typeof prepareSelectedV1Check>> | undefined
+    let normalized: Awaited<ReturnType<typeof inheritWorkspaceSnapshot>> | undefined
+    const dispose = async () => {
+      const results = await Promise.allSettled([stage?.dispose(), projection?.dispose(), selection?.dispose(), operation?.abandon(), normalized && disposeWorkspaceSnapshot(normalized), captured.dispose()])
+      const failures = results.flatMap(result => result.status === 'rejected' ? [result.reason] : [])
+      if (failures.length) throw new AggregateError(failures, 'Inert merge cleanup failed')
+    }
+    try {
+      if (captured.managed && (managedComparisonWritesEnabled() || !preview.conflicts.length && !selected.state.conflicts.length)) {
+        const incoming = await guestEvidenceForCopy(selected, snapshot, authority.originals)
+        stage = await stageManagedGuestCopy(database, token, preview, expected, incoming, before => additiveCopyState(before, selected, preview), () => { assertActiveProfile(token); reservation.check() }, undefined, preview.conflicts.length || selected.state.conflicts.length ? selected : undefined, reservation)
+        const described = stage.describe()
+        return { journal: stage.journal, ref: stage.ref, target: stage.journal.target, intentStatus: 'unmapped-local' as const, records: described.records, consumed: [...captured.records, ...described.consumed], sourceRoots: captured.sourceRoots, sourceRows: captured.sourceRows, async check() { await check(); await captured.check(); stage!.describe() }, dispose }
+      }
+      const previous = captured.workspace
+      const state = await additiveCopyState(previous.state, selected, preview)
+      normalized = await inheritWorkspaceSnapshot(selected, [selected, snapshot])
+      operation = createAccountInheritedEvidencePreparation(database, token, undefined, reservation)
+      const evidence = await operation.prepare({ base: captured.evidence, additions: [normalized], sourceEvidence: captured.localEvidence })
+      const prepared = await prepareAccountWorkspaceWithEvidence(database, token, state, evidence, previous)
+      const source = preview.conflicts.length || selected.state.conflicts.length ? await prepareAccountWorkspaceWithEvidence(database, token, selected.state, evidence) : undefined
+      const registrations = source ? await prepareCopiedConflicts(database, token, { operationId: preview.copyId, source: source.opened, destination: previous, keys: preview.conflicts.filter(key => JSON.parse(key)[0] !== 'conflict'), owner: evidence.owner, evidence, snapshot: selected, mode: 'additive', progressMappings: preview.signin.progressMappings.filter(mapping => !mapping.equivalent) }) : undefined
+      const intent = await stageMappedWorkspaceIntent(database, token, { version: 1, kind: 'mapped-workspace-intent', operationId: preview.copyId, portableGroupId: accountLocalId(), operation: 'workspace-command', mode: 'additive', original: { base: expected.head, target: prepared.head }, base: previous.head, target: prepared.head, localRevision: expected.headRevision + 1, changes: mappedChanges(previous, prepared.opened), ...(registrations ? { copiedConflicts: registrations.root } : {}) }, evidence.owner)
+      const journal = JournalSchema.parse({ version: 1, kind: 'guest-copy', preview, expected, target: prepared.head, intent: cipherRef(intent.record) })
+      const saved = await stageAccountJson(database, token, journal, [previous.head, prepared.head, cipherRef(intent.record)], undefined, evidence.owner)
+      const nativeRecords = [...new Map([...prepared.records, ...(source?.records ?? []), ...(registrations?.records ?? []), ...intent.records, saved].map(record => [record.revisionId, record])).values()]
+      if (captured.managed) projection = await prepareManagedAccountProjection(database, token, expected, { ...prepared, records: nativeRecords }, { id: preview.copyId, ref: cipherRef(intent.record), records: [] }, undefined, undefined, reservation)
+      else selection = await prepareSelectedV1Check(database, token, { ...prepared, records: nativeRecords })
+      const described = projection?.describe(), native = described?.native ?? selection!.observations()
+      await check(); await captured.check(); await evidence.handle.check()
+      return { journal, ref: cipherRef(saved), target: projection?.prepared.head ?? prepared.head, intentStatus: 'mapped-local' as const,
+        records: [...nativeRecords, ...(described?.records ?? [])], consumed: [...captured.records, ...(described?.consumed ?? []), ...native.records],
+        sourceRoots: captured.sourceRoots, sourceRows: [...captured.sourceRows, ...native.rows], mappingOrigin: described?.association,
+        async check() { await check(); await captured.check(); await evidence.handle.check(); if (projection) projection.describe(); else selection!.observations() }, dispose }
+    } catch (error) { await dispose(); throw error }
   }
   async function executeGuestCopy(token: ProfileToken, preview: GuestCopyPreview, decision?: AccountSyncAttachmentValue, preparingDecision?: AccountSyncAttachmentValue, retainPrepared = false): Promise<GuestCopyReceipt | PreparedSigninMerge | undefined> {
     const authority = authorities.get(preview)
@@ -692,7 +752,7 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
       requestSync(token, 'save')
     } finally { await owner.abandon(); busy = false; database.close() }
   }
-  return { previewSigninMergeReview, prepareReviewedSigninMerge, prepareSigninMerge, previewGuestCopy, previewSigninMerge: (token: ProfileToken, savedCopyId?: string) => previewGuestCopy(token, [], true, savedCopyId), commitGuestCopy, keepSavedCopyAndRepreview, listSavedGuestCopies, withSavedGuestCopy, inspectCopiedComparisons, previewRetainedComparison, continueCopiedComparisons, dispose }
+  return { previewReadonlySigninMerge: (database: AccountDatabase, token: ProfileToken) => previewCopy(token, [], true, undefined, true, database), stageReadonlySigninMerge, previewSigninMergeReview, prepareReviewedSigninMerge, prepareSigninMerge, previewGuestCopy, previewSigninMerge: (token: ProfileToken, savedCopyId?: string) => previewGuestCopy(token, [], true, savedCopyId), commitGuestCopy, keepSavedCopyAndRepreview, listSavedGuestCopies, withSavedGuestCopy, inspectCopiedComparisons, previewRetainedComparison, continueCopiedComparisons, dispose }
 }
 const defaultService = createGuestCopyService(() => captureGuestWorkspaceForCopy())
 export const previewGuestCopy = defaultService.previewGuestCopy

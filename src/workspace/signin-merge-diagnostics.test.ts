@@ -88,3 +88,27 @@ it('records confirmed merge preparation separately from review computation', () 
   diagnostics.record({ stage: 'preparing-merge', outcome: 'started', elapsedMs: 3 })
   expect(diagnostics.snapshot().map(event => event.stage)).toEqual(['review', 'confirm', 'preparing-merge'])
 })
+
+it('keeps worker codec work and repeated ciphertext observations separate from main codec counters', () => {
+  const diagnostics = createSigninMergeDiagnostics()
+  diagnostics.workerWork({ encodedOutputBytes: 12, decodedInputBytes: 9 })
+  diagnostics.ciphertextWork('worker', 3, 40)
+  diagnostics.ciphertextWork('main', 3, 40)
+  diagnostics.ciphertextWork('main', 1, 10)
+  diagnostics.record({ stage: 'preparing-merge', outcome: 'complete', elapsedMs: 1 })
+  expect(diagnostics.snapshot()[0]).toMatchObject({ workerMetadata: { encodedOutputBytes: 12, decodedInputBytes: 9, traversalBytes: 21 }, ciphertextObservations: { worker: { records: 3, bytes: 40 }, main: { records: 4, bytes: 50 } } })
+  expect(diagnostics.snapshot()[0].metadata).toBeUndefined()
+})
+
+it('ignores aggregate worker observations after synthetic diagnostics are stopped', async () => {
+  const api = await import('./signin-merge-diagnostics')
+  api.enableSigninMergeDiagnostics()
+  const diagnostics = api.beginSigninMergeDiagnostics()!
+  api.stopSigninMergeDiagnostics()
+  api.recordSigninMergeWorkerWork({ encodedOutputBytes: 99 })
+  api.recordSigninMergeCiphertextWork('main', 1, 99)
+  api.recordSigninMergeCiphertextFailure('worker')
+  diagnostics.record({ stage: 'journey', outcome: 'complete', elapsedMs: 1 })
+  expect(diagnostics.snapshot()[0].workerMetadata).toBeUndefined()
+  expect(diagnostics.snapshot()[0].ciphertextObservations).toBeUndefined()
+})
