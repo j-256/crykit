@@ -3,6 +3,7 @@ import { offlinePlugin } from './scripts/offline-plugin.ts'
 
 // Local fixture assets are emitted separately and are never part of build:assets or deployment
 export default defineConfig({
+  define: { __CRYKIT_MANAGED_COMPARISON_QUALIFICATION__: process.env.CRYKIT_MANAGED_COMPARISON_QUALIFICATION === '1' },
   root: 'worker/testing', base: '/__accounts-proof/', publicDir: false,
   worker: { format: 'es' },
   build: { outDir: '../../.account-tests/browser', emptyOutDir: true, target: 'es2022', rollupOptions: { input: { proof: 'worker/testing/crypto-proof.html', accountUi: 'worker/testing/account-ui.html', workspace: 'worker/testing/account-workspace.html', localSave: 'worker/testing/local-save-performance.html' } } },

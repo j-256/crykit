@@ -24,7 +24,11 @@ export async function validateSigninProgressIdentity(state: WorkspaceState, conf
   if (!Array.isArray(sourceParts) || !Array.isArray(destinationParts) || sourceParts.length !== 3 || destinationParts.length !== 3 || [...sourceParts, ...destinationParts].some(part => typeof part !== 'string') || sourceParts[0] !== 'progress' || destinationParts[0] !== 'progress' || sourceParts[1] !== destinationParts[1] || sourceParts[2] === destinationParts[2] || identity.destinationKey !== conflict.unit.privateKey || conflict.unit.kind !== 'record') throw new Error('Invalid Progress original identity mapping')
   // Metadata is inert, bounded input. Only the original root and its schema-declared domain
   // closure participate in this comparison; file payloads are neither duplicated nor activated
-  const originals = new Map(splitWorkspace({ ...originalState, blobs: [] }).map(document => [document.key, document]))
+  // Preserve every declared reference while validating metadata with unrelated editor/source records
+  // The inherited archive owns body authentication; these local shape-only sources cannot
+  // read bytes or escape into a captured workspace
+  const metadataBodies = originalState.blobs.map(ref => ({ ref, content: { byteLength: ref.byteLength, async *open(): AsyncGenerator<Uint8Array> { throw new Error('Progress metadata does not grant body access') } } }))
+  const originals = new Map(splitWorkspace({ ...originalState, blobs: metadataBodies }).filter(document => document.kind !== 'blob').map(document => [document.key, document]))
   const original = originals.get(identity.sourceKey), mapped = pending.get(identity.destinationKey)
   if (!original || original.kind !== 'progress' || !mapped || mapped.kind !== 'progress' || originals.has(identity.destinationKey)) throw new Error('Missing or occupied Progress original identity')
   validateArchiveDomainValue(original.kind, original.value)

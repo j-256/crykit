@@ -1,3 +1,5 @@
+import { readIncrementalMappedIntent } from './account-mapping-origin'
+import { managedComparisonWritesEnabled } from './managed-copy-comparisons'
 import { admitWorkspaceMetadata, createMergeOperationScope, metadataAdmissionFacts, validateSnapshotBodies, type MergeOperationScope, type WorkspaceMetadataAdmission } from './snapshot-admission'
 import { assertReviewedAccountData, type ReviewedAccountData } from './reviewed-replacement'
 import { accountAttachmentCheck, prepareAccountReceiptAttachment, releaseAccountActivationAttachment, type AccountSyncAttachmentValue } from '../persistence/account-activation-attachments'
@@ -366,10 +368,10 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
         const snapshot = authority.snapshot!, selected = authority.selected!
         await assertOwnedWorkspaceSnapshot(snapshot)
         if (!jsonEqual(await database.profileMeta.get('active'), authority.expected)) throw new Error('The account changed after preview. Preview again before copying.')
-        if (await isManagedAccountHead(database, token, authority.expected) && !preview.conflicts.length && !selected.state.conflicts.length) {
+        if (await isManagedAccountHead(database, token, authority.expected) && (managedComparisonWritesEnabled() || !preview.conflicts.length && !selected.state.conflicts.length)) {
           const includeOriginals = !!preview.signin || preview.selectedKeys.includes(HISTORY_KEY)
           const incoming = await guestEvidenceForCopy(selected, includeOriginals ? snapshot : undefined, includeOriginals ? authority.originals : undefined)
-          staged = await stageManagedGuestCopy(database, token, preview, authority.expected, incoming, before => additiveCopyState(before, selected, preview), assertCopyActive, preparationAttachment)
+          staged = await stageManagedGuestCopy(database, token, preview, authority.expected, incoming, before => additiveCopyState(before, selected, preview), assertCopyActive, preparationAttachment, preview.conflicts.length || selected.state.conflicts.length ? selected : undefined)
           journal = staged.journal
         } else {
           const capturedPrevious = await captureAccountSyncWorkspace(database, token, authority.expected)
@@ -591,8 +593,10 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
       const registeredIds = new Set<string>()
       // The existing atomic activation receipt serves copy and explicit restore alike
       for (const row of await database.migrationJournal.toArray()) {
-        if (!row.intent || row.cloudStatus !== 'mapped-local') continue
-        const intent = await openAccountJson(database, token, row.intent, MappedWorkspaceIntentSchema)
+        if (!row.intent) continue
+        const intentRef = row.cloudStatus === 'mapped-local' ? row.intent : await readIncrementalMappedIntent(database, token, row.id, row.intent)
+        if (!intentRef) continue
+        const intent = await openAccountJson(database, token, intentRef, MappedWorkspaceIntentSchema)
         if (intent.operationId !== row.id) throw new Error('Comparison receipt identity mismatch')
         for (const entry of await reader.registrations(intent)) {
           if (!entry.original || registeredIds.has(entry.id)) continue
@@ -656,15 +660,17 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
       if (saved) {
         const journal = await openAccountJson(database, token, saved.ref, JournalSchema)
         if (journal.preview.copyId !== copyId || journal.preview.accountId !== token.accountId) throw new Error('Saved copy identity mismatch')
-        // Managed copies have no imported comparisons; their ordinary intent owns background publication
+        // Managed copies publish through their durable mapping receipt; old V1 copies have no comparisons
         if (journal.version === 2) {
           if (!await hasMatchingActivation(database, token, journal)) throw new Error('The saved copy has not been added')
-          check(); return
+          if (!await readIncrementalMappedIntent(database, token, copyId, journal.intent)) { check(); return }
         }
       }
       const row = await database.migrationJournal.get(copyId)
-      if (!row?.intent || row.cloudStatus !== 'mapped-local') throw new Error('The saved import is unavailable')
-      const original = await openAccountJson(database, token, row.intent, MappedWorkspaceIntentSchema)
+      if (!row?.intent) throw new Error('The saved import is unavailable')
+      const intentRef = row.cloudStatus === 'mapped-local' ? row.intent : await readIncrementalMappedIntent(database, token, copyId, row.intent)
+      if (!intentRef) throw new Error('The saved import is unavailable')
+      const original = await openAccountJson(database, token, intentRef, MappedWorkspaceIntentSchema)
       if (original.operationId !== copyId) throw new Error('Foreign saved import')
       const entries = await readCopiedConflicts(database, token, original)
       const expected = await database.profileMeta.get('active')

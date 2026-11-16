@@ -1,7 +1,7 @@
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { appendFileSync } from 'node:fs'
 import 'fake-indexeddb/auto'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { AccountDatabase } from './account-database'
 import { installProfile, invalidateProfile } from '../account/profile'
 import { accountLocalId } from '../workspace/account-cache'
@@ -13,7 +13,8 @@ import { createGuestCopyService } from '../workspace/guest-copy'
 import { inspectWorkspaceClosure } from '../workspace/closure'
 import { conflictService } from './sync-conflict-fixture'
 
-async function* copiedConflictJourney(mode: 'copy' | 'restore') {
+async function* copiedConflictJourney(mode: 'copy' | 'managed-copy' | 'restore') {
+  if (mode === 'managed-copy') vi.spyOn(await import('../workspace/managed-copy-comparisons'), 'managedComparisonWritesEnabled').mockReturnValue(true)
   const started = Date.now()
   const mark = (phase: string) => { if (process.env.CRYKIT_COPY_PROOF_TIMINGS) appendFileSync(process.env.CRYKIT_COPY_PROOF_TIMINGS, `${JSON.stringify({ mode, phase, elapsedMs: Date.now() - started })}\n`) }
   mark('start')
@@ -48,7 +49,7 @@ async function* copiedConflictJourney(mode: 'copy' | 'restore') {
     mark('destination-initial-published')
     const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'foreign-original', capturedAt: '2026-10-13', revisionVector: {}, state: backup.state }, { async check() {}, async dispose() {} }))
     let operationId: string
-    if (mode === 'copy') {
+    if (mode !== 'restore') {
       const preview = await service.previewGuestCopy(first.token, [JSON.stringify(['conflict', captured.conflict.id])])
       await service.commitGuestCopy(first.token, preview)
       operationId = preview.copyId
@@ -113,7 +114,7 @@ async function* copiedConflictJourney(mode: 'copy' | 'restore') {
 }
 
 const COPY_STEP_TIMEOUT_MS = 120_000
-describe.each(['copy', 'restore'] as const)('registersPortableComparisonsAndResolvesOnAnotherDestinationDevice: %s', mode => {
+describe.each(['copy', 'managed-copy', 'restore'] as const)('registersPortableComparisonsAndResolvesOnAnotherDestinationDevice: %s', mode => {
   describe('destination comparison and explicit resolution', { concurrent: false }, () => {
     const journey = copiedConflictJourney(mode)
     let pending: ReturnType<typeof journey.next> | undefined
@@ -141,11 +142,18 @@ describe.each(['copy', 'restore'] as const)('registersPortableComparisonsAndReso
   })
 })
 
-it('merges sign-in Progress as an exact resolvable comparison on a second device while backups retain original IDs', async () => {
+it.each(['native', 'managed', 'managed-editor', 'native-editor'] as const)('merges sign-in Progress as an exact resolvable comparison on a second device while backups retain original IDs: %s', async mode => {
+  if (mode.startsWith('managed')) vi.spyOn(await import('../workspace/managed-copy-comparisons'), 'managedComparisonWritesEnabled').mockReturnValue(true)
   const { progress, now } = await import('../workspace/signin-merge.test-helpers')
   const { captureWorkspaceSnapshot, openHistoricalSnapshot, disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
   const { exportWorkspaceBackup, readWorkspaceBackup } = await import('../interchange/workspace-backup')
-  const source = progress('local-observation', false), destination = progress('account-observation')
+  let source = progress('local-observation', false), destination = progress('account-observation')
+  if (mode.endsWith('editor')) {
+    const fixture = await (await import('../workspace/test-helpers')).editorClosureFixture()
+    destination = { ...destination, editorDocuments: [fixture.file], blobs: [...fixture.blobs] }
+    const text = await fixture.add(new Uint8Array([66, 0]), 'incoming-text', 'utf16le')
+    source = { ...source, editorDocuments: [{ ...fixture.file, filename: 'incoming.json', unfinished: { ...fixture.file.unfinished, text } }], blobs: [...fixture.blobs] }
+  }
   const original = source.planner.localData.playthroughs.play.progress['local-observation']
   const server = await conflictService()
   try {
@@ -170,18 +178,37 @@ it('merges sign-in Progress as an exact resolvable comparison on a second device
     const backup = await readWorkspaceBackup(exportWorkspaceBackup(capture))
     try {
       expect(backup.version).toBe(2)
-      expect(backup.state.conflicts[0].progressIdentity).toEqual(conflict.progressIdentity)
+      expect(backup.state.conflicts.find(value => value.id === conflict.id)!.progressIdentity).toEqual(conflict.progressIdentity)
       let exactObservation = false, exactSource = false
       if (backup.version === 2) for (const member of backup.historicalEvidence.snapshots) {
         const value = await openHistoricalSnapshot(backup, member.id)
         try {
           exactObservation ||= JSON.stringify(value.state.planner.localData.playthroughs.play?.progress['local-observation']) === JSON.stringify(original)
           exactSource ||= value.snapshotId === 'signin-original' && !value.state.planner.localData.playthroughs.play.progress['account-observation']
+          if (mode.endsWith('editor') && value.snapshotId === 'signin-original') {
+            const { snapshotMetadata } = await import('../workspace/snapshot')
+            const { blobIdentity, readBlob } = await import('../workspace/blobs')
+            expect(snapshotMetadata(value).state).toEqual(snapshotMetadata({ ...value, state: source }).state)
+            for (const body of source.blobs) expect(await readBlob(value.state.blobs.find(item => blobIdentity(item.ref) === blobIdentity(body.ref))!.content, body.ref.byteLength)).toEqual(await readBlob(body.content, body.ref.byteLength))
+          }
         } finally { await disposeWorkspaceSnapshot(value) }
       }
       expect(exactObservation).toBe(true)
       expect(exactSource).toBe(true)
     } finally { await disposeWorkspaceSnapshot(backup); await disposeWorkspaceSnapshot(capture) }
+    if (mode.endsWith('editor')) {
+      const editor = state.conflicts.find(value => value.unit.privateKey === '["editor","editor-1"]')!
+      expect(editor).toBeDefined()
+      const branches = await Promise.all(editor.branches.map(branch => inspectWorkspaceClosure(state, branch.closure)))
+      expect(branches.map(value => (value.value as { filename: string }).filename)).toEqual(['incoming.json', 'before.json'])
+      const { blobIdentity, readBlob } = await import('../workspace/blobs')
+      const bytes = await Promise.all(branches.map(async branch => {
+        const file = branch.value as unknown as import('../workspace/documents').EditorWorkspaceDocument
+        return Array.from(await readBlob(state.blobs.find(body => blobIdentity(body.ref) === blobIdentity(file.unfinished.text))!.content, file.unfinished.text.byteLength))
+      }))
+      expect(bytes).toEqual([[66, 0], [0, 216]])
+      return
+    }
     await resolveConflict(second.token, conflict.id, 'this', state.planner.localData.revision)
     expect((await second.settle()).state).toBe('synced')
     const resolvedState = await (await second.open()).readWorkspace()

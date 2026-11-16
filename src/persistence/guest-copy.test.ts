@@ -299,7 +299,8 @@ it.each(['compatible', 'absent', 'occupied'] as const)('copiesAnImportedEditorCo
   await service.dispose()
 })
 
-it.each(['lineage', 'mapping', 'delete', 'accepted-delete', 'accepted-delete-absent'] as const)('reconstructsTheOriginalSemanticUnit: %s', async kind => {
+it.each((['native', 'managed'] as const).flatMap(mode => (['lineage', 'mapping', 'delete', 'accepted-delete', 'accepted-delete-absent'] as const).map(kind => ({ mode, kind }))))('reconstructsTheOriginalSemanticUnit: $mode $kind', async ({ mode, kind }) => {
+  if (mode === 'managed') vi.spyOn(await import('../workspace/managed-copy-comparisons'), 'managedComparisonWritesEnabled').mockReturnValue(true)
   const { createWorkspaceConflict } = await import('../workspace/conflicts')
   const source = await setup()
   let portable: import('../workspace/documents').WorkspaceState
@@ -367,10 +368,26 @@ it.each(['lineage', 'mapping', 'delete', 'accepted-delete', 'accepted-delete-abs
     remote = (await openRemoteProjection(target.database, target.token, heads, base.head, 1))!
     expect(remote.units.get(key)!.body.kind).toBe('tombstone')
   }
+  if (mode === 'managed') {
+    const { createAccountLocalStore } = await import('../workspace/account-local-store')
+    const { prepareLocalWorkspace } = await import('../workspace/local-root')
+    const store = createAccountLocalStore(target.database, target.token), operationId = accountLocalId()
+    try {
+      const expected = (await target.database.profileMeta.get('active'))!
+      const result = await prepareLocalWorkspace(store.adapter, operationId, base.opened.state, store.lifetime)
+      await activation.activateLocalAccountCommit(target.database, target.token, await store.prepareLegacyActivation(operationId, result, expected))
+      store.committed(operationId)
+    } finally { await store.dispose() }
+  }
   const service = createGuestCopyService(async () => ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'semantic-source', capturedAt: '2026-10-13', revisionVector: {}, state: portable }, { async check() {}, async dispose() {} }))
   const preview = await service.previewGuestCopy(target.token, [JSON.stringify(['conflict', portable.conflicts[0].id])])
   expect(preview.problems).toEqual([])
   await service.commitGuestCopy(target.token, preview)
+  if (mode === 'managed') {
+    expect((await target.database.outbox.toArray())[0].status).toBe('unmapped-local')
+    const { prepareManagedSync } = await import('./managed-sync.test-helpers')
+    await prepareManagedSync(target.database, target.token)
+  }
   const intent = await openAccountJson(target.database, target.token, (await target.database.outbox.toArray())[0].ref, MappedWorkspaceIntentSchema)
   const copied = await openAccountWorkspace(target.database, target.token, intent.target)
   let result = await prepareCopiedConflictPublication(target.database, target.token, intent, copied, remote)
