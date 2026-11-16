@@ -119,3 +119,26 @@ it('ignores completed review progress and aborted preparation progress without a
   controller.abort(); await rejection
   emit(active.id); emit(previous.id); expect(progress).toHaveLength(1)
 })
+
+it('ignores numeric refusal progress from foreign and retired request envelopes', async () => {
+  const { SIGNIN_MERGE_LIMITS } = await import('../workspace/signin-merge-protocol')
+  const token = installProfile(accountLocalId(), new Uint8Array(32)), transport = new Transport()
+  const lease = await createProfileWorker(token, transport as unknown as Worker), operationId = accountLocalId()
+  const progress: unknown[] = []
+  const prior = lease.request({ kind: 'review', operationId }), old = transport.messages.at(-1)!
+  transport.reply({ incarnation: lease.incarnation, id: old.id, operationId, status: 'complete', value: 'review' }); await prior
+  const controller = new AbortController()
+  const pending = lease.request({ kind: 'prepare', operationId }, controller.signal, value => progress.push(value)), active = transport.messages.at(-1)!
+  const value = { stage: 'preparing-merge', resourceFailure: { dimension: 'records', value: SIGNIN_MERGE_LIMITS.records + 1, limit: SIGNIN_MERGE_LIMITS.records, basis: 'record-cardinality' } }
+  const envelope = { incarnation: lease.incarnation, id: active.id, operationId, status: 'progress', value }
+  transport.reply({ ...envelope, incarnation: 'foreign' })
+  transport.reply({ ...envelope, operationId: 'foreign' })
+  transport.reply({ ...envelope, id: old.id })
+  expect(progress).toEqual([])
+  transport.reply(envelope)
+  expect(progress).toEqual([value])
+  const rejection = expect(pending).rejects.toThrow(/released/)
+  controller.abort(); await rejection
+  transport.reply(envelope)
+  expect(progress).toEqual([value])
+})

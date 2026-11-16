@@ -6,9 +6,20 @@ import { PreviewSchema } from './guest-copy-journal'
 
 // These worker resource limits are independent of persisted-format and account capacity limits
 export const SIGNIN_MERGE_LIMITS = Object.freeze({ manifestBytes: 4 * 1024 * 1024, records: 8192, observationBytes: 128 * 1024 * 1024 })
+const resourceFailures = new WeakMap<Error, SigninMergeResourceFailure>()
+// Only this real guard associates measured values with an error; matching public text grants no observation
+export function signinMergeResourceFailure(error: unknown): SigninMergeResourceFailure | undefined { return error instanceof Error ? resourceFailures.get(error) : undefined }
 export function assertSigninMergeBudget(manifestBytes: number, records: number, observationBytes: number): void {
-  const values = [manifestBytes, records, observationBytes], limits = [SIGNIN_MERGE_LIMITS.manifestBytes, SIGNIN_MERGE_LIMITS.records, SIGNIN_MERGE_LIMITS.observationBytes]
-  if (values.some((value, index) => !Number.isSafeInteger(value) || value < 0 || value > limits[index])) throw new Error('SIGNIN_MERGE_RESOURCE_LIMIT')
+  const values = [manifestBytes, records, observationBytes], dimensions = ['manifestBytes', 'records', 'observationBytes'] as const
+  for (const [index, value] of values.entries()) {
+    const dimension = dimensions[index], limit = SIGNIN_MERGE_LIMITS[dimension]
+    if (!Number.isSafeInteger(value) || value < 0 || value > limit) {
+      const error = new Error('SIGNIN_MERGE_RESOURCE_LIMIT')
+      // Invalid counters remain unavailable; zero placeholders in other dimensions are not totals
+      if (Number.isSafeInteger(value) && value > limit) resourceFailures.set(error, Object.freeze({ dimension, value, limit, basis: dimension === 'records' ? 'record-cardinality' : 'counted-byte-prefix', ...(dimension === 'observationBytes' && Number.isSafeInteger(records) && records > 0 ? { records } : {}) }) as SigninMergeResourceFailure)
+      throw error
+    }
+  }
 }
 export const SIGNIN_MERGE_ERRORS = Object.freeze(['SIGNIN_MERGE_RESOURCE_LIMIT', 'SIGNIN_COORDINATION_UNAVAILABLE', 'SIGNIN_SOURCE_CHANGED', 'LOCAL_REVISION_CONFLICT', 'SIGNIN_RECEIPT_MISMATCH', 'SIGNIN_MAPPING_REQUIRED', 'SIGNIN_PREPARATION_FAILED'] as const)
 export const MergeCipherRecordSchema = z.strictObject({ revisionId: OpaqueIdSchema, payloadId: OpaqueIdSchema, descriptor: RevisionDescriptorSchema })
@@ -36,9 +47,16 @@ export type SigninMergeManifest = z.infer<typeof SigninMergeManifestSchema>
 export type SigninMergeTicket = z.infer<typeof SigninMergeTicketSchema>
 export type SigninMergeReviewResult = z.infer<typeof SigninMergeReviewSchema>
 const workCount = z.number().int().nonnegative().safe()
+export const SigninMergeResourceFailureSchema = z.discriminatedUnion('dimension', [
+  z.strictObject({ dimension: z.literal('manifestBytes'), value: workCount, limit: z.literal(SIGNIN_MERGE_LIMITS.manifestBytes), basis: z.literal('counted-byte-prefix') }),
+  z.strictObject({ dimension: z.literal('records'), value: workCount, limit: z.literal(SIGNIN_MERGE_LIMITS.records), basis: z.literal('record-cardinality') }),
+  z.strictObject({ dimension: z.literal('observationBytes'), value: workCount, limit: z.literal(SIGNIN_MERGE_LIMITS.observationBytes), basis: z.literal('counted-byte-prefix'), records: workCount.positive().max(SIGNIN_MERGE_LIMITS.records).optional() }),
+]).refine(value => value.value > value.limit, 'A numeric resource refusal must exceed its unchanged limit')
+export type SigninMergeResourceFailure = z.infer<typeof SigninMergeResourceFailureSchema>
 export const SigninMergeProgressSchema = z.strictObject({ stage: z.enum(['reading-source', 'comparing-records', 'preparing-merge']),
   observations: z.discriminatedUnion('status', [z.strictObject({ status: z.literal('complete'), records: workCount, bytes: workCount }), z.strictObject({ status: z.literal('failed') })]).optional(),
   codec: z.strictObject({ encodedOutputBytes: workCount.optional(), decodedInputBytes: workCount.optional() }).optional(),
+  resourceFailure: SigninMergeResourceFailureSchema.optional(),
 })
 export type SigninMergeProgress = z.infer<typeof SigninMergeProgressSchema>
 export type SigninMergeCommand =

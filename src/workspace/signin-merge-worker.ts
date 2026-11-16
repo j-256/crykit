@@ -5,7 +5,7 @@ import { installAccountWorkCheckpoint } from '../account/background-work'
 import { assertKey } from '../account/crypto/types'
 import { OpaqueIdSchema } from '../account/protocol'
 import { createSigninMergePreparation } from './signin-merge-preparation'
-import { SIGNIN_MERGE_ERRORS, SigninMergeLocatorSchema, SigninMergeFenceSchema, type SigninMergeCommand, type SigninMergeProgress } from './signin-merge-protocol'
+import { signinMergeResourceFailure, SIGNIN_MERGE_ERRORS, SigninMergeLocatorSchema, SigninMergeFenceSchema, type SigninMergeCommand, type SigninMergeProgress } from './signin-merge-protocol'
 
 type Envelope = SigninMergeCommand & { incarnation: string; id: string }
 type Request = Envelope | { kind: 'initialize'; incarnation: string; accountId: string; key: Uint8Array; diagnostics?: true } | { kind: 'foreground'; incarnation: string; pending: boolean } | { kind: 'cancel'; incarnation: string }
@@ -79,6 +79,11 @@ self.onmessage = (event: MessageEvent<Request>) => {
         else { await preparation.dispose(); preparation = undefined; reply('complete', null) }
       }
     } catch (error) {
+      // Optional observation is request-bound and cannot replace the actual terminal failure
+      if (stopCodec && captured === owner) try {
+        const resourceFailure = signinMergeResourceFailure(error)
+        if (resourceFailure) reply('progress', { stage: input.kind === 'review' ? 'comparing-records' : 'preparing-merge', resourceFailure })
+      } catch { /* Diagnostic delivery is best effort; the original failure still terminates the request */ }
       // Only fixed public codes cross the boundary; errors may contain private source values
       const code = error instanceof Error && SIGNIN_MERGE_ERRORS.find(value => value === error.message)
       reply('failed', undefined, code || 'SIGNIN_PREPARATION_FAILED')

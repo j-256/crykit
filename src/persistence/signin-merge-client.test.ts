@@ -62,6 +62,7 @@ async function fixture(conflict = false, native = false, locator = true, retaine
   cleanups.push(() => review.dispose())
   let loseAcknowledgment = false
   let afterTicket: ((ticket: SigninMergeTicket) => Promise<void>) | undefined
+  let beforePrepare: ((emit: (value: unknown) => void) => Promise<void>) | undefined
   const messages: unknown[] = []
   // This transport exercises the production worker preparation and main installer in one Node realm
   // Native worker scheduling, key transfer, locks, and termination are covered separately in browsers
@@ -80,7 +81,7 @@ async function fixture(conflict = false, native = false, locator = true, retaine
         let value: unknown
         try {
           if (input.kind === 'review') { this.operation = await createSigninMergePreparation(this.database, device.token, input.operationId, input.locator, input.fence, () => {}); value = { handle: this.operation.handle, preview: this.operation.preview } }
-          else if (input.kind === 'prepare') { const ticket = await this.operation!.prepare(input.handle); await afterTicket?.(ticket); value = ticket }
+          else if (input.kind === 'prepare') { await beforePrepare?.(value => this.onmessage?.({ data: { incarnation: input.incarnation, id: input.id, operationId: input.operationId, status: 'progress', value } } as MessageEvent)); const ticket = await this.operation!.prepare(input.handle); await afterTicket?.(ticket); value = ticket }
           else { await this.operation?.dispose(); if (loseAcknowledgment) { this.onerror?.(); return }; value = null }
           if (!this.terminated) this.onmessage?.({ data: { incarnation: input.incarnation, id: input.id, operationId: input.operationId, status: 'complete', value: structuredClone(value) } } as MessageEvent)
         } catch (error) { if (!this.terminated) this.onmessage?.({ data: { incarnation: input.incarnation, id: input.id, operationId: input.operationId, status: 'failed', code: error instanceof Error ? error.message : '' } } as MessageEvent) }
@@ -93,7 +94,7 @@ async function fixture(conflict = false, native = false, locator = true, retaine
   const client = await createSigninMergeClient(device.db, device.token, operationId, { snapshot, ...(locator ? { locator: { databaseName: guest.name, manifest } } : {}) }, identity, review, async () => {}, () => {}, new AbortController().signal, () => new Worker('synthetic-merge-worker'))
   cleanups.push(client.dispose)
   const value = { version: 1, kind: 'signin-decision', accountId: device.token.accountId, action: 'merge', status: 'preparing', copyId: client.preview.copyId, operationId, source: identity }
-  return { device, guest, client, value, messages, loseAcknowledgment() { loseAcknowledgment = true }, set afterTicket(callback: typeof afterTicket) { afterTicket = callback } }
+  return { device, guest, client, value, messages, loseAcknowledgment() { loseAcknowledgment = true }, set afterTicket(callback: typeof afterTicket) { afterTicket = callback }, set beforePrepare(callback: typeof beforePrepare) { beforePrepare = callback } }
 }
 
 it.each([false, true])('installs and activates a privately admitted merge with conflict=%s', async conflict => {
@@ -356,4 +357,37 @@ it.each(['none', 'before-install', 'late-activation'] as const)('keeps installed
     }
     if (mutation !== 'none') { expect(await f.device.db.profileMeta.get('active')).toEqual(before); expect(await f.device.db.outbox.count()).toBe(0) }
   } finally { await f.device.db.stagedCipherChunks.put(chunk) }
+}, 30_000)
+
+it.each(['valid', 'malformed', 'throwing-observer'] as const)('preserves the resource terminal code with optional diagnostic=%s', async mode => {
+  const api = await import('../workspace/signin-merge-diagnostics')
+  const { assertSigninMergeBudget, signinMergeResourceFailure, SIGNIN_MERGE_LIMITS } = await import('../workspace/signin-merge-protocol')
+  api.enableSigninMergeDiagnostics()
+  const diagnostics = api.beginSigninMergeDiagnostics()!
+  cleanups.push(async () => api.stopSigninMergeDiagnostics())
+  if (mode === 'throwing-observer') {
+    const original = diagnostics.workerObserver
+    vi.spyOn(diagnostics, 'workerObserver').mockImplementation(() => ({ ...original(), resourceFailure() { throw new Error('synthetic diagnostic consumer failure') } }))
+  }
+  const f = await fixture(), before = await f.device.db.profileMeta.get('active')
+  f.beforePrepare = async emit => {
+    let error: unknown
+    try { assertSigninMergeBudget(0, 2, SIGNIN_MERGE_LIMITS.observationBytes + 17) } catch (caught) { error = caught }
+    const resourceFailure = signinMergeResourceFailure(error)!
+    emit({ stage: 'preparing-merge', resourceFailure: mode === 'malformed' ? { ...resourceFailure, privateId: 'secret' } : resourceFailure })
+    emit({ stage: 'preparing-merge', codec: { encodedOutputBytes: 7 } })
+    throw error
+  }
+  await expect(f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })).rejects.toThrow('SIGNIN_MERGE_RESOURCE_LIMIT')
+  diagnostics.record({ stage: 'confirm', outcome: 'failed', elapsedMs: 1, errorCode: 'resource-limit' })
+  const last = diagnostics.snapshot().at(-1)!
+  if (mode === 'valid') expect(last.resourceFailure).toMatchObject({ dimension: 'observationBytes', records: 2 })
+  else expect(last.resourceFailure).toBeUndefined()
+  expect(last.workerMetadata?.encodedOutputBytes).toBe(7)
+  expect(last.workerAccounting?.reportedRequests).toBe(1)
+  expect(JSON.stringify(last)).not.toMatch(/secret|privateId|consumer failure/)
+  expect(await f.device.db.profileMeta.get('active')).toEqual(before)
+  expect(await f.device.db.outbox.count()).toBe(0)
+  expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+  expect(await f.device.db.syncState.get('signin-receipt:decision')).toBeUndefined()
 }, 30_000)
