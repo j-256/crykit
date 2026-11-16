@@ -169,7 +169,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     for (const listener of listeners) { try { listener() } catch { /* Observers cannot alter durable decisions */ } }
   }
   const preparationStage = (stage: SigninPreparationStage) => { check(); diagnosticStage = stage; recordDiagnostic(stage, 'started'); publish({ stage }) }
-  const service = () => createReviewedReplacementService(database!, token)
+  const service = () => createReviewedReplacementService(database!, token, lifetime.signal)
   async function readDecision() {
     const row = await database!.syncState.get(decisionKey)
     const value = row ? await openAccountJson(database!, token, row.ref, SigninDecisionSchema) : undefined

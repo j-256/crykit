@@ -9,7 +9,7 @@ import { ARCHIVAL_DOCUMENT_KINDS, inspectWorkspaceClosures } from './closure'
 import { archiveWorkspaceUnit } from './pending-content'
 import { blobIdentity } from './blobs'
 import { splitWorkspace } from './documents'
-import { backupMetadataDigest, disposeWorkspaceSnapshot, ownWorkspaceSnapshot, validateWorkspaceSnapshot, type WorkspaceSnapshot } from './snapshot'
+import { backupMetadataDigest, backupWorkspaceDocumentDigest, disposeWorkspaceSnapshot, ownWorkspaceSnapshot, validateWorkspaceSnapshot, type WorkspaceSnapshot } from './snapshot'
 
 export async function captureAccountSnapshot(workspace: OpenAccountWorkspace, fence: AccountFence, assertSource: () => Promise<void>, source?: { readonly database: AccountDatabase; readonly token: ProfileToken; readonly validatedEvidence?: AccountInheritedEvidence }): Promise<WorkspaceSnapshot> {
   await assertSource()
@@ -26,13 +26,13 @@ export async function captureAccountSnapshot(workspace: OpenAccountWorkspace, fe
     const current = projected.get(entry.key)
     if (!current) throw new Error('Captured current unit has no projected record')
     const closure = await archiveWorkspaceUnit(workspace, entry.key, output)
-    units.push({ key: entry.key, source: { ...entry.ref, digest: entry.digest }, projectedDigest: await backupMetadataDigest(current), closure })
+    units.push({ key: entry.key, source: { ...entry.ref, digest: entry.digest }, projectedDigest: await backupWorkspaceDocumentDigest(current, assertSource), closure })
   }
   const state = { ...workspace.state, blobs: [...output.values()] }
   const retained = new Set<string>()
   for (const inspected of await inspectWorkspaceClosures(state, units.map(unit => unit.closure))) for (const id of inspected.refs) retained.add(id)
   const snapshot: WorkspaceSnapshot = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: crypto.randomUUID(), capturedAt: new Date().toISOString(), revisionVector: { committed: JSON.stringify([fence.headRevision, fence.head.documentId, fence.head.revisionId]), entries: await backupMetadataDigest(workspace.entries) }, state, sourceEvidence: { version: 1, units, blobs: [...retained].map(id => output.get(id)!.ref) } }
-  await validateWorkspaceSnapshot(snapshot)
+  await validateWorkspaceSnapshot(snapshot, undefined, assertSource)
   let disposed = false
   const check = async () => {
     if (disposed) throw new Error('Backup snapshot was released')
