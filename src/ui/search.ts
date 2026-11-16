@@ -1,16 +1,15 @@
+import { referenceGuidance } from '../catalog/reference-guidance'
 import { skillAcceptsWeapon, skillWeaponRule, type SkillWeaponRule, type WeaponType } from '../domain/skill-weapons'
 import type { ModState } from '../domain/mods'
 import { nativeIdentity } from '../domain/native-game'
 import { referenceDescription } from '../catalog/native-description'
 import { nativeFieldFacts } from '../catalog/native-field-facts'
 import { nativeEquipmentFacts } from '../catalog/native-equipment-facts'
-import { preferredNativeReferenceId } from '../catalog/native-reference-links'
 import { partitionQuery } from '../domain/query'
 import { normalizeImportedFieldName } from '../interchange/field-names'
 import { isImmutableCatalogRecord, isImmutableCatalogSnapshot } from '../interchange/native'
-import { projectSourceSemantics } from '../catalog/source-semantics'
 import { referenceCategoryKeys, referenceCategoryLabel } from './reference-categories'
-import { combineFacetKnowledge, facetStringValues, isReferenceArtifact, referenceAudience, referenceCategoryKnowledge, referenceFieldFacets, REFERENCE_FACETS, type FacetRecord, type ReferenceAudience, type ReferenceFacetFilters, type ReferenceFacetKey } from './reference-facets'
+import { combineFacetKnowledge, facetStringValues, referenceAudience, referenceCategoryKnowledge, referenceFieldFacets, REFERENCE_FACETS, type FacetRecord, type ReferenceAudience, type ReferenceFacetFilters, type ReferenceFacetKey } from './reference-facets'
 import type {
   CatalogClaim,
   CatalogEntity,
@@ -178,7 +177,8 @@ export function projectReferenceEntity(
   suppliedClaims?: readonly CatalogClaim[],
 ): ReferenceSearchItem {
   const claims = suppliedClaims ?? catalog.claims.filter((claim) => claim.entityId === entity.id)
-  const projectedEntity = projectSourceSemantics(entity)
+  const projectedEntity = entity
+  const guidance = referenceGuidance(catalog, projectedEntity)
   const nativeFacts = nativeFieldFacts(catalog, projectedEntity)
   const equipment = nativeEquipmentFacts(catalog, projectedEntity)
   const fields = new Map([...Object.entries(projectedEntity.fields), ...nativeFacts.map(fact => [fact.field, fact.value] as const), ...equipment?.facts.map(fact => [fact.field, fact.value] as const) ?? []])
@@ -189,6 +189,7 @@ export function projectReferenceEntity(
   const sources = Array.from(new Set([
     catalog.id,
     ...projectedEntity.sources.map((source) => source.sourceId),
+    ...guidance.flatMap(record => record.sources.map(source => source.sourceId)),
     ...claims.flatMap((claim) => claim.sources.map((source) => source.sourceId)),
   ].filter(Boolean))).sort(compareText)
   const ppCost = ppCostKnowledge(projectedEntity)
@@ -206,7 +207,7 @@ export function projectReferenceEntity(
     knowledgeCounts: countKnowledge(entityKnowledge(factEntity, claims)),
     audience: referenceAudience(projectedEntity, catalog.id),
     projection: {
-      text: { state: 'known', value: [projectedEntity.name, ...projectedEntity.aliases, referenceDescription(projectedEntity) ?? '', projectedEntity.rawDescription ?? ''].join('\n').normalize('NFKC') },
+      text: { state: 'known', value: [projectedEntity.name, ...projectedEntity.aliases, referenceDescription(projectedEntity) ?? '', ...guidance.map(record => record.text), projectedEntity.rawDescription ?? ''].join('\n').normalize('NFKC') },
       kind: { state: 'known', value: projectedEntity.kind },
       category: combineFacetKnowledge(categoryKnowledge),
       ...referenceFieldFacets(factEntity, claims),
@@ -220,14 +221,14 @@ export function projectReferenceEntity(
 function catalogReferenceSearchItem(catalog: CatalogSnapshot, entity: CatalogEntity, claims?: readonly CatalogClaim[]): ReferenceSearchItem {
   const item = projectReferenceEntity(catalog, entity, claims)
   const native = nativeIdentity(entity)
-  const alternative = native ? native.mode !== 'base' : Boolean(preferredNativeReferenceId(catalog, entity.id))
+  const alternative = native ? native.mode !== 'base' : false
   return alternative && item.audience === 'default' ? { ...item, audience: 'alternatives' } : item
 }
 
 export function findReferenceSearchItem(catalogs: readonly CatalogSnapshot[], ref: ReferenceEntityKey): ReferenceSearchItem | undefined {
   const catalog = catalogs.find(snapshot => snapshot.id === ref.catalogId && snapshot.revisionId === ref.catalogRevisionId)
   const entity = catalog && Object.hasOwn(catalog.entities, ref.entityId) ? catalog.entities[ref.entityId] : undefined
-  return catalog && entity && !isReferenceArtifact(entity, catalog.id) ? catalogReferenceSearchItem(catalog, entity) : undefined
+  return catalog && entity ? catalogReferenceSearchItem(catalog, entity) : undefined
 }
 
 const immutableCatalogSearchItems = new WeakMap<CatalogSnapshot, readonly ReferenceSearchItem[]>()
@@ -242,7 +243,7 @@ function catalogSearchItems(catalog: CatalogSnapshot): readonly ReferenceSearchI
     claims.push(claim)
     claimsByEntity.set(claim.entityId, claims)
   }
-  const items = Object.values(catalog.entities).filter(entity => !isReferenceArtifact(entity, catalog.id)).map(entity => catalogReferenceSearchItem(catalog, entity, claimsByEntity.get(entity.id) ?? []))
+  const items = Object.values(catalog.entities).map(entity => catalogReferenceSearchItem(catalog, entity, claimsByEntity.get(entity.id) ?? []))
   if (immutable) {
     // These projections depend only on this exact admitted catalog, not personal records or Game Setup
     // Freeze new projection records, but reuse deep immutability established by catalog admission

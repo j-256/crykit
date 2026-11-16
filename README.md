@@ -23,7 +23,7 @@ Rough drafts are available on the separate [preview site](https://preview.crykit
 
 ## Try your first build
 
-1. **Open the app.** The launch collection includes vanilla game definitions and a separate modding guide source. Import your own mod JSON through **Mods** when needed; no mod definitions or full mod files ship in the launch collection. The app starts in **Builds** with a labeled sample Playthrough. The example characters, Builds, and saved Team let you explore before entering your own records.
+1. **Open the app.** The launch collection contains native game definitions and reviewed mechanics. Import your own mod JSON through **Mods** when needed; no mod definitions or full mod files ship in the launch collection. The app starts in **Builds** with a labeled sample Playthrough. The example characters, Builds, and saved Team let you explore before entering your own records.
 2. **Choose New Build.** Search the class, sub-command, equipment, or passive fields and select entries from the results. Fill in as much of the build as you want.
 3. **Give it a name if you like.** Enter **Build title** at the top of the sheet. Choose **Checks & notes** for play notes and a checkpoint name. Otherwise, the build is named after its selected class.
 4. **Choose Save build.** You can return to it from the build library and save further changes as new checkpoints, keeping earlier versions available.
@@ -105,4 +105,4 @@ Open the localhost address printed by Vite. For offline caching, use the [produc
 
 Found a bug or a reference mistake? [Open an issue](https://github.com/j-256/crykit/issues) with steps to reproduce it and an example using made-up records. Keep personal backups, imports, and playthrough screenshots out of public issues.
 
-Original application code is licensed under [AGPL-3.0-only](LICENSE). Game artwork, wiki content, fonts, and dependencies retain their separate rights. See [credits and third-party notices](NOTICE.md), also available in **Data & settings > Credits & licenses**.
+Original application code is licensed under [AGPL-3.0-only](LICENSE). Game data, artwork, fonts, and dependencies retain their separate rights. See [credits and third-party notices](NOTICE.md), also available in **Data & settings > Credits & licenses**.

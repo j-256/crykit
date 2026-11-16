@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { STARTER_CATALOG } from '../catalog'
+import { CURRENT_CATALOG as STARTER_CATALOG } from '../catalog/bundled'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { createBlankLocalData } from '../domain'
-import type { CatalogRef, JsonValue, PersonalDefinitionId, ValidationIssue } from '../domain/types'
+import type { CatalogEntity, CatalogId, EntityId, JsonValue, ValidationIssue } from '../domain/types'
 import { buildDefinitionOptions } from './definitions'
-import { compactKnowledge, decisionFacts, definitionChoiceSourceLabel, groupValidationIssues, hasNameEvidenceOnly, isReferenceArticle, nativeListedStat, nativeStatSourceNotice, selectionSummaryLines, similarNameOptions, summaryFactLines } from './build-evidence'
+import { compactKnowledge, decisionFacts, definitionChoiceSourceLabel, groupValidationIssues, nativeListedStat, nativeStatSourceNotice, selectionSummaryLines, similarNameOptions, summaryFactLines } from './build-evidence'
 import { nativeRecord, nativeSourceRecord } from '../domain/native-game'
 
 const localData = createBlankLocalData()
@@ -15,38 +15,32 @@ const NATIVE_FLAT_HP_TAG = 0
 const NATIVE_PERCENT_HP_TAG = 20
 
 describe('build choice evidence', () => {
-  it('excludes only identified reference articles, including their personal lineage', () => {
-    const article = buildDefinitionOptions(localData, [DEFAULT_CATALOG]).find(entry => entry.name === 'Katanas')!
-    expect(isReferenceArticle(localData, article.ref)).toBe(true)
-    expect(isReferenceArticle(localData, option('Muramasa').ref)).toBe(false)
-    expect(isReferenceArticle(localData, { ...(article.ref as CatalogRef), catalogId: 'unrelated-catalog' as CatalogRef['catalogId'] })).toBe(false)
-    const personal = { kind: 'personal' as const, definitionId: 'synthetic-article' as PersonalDefinitionId }
-    const overridden = { ...localData, personalDefinitions: { [personal.definitionId]: { ...article.record, id: personal.definitionId, baseRef: article.ref } } } as unknown as typeof localData
-    expect(isReferenceArticle(overridden, personal)).toBe(true)
-  })
-
-  it('keeps uncertain spellings separate and labels the name-only record', () => {
-    const detailed = option("Viking's Hat")
-    const nameOnly = option('Vikings Hat')
-    expect(detailed.key).not.toBe(nameOnly.key)
-    expect(hasNameEvidenceOnly(detailed.record)).toBe(false)
-    expect(hasNameEvidenceOnly(nameOnly.record)).toBe(true)
-    expect(hasNameEvidenceOnly({ ...nameOnly.record, fields: { ...nameOnly.record.fields, 'Native source record': { state: 'known', value: { ID: 7, Name: 'Synthetic native item' } } } })).toBe(false)
-    expect(similarNameOptions(localData, options).get(nameOnly.key)?.map((entry) => entry.key)).toContain(detailed.key)
+  it('keeps similarly spelled synthetic source definitions separate', () => {
+    const definition = (id: string, name: string): CatalogEntity => ({ id: id as EntityId, kind: 'item', name, aliases: [], fields: {}, sources: [{ sourceId: 'synthetic-import', locator: id }] })
+    const detailed = definition('synthetic:detailed', "Synthetic's Hat")
+    const alternate = definition('synthetic:alternate', 'Synthetics Hat')
+    const catalog = { ...DEFAULT_CATALOG, id: 'synthetic:similar-names' as CatalogId, entities: { [detailed.id]: detailed, [alternate.id]: alternate }, claims: [] }
+    const choices = buildDefinitionOptions(localData, [catalog])
+    const left = choices.find(choice => choice.record.id === detailed.id)!
+    const right = choices.find(choice => choice.record.id === alternate.id)!
+    expect(left.key).not.toBe(right.key)
+    expect(similarNameOptions(localData, choices).get(right.key)?.map(entry => entry.key)).toEqual([left.key])
+    expect(choices.map(choice => choice.record.id)).toEqual([detailed.id, alternate.id])
   })
 
   it('exposes effects and numeric facts without duplicate stat text or invented totals', () => {
-    const fang = decisionFacts(option('Crit Fang').record)
-    expect(fang.filter((fact) => /Crit\. Chance/.test(compactKnowledge(fact.value)))).toHaveLength(1)
-    expect(fang.some((fact) => /Accuracy: \+20/.test(compactKnowledge(fact.value)))).toBe(true)
-    expect(decisionFacts(option('Muramasa').record)).toContainEqual({ label: 'Attack', value: option('Muramasa').record.fields.Attack })
+    const source = { ...option('Crit Fang').record, fields: { Effect: { state: 'known' as const, value: 'Crit. Chance: +15%' }, 'Other effects': { state: 'known' as const, value: 'Crit. Chance: +15%' }, Defense: { state: 'known' as const, value: 20 }, Attack: { state: 'known' as const, value: 300 } } }
+    const facts = decisionFacts(source)
+    expect(facts.filter(fact => /Crit\. Chance/.test(compactKnowledge(fact.value)))).toHaveLength(1)
+    expect(facts).toContainEqual({ label: 'Defense', value: { state: 'known', value: 20 } })
+    expect(facts).toContainEqual({ label: 'Attack', value: { state: 'known', value: 300 } })
     const record = { ...option('Muramasa').record, fields: { Defense: { state: 'known' as const, value: 50 }, Resistance: { state: 'known' as const, value: 50 }, Attack: { state: 'conflicting' as const, claims: [{ value: 1, sources: [] }, { value: 2, sources: [] }] } } }
     expect(decisionFacts(record)).toHaveLength(3)
     expect(compactKnowledge(record.fields.Attack)).toBe('Conflicting sources')
   })
 
   it('condenses overlapping contribution fields into unique tooltip lines', () => {
-    expect(summaryFactLines(option('Oak Wand').record)).toEqual(['Attack: +42', 'Mind: +12', 'Max. MP: +4'])
+    expect(summaryFactLines(option('Oak Wand').record)).toEqual(['Attack: +42', 'Max. MP: +4', 'Mind: +12', 'Cost: 60 Copper'])
     expect(summaryFactLines(option('Short Sword').record)).not.toContain('Hands: 1')
     expect(summaryFactLines({ ...option('Short Sword').record, listedContributions: undefined, fields: { Stat: { state: 'known', value: 'Mind: +2.5\nMind: +25' } } })).toEqual(['Mind: +2.5', 'Mind: +25'])
   })
@@ -69,7 +63,7 @@ describe('build choice evidence', () => {
     expect(selectionSummaryLines(eclipse)).not.toContain('Always miss physical attacks.')
   })
 
-  it('uses one effect representation while preserving every original source field', () => {
+  it('uses one native effect representation while preserving the source record', () => {
     const bundled = buildDefinitionOptions(localData, [DEFAULT_CATALOG])
     const sanity = selectionSummaryLines(bundled.find(value => value.name === 'Sanity Ring')!)
     expect(sanity.filter(line => /confusion/i.test(line))).toHaveLength(1)
@@ -77,20 +71,19 @@ describe('build choice evidence', () => {
     expect(sanity.filter(line => /spirit/i.test(line))).toHaveLength(1)
     expect(selectionSummaryLines(bundled.find(value => value.name === 'Tall Stand Ring')!).filter(line => /defen[cs]e/i.test(line))).toHaveLength(1)
     const original = bundled.find(value => value.name === 'Tall Stand Ring')!
-    expect(summaryFactLines(original.record).map(line => line.replace(/\.$/, ''))).toEqual(selectionSummaryLines(original).map(line => line.replace(/\.$/, '')))
+    const before = JSON.stringify(original.record)
+    expect(selectionSummaryLines(original)).toContain('Gain 25% more Defense when at Max. HP.')
     expect(sanity.map(line => line.replace(/\.$/, ''))).toEqual(['Mind: +5', 'Spirit: +5', 'Immune to: Confusion', 'Cost: 110000 Copper'])
-    expect(original.record.fields.Effect).toMatchObject({ state: 'known', value: '25% extra Physical Defence at Full HP.' })
-    expect(original.record.fields['Other effects']).toMatchObject({ state: 'known', value: 'Gain 25% more Defense when at Max. HP' })
+    expect(JSON.stringify(original.record)).toBe(before)
     const conflicting = { ...original, record: { ...original.record, fields: { ...original.record.fields, Effect: { state: 'conflicting' as const, claims: [{ value: 'First source', sources: [] }, { value: 'Second source', sources: [] }] } } } }
     expect(selectionSummaryLines(conflicting)).toContain('Effect: Conflicting sources')
   })
 
-  it('deduplicates unitless stat fragments only when the native vocabulary corroborates their percent display', () => {
+  it('preserves native percent units and source values in compact summaries', () => {
     const shield = buildDefinitionOptions(localData, [DEFAULT_CATALOG]).find(value => value.name === 'Diamond Shield')!
     const originalFields = JSON.stringify(shield.record.fields)
-    expect(summaryFactLines(shield.record)).toEqual(['Defense: +100', 'Crit Resist: +25%', 'Evasion: -50', 'Cost: 350000 Copper'])
-    expect(shield.record.fields.Stat).toMatchObject({ state: 'known', value: 'Evasion: -50\nCrit Resist: +25' })
-    expect(shield.record.fields['Other effects']).toMatchObject({ state: 'known', value: 'Crit Resist: +25%' })
+    expect(summaryFactLines(shield.record)).toEqual(['Defense: +100', 'Evasion: -50', 'Crit Resist: +25%', 'Cost: 350000 Copper'])
+    expect(nativeSourceRecord(shield.record)?.StatMods).toContainEqual({ Tag: NATIVE_CRIT_RESIST_TAG, Value1: 25, Value2: 0, Value3: 0 })
     expect(JSON.stringify(shield.record.fields)).toBe(originalFields)
   })
 
@@ -143,7 +136,7 @@ describe('build choice evidence', () => {
     expect(groups.flat()).toEqual(issues)
   })
 
-  it('shows native item stats without conflicting supplemental amounts or duplicated labels', () => {
+  it('shows native item stats without duplicated labels or changing their source', () => {
     const bundled = buildDefinitionOptions(localData, [DEFAULT_CATALOG])
     const shoes = bundled.find(value => value.name === 'Acrobat Shoes')!
     const beads = bundled.find(value => value.name === 'Beads of Defense')!
@@ -151,7 +144,7 @@ describe('build choice evidence', () => {
     const lines = selectionSummaryLines(shoes)
     expect(lines.filter(line => /Dexterity/.test(line))).toEqual(['Dexterity: +14'])
     expect(lines.filter(line => /Agility/.test(line))).toEqual(['Agility: +16'])
-    expect(nativeStatSourceNotice(shoes.record)).toContain('Source stat values differ; PC 1.6.9.0 values shown')
+    expect(nativeStatSourceNotice(shoes.record)).toBeUndefined()
     expect(selectionSummaryLines(beads).filter(line => /Defense|Resistance/.test(line))).toEqual(['Defense: +20', 'Resistance: +20'])
     expect(JSON.stringify(shoes.record)).toBe(original)
   })

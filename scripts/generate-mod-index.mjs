@@ -10,10 +10,7 @@ const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const INDEX = 'src/catalog/bundled-mod-index.json'
 const VANILLA_RECEIPT = 'src/catalog/vanilla-current.json'
 const VANILLA_PACKED = 'src/catalog/vanilla-current.packed.json'
-const GUIDE_RECEIPT = 'src/catalog/guide-modding-current.json'
-const GUIDE_PACKED = 'src/catalog/guide-modding-current.packed.json'
 const REVISION_RECEIPTS = 'src/catalog/source-revisions.json'
-const GUIDE_IDS = 'src/catalog/guide-source-entity-ids.json'
 const SOURCE_IDS = 'src/catalog/bundled-source-entity-ids.json'
 const GENERATED_AT = '1970-01-01T00:00:00.000Z'
 const MAX_SOURCE_BYTES = 96 * 1024 * 1024
@@ -24,8 +21,8 @@ const HELP = `Usage: node scripts/generate-mod-index.mjs [-c|--check] [-h|--help
 Generate a compact search catalog for every directory-bundled Crystal Edit source
 using the application's import interpreter. Preserve full originals unchanged.
 Read src/catalog/bundled-mod-sources.json, digest-named gzip/base64 source assets,
-native databases and attributed reference sources. Write the mod search index,
-independent vanilla and guide snapshots, immutable revision receipts, and the
+fingerprinted native databases and reviewed mechanics. Write the mod search index,
+vanilla snapshot, immutable revision receipts, and the
 vanilla identity crosswalk. Requires Node >=22.12 and npm ci dependencies. No
 environment variables, private inputs, or network requests are used.
   -c, --check  Verify generated outputs without writing
@@ -55,10 +52,7 @@ export async function generateModIndex({ check = false } = {}) {
   try {
     const manifest = JSON.parse(await readFile(join(ROOT, 'src/catalog/bundled-mod-sources.json'), 'utf8'))
     const { vanillaCatalog, vanillaSourceCatalog } = await server.ssrLoadModule('/src/catalog/vanilla-catalog.ts')
-    const { referenceSupplements } = await server.ssrLoadModule('/src/catalog/reference-supplements.ts')
-    const { guideCatalog } = await server.ssrLoadModule('/src/catalog/guide-catalog.ts')
     const { compiledEntityId } = await server.ssrLoadModule('/src/domain/catalog-identities.ts')
-    const allocations = JSON.parse(await readFile(join(ROOT, 'src/catalog/supplemental-entity-ids.json'), 'utf8')).ids
     const { crystalEditSourceKey } = await server.ssrLoadModule('/src/interchange/source-identity.ts')
     const { parseCatalogSourceId, parseSourceRevision } = await server.ssrLoadModule('/src/domain/source-identity.ts')
     const { catalogContentForChecksum } = await server.ssrLoadModule('/src/interchange/catalog-checksum.ts')
@@ -67,15 +61,14 @@ export async function generateModIndex({ check = false } = {}) {
     const { modSearchCatalog } = await server.ssrLoadModule('/src/domain/mod-search.ts')
     const receipts = JSON.parse(await readFile(join(ROOT, REVISION_RECEIPTS), 'utf8'))
     const outputs = []
-    for (const [factory, receiptPath, packedPath] of [[vanillaCatalog, VANILLA_RECEIPT, VANILLA_PACKED], [guideCatalog, GUIDE_RECEIPT, GUIDE_PACKED]]) {
+    for (const [factory, receiptPath, packedPath] of [[vanillaCatalog, VANILLA_RECEIPT, VANILLA_PACKED]]) {
       const { checksum: _checksum, ...content } = factory('')
       const checksum = `builtin:sha256:${digest(catalogContentForChecksum(content))}`
       const receipt = { id: content.id, revisionId: content.revisionId, checksum }
       receipts.sources = recordSourceRevision(receipts.sources, receipt)
       outputs.push([receiptPath, `${JSON.stringify({ schemaVersion: 1, ...receipt }, null, 2)}\n`], [packedPath, packedJson(immutableCatalogSnapshot({ ...content, checksum }))])
     }
-    const sourceIds = Object.fromEntries(Object.values(vanillaSourceCatalog().entities).map(entity => [entity.id, compiledEntityId(entity, allocations)]))
-    outputs.push([GUIDE_IDS, `${JSON.stringify(Object.fromEntries(Object.keys(referenceSupplements('guide').entities).map(id => [id, `ref-${allocations[id]}`])), null, 2)}\n`])
+    const sourceIds = Object.fromEntries(Object.values(vanillaSourceCatalog().entities).map(entity => [entity.id, compiledEntityId(entity)]))
     outputs.push([SOURCE_IDS, `${JSON.stringify(sourceIds, null, 2)}\n`])
     const catalogs = []
     const seenProjects = new Set()

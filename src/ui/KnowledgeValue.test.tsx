@@ -174,14 +174,15 @@ describe('native and external source details', () => {
 })
 
 describe('source-backed field icons', () => {
-  it('adds weapon and armor icons while retaining every label and unsupported value', () => {
-    const markup = renderToStaticMarkup(<KnowledgeValue field="Weapons" value={{ state: 'known', value: 'Swords, Axes, Daggers, Spears, Unconfirmed tool' }}/>)
+  it('adds native and supplemental icons while retaining every unsupported equipment label', () => {
+    const markup = renderToStaticMarkup(<KnowledgeValue field="Weapons" value={{ state: 'known', value: 'Swords, Katanas, Unconfirmed tool' }}/>)
     const container = document.createElement('div')
     container.innerHTML = markup
-    expect(container.textContent).toBe('Swords, Axes, Daggers, Spears, Unconfirmed tool')
-    expect(container.querySelectorAll('img')).toHaveLength(4)
+    expect(container.textContent).toBe('Swords, Katanas, Unconfirmed tool')
+    expect(container.querySelectorAll('img')).toHaveLength(2)
     expect([...container.querySelectorAll('img')].every(img => img.alt === '' && !img.src.startsWith('https:'))).toBe(true)
     expect(fieldIconKey('Armor', 'Heavy helmets')).toBe('equipment:heavy helmets')
+    expect(fieldIconKey('Weapons', 'Katana')).toBe('equipment:katanas')
     expect(fieldIconKey('Weapons', 'Staff')).toBe('equipment:staves')
   })
 
@@ -194,12 +195,13 @@ describe('source-backed field icons', () => {
     expect(markup).toContain('Swords unconfirmed')
   })
 
-  it('preserves competing field claims and attributes icons in both alternatives', () => {
-    const weapons = { state: 'conflicting' as const, claims: [{ value: 'Swords', sources: [] }, { value: ['Axes', 'Unconfirmed'], sources: [] }] }
+  it('preserves competing field claims and their native or supplemental glyphs', () => {
+    const weapons = { state: 'conflicting' as const, claims: [{ value: 'Katanas', sources: [] }, { value: ['Swords', 'Unconfirmed'], sources: [] }] }
     const markup = renderToStaticMarkup(<KnowledgeValue field="Weapons" value={weapons}/>)
     expect(markup).toContain('2 differing source values')
     expect(markup).toContain('Unconfirmed')
-    expect(fieldIconKeys({ Weapons: weapons })).toEqual(['equipment:swords', 'equipment:axes'])
+    expect(markup).toContain('Swords')
+    expect(fieldIconKeys({ Weapons: weapons })).toEqual(['equipment:katanas', 'equipment:swords'])
   })
 
   it('uses recorded skill types and schools rather than names to choose skill icons', () => {

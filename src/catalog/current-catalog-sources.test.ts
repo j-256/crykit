@@ -3,9 +3,8 @@ import { vanillaCatalog } from './vanilla-catalog'
 import { NATIVE_GAME_DATA } from './native-game'
 import { nativeIdentity, nativeRelationships, nativeSourceRecord } from '../domain/native-game'
 import { exportedTree } from '../domain/crystal-edit'
-import { LEARNABLE_INNATE_FIELD } from './switch'
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
-import { CURRENT_CATALOG, GUIDE_CATALOG } from './bundled'
+import { CURRENT_CATALOG } from './bundled'
 
 const SYNTHETIC_CHECKSUM = `builtin:sha256:${'0'.repeat(64)}`
 
@@ -24,21 +23,8 @@ it('keeps native records and reviewed relationships unchanged with a populated s
   for (const node of exportedTree(warrior).filter(node => node.nodeType === 2 || node.nodeType === 3)) expect(catalog.entities[`base:${node.nodeType === 2 ? 'ability' : 'passive'}:${node.dataId}`]).toBeDefined()
   expect(nativeRelationships(catalog, warrior)).toEqual(expect.arrayContaining([expect.objectContaining({ database: 'passive', targetId: 'base:passive:72' })]))
   for (const entity of Object.values(catalog.entities)) {
-    expect(entity.fields[LEARNABLE_INNATE_FIELD]).toBeUndefined()
+    expect(entity.fields['Learnable through Learnable Innate Skill']).toBeUndefined()
     expect(entity.sources.some(source => source.sourceId.startsWith('crystal-edit-export:'))).toBe(false)
     if (nativeIdentity(entity)?.database === 'passive' && typeof nativeSourceRecord(entity)?.PP === 'number') expect(entity.ppCost).toMatchObject({ state: 'known', value: nativeSourceRecord(entity)!.PP })
   }
-})
-
-it('retains attributed supplemental facts while source-backed mods stay in their own sources', () => {
-  const catalog = vanillaCatalog(SYNTHETIC_CHECKSUM)
-  const definitions = Object.values(catalog.entities)
-  expect(definitions.some(entity => entity.name === 'Doge Shield')).toBe(false)
-  expect(definitions.some(entity => entity.name === 'Mod Pack 2: New Challenges')).toBe(false)
-  const mounts = definitions.find(entity => entity.name === 'Mounts')!
-  expect(mounts.sources).toContainEqual(expect.objectContaining({ sourceId: 'https://crystal-project.fandom.com/wiki/Mounts?oldid=5937' }))
-  const mechanic = GUIDE_CATALOG.entities['ref-385']!
-  expect(mechanic.fields.Description).toMatchObject({ state: 'conflicting', claims: [{ value: "The user is instantly KO'd when the ability resolves" }, { value: "The user's HP is reduced to 1 when the ability resolves" }] })
-  expect(Object.keys(catalog.entities).some(id => id.startsWith('mod:equipment-expansion:equipment:'))).toBe(false)
-  expect(catalog.entities['mod:moonlight-project:class:25']).toBeUndefined()
 })

@@ -4,7 +4,6 @@ import { immutableCatalogSnapshot } from '../interchange/native'
 import { DEFAULT_CATALOG } from './bundled'
 import { NATIVE_GAME_DATA } from './native-game'
 import { nativeDescription, nativeDescriptionSourceMatches, referenceDescription } from './native-description'
-import { projectSourceSemantics } from './source-semantics'
 import type { CatalogEntity } from '../domain/types'
 
 afterEach(() => vi.restoreAllMocks())
@@ -16,7 +15,6 @@ describe('source-bound native descriptions', () => {
     const before = JSON.stringify(stew)
     expect(nativeDescription(stew)?.complete).toBe(true)
     expect(referenceDescription(stew)).toContain('100% Missing HP')
-    expect(nativeDescription(projectSourceSemantics(stew))).toEqual(nativeDescription(stew))
     expect(JSON.stringify(stew)).toBe(before)
   })
 

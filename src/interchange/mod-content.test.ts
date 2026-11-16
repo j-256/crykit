@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { canonicalModJson, modContentFingerprint } from './mod-content'
-import { previewCrystalEdit } from './crystal-edit'
+import { MOD_LIBRARY_IMPORT_REVISION, previewCrystalEdit } from './crystal-edit'
 
 const bytes = (value: string) => new TextEncoder().encode(value)
 
@@ -33,7 +33,7 @@ describe('mod source content identity', () => {
     expect(a.proposed.catalogs[0]).toEqual(b.proposed.catalogs[0])
     expect(a.proposed.catalogs[0]).not.toHaveProperty('importedAt')
     expect(a.proposed.catalogs[0]!.id).toMatch(/^crystal-project\/imported\/ce1-[a-f0-9]{64}$/)
-    expect(a.proposed.catalogs[0]!.revisionId).toMatch(/^j1-[a-f0-9]{64}-p1$/)
+    expect(a.proposed.catalogs[0]!.revisionId).toMatch(new RegExp(`^j1-[a-f0-9]{64}-${MOD_LIBRARY_IMPORT_REVISION}$`))
     expect(a.proposed.sources[0]!.digest).not.toBe(b.proposed.sources[0]!.digest)
     expect(a.proposed.sources[0]!.bytes).toEqual(left)
     expect(b.proposed.sources[0]!.bytes).toEqual(right)

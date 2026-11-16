@@ -11,7 +11,7 @@ export const MAX_ENTITY_SLUG_LENGTH = 160
 const UNNAMED_ENTITY_SLUG = 'definition'
 const ENTITY_SLUG_PATTERN = /^[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*$/u
 
-// Reviewed Windows 1.6.9 variants agree with the pinned wiki levels and artwork
+// Native levels and texture variants distinguish repeated monster names
 const REVIEWED_MONSTER_NAMES = new Map([
   [57, { name: 'Brutish Quintar (Red)', level: 22, texture: 'Monster/Z18_QuintarBrutishRed' }],
   [316, { name: 'Brutish Quintar (Desert)', level: 52, texture: 'Monster/Z18_QuintarBrutishYellow' }],

@@ -1,6 +1,6 @@
 import { importSyntheticLibrary } from './mod-library-fixtures'
 import { waitForPlannerReady } from './local-data-helpers'
-import { guideReferencePath } from './reference-helpers'
+import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -93,15 +93,15 @@ test('reference facets retain filtering, direct routes and offline navigation', 
     await expect(page).not.toHaveURL(/category=|kind=/)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   })
-  await test.step('supplemental reference audiences stay hidden by default and remain directly reachable', async () => {
-    await page.goto('/#/reference?v=1&q=AbilityItemConsumptionDown')
+  await test.step('native technical mechanics stay hidden by default and remain directly reachable', async () => {
+    await page.goto('/#/reference?v=1&q=Flat+AbilityAPCost')
     await page.reload()
     await waitForPlannerReady(page)
-    await expect(page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'AbilityItemConsumptionDown', exact: true }) })).toHaveCount(0)
+    await expect(page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Flat AbilityAPCost [X] [Y]', exact: true }) })).toHaveCount(0)
     const hidden = page.getByRole('status').filter({ hasText: 'additional match is hidden' })
     await expect(hidden).toBeVisible()
     await hidden.getByRole('button', { name: 'Show Technical mechanics', exact: true }).click()
-    const technical = page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'AbilityItemConsumptionDown', exact: true }) })
+    const technical = page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Flat AbilityAPCost [X] [Y]', exact: true }) })
     await expect(technical).toBeVisible()
     await expect(page).toHaveURL(/audience=technical/)
 
@@ -113,15 +113,10 @@ test('reference facets retain filtering, direct routes and offline navigation', 
     await expect(technical).toHaveCount(0)
     await expect(page).not.toHaveURL(/audience=technical/)
 
-    await page.goto(guideReferencePath('ref-445') + '?v=1')
-    await expect(page.getByRole('heading', { name: 'AbilityItemConsumptionDown', exact: true })).toBeVisible()
+    await page.goto(referencePath('mechanic:stat:467') + '?v=1')
+    await expect(page.getByRole('heading', { name: 'Flat AbilityAPCost [X] [Y]', exact: true })).toBeVisible()
     await expect(page).not.toHaveURL(/audience=technical/)
 
-    await page.goto('/#/reference?v=1&q=Growth+estimates+and+damage+formula+research')
-    await expect(page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Growth estimates and damage formula research', exact: true }) })).toBeVisible()
-    await page.goto('/#/reference?v=1&q=Bgtest')
-    await expect(page.getByText('No matches', { exact: true })).toBeVisible()
-    await expect(page.getByText(/additional match/)).toHaveCount(0)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   })
   await test.step('active filters remain removable when their values are absent from the library', async () => {

@@ -4,6 +4,6 @@
 
 The game's `CWindow.EQUIP_TYPE_ICON_INDEX` maps shields to cell 39, heavy helmets to cell 40, heavy armor to cell 41, medium headgear to cell 42, medium armor to cell 43, light hats to cell 44, and light armor to cell 45. `WindowHelper.DrawIcon` uses seven columns, a 34-pixel stride, a two-pixel inset, and 32-pixel cells. The application crops those cells at display time without modifying the source pixels.
 
-The reviewed `Sang/Window/CWindow.cs` source has SHA-256 `cad72d04c122f19c2987ce156784a153ae494315945b2f725048a3b3d126c17c`. Equipment type ordering is recorded in `Sang/SangData/SangDataEnums/EquipmentType.cs`, whose fingerprint is retained in the [game-code evidence](../../catalog/game-code-evidence.json). These mappings use the executable identified by the native artwork manifest.
+The reviewed `Sang/Window/CWindow.cs` source has SHA-256 `cad72d04c122f19c2987ce156784a153ae494315945b2f725048a3b3d126c17c`. Equipment type ordering is recorded in `Sang/SangData/SangDataEnums/EquipmentType.cs`, whose numeric labels are retained in the [native game snapshot](../../catalog/native-game-data.json). These mappings use the executable identified by the native artwork manifest.
 
 This is presentation artwork, not evidence of Switch mechanics or mod compatibility. Copyright belongs to Crystal Project's rights holders; no separate license grant is asserted. See the repository NOTICE for the project's use of game artwork.

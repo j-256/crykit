@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { test } from 'node:test'
+import * as nativeUpdater from './update-game-data.mjs'
 import { canonicalJson, identityBindingsFor, parseEnumSource } from './update-game-data.mjs'
 
 test('enum labels retain explicit, implicit, and signed codes and reject ambiguity', () => {
@@ -22,6 +23,18 @@ test('class-tree bindings require exact skill records and agree with other revie
   assert.deepEqual(identityBindingsFor(manifest, databases, trees), { 'ability:8': 'base:ability:spark', 'passive:8': 'base:passive:vitality' })
   assert.throws(() => identityBindingsFor({ mappings: { 'base:ability:other': { database: 'ability', databaseId: 8 } } }, databases, trees), /conflicts/)
   assert.throws(() => identityBindingsFor(manifest, { ...databases, passive: [{ ID: 8, Name: 'Changed passive' }] }, trees), /missing or changed/)
+})
+
+test('fresh extraction receipts hash actual projection bytes without inventing a source commit', () => {
+  assert.equal(typeof nativeUpdater.extractionIdentitySourceFor, 'function')
+  const source = nativeUpdater.extractionIdentitySourceFor(Buffer.from('identity projection'), Buffer.from('tree projection'))
+  assert.match(source.sha256, /^[a-f0-9]{64}$/)
+  assert.match(source.classTreesSha256, /^[a-f0-9]{64}$/)
+  assert.notEqual(source.sha256, source.classTreesSha256)
+  assert.equal(Object.hasOwn(source, 'commit'), false)
+  const committed = nativeUpdater.extractionIdentitySourceFor(Buffer.from('identity projection'), Buffer.from('tree projection'), 'c'.repeat(40))
+  assert.equal(committed.commit, 'c'.repeat(40))
+  assert.throws(() => nativeUpdater.extractionIdentitySourceFor(Buffer.from('identity projection'), Buffer.from('tree projection'), 'unreviewed'), /source commit/)
 })
 
 test('CLI distinguishes help, usage errors, and offline integrity verification', () => {

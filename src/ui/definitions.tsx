@@ -2,7 +2,6 @@ import { moneyTextLabel } from '../domain/money'
 import { MoneyText } from './MoneyText'
 import { nativeDefinitionLabel, nativeDisplayName, nativeIdentity } from '../domain/native-game'
 import { referenceDescription } from '../catalog/native-description'
-import { preferredNativeReferenceId } from '../catalog/native-reference-links'
 import { preferredDefinitionChoices } from './definition-preferences'
 import { passivePointCost } from '../domain/mechanics-facts'
 import { bundledModLabel } from '../domain/bundled-mods'
@@ -59,7 +58,6 @@ export interface DefinitionOption {
   readonly gameSetupStatus?: string
   readonly modAvailability?: DefinitionModAvailability
   readonly preferred: boolean
-  readonly nativeReferenceId?: string
   readonly record: DefinitionRecord
 }
 
@@ -148,7 +146,6 @@ function buildCatalogDefinitionOptions(catalogs: readonly CatalogSnapshot[]): re
       return {
         key: entityDefinitionKey(ref), ref, kind: entity.kind, name: entity.name, aliases: entity.aliases,
         description: referenceDescription(entity),
-        nativeReferenceId: preferredNativeReferenceId(snapshot, entity.id),
         ...(category === undefined ? {} : { category }),
         ppCost: passivePointCost(entity),
         sourceLabel: `${layerLabel}${provenance ? `${provenance} · ` : ''}${snapshot.id} · revision ${snapshot.revisionId}`,

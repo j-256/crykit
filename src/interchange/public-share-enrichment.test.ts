@@ -63,11 +63,11 @@ describe('viewer-owned public enrichment', () => {
   it('preserves historical pins and refuses a different interpretation', async () => {
     const { snapshot, viewer, source } = await fixture()
     const historical = structuredClone(snapshot)
-    historical.setup.layers[0]!.catalogRevisionId = source.revisionId.replace(/-p1$/, '-p2')
-    historical.receipts[0]!.origin!.sourceRevisionId = source.revisionId.replace(/-p1$/, '-p2')
+    historical.setup.layers[0]!.catalogRevisionId = source.revisionId.replace(/-p[0-9]+$/, '-p999')
+    historical.receipts[0]!.origin!.sourceRevisionId = source.revisionId.replace(/-p[0-9]+$/, '-p999')
     const result = enrichPublicSnapshot(historical, viewer)
     expect(result.entries[0]?.definition).toBeUndefined()
-    expect(historical.receipts[0]!.origin!.sourceRevisionId).toBe(source.revisionId.replace(/-p1$/, '-p2'))
+    expect(historical.receipts[0]!.origin!.sourceRevisionId).toBe(source.revisionId.replace(/-p[0-9]+$/, '-p999'))
   })
   it('personal display receipts remain unknown without exact viewer content', async () => {
     const { snapshot, viewer } = await fixture()
@@ -93,9 +93,9 @@ it('resolves native definitions only with exact baseline and receipt origin', as
 it('does not select between ambiguous matching parser projections by array order', async () => {
   const { snapshot, viewer, source } = await fixture()
   const historical = structuredClone(snapshot)
-  historical.setup.layers[0]!.catalogRevisionId = source.revisionId.replace(/-p1$/, '-p2')
-  historical.receipts[0]!.origin!.sourceRevisionId = source.revisionId.replace(/-p1$/, '-p2')
-  const ambiguous = withCatalogs(viewer, [source, { ...source, revisionId: source.revisionId.replace(/-p1$/, '-p3') as never }])
+  historical.setup.layers[0]!.catalogRevisionId = source.revisionId.replace(/-p[0-9]+$/, '-p999')
+  historical.receipts[0]!.origin!.sourceRevisionId = source.revisionId.replace(/-p[0-9]+$/, '-p999')
+  const ambiguous = withCatalogs(viewer, [source, { ...source, revisionId: source.revisionId.replace(/-p[0-9]+$/, '-p998') as never }])
   expect(enrichPublicSnapshot(historical, ambiguous).entries[0]?.definition).toBeUndefined()
   expect(enrichPublicSnapshot(historical, ambiguous).missingReceiptIds).toHaveLength(1)
 })

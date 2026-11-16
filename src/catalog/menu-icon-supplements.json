@@ -1,0 +1,427 @@
+{
+  "schemaVersion": 1,
+  "assets": {
+    "file:swordabilityicon.png": {
+      "file": "e9f8580deaaeefa1592904ca8d5edb8461802f32628bcfa4a99acd1db4368d19.png",
+      "sha256": "e9f8580deaaeefa1592904ca8d5edb8461802f32628bcfa4a99acd1db4368d19",
+      "title": "File:SwordAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/3/3f/SwordAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ASwordAbilityIcon.png?oldid=2786",
+      "descriptionRevisionId": 2786,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "df8a9c49f74c07df42c3f7203cd85f47add3665d",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 472,
+      "representation": "cdn-png",
+      "originalSha1": "ac0daa944b18e219239400ebb625701f9cc3e794",
+      "originalSize": 2069,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:axeabilityicon.png": {
+      "file": "5c8076760fc6ca9612c7e5b90ac88c972ec056c80e73ebc6383f07c36a32404e.png",
+      "sha256": "5c8076760fc6ca9612c7e5b90ac88c972ec056c80e73ebc6383f07c36a32404e",
+      "title": "File:AxeAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/2/2e/AxeAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AAxeAbilityIcon.png?oldid=2773",
+      "descriptionRevisionId": 2773,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "3a889387fd2420dba3203200060f6621231d8970",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 480,
+      "representation": "cdn-png",
+      "originalSha1": "49939770d5fade4f7dd4a1e0781cddcfdeb99880",
+      "originalSize": 2077,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:daggerabilityicon.png": {
+      "file": "6a04b90061a1416dc64f9d85104585c387af9c02f8e2ea69264c33c565a19495.png",
+      "sha256": "6a04b90061a1416dc64f9d85104585c387af9c02f8e2ea69264c33c565a19495",
+      "title": "File:DaggerAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/f/f9/DaggerAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ADaggerAbilityIcon.png?oldid=2777",
+      "descriptionRevisionId": 2777,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "781946f25c57316aa20590550c7bb53f34ee9166",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 358,
+      "representation": "cdn-png",
+      "originalSha1": "194ad1b97609db01177c4f8139ae51e3f2f6f924",
+      "originalSize": 1955,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:spearabilityicon.png": {
+      "file": "aad339aa8d8fbf0991ed5390eb8b2d14b7fd7905503aadd350fc022bbd327562.png",
+      "sha256": "aad339aa8d8fbf0991ed5390eb8b2d14b7fd7905503aadd350fc022bbd327562",
+      "title": "File:SpearAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/3/30/SpearAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ASpearAbilityIcon.png?oldid=2779",
+      "descriptionRevisionId": 2779,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "98e9b4d84da25739533719925822f447d07b2c54",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 503,
+      "representation": "cdn-png",
+      "originalSha1": "f88f261dbcdd7518bb96f2ff9d8dc2aefecfac22",
+      "originalSize": 2100,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:bowabilityicon.png": {
+      "file": "407331c4944254182089dc4ce076c1987b2f9acd598bda0c5e2eb26eb0928b78.png",
+      "sha256": "407331c4944254182089dc4ce076c1987b2f9acd598bda0c5e2eb26eb0928b78",
+      "title": "File:BowAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/2/22/BowAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ABowAbilityIcon.png?oldid=2769",
+      "descriptionRevisionId": 2769,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "88b083374d0e339ed2f502f4e604a9f9cf00a674",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 638,
+      "representation": "cdn-png",
+      "originalSha1": "a1803d89b16eda300e90d2cebf1687bae9092862",
+      "originalSize": 2235,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:rapierabilityicon.png": {
+      "file": "6b5b839ee36800882b940f65f2f4aa31293767a6dda16b37ea5ca500ce616de5.png",
+      "sha256": "6b5b839ee36800882b940f65f2f4aa31293767a6dda16b37ea5ca500ce616de5",
+      "title": "File:RapierAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/7/76/RapierAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ARapierAbilityIcon.png?oldid=2778",
+      "descriptionRevisionId": 2778,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "10c4ee3a8ef8f50dc9c515698ce15355ec6350f6",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 420,
+      "representation": "cdn-png",
+      "originalSha1": "cacfd1e8c8bbdee09bc26760206b20992499697e",
+      "originalSize": 2017,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:scytheabilityicon.png": {
+      "file": "9ea7a119b1ffff2f167c1e3ef489c55d8f6dcb61027f1d12d5a48c0f24005593.png",
+      "sha256": "9ea7a119b1ffff2f167c1e3ef489c55d8f6dcb61027f1d12d5a48c0f24005593",
+      "title": "File:ScytheAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/2/29/ScytheAbilityIcon.png/revision/latest?cb=20220503151625&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AScytheAbilityIcon.png?oldid=2793",
+      "descriptionRevisionId": 2793,
+      "uploadedAt": "2022-05-03T15:16:25Z",
+      "sha1": "205d1284187025bf90e951dffe98e044a181c0fc",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 504,
+      "representation": "cdn-png",
+      "originalSha1": "c2600c904b197386efdf3b47efc3dfb366e4e0bc",
+      "originalSize": 2101,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:staffabilityicon.png": {
+      "file": "f5af36d4ae02736c2fd7a2ff89a29d41b9ebd3c8529e2958876392a311fd23ca.png",
+      "sha256": "f5af36d4ae02736c2fd7a2ff89a29d41b9ebd3c8529e2958876392a311fd23ca",
+      "title": "File:StaffAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/b/bd/StaffAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AStaffAbilityIcon.png?oldid=2789",
+      "descriptionRevisionId": 2789,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "96e08947786753bbfd42d9b1adc6423e61dc0070",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 421,
+      "representation": "cdn-png",
+      "originalSha1": "9bbd853e0d3edfbf3331e7443978d6f3b0872105",
+      "originalSize": 2018,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:wandabilityicon.png": {
+      "file": "fa32b4fded4352a92d7b7764db00d34ac20d9fef8f5c1b03bf3fe77d1e1a4e83.png",
+      "sha256": "fa32b4fded4352a92d7b7764db00d34ac20d9fef8f5c1b03bf3fe77d1e1a4e83",
+      "title": "File:WandAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/c/cb/WandAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AWandAbilityIcon.png?oldid=2784",
+      "descriptionRevisionId": 2784,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "dc9d5bb368903df2b080b5cdb1040be958d5793a",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 395,
+      "representation": "cdn-png",
+      "originalSha1": "561199c4e629e1a76e57fe41bae1e37097b9e603",
+      "originalSize": 1992,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:bookabilityicon.png": {
+      "file": "1bcc9d23979a50be76146b23d14c3e08d7f064c7cd188746f1331258efcce145.png",
+      "sha256": "1bcc9d23979a50be76146b23d14c3e08d7f064c7cd188746f1331258efcce145",
+      "title": "File:BookAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/2/2d/BookAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ABookAbilityIcon.png?oldid=10336",
+      "descriptionRevisionId": 10336,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "fd5fb321961a788bc9eaa5385104c312f3c37d9e",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 437,
+      "representation": "cdn-png",
+      "originalSha1": "4e1202033439e70127e0f638b52b1084f86d87fa",
+      "originalSize": 2034,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:unarmedabilityicon.png": {
+      "file": "15f0f89cbd73ece15f88335a33c298d629be927ad31b7fc86524c021cbbee03e.png",
+      "sha256": "15f0f89cbd73ece15f88335a33c298d629be927ad31b7fc86524c021cbbee03e",
+      "title": "File:UnarmedAbilityIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/7/75/UnarmedAbilityIcon.png/revision/latest?cb=20220503151624&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3AUnarmedAbilityIcon.png?oldid=2783",
+      "descriptionRevisionId": 2783,
+      "uploadedAt": "2022-05-03T15:16:24Z",
+      "sha1": "2a5fe7354cbbec4cc6aa14322c3a5527c54691bf",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 470,
+      "representation": "cdn-png",
+      "originalSha1": "5481e68dfcc3068566a77a922a63c4ee128c1abc",
+      "originalSize": 2067,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:trickeryicon.png": {
+      "file": "8edbc345b124892be4650720340365143c49ab817ea4739f6aaa396266732bd2.png",
+      "sha256": "8edbc345b124892be4650720340365143c49ab817ea4739f6aaa396266732bd2",
+      "title": "File:TrickeryIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/a/aa/TrickeryIcon.png/revision/latest?cb=20220501232852&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ATrickeryIcon.png?oldid=2611",
+      "descriptionRevisionId": 2611,
+      "uploadedAt": "2022-05-01T23:28:52Z",
+      "sha1": "d06cfc2ef67e1b2b2c0ef23e63798deab8b505da",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 438,
+      "representation": "cdn-png",
+      "originalSha1": "9cec7d646180996f351a13537c51c66c86b92fb5",
+      "originalSize": 2035,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:battleskillicon.png": {
+      "file": "a765c908c91a8f2f5fe557dae41ca7bc87a1d027ecd7e199401265125cc39d06.png",
+      "sha256": "a765c908c91a8f2f5fe557dae41ca7bc87a1d027ecd7e199401265125cc39d06",
+      "title": "File:BattleSkillIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/2/27/BattleSkillIcon.png/revision/latest?cb=20220501232851&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ABattleSkillIcon.png?oldid=2590",
+      "descriptionRevisionId": 2590,
+      "uploadedAt": "2022-05-01T23:28:51Z",
+      "sha1": "2fe23500a0d8fbfdfcae16b7ad18bbba7f04f94e",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 556,
+      "representation": "cdn-png",
+      "originalSha1": "02155d0460293a3f104f9c70efa5570f12d48aa0",
+      "originalSize": 2153,
+      "license": "No reviewed license declaration on the wiki file page"
+    },
+    "file:blackmagicicon.png": {
+      "file": "60d1e77a202b0e75c601eef13b5df6def100d33024162bfa57ddce858375a185.png",
+      "sha256": "60d1e77a202b0e75c601eef13b5df6def100d33024162bfa57ddce858375a185",
+      "title": "File:BlackMagicIcon.png",
+      "sourceUrl": "https://static.wikia.nocookie.net/crystal-project/images/5/5b/BlackMagicIcon.png/revision/latest?cb=20220501232852&format=original",
+      "descriptionUrl": "https://crystal-project.fandom.com/wiki/File%3ABlackMagicIcon.png?oldid=2591",
+      "descriptionRevisionId": 2591,
+      "uploadedAt": "2022-05-01T23:28:52Z",
+      "sha1": "9d73dc27a1ebbb4926fe9142be46336fa65d5c5a",
+      "mime": "image/png",
+      "width": 34,
+      "height": 34,
+      "size": 381,
+      "representation": "cdn-png",
+      "originalSha1": "5f040fd85afaa577f5e7b65037dc67257478981b",
+      "originalSize": 1978,
+      "license": "No reviewed license declaration on the wiki file page"
+    }
+  },
+  "icons": {
+    "equipment:swords": {
+      "name": "swords",
+      "asset": "file:swordabilityicon.png",
+      "sources": [
+        {
+          "title": "File:SwordAbilityIcon.png",
+          "revisionId": 2786,
+          "url": "https://crystal-project.fandom.com/wiki/File%3ASwordAbilityIcon.png?oldid=2786",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:axes": {
+      "name": "axes",
+      "asset": "file:axeabilityicon.png",
+      "sources": [
+        {
+          "title": "File:AxeAbilityIcon.png",
+          "revisionId": 2773,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AAxeAbilityIcon.png?oldid=2773",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:daggers": {
+      "name": "daggers",
+      "asset": "file:daggerabilityicon.png",
+      "sources": [
+        {
+          "title": "File:DaggerAbilityIcon.png",
+          "revisionId": 2777,
+          "url": "https://crystal-project.fandom.com/wiki/File%3ADaggerAbilityIcon.png?oldid=2777",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:spears": {
+      "name": "spears",
+      "asset": "file:spearabilityicon.png",
+      "sources": [
+        {
+          "title": "File:SpearAbilityIcon.png",
+          "revisionId": 2779,
+          "url": "https://crystal-project.fandom.com/wiki/File%3ASpearAbilityIcon.png?oldid=2779",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:bows": {
+      "name": "bows",
+      "asset": "file:bowabilityicon.png",
+      "sources": [
+        {
+          "title": "File:BowAbilityIcon.png",
+          "revisionId": 2769,
+          "url": "https://crystal-project.fandom.com/wiki/File%3ABowAbilityIcon.png?oldid=2769",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:rapiers": {
+      "name": "rapiers",
+      "asset": "file:rapierabilityicon.png",
+      "sources": [
+        {
+          "title": "File:RapierAbilityIcon.png",
+          "revisionId": 2778,
+          "url": "https://crystal-project.fandom.com/wiki/File%3ARapierAbilityIcon.png?oldid=2778",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:scythes": {
+      "name": "scythes",
+      "asset": "file:scytheabilityicon.png",
+      "sources": [
+        {
+          "title": "File:ScytheAbilityIcon.png",
+          "revisionId": 2793,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AScytheAbilityIcon.png?oldid=2793",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:staves": {
+      "name": "staves",
+      "asset": "file:staffabilityicon.png",
+      "sources": [
+        {
+          "title": "File:StaffAbilityIcon.png",
+          "revisionId": 2789,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AStaffAbilityIcon.png?oldid=2789",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:wands": {
+      "name": "wands",
+      "asset": "file:wandabilityicon.png",
+      "sources": [
+        {
+          "title": "File:WandAbilityIcon.png",
+          "revisionId": 2784,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AWandAbilityIcon.png?oldid=2784",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:books": {
+      "name": "books",
+      "asset": "file:bookabilityicon.png",
+      "sources": [
+        {
+          "title": "File:BookAbilityIcon.png",
+          "revisionId": 10336,
+          "url": "https://crystal-project.fandom.com/wiki/File%3ABookAbilityIcon.png?oldid=10336",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "equipment:unarmed": {
+      "name": "unarmed",
+      "asset": "file:unarmedabilityicon.png",
+      "sources": [
+        {
+          "title": "File:UnarmedAbilityIcon.png",
+          "revisionId": 2783,
+          "url": "https://crystal-project.fandom.com/wiki/File%3AUnarmedAbilityIcon.png?oldid=2783",
+          "locator": "Named weapon glyph"
+        }
+      ]
+    },
+    "command:trickery": {
+      "name": "Trickery",
+      "asset": "file:trickeryicon.png",
+      "sources": [
+        {
+          "title": "Rogue",
+          "revisionId": 13280,
+          "url": "https://crystal-project.fandom.com/wiki/Rogue?oldid=13280",
+          "locator": "Class infobox command image"
+        }
+      ]
+    },
+    "command:battle skill": {
+      "name": "Battle Skill",
+      "asset": "file:battleskillicon.png",
+      "sources": [
+        {
+          "title": "Warrior",
+          "revisionId": 13324,
+          "url": "https://crystal-project.fandom.com/wiki/Warrior?oldid=13324",
+          "locator": "Class infobox command image"
+        }
+      ]
+    },
+    "command:black magic": {
+      "name": "Black Magic",
+      "asset": "file:blackmagicicon.png",
+      "sources": [
+        {
+          "title": "Wizard",
+          "revisionId": 13283,
+          "url": "https://crystal-project.fandom.com/wiki/Wizard?oldid=13283",
+          "locator": "Class infobox command image"
+        }
+      ]
+    }
+  }
+}

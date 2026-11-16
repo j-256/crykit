@@ -28,6 +28,21 @@ describe('selection inspector facts', () => {
     expect(JSON.stringify(cleric.record)).toBe(before)
   })
 
+  it('includes attributed missing descriptions and class master notes without acquisition duplication', () => {
+    const shard = options.find(option => option.ref.kind === 'catalog' && option.ref.entityId === 'base:item:22')!
+    const html = renderToStaticMarkup(<BuildSelectionDetails catalogs={[DEFAULT_CATALOG]} option={shard}/>)
+    expect(html).toContain('teleports the party to the roof of the Gaea Shrine')
+    expect(html).toContain('Sources for Description')
+    const warrior = options.find(option => option.ref.kind === 'catalog' && option.ref.entityId === 'base:job:0')!
+    const master = renderToStaticMarkup(<BuildSelectionDetails catalogs={[DEFAULT_CATALOG]} option={warrior}/>)
+    expect(master).toContain('Class master')
+    expect(master).toContain('walk under the green roof')
+    const sword = options.find(option => option.ref.kind === 'catalog' && option.ref.entityId === 'base:equipment:0')!
+    expect(renderToStaticMarkup(<BuildSelectionDetails catalogs={[DEFAULT_CATALOG]} option={sword}/>)).not.toContain('Nan&#x27;s Knick Knacks')
+    const changed = { ...shard, record: { ...shard.record, name: 'Custom shard' } }
+    expect(renderToStaticMarkup(<BuildSelectionDetails catalogs={[DEFAULT_CATALOG]} option={changed}/>)).not.toContain('teleports the party')
+  })
+
   it('keeps evidence for changed, uncertain, or imported commands instead of inheriting native trust', () => {
     const cleric = options.find(option => option.kind === 'class' && option.name === 'Cleric')!
     const command = cleric.record.fields[CLASS_FIELDS.command]!
@@ -60,23 +75,23 @@ describe('selection inspector facts', () => {
     expect(renderToStaticMarkup(<BuildSelectionDetails option={{ ...onlyNative, ppCost: { state: 'unknown', sources: [native] } }}/>)).toContain('Sources for HP Boost')
   })
 
-  it('shows passive PP once outside the original-source disclosure', () => {
+  it('shows native passive PP once without a redundant disclosure', () => {
     const passive = options.find(option => option.name === 'HP Boost')!
     const markup = renderToStaticMarkup(<BuildSelectionDetails option={passive}/>)
     const visible = markup
     expect(visible.match(/4 PP/g)).toHaveLength(1)
     expect(visible).not.toMatch(/PP: 4|Cost: 4/)
-    expect(markup).toContain('Sources for HP Boost')
+    expect(markup).not.toContain('Sources for HP Boost')
   })
 
-  it('shows supported native numbers and keeps historical attribution behind Sources', () => {
+  it('shows native stats consistently in facts and comparisons', () => {
     const shoes = options.find(option => option.name === 'Acrobat Shoes')!
     const markup = renderToStaticMarkup(<BuildSelectionFacts option={shoes}/>)
     expect(markup).toContain('Dexterity: +14')
     expect(markup).not.toMatch(/Dexterity: \+16|Dexterity \+6/)
     expect(markup).not.toContain('Source stat values differ')
     const inspector = renderToStaticMarkup(<BuildSelectionDetails option={shoes}/>)
-    expect(inspector).toContain('Sources for Acrobat Shoes')
+    expect(inspector).not.toContain('Sources for Acrobat Shoes')
     expect(inspector).not.toContain('equipment 320')
     const comparison = renderToStaticMarkup(<BuildSelectionDetails comparedWith={options.find(option => option.name === 'Beads of Defense')} option={shoes}/>)
     expect(comparison).toContain('Dexterity: +14')

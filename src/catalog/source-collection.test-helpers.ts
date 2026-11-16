@@ -1,7 +1,7 @@
 import { CURRENT_CATALOG } from './bundled'
 import type { CatalogEntityKind, CatalogSnapshot, EntityId } from '../domain/types'
 
-export const HISTORICAL_VANILLA: CatalogSnapshot = { ...CURRENT_CATALOG, revisionId: 'v2' as never, checksum: 'synthetic-historical-vanilla' }
+export const HISTORICAL_VANILLA: CatalogSnapshot = { ...CURRENT_CATALOG, revisionId: 'v1' as never, checksum: 'synthetic-historical-vanilla' }
 
 const observations: readonly [string, CatalogEntityKind, string][] = [
   ['synthetic:class', 'class', 'Synthetic class mod'],

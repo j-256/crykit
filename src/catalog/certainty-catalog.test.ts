@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { nativeMechanic } from './native-mechanics'
 import { DEFAULT_CATALOG } from './bundled'
 import { vanillaCatalog, VANILLA_CATALOG_REVISION_ID } from './vanilla-catalog'
 import { SYNTHETIC_MOD_SNAPSHOT } from './mod.test-helpers'
@@ -18,7 +19,7 @@ import { baseGameEntityId, catalogEntity } from '../domain/entity-identities'
 describe('source-backed catalog certainty', () => {
   const sourceCatalog = vanillaCatalog(DEFAULT_CATALOG.checksum)
   it('uses canonical identities directly and rejects obsolete IDs', () => {
-    expect(Object.keys(DEFAULT_CATALOG.entities).every(id => /^(base|mod):/.test(id))).toBe(true)
+    expect(Object.values(DEFAULT_CATALOG.entities).every(entity => nativeIdentity(entity) || nativeMechanic(entity) || /^base:system:\d+$/.test(entity.id) && entity.sources.every(source => source.sourceId.startsWith('native-game:')))).toBe(true)
     expect(catalogEntity(DEFAULT_CATALOG, 'base:item:196')?.id).toBe('base:item:196')
     expect(catalogEntity(DEFAULT_CATALOG, 'mod:equipment-expansion:equipment:592')).toBeUndefined()
     expect(catalogEntity(DEFAULT_CATALOG, nativeEntityId('monster', 2))?.id).toBe(baseGameEntityId('monster', 2))
@@ -72,8 +73,9 @@ describe('source-backed catalog certainty', () => {
     expect(classTreeSkill(warrior, exportedTree(warrior).find(node => node.dataId === 28 && node.nodeType === 2)!, DEFAULT_CATALOG).definition?.id).toBe(taunt.id)
   })
 
-  it('keeps null as documented source absence and lets equipment slots follow the chosen setup', () => {
+  it('preserves raw native null values and lets equipment slots follow the chosen setup', () => {
     const tonic = DEFAULT_CATALOG.entities['base:item:18']!
+    expect(nativeSourceRecord(tonic)?.IncreaseMaxCapacityBy).toBeNull()
     expect(tonic.fields['Increase Max Capacity By']).toMatchObject({ state: 'known', value: null })
     const sword = DEFAULT_CATALOG.entities['base:equipment:0']!
     expect(sword.fields.Cost).toBeUndefined()

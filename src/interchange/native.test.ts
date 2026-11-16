@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { requirePlaythrough } from '../domain'
 import { addTestCharacter, createTestLocalData } from '../domain/test-helpers'
 import { isImmutableCatalogSnapshot, previewNativeBackup } from './native'
-import { GUIDE_CATALOG } from '../catalog/bundled'
+import { CURRENT_CATALOG } from '../catalog/bundled'
 import { catalogSnapshotKey } from './identity'
 import { NativeLocalDataSchema, StoredNativeLocalDataSchema } from './native-schema'
 
@@ -12,7 +12,7 @@ const encode = (value: unknown): Uint8Array => new TextEncoder().encode(JSON.str
 
 describe('complete source backup payloads', () => {
   it('retains deeply immutable admitted catalogs without trusting altered archive contents', async () => {
-    const bytes = nativeFixture({ mutatePayload: payload => { payload.catalogs = [GUIDE_CATALOG] } })
+    const bytes = nativeFixture({ mutatePayload: payload => { payload.catalogs = [CURRENT_CATALOG] } })
     const preview = await previewNativeBackup(bytes, 'complete.zip')
     const catalog = preview.proposed.catalogs[0]!
     expect(isImmutableCatalogSnapshot(catalog)).toBe(true)
@@ -21,27 +21,27 @@ describe('complete source backup payloads', () => {
     expect(Object.isFrozen(entity.sources)).toBe(true)
     expect(() => { (entity as { name: string }).name = 'Altered guide' }).toThrow()
 
-    const next = await previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [GUIDE_CATALOG] }, mutateLocalData: data => { data.revision = 7 } }), 'next.zip')
+    const next = await previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [CURRENT_CATALOG] }, mutateLocalData: data => { data.revision = 7 } }), 'next.zip')
     expect(next.proposed.catalogs[0]).toBe(catalog)
     expect(next.proposed.localData.revision).toBe(7)
-    const unexpected = { ...GUIDE_CATALOG, unchecked: 'Unknown catalog field' }
+    const unexpected = { ...CURRENT_CATALOG, unchecked: 'Unknown catalog field' }
     await expect(previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [unexpected] } }), 'unexpected.zip')).rejects.toThrow(/unsupported shape/)
 
-    const changed = structuredClone(GUIDE_CATALOG)
+    const changed = structuredClone(CURRENT_CATALOG)
     const changedEntity = Object.values(changed.entities)[0]! as { name: string }
     changedEntity.name = 'Altered guide'
     await expect(previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [changed] } }), 'changed.zip')).rejects.toThrow(/invalid identity, revision, or contents/)
-    const malformed = structuredClone(GUIDE_CATALOG) as unknown as { entities: Record<string, { sources: unknown }> }
+    const malformed = structuredClone(CURRENT_CATALOG) as unknown as { entities: Record<string, { sources: unknown }> }
     Object.values(malformed.entities)[0]!.sources = 'Invalid provenance'
     await expect(previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [malformed] } }), 'malformed.zip')).rejects.toThrow(/unsupported shape/)
   })
   it('rejects prelaunch package-only manifests and requires complete source bodies', async () => {
-    const pin = { id: GUIDE_CATALOG.id, revisionId: GUIDE_CATALOG.revisionId, checksum: GUIDE_CATALOG.checksum }
+    const pin = { id: CURRENT_CATALOG.id, revisionId: CURRENT_CATALOG.revisionId, checksum: CURRENT_CATALOG.checksum }
     for (const version of ['2.0.0', '2.1.0']) await expect(previewNativeBackup(nativeFixture({ version }), 'prelaunch.zip')).rejects.toThrow(/unsupported version/)
     await expect(previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.bundledCatalogs = [pin] } }), 'pins.zip')).rejects.toThrow()
-    const preview = await previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [GUIDE_CATALOG] } }), 'complete.zip')
+    const preview = await previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [CURRENT_CATALOG] } }), 'complete.zip')
     expect(preview.detectedFormat).toBe('native-backup-3.0.0')
-    expect(preview.proposed.catalogs).toEqual([GUIDE_CATALOG])
+    expect(preview.proposed.catalogs).toEqual([CURRENT_CATALOG])
   })
 })
 

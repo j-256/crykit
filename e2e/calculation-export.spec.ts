@@ -37,11 +37,11 @@ test('the first expanded package export works offline without loading it at star
   await openCalculationSources(page)
   await button.click()
   const file = await download
-  expect(file.suggestedFilename()).toBe('crystal-project-calculations-pc-1.6.9-package-v3.json')
+  expect(file.suggestedFilename()).toBe('crystal-project-calculations-v1.json')
   const path = await file.path()
   if (!path) throw new Error('Offline calculation download failed')
   const exported = JSON.parse(await readFile(path, 'utf8'))
-  expect(exported.schemaVersion).toBe(3)
+  expect(exported.schemaVersion).toBe(1)
   expect(Object.hasOwn(exported, 'legacy')).toBe(false)
   expect(exported.combat.id).toBe(exported.combatData.engine)
   expect(exported.combatVerification.engine).toBe(exported.combat.id)
@@ -93,7 +93,7 @@ test.describe('failed package downloads', () => {
     await openCalculationSources(page)
     await button.click()
     expect((await download).suggestedFilename()).toBe(
-      'crystal-project-calculations-pc-1.6.9-package-v3.json',
+      'crystal-project-calculations-v1.json',
     )
     await expect(page.getByRole('alert')).toHaveCount(0)
     await expect(level).toHaveValue('20')

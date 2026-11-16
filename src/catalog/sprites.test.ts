@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EntityId } from '../domain/types'
-import { catalogArtwork, classWorldArtwork, menuIcon, nativeUiArtwork, wikiSprite } from './sprites'
+import { catalogArtwork, classWorldArtwork, menuIcon, nativeUiArtwork } from './sprites'
 import { fieldIconKey } from './menu-icons'
 
 describe('bundled artwork identity', () => {
@@ -18,18 +18,23 @@ describe('bundled artwork identity', () => {
     expect(classWorldArtwork(builtin, { ...warrior, kind: 'item' })).toBeUndefined()
   })
 
-  it('uses reviewed native menu glyphs while retaining unreviewed wiki variants', () => {
+  it('prefers reviewed native menu glyphs and retains missing compact glyphs as attributed supplements', () => {
     for (const key of ['equipment:katanas', 'element:fire', 'skill:dagger/axe skill', 'skill:passive', 'skill:scroll', 'command:chivalry']) {
       const icon = menuIcon(key)!
       expect(icon.provenance).toBe('installed-game')
       expect(icon.url).toMatch(/game-assets\/[a-f0-9]{64}\.png/)
       expect(icon.asset).toMatchObject({ width: 16, height: 16 })
       expect(icon.asset.license).toContain('Copyrighted Crystal Project')
-      expect(icon.asset.descriptionUrl).toBeUndefined()
     }
     expect(menuIcon('command:chivalry')!.binding.sources[0]!.locator).toContain('job.dat record 10')
-    expect(menuIcon('equipment:swords')!.provenance).toBe('community-wiki')
-    expect(menuIcon('command:trickery')!.provenance).toBe('community-wiki')
+    for (const key of ['equipment:swords', 'equipment:axes', 'equipment:daggers', 'equipment:spears', 'equipment:bows', 'equipment:rapiers', 'equipment:scythes', 'equipment:staves', 'equipment:wands', 'equipment:books', 'equipment:unarmed', 'command:trickery', 'command:battle skill', 'command:black magic']) {
+      const icon = menuIcon(key)!
+      expect(icon?.provenance).toBe('supplemental-source')
+      expect(icon.url).toMatch(/menu-icon-supplements\/[a-f0-9]{64}\.png/)
+      expect(icon.url).not.toMatch(/^https?:/)
+      expect(icon.binding.sources[0]?.url).toContain('?oldid=')
+      expect(icon.asset.license).toBe('No reviewed license declaration on the wiki file page')
+    }
     expect(menuIcon('synthetic:unknown')).toBeUndefined()
   })
 
@@ -55,18 +60,18 @@ describe('bundled artwork identity', () => {
       expect(icon.provenance).toBe('installed-game')
       expect(icon.binding.region).toEqual({ x, y, width: 32, height: 32 })
       expect(icon.url).toContain('/menu-icons/equipment-types.png')
-      expect(icon.asset.descriptionUrl).toBeUndefined()
     }
   })
 
-  it('prefers exact native artwork with database, texture, and identity provenance', () => {
+  it('resolves exact native artwork with database and texture provenance', () => {
     const artwork = catalogArtwork(builtin, entity)
     expect(artwork?.source).toBe('native')
     if (artwork?.source !== 'native') throw new Error('Expected native artwork')
     expect(artwork.url).toMatch(/game-assets\/[^/]+\.png/)
     expect(artwork.url).not.toMatch(/^https?:/)
     expect(artwork.binding.database).toMatchObject({ name: 'equipment', id: 0, recordName: 'Short Sword' })
-    expect(artwork.binding.identity?.url).toContain('/CrystalProjectAPWorld/blob/')
+    expect(artwork).not.toHaveProperty('identityCrosswalk')
+    expect(artwork.binding).not.toHaveProperty('identity')
     expect(artwork.binding.rendering.sourceTextures[0].texturePath).toBe('Equipment/Sword')
     expect(artwork.asset.rights).toContain('Copyrighted Crystal Project')
   })
@@ -76,7 +81,7 @@ describe('bundled artwork identity', () => {
     expect(eye?.source).toBe('native')
     if (eye?.source !== 'native') throw new Error('Expected Woke Quintar Eye artwork')
     expect(eye.binding.database).toEqual({ name: 'item', id: 28, recordName: 'Woke Quintar Eye' })
-    expect(eye.binding.identity).toBeUndefined()
+    expect(eye.binding).not.toHaveProperty('identity')
     expect(eye.binding.nativeRecord).toMatchObject({ database: 'item', databaseId: 28, mode: 'base' })
     expect(eye.binding.rendering.sourceTextures[0]).toMatchObject({ texturePath: 'Icon/ItemC', region: { x: 70, y: 70, width: 32, height: 32 } })
     expect(eye.nativeDefinitions).toEqual(expect.objectContaining({ platform: 'Windows', gameVersion: '1.6.9' }))
@@ -100,23 +105,9 @@ describe('bundled artwork identity', () => {
     expect(catalogArtwork(builtin, { id: 'base:monster:0' as EntityId, kind: 'monster' })).toBeUndefined()
   })
 
-  it('falls back to pinned wiki artwork when no exact native binding exists', () => {
-    const artwork = catalogArtwork(builtin, { id: 'base:item:ref-76' as EntityId, kind: 'item' })
-    expect(artwork?.source).toBe('wiki')
-    if (artwork?.source !== 'wiki') throw new Error('Expected wiki artwork')
-    expect(artwork.url).toMatch(/wiki-sprites\/[^/]+\.gif/)
-    expect(artwork.asset.descriptionUrl).toContain('?oldid=')
-    expect(artwork.provenance).toBe('community-wiki')
-  })
-
-  it('resolves the exact built-in definition to a local asset and pinned attribution', () => {
-    const sprite = wikiSprite(builtin, entity)
-    expect(sprite?.url).toMatch(/wiki-sprites\/[^/]+\.gif/)
-    expect(sprite?.url).not.toMatch(/^https?:/)
-    expect(sprite?.asset.descriptionUrl).toMatch(/File%3AShort-sword-icon\.gif\?oldid=\d+$/)
-    expect(sprite?.asset.license).toContain('Fairuse')
-    expect(sprite?.binding.sources[0].url).toContain('?oldid=')
-    expect(sprite?.provenance).toBe('community-wiki')
+  it('leaves definitions without exact native artwork explicitly unbound', () => {
+    expect(catalogArtwork(builtin, { id: 'base:item:ref-76' as EntityId, kind: 'item' })).toBeUndefined()
+    expect(catalogArtwork(builtin, { id: 'base:monster:ref-849' as EntityId, kind: 'monster' })).toBeUndefined()
   })
 
   it('does not attach artwork to foreign catalogs, different kinds, or unknown identities', () => {
@@ -126,6 +117,5 @@ describe('bundled artwork identity', () => {
     const mod = { id: 'mod:equipment-expansion:equipment:592' as EntityId, kind: 'item' as const }
     expect(catalogArtwork('synthetic-import', mod)).toBeUndefined()
     expect(catalogArtwork(builtin, { ...mod, kind: 'ability' })).toBeUndefined()
-    expect(wikiSprite(builtin, mod)).toBeUndefined()
   })
 })

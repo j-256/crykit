@@ -180,7 +180,7 @@ export function validateNativeArtworkCoverage(manifest, entries, textures) {
       gaps.delete(entry.id)
       continue
     }
-    if (!binding || binding.kind !== entry.kind || (!binding.identity && binding.name !== entry.name) || JSON.stringify(binding.nativeRecord) !== JSON.stringify(entry.nativeRecord) || binding.database?.name !== entry.nativeRecord.database || binding.database.id !== entry.record.ID || binding.database.recordName !== entry.record.Name || JSON.stringify(binding.rendering) !== JSON.stringify({ extraction: plan.extraction, sourceTextures: plan.sourceTextures })) throw new Error(`Native definition artwork binding is stale: ${entry.id}`)
+    if (!binding || binding.kind !== entry.kind || binding.name !== entry.name || JSON.stringify(binding.nativeRecord) !== JSON.stringify(entry.nativeRecord) || binding.database?.name !== entry.nativeRecord.database || binding.database.id !== entry.record.ID || binding.database.recordName !== entry.record.Name || JSON.stringify(binding.rendering) !== JSON.stringify({ extraction: plan.extraction, sourceTextures: plan.sourceTextures })) throw new Error(`Native definition artwork binding is stale: ${entry.id}`)
     if (plan.type === 'monster' && binding.asset !== plan.sourceTextures[0].textureSha256) throw new Error(`Native monster artwork differs from its full texture: ${entry.id}`)
     bound.add(entry.id)
   }

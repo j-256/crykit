@@ -1,5 +1,5 @@
 import { definitionModAvailability, type DefinitionModAvailability } from '../catalog/mods'
-import { LEARNABLE_INNATE_FIELD } from '../catalog/switch'
+
 import type { CatalogEntity, EntityRef, GameSetupRevision, LocalData } from '../domain/types'
 import { Badge } from './components'
 import { useContext } from 'react'
@@ -12,7 +12,7 @@ const MOD_STATE_LABELS: Readonly<Record<DefinitionModAvailability['state'], stri
   disabled: 'Disabled',
 })
 export function HistoricalInnateLearningBadge({ record }: { readonly record: Pick<CatalogEntity, 'fields'> }) {
-  const availability = record.fields[LEARNABLE_INNATE_FIELD]
+  const availability = record.fields['Learnable through Learnable Innate Skill']
   return availability?.state === 'known' && availability.value === true ? <Badge tone="neutral">Historical learnability note</Badge> : null
 }
 

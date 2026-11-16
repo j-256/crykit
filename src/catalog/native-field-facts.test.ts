@@ -1,20 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from './bundled'
 import { nativeFieldFacts } from './native-field-facts'
-import { projectSourceSemantics } from './source-semantics'
 import { nativeIdentity, nativeRecord, nativeSourceRecord, NATIVE_RECORD_FIELD, NATIVE_SOURCE_PREFIX } from '../domain/native-game'
 
 describe('native reference field facts', () => {
-  it('uses the native light-armor classification and archives the equivalent wiki type without mutating Dress', () => {
+  it('projects the native light-armor classification without mutating source evidence', () => {
     const dress = DEFAULT_CATALOG.entities['base:equipment:134']!
     const before = JSON.stringify(dress)
-    const facts = nativeFieldFacts(DEFAULT_CATALOG, projectSourceSemantics(dress))
+    const facts = nativeFieldFacts(DEFAULT_CATALOG, dress)
     const type = facts.find(fact => fact.field === 'Equipment Type')!
-    const alias = facts.find(fact => fact.field === 'Type')!
+    const alias = facts.find(fact => fact.field === 'Type')
 
     expect(type).toMatchObject({ original: { value: 'LightBody (code 17)' }, value: { state: 'known', value: 'Light armor' }, differs: false, evidence: 'Database/equipment.dat/134/EquipmentType; EquipmentType.LightBody = 17' })
-    expect(alias).toMatchObject({ original: { value: 'Light Armor' }, value: type.value, differs: false, redundantWith: 'Equipment Type' })
-    expect(alias.original).toBe(dress.fields.Type)
+    expect(alias).toBeUndefined()
+    expect(dress.fields.Type).toBeUndefined()
     expect(type.value.state === 'known' && type.value.sources?.every(source => source.sourceId.startsWith(NATIVE_SOURCE_PREFIX))).toBe(true)
     expect(JSON.stringify(dress)).toBe(before)
   })
@@ -39,21 +38,11 @@ describe('native reference field facts', () => {
     expect(nativeFieldFacts(DEFAULT_CATALOG, { ...dress, fields: { ...dress.fields, Type: { state: 'known', value: 'Heavy Armor' } } })).toEqual([])
   })
 
-  it('replaces dated flat-stat values without changing stored fields', () => {
+  it('keeps type labels separate from numeric stats and item effects', () => {
     const shoes = DEFAULT_CATALOG.entities['base:equipment:320']!
-    const before = JSON.stringify(shoes)
-    const facts = nativeFieldFacts(DEFAULT_CATALOG, shoes)
-    expect(facts.find(fact => fact.field === 'Stat')).toMatchObject({ original: { value: 'Dexterity +6\nAgility +16' }, value: { state: 'known', value: 'Dexterity: +14\nAgility: +16' }, differs: true })
-    expect(facts.find(fact => fact.field === 'Stat bonuses')).toMatchObject({ original: { value: 'Dexterity: +16\nAgility: +16' }, value: { state: 'known', value: 'Dexterity: +14\nAgility: +16' }, differs: true })
-    expect(JSON.stringify(shoes)).toBe(before)
-  })
-
-  it('resolves the reviewed stew effect while preserving both historical claims', () => {
+    expect(nativeFieldFacts(DEFAULT_CATALOG, shoes).map(fact => fact.field)).toEqual(['Equipment Type'])
     const stew = DEFAULT_CATALOG.entities['base:item:132']!
-    const fact = nativeFieldFacts(DEFAULT_CATALOG, projectSourceSemantics(stew)).find(entry => entry.field === 'Effect')!
-    expect(fact.original.state).toBe('conflicting')
-    expect(fact.value).toMatchObject({ state: 'known', value: expect.stringMatching(/missing HP/i) })
-    expect(stew.fields.Effect?.state).toBe('conflicting')
+    expect(nativeFieldFacts(DEFAULT_CATALOG, stew)).toEqual([])
   })
 
   it('does not reinterpret imports, revised catalogs, or edited definitions', () => {

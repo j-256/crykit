@@ -7,6 +7,8 @@ import { parseArgs } from 'node:util'
 import { buildNativeCatalog, NATIVE_ENUM_TYPES, NATIVE_FAMILIES, NATIVE_SNAPSHOT_SCHEMA, validateNativeSnapshot } from '../src/domain/native-game.ts'
 import { hash, parseGameDatabase } from './game-assets.mjs'
 import { parseGameExecutableVersion } from './game-version.mjs'
+import { buildGameIdentityManifest } from './update-game-identities.mjs'
+import { buildClassTreeIdentities } from './update-class-tree-identities.mjs'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const OUTPUT = join(ROOT, 'src/catalog/native-game-data.json')
@@ -23,7 +25,7 @@ file, product, assembly version, and numeric enum labels. No game code is execut
   -d, --decompiler <ilspycmd>  ILSpy CLI executable (default: ilspycmd on PATH)
       --check                 Verify the committed snapshot offline without writes
   -h, --help                  Show help
-Update requires Node >=22.12, dotnet, ILSpy CLI, and the reviewed identity crosswalk.
+Update requires Node >=22.12, dotnet, ILSpy CLI, and bundled native identity projections.
 Check requires only Node and committed files. No environment variables or network
 requests are used. Machine paths and executable bytes are never bundled.
 Results go to stdout; progress and errors go to stderr.
@@ -70,6 +72,11 @@ export function identityBindingsFor(manifest, databases, classTrees = { classes:
   return bindings
 }
 
+export function extractionIdentitySourceFor(identityBytes, treeBytes, commit) {
+  if (commit !== undefined && !/^[a-f0-9]{40}$/.test(commit)) throw new Error('Invalid identity source commit')
+  return { sha256: hash(identityBytes), classTreesSha256: hash(treeBytes), ...(commit === undefined ? {} : { commit }) }
+}
+
 function clean(value) {
   if (Array.isArray(value)) return value.map(clean)
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).filter(([key]) => key !== 'Comments').map(([key, entry]) => [key, clean(entry)]))
@@ -92,9 +99,11 @@ async function check() {
   if (hash(Buffer.from(contentForDigest(snapshot))) !== snapshot.contentDigest || catalogDigest(snapshot) !== snapshot.catalogChecksum) throw new Error('Native snapshot content or catalog checksum is stale')
   const identities = await readFile(IDENTITIES)
   const treeBytes = await readFile(CLASS_TREES)
-  if (hash(identities) !== snapshot.identitySource.sha256) throw new Error('Native snapshot identity crosswalk has changed; regenerate the native data')
-  if (hash(treeBytes) !== snapshot.identitySource.classTreesSha256) throw new Error('Native snapshot class-tree identities have changed; regenerate the native data')
-  if (canonicalJson(identityBindingsFor(JSON.parse(identities), snapshot.databases, JSON.parse(treeBytes))) !== canonicalJson(snapshot.identityBindings)) throw new Error('Native snapshot bindings differ from the reviewed numeric crosswalk')
+  const identityManifest = JSON.parse(identities)
+  const classTrees = JSON.parse(treeBytes)
+  // Historical receipt hashes describe extraction inputs, while regenerated projections must preserve their exact numeric bindings
+  if (canonicalJson(identityManifest) !== canonicalJson(buildGameIdentityManifest(snapshot)) || canonicalJson(classTrees) !== canonicalJson(buildClassTreeIdentities(snapshot))) throw new Error('Native identity projections differ from the fingerprinted source records')
+  if (canonicalJson(identityBindingsFor(identityManifest, snapshot.databases, classTrees)) !== canonicalJson(snapshot.identityBindings)) throw new Error('Native snapshot bindings differ from the reviewed numeric crosswalk')
   const catalog = buildNativeCatalog(snapshot)
   console.log(`Verified Windows ${snapshot.source.gameVersion} native definitions, source fingerprints, executable version evidence, enum labels, and catalog checksum (${Object.keys(catalog.entities).length} records)`)
 }
@@ -129,10 +138,10 @@ async function update(input, decompiler) {
   const treeBytes = await readFile(CLASS_TREES)
   const identityManifest = JSON.parse(identityBytes)
   const identityBindings = identityBindingsFor(identityManifest, databases, JSON.parse(treeBytes))
-  const snapshot = { schemaVersion: NATIVE_SNAPSHOT_SCHEMA, contentDigest: '0'.repeat(64), catalogChecksum: '0'.repeat(64), capturedAt: '', source: { platform: 'Windows', gameVersion: version.gameVersion, executable: { path: 'Crystal Project.exe', sha256: hash(executableBytes), size: executableBytes.length, ...version }, files }, databases, enums, identityBindings, identitySource: { sha256: hash(identityBytes), classTreesSha256: hash(treeBytes), commit: identityManifest.source.commit } }
-  snapshot.contentDigest = hash(Buffer.from(contentForDigest(snapshot)))
   let previous
   try { previous = JSON.parse(await readFile(OUTPUT, 'utf8')) } catch (error) { if (error.code !== 'ENOENT') throw error }
+  const snapshot = { schemaVersion: NATIVE_SNAPSHOT_SCHEMA, contentDigest: '0'.repeat(64), catalogChecksum: '0'.repeat(64), capturedAt: '', source: { platform: 'Windows', gameVersion: version.gameVersion, executable: { path: 'Crystal Project.exe', sha256: hash(executableBytes), size: executableBytes.length, ...version }, files }, databases, enums, identityBindings, identitySource: extractionIdentitySourceFor(identityBytes, treeBytes, identityManifest.source.commit) }
+  snapshot.contentDigest = hash(Buffer.from(contentForDigest(snapshot)))
   snapshot.capturedAt = previous?.contentDigest === snapshot.contentDigest ? previous.capturedAt : new Date().toISOString()
   snapshot.catalogChecksum = catalogDigest(snapshot)
   const bytes = `${JSON.stringify(snapshot, null, 2).replace(/[\u2014\u2018\u2019\u201c\u201d]/g, char => `\\u${char.charCodeAt(0).toString(16)}`).replace(/@(?=(?:V\.Sep|X\.(?:ConvertMpToHpRatio|ConvertMpToApRatio|ConvertApToMpRatio|StrWhileUnarmedBonusFlat)))/g, '\\u0040')}\n`

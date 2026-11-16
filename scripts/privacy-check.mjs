@@ -61,9 +61,9 @@ const gameAssetManifestPath = 'src/catalog/game-assets.json'
 const geometryDirectory = 'src/assets/world-map/geometry-'
 const geometryManifestPath = 'src/catalog/world-map.json'
 const spriteSources = [
+  { directory: 'src/assets/menu-icon-supplements/', manifestPath: 'src/catalog/menu-icon-supplements.json', label: 'Supplemental menu icon manifest' },
   { directory: 'src/assets/mod-artwork-atlases/', manifestPath: 'src/catalog/mod-artwork.json', assetField: 'atlases', label: 'Mod artwork atlas manifest' },
   { directory: 'src/assets/mod-artwork/', manifestPath: 'src/catalog/mod-artwork.json', label: 'Mod artwork manifest' },
-  { directory: 'src/assets/wiki-sprites/', manifestPath: 'src/catalog/wiki-sprites.json', label: 'Wiki sprite manifest' },
   { directory: 'src/assets/mod-sprites/', manifestPath: 'src/catalog/mod-sprites.json', label: 'Mod sprite manifest' },
 ]
 for (const source of spriteSources) try {

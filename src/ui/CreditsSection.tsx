@@ -12,11 +12,11 @@ export function CreditsSection() {
       <p>The original application code is available under <a href={applicationLicenseUrl} rel="noreferrer" target="_blank">AGPL-3.0-only</a>. <a href={SOURCE_URL} rel="noreferrer" target="_blank">Browse the source</a> or <a href={`${SOURCE_URL}/issues`} rel="noreferrer" target="_blank">report a problem</a>. Please leave personal backups, imports, and playthrough records out of public reports.</p>
     </section>
     <section className="settings-section">
-      <h3>Game artwork and community reference</h3>
-      <p><a href="https://store.steampowered.com/app/1637730/Crystal_Project/" rel="noreferrer" target="_blank">Crystal Project</a> is by Andrew Willman. The game and its artwork belong to their respective creators and rights holders. Game sprites, crystal artwork, and wiki images are credited separately and are not covered by the app's AGPL license.</p>
-      <p>Thanks to the <a href="https://crystal-project.fandom.com/wiki/Crystal_Project_Wiki" rel="noreferrer" target="_blank">Crystal Project Wiki contributors</a> for the community reference and file documentation. Wiki-derived text retains its <a href="https://www.fandom.com/licensing" rel="noreferrer" target="_blank">CC-BY-SA terms</a>. Artwork has separate rights; the wiki's Fairuse labels describe its use of copyrighted material, not an open license.</p>
-      <p>Currency and mastery-seal icons come from the Windows game files and retain the game's artwork rights. The native artwork manifest records their source.</p>
-      <p>Reference details link to each entry's source revisions and artwork file pages. <a href={`${SOURCE_URL}/blob/main/docs/catalog-sources.md`} rel="noreferrer" target="_blank">Catalog sources and artwork credits</a> also document the Archipelago identity tables, mod references, Crystal Edit class exports, and modding guide, along with their known gaps.</p>
+      <h3>Game data and artwork</h3>
+      <p><a href="https://store.steampowered.com/app/1637730/Crystal_Project/" rel="noreferrer" target="_blank">Crystal Project</a> is by Andrew Willman. The game, factual source data, and artwork belong to their respective creators and rights holders. The app's AGPL license does not grant rights to those materials.</p>
+      <p>Bundled definitions, mechanics, and artwork come from fingerprinted game records and reviewed implementation evidence. Supplemental guide directions and imported sources retain their own attribution.</p>
+      <p>Selected guide text credits the <a href="https://crystal-project.fandom.com/wiki/Crystal_Project_Wiki" rel="noreferrer" target="_blank">Crystal Project Wiki contributors</a> and retains its <a href="https://www.fandom.com/licensing" rel="noreferrer" target="_blank">CC-BY-SA terms</a>. Source controls link to the retained page revisions. Supplemental menu glyphs retain their separate artwork rights and file credits.</p>
+      <p><a href={`${SOURCE_URL}/blob/main/docs/catalog-sources.md`} rel="noreferrer" target="_blank">Catalog sources and artwork credits</a> describe extraction, native coverage, and explicit gaps.</p>
     </section>
     <section className="settings-section">
       <h3>Typography and libraries</h3>

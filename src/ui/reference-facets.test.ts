@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CATALOG, GUIDE_CATALOG } from '../catalog/bundled'
+import { CURRENT_CATALOG, DEFAULT_CATALOG } from '../catalog/bundled'
 import type { EntityId } from '../domain/types'
-import { isReferenceArtifact, referenceAudience, referenceCategoryGroup, referenceCategoryKnowledge, referenceFieldFacets } from './reference-facets'
+import { referenceAudience, referenceCategoryGroup, referenceCategoryKnowledge, referenceFieldFacets } from './reference-facets'
 import { EQUIPMENT_CATEGORIES, EQUIPMENT_CATEGORY_KEY, referenceCategoryKey } from './reference-categories'
 
 describe('reference facet organization', () => {
@@ -42,13 +42,14 @@ describe('reference facet organization', () => {
     expect(projected.mods).toEqual({ state: 'conflicting', claims: [{ value: ['Pack A'], sources: [] }, { value: ['Pack B'], sources: [] }, { value: ['Documented expansion'], sources: [] }] })
   })
 
-  it('classifies bundled supplemental records by stable identity without guessing imported content', () => {
-    const entities = Object.values(DEFAULT_CATALOG.entities)
-    expect(Object.values(GUIDE_CATALOG.entities).filter(entity => referenceAudience(entity, GUIDE_CATALOG.id) === 'technical')).toHaveLength(300)
-    expect(entities.filter(entity => referenceAudience(entity, DEFAULT_CATALOG.id) === 'diagnostic')).toHaveLength(0)
-    expect(entities.filter(entity => referenceAudience(entity, DEFAULT_CATALOG.id) === 'about')).toHaveLength(5)
-    expect(entities.filter(entity => referenceAudience(entity, DEFAULT_CATALOG.id) === 'tooling')).toHaveLength(1)
-    expect(entities.filter(entity => isReferenceArtifact(entity, DEFAULT_CATALOG.id)).map(entity => entity.name).sort()).toEqual(['Bgtest', 'Defender'])
+  it('classifies only exact bundled native mechanics as technical without guessing imported content', () => {
+    for (const id of ['mechanic:stat:467', 'mechanic:ability:2', 'mechanic:stat:83', 'mechanic:stat:526', 'mechanic:calculations']) {
+      const definition = CURRENT_CATALOG.entities[id]!
+      expect(definition).toBeDefined()
+      expect(referenceAudience(definition, CURRENT_CATALOG.id)).toBe('technical')
+      expect(referenceAudience(definition, 'imported:synthetic')).toBe('default')
+    }
+    expect(referenceAudience(DEFAULT_CATALOG.entities['base:job:0']!, DEFAULT_CATALOG.id)).toBe('default')
     expect(referenceAudience({ id: 'imported:other:AbilityItemConsumptionDown' as EntityId })).toBe('default')
   })
 })

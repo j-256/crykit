@@ -1,19 +1,20 @@
-import { addNativeBase } from './native-game'
-import { referenceSupplements } from './reference-supplements'
+import { NATIVE_GAME_DATA } from './native-game'
+import { nativeMechanicDefinitions } from './native-mechanics'
 import { projectSourceCatalog, reconcileNativeSourceIdentities } from './source-catalog'
 import { compileCatalogIdentities } from '../domain/catalog-identities'
-import supplementalIds from './supplemental-entity-ids.json' with { type: 'json' }
-import type { CatalogRevisionId, CatalogSnapshot } from '../domain/types'
+import { buildNativeCatalog } from '../domain/native-game'
+import { STARTER_CATALOG_ID, STARTER_CATALOG_REVISION_ID } from './catalog-ids'
+import type { CatalogSnapshot } from '../domain/types'
 
-export const VANILLA_CATALOG_REVISION_ID = 'v1' as CatalogRevisionId
+export const VANILLA_CATALOG_REVISION_ID = STARTER_CATALOG_REVISION_ID
 
 export function vanillaSourceCatalog(): CatalogSnapshot {
-  // Reconcile source identities before projecting facts, then compile portable IDs only after those joins
-  // Compiling earlier would detach reviewed source-key mappings from their records
-  const { importedAt: _acquiredAt, ...catalog } = projectSourceCatalog(reconcileNativeSourceIdentities(addNativeBase(referenceSupplements())))
-  return { ...catalog, revisionId: VANILLA_CATALOG_REVISION_ID, applicability: { state: 'known', value: 'Fingerprint-pinned Crystal Project 1.6.9.0 definitions and separately attributed reference facts' } }
+  // Join reviewed numeric identities before compilation; this keeps learn-tree and innate links exact
+  const { importedAt: _acquiredAt, ...source } = projectSourceCatalog(reconcileNativeSourceIdentities(buildNativeCatalog(NATIVE_GAME_DATA)))
+  return { ...source, id: STARTER_CATALOG_ID, revisionId: VANILLA_CATALOG_REVISION_ID, applicability: { state: 'known', value: 'Fingerprint-pinned Crystal Project 1.6.9.0 native definitions and reviewed implementation facts' } }
 }
 
 export function vanillaCatalog(checksum: string): CatalogSnapshot {
-  return { ...compileCatalogIdentities(vanillaSourceCatalog(), supplementalIds.ids), checksum }
+  const native = compileCatalogIdentities(vanillaSourceCatalog())
+  return { ...native, entities: { ...native.entities, ...nativeMechanicDefinitions() }, checksum }
 }

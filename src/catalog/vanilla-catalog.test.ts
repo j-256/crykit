@@ -6,15 +6,14 @@ import { nativeDescription } from './native-description'
 import { nativeEquipmentFacts } from './native-equipment-facts'
 import { nativeFieldFacts } from './native-field-facts'
 import { nativeGardening } from './native-gardening'
-import { NATIVE_REFERENCE_LINKS, preferredNativeReferenceId } from './native-reference-links'
-import { projectAcquisitionGuidance } from './acquisition-guidance'
+import { nativeItemAcquisition } from './acquisition-guidance'
 import { catalogContentForChecksum } from '../interchange/catalog-checksum'
 import { sha256 } from '../interchange/util'
 import { vanillaCatalog } from './vanilla-catalog'
 
 it('pins an independently assembled native base without source-backed mods or dated innate overrides', async () => {
   expect(CURRENT_CATALOG.id).toBe('crystal-project/vanilla')
-  expect(CURRENT_CATALOG.revisionId).toBe('v1')
+  expect(CURRENT_CATALOG.revisionId).toBe('v2')
   expect(CURRENT_CATALOG).toEqual(vanillaCatalog(CURRENT_CATALOG.checksum))
   const { checksum: _checksum, ...content } = CURRENT_CATALOG
   expect(CURRENT_CATALOG.checksum).toBe(`builtin:sha256:${await sha256(new TextEncoder().encode(catalogContentForChecksum(content)))}`)
@@ -37,8 +36,5 @@ it('retains fingerprint-backed presentation for the new base and rejects altered
   const seed = Object.values(CURRENT_CATALOG.entities).find(entity => nativeGardening(CURRENT_CATALOG, entity))!
   expect(seed).toBeDefined()
   const berries = CURRENT_CATALOG.entities['base:item:203']!
-  expect(projectAcquisitionGuidance(CURRENT_CATALOG, berries).acquisition.routes.length).toBeGreaterThan(0)
-  const linked = NATIVE_REFERENCE_LINKS.links.find(link => link.relation === 'same-definition' && preferredNativeReferenceId(CURRENT_CATALOG, link.sourceId))!
-  expect(linked).toBeDefined()
-  expect(preferredNativeReferenceId({ ...CURRENT_CATALOG, checksum: 'synthetic-unreviewed' }, linked.sourceId)).toBeUndefined()
+  expect(nativeItemAcquisition(CURRENT_CATALOG, berries).routes.length).toBeGreaterThan(0)
 })

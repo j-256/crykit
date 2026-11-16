@@ -6,11 +6,10 @@ import { crystalEditPlanningRecord } from './crystal-edit-compatibility'
 
 export type MechanicsDefinition = (CatalogEntity | PersonalDefinition) & { readonly modAvailability?: DefinitionModAvailability }
 export type EquipmentType = typeof EQUIPMENT_TYPES[number]
-export const GUIDE_MECHANICS_SOURCE: SourceRef = { sourceId: 'community:geef-modding-guide', locator: 'Game synopsis; Equipment; Jobs; Stat Mod glossary', applicability: 'Documented planning mechanics; effects outside the supported calculation are listed separately' }
 export const EQUIPMENT_ROLE_LABELS: Readonly<Record<EquipmentRole, string>> = Object.freeze({ mainHand: 'Main hand', offHand: 'Off hand', head: 'Head', body: 'Body', accessory: 'Accessory' })
 const PLAN_ROLES: Readonly<Record<string, EquipmentRole>> = Object.freeze({ 'plan-main-hand': 'mainHand', 'plan-off-hand': 'offHand', 'plan-head': 'head', 'plan-body': 'body', 'plan-accessory-1': 'accessory', 'plan-accessory-2': 'accessory' })
-const WIKI_EQUIPMENT_TYPES: Readonly<Record<string, string>> = Object.freeze({ swords: 'Sword', axes: 'Axe', daggers: 'Dagger', rapiers: 'Rapier', katanas: 'Katana', spears: 'Spear', scythes: 'Scythe', bows: 'Bow', staves: 'Staff', wands: 'Wand', wand: 'Wand', books: 'Book', shields: 'Shield', 'heavy helmets': 'Heavy Head', 'medium headgear': 'Medium Head', 'light hats': 'Light Head', 'heavy armor': 'Heavy Body', 'medium armor': 'Medium Body', 'light armor': 'Light Body', accessories: 'Accessory', 'two-handed staff': 'Staff' })
-const WIKI_CATEGORY_TWO_HANDED: Readonly<Record<string, boolean>> = Object.freeze({ books: true, bows: true, daggers: false, katanas: false, rapiers: false, scythes: true, spears: true, staves: true, wands: false, wand: false, 'two-handed staff': true })
+const CATEGORY_EQUIPMENT_TYPES: Readonly<Record<string, string>> = Object.freeze({ swords: 'Sword', axes: 'Axe', daggers: 'Dagger', rapiers: 'Rapier', katanas: 'Katana', spears: 'Spear', scythes: 'Scythe', bows: 'Bow', staves: 'Staff', wands: 'Wand', wand: 'Wand', books: 'Book', shields: 'Shield', 'heavy helmets': 'Heavy Head', 'medium headgear': 'Medium Head', 'light hats': 'Light Head', 'heavy armor': 'Heavy Body', 'medium armor': 'Medium Body', 'light armor': 'Light Body', accessories: 'Accessory', 'two-handed staff': 'Staff' })
+const CATEGORY_TWO_HANDED: Readonly<Record<string, boolean>> = Object.freeze({ books: true, bows: true, daggers: false, katanas: false, rapiers: false, scythes: true, spears: true, staves: true, wands: false, wand: false, 'two-handed staff': true })
 
 export function knownField(definition: Pick<MechanicsDefinition, 'fields'> | undefined, label: string): JsonValue | undefined {
   const field = definition?.fields[label]
@@ -43,13 +42,13 @@ export function equipmentFacts(definition: MechanicsDefinition): EquipmentFacts 
     sources: definition.sources,
   }
   const categories = knownField(definition, 'Category')
-  const types = new Set(Array.isArray(categories) ? categories.flatMap(value => typeof value === 'string' && WIKI_EQUIPMENT_TYPES[value.toLowerCase()] ? [WIKI_EQUIPMENT_TYPES[value.toLowerCase()]!] : []) : [])
+  const types = new Set(Array.isArray(categories) ? categories.flatMap(value => typeof value === 'string' && CATEGORY_EQUIPMENT_TYPES[value.toLowerCase()] ? [CATEGORY_EQUIPMENT_TYPES[value.toLowerCase()]!] : []) : [])
   const type = types.size === 1 ? [...types][0] : undefined
   const hands = knownField(definition, 'Hands')
   const handsConflicting = definition.fields.Hands?.state === 'conflicting'
   const handTexts = Object.entries(definition.fields).filter(([key, value]) => key.includes('Hands') && value.state === 'known').flatMap(([, value]) => value.state === 'known' && typeof value.value === 'string' ? [value.value] : [])
   const parsedHands = [...new Set(handTexts.flatMap(text => [...text.matchAll(/\b([12])-Handed\b/gi)].map(match => match[1]!)))]
-  const categoryHandedness = [...new Set(Array.isArray(categories) ? categories.flatMap(value => typeof value === 'string' && Object.hasOwn(WIKI_CATEGORY_TWO_HANDED, value.toLowerCase()) ? [WIKI_CATEGORY_TWO_HANDED[value.toLowerCase()]!] : []) : [])]
+  const categoryHandedness = [...new Set(Array.isArray(categories) ? categories.flatMap(value => typeof value === 'string' && Object.hasOwn(CATEGORY_TWO_HANDED, value.toLowerCase()) ? [CATEGORY_TWO_HANDED[value.toLowerCase()]!] : []) : [])]
   const explicitHandCount = hands === 1 || hands === 2 ? hands : parsedHands.length === 1 ? Number(parsedHands[0]) : undefined
   const categoryTwoHanded = categoryHandedness.length === 1 ? categoryHandedness[0] : undefined
   const handsDisagree = hands === 1 || hands === 2 ? parsedHands.some(value => Number(value) !== hands) || categoryHandedness.some(value => value !== (hands === 2)) : parsedHands.length === 1 && categoryHandedness.some(value => value !== (Number(parsedHands[0]) === 2))
@@ -139,7 +138,7 @@ export function passivePointCost(definition: MechanicsDefinition): Knowledge<num
 }
 
 function fillUnknown<T>(original: Knowledge<T> | undefined, value: T | undefined, sources: readonly SourceRef[]): Knowledge<T> | undefined {
-  return (!original || original.state === 'unknown') && value !== undefined ? { state: 'known', value, sources: [...sources, GUIDE_MECHANICS_SOURCE] } : original
+  return (!original || original.state === 'unknown') && value !== undefined ? { state: 'known', value, sources: sources } : original
 }
 
 export function definitionWithMechanics<T extends MechanicsDefinition>(definition: T, slots: readonly SlotDefinition[]): T {

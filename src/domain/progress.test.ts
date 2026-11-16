@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { VANILLA_CATALOG_REVISION_ID } from '../catalog/vanilla-catalog'
-import { STARTER_CATALOG_ID } from '../catalog/starter'
+import { STARTER_CATALOG_ID } from '../catalog/catalog-ids'
 import {
   advanceClassSealProgress,
   acquisitionState,

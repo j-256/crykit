@@ -98,11 +98,11 @@ test('build mechanics survive checkpoints and offline reload without observed ch
   await openCalculationSources(page)
   await page.getByRole('button', { name: 'Export calculation package', exact: true }).click()
   const file = await download
-  expect(file.suggestedFilename()).toBe('crystal-project-calculations-pc-1.6.9-package-v3.json')
+  expect(file.suggestedFilename()).toBe('crystal-project-calculations-v1.json')
   const path = await file.path()
   if (!path) throw new Error('Calculation download failed')
   const exported = JSON.parse(await readFile(path, 'utf8'))
-  expect(exported.schemaVersion).toBe(3)
+  expect(exported.schemaVersion).toBe(1)
   expect(exported.rules.id).toBe(exported.data.engine)
   expect(exported.rules.formulas.memberHP.evidence).toContain('CalculateMemberHP')
   expect(exported.combat.formulas.periodicHP.evidence).toContain('Sang.Battle.AbilityProcessor.ResolveDamagePerTurn')

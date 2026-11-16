@@ -39,7 +39,7 @@ export function CalculatedStats({ content, slots, localData, catalogs, gameSetup
     try {
       const { calculationPackage } = await import('../domain/calculation-package')
       const data = calculationPackage()
-      downloadBytes(new TextEncoder().encode(JSON.stringify(data, null, 2) + '\n'), `crystal-project-calculations-${data.id}.json`, 'application/json')
+      downloadBytes(new TextEncoder().encode(JSON.stringify(data, null, 2) + '\n'), `${data.id}.json`, 'application/json')
     } catch (error) {
       setExportError(error instanceof Error ? error.message : 'Unable to export the calculation package')
     } finally {

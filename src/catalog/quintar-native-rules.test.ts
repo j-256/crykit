@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import nativeData from './native-game-data.json'
-import codeEvidence from './game-code-evidence.json'
 import { QUINTAR_NATIVE_EVIDENCE, QUINTAR_PARTNER_RACE_WINS, quintarOffspring, type QuintarNature, type QuintarTraits, type QuintarType } from './quintar-native-rules'
 
 const quintar = (nature: QuintarNature, type: QuintarType): QuintarTraits => ({ nature, type })
@@ -8,8 +7,7 @@ const quintar = (nature: QuintarNature, type: QuintarType): QuintarTraits => ({ 
 describe('reviewed Windows Quintar rules', () => {
   it('binds receipts, native type vocabulary, food identities, and hatching to the inspected build', () => {
     const receipt = QUINTAR_NATIVE_EVIDENCE
-    expect(receipt.source).toMatchObject({ platform: codeEvidence.source.platform, gameVersion: codeEvidence.source.gameVersion, executableSha256: codeEvidence.source.executableSha256, systemDataSha256: codeEvidence.source.systemDataSha256 })
-    for (const [file, hash] of Object.entries(codeEvidence.files)) if (file in receipt.files) expect(receipt.files[file as keyof typeof receipt.files]).toBe(hash)
+    expect(receipt.source).toMatchObject({ platform: nativeData.source.platform, gameVersion: nativeData.source.gameVersion, executableSha256: nativeData.source.executable.sha256, systemDataSha256: nativeData.source.files.find(file => file.path === 'Database/system.dat')?.sha256 })
     const vocabulary = nativeData.databases.system.Vocab.General
     for (const [type, nativeType] of Object.entries(receipt.nativeTypeNames)) expect(vocabulary[`QUINTAR_Type_${nativeType}` as keyof typeof vocabulary]).toBe(type === 'Gold' ? 'Golden' : type)
     for (const food of receipt.food) expect(nativeData.databases.item.find(item => item?.ID === food.itemID)?.Name).toBe(food.name)

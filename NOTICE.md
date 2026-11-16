@@ -2,23 +2,17 @@
 
 Crystal Kit is a fan-made toolkit for Crystal Project. It is independent of the game's creators and is not endorsed by them. The original application code is licensed under [AGPL-3.0-only](LICENSE). That license does not grant rights to third-party artwork, reference content, or trademarks.
 
-## Game artwork
+## Crystal Project data and artwork
 
-[Crystal Project](https://store.steampowered.com/app/1637730/Crystal_Project/) is by Andrew Willman. The game and its artwork belong to their respective creators and rights holders. Crystal Kit did not create the game's sprites, crystal artwork, or wiki images. Native Windows game artwork retains database IDs, texture regions, input fingerprints, and rights metadata in [the extraction manifest](src/catalog/game-assets.json); its smaller [runtime manifest](src/catalog/game-artwork.json) drives catalog, Quintar guide, and UI bindings. Bundled wiki fallbacks retain their source and rights metadata in [the wiki sprite manifest](src/catalog/wiki-sprites.json). Reference source popups retain custom mod and wiki artwork attribution; native extraction evidence stays in the manifests. The [catalog sources](docs/catalog-sources.md#native-game-artwork-snapshot) explain these pipelines. The Progress summary and class mastery board reuse the catalog-bound native Warrior Seal sprite through the same manifest.
+[Crystal Project](https://store.steampowered.com/app/1637730/Crystal_Project/) is by Andrew Willman. The game, its source data, and its artwork belong to their respective creators and rights holders. CryKit did not create the game's sprites or other native artwork.
 
-The Quintar breeding guide uses native game quintar, egg, and item icons from the same extraction manifest. Its bindings record item and monster database references or the Golden Quintar actor-sheet crop and retain the game's separate artwork rights. The World Map atlas and placement projection retain their source fingerprints, rendered layer hashes, and scope in [the map manifest](src/catalog/world-map.json); the terrain artwork retains the game's rights. See [map sources and boundaries](docs/catalog-sources.md#native-world-map).
+The native gameplay snapshot retains executable and database fingerprints, version evidence, and numeric identities. The [artwork extraction manifest](src/catalog/game-assets.json) retains texture and crop evidence, and the [runtime manifest](src/catalog/game-artwork.json) drives display bindings. These materials retain source-specific rights; the application's AGPL-3.0-only license does not grant rights to the original game assets or data. See [catalog sources](docs/catalog-sources.md).
 
-The wiki labels some files Fairuse and leaves others unspecified. Those labels are retained as source declarations; attribution does not turn the artwork into AGPL or CC-BY-SA material or establish a separate permission grant. For an attribution correction or rights concern, contact the maintainer through the [repository issues](https://github.com/j-256/crykit/issues).
+## Supplemental community guidance
 
-## Reference content
+Selected descriptions, practical directions, class-master locations, and the Quintar route retain attribution to the [Crystal Project Wiki contributors](https://crystal-project.fandom.com/wiki/Crystal_Project_Wiki). Wiki-derived text retains its [CC-BY-SA terms](https://www.fandom.com/licensing). Exact page revisions and locators accompany the retained guidance. The application license does not replace those terms. Full wiki and modding-guide snapshots are not included. A small [menu-icon supplement](src/catalog/menu-icon-supplements.json) retains original artwork credits and rights labels; the wiki text license does not grant rights to those images.
 
-The native gameplay snapshot is extracted from Crystal Project Windows 1.6.9. Database and executable hashes, verified version evidence, and numeric identities are retained in [the gameplay snapshot](src/catalog/native-game-data.json). Game data retains source-specific rights; the application license and wiki license do not grant rights to it.
-
-Mod Inspector's [editor schema snapshot](src/mod-inspector/reference-schema.json) records Crystal Edit enum names, model field types, and selector facts with executable fingerprints. It also includes minimal IDs and names from matching animation, voxel, and editor-folder references, each with its own source fingerprint and scope. These game and editor reference facts retain their source attribution. The snapshot does not include the editor executable or decompiled implementation.
-
-Thanks to the [Crystal Project Wiki contributors](https://crystal-project.fandom.com/wiki/Crystal_Project_Wiki). Wiki-derived text retains its [CC-BY-SA terms](https://www.fandom.com/licensing), page links, and source revisions. The extracted catalog reorganizes and normalizes source material for search and comparison; it preserves conflicting and unknown claims. The application license does not replace these content terms.
-
-[Catalog sources](docs/catalog-sources.md) also credits the Crystal Project Archipelago identity tables, public Equipment Expansion sheet, publisher mod-pack descriptions, Crystal Edit reference facts, and modding guide. These references have their own provenance and applicability boundaries.
+Private imported sources retain their own source terms and attribution. For attribution corrections or rights concerns, contact the maintainer through the [repository issues](https://github.com/j-256/crykit/issues).
 
 ## Typography and software
 

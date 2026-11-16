@@ -1,28 +1,47 @@
 import { CURRENT_CATALOG } from '../catalog/bundled'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { CLASS_FIELDS } from '../domain/crystal-edit'
 import type { EntityId } from '../domain/types'
-import { CatalogArtworkSource, ClassWorldArtwork, hasExternalCatalogArtwork } from './WikiSprite'
+import { CatalogArtwork, CatalogArtworkSource, ClassWorldArtwork, hasExternalCatalogArtwork } from './WikiSprite'
 import { FieldIconSources, GameIcon, hasExternalFieldIcons } from './GameIcon'
+import { KnowledgeValue } from './KnowledgeValue'
 
 describe('class standing artwork', () => {
-  it('renders native menu icons without credits and keeps credits for wiki glyphs', () => {
-    const native = { Armor: { state: 'known' as const, value: 'Heavy armor' } }
-    expect(hasExternalFieldIcons(native)).toBe(false)
-    expect(hasExternalFieldIcons({ ...native, Weapons: { state: 'known', value: 'Swords' } })).toBe(true)
+  it('preserves compact supplemental glyphs and readable labels alongside native menu icons', () => {
+    const fields = { Armor: { state: 'known' as const, value: 'Heavy armor' }, Weapons: { state: 'known' as const, value: 'Swords' } }
     expect(renderToStaticMarkup(<GameIcon iconKey="equipment:heavy armor"/>)).toContain('<img')
-    expect(renderToStaticMarkup(<FieldIconSources fields={native}/>)).toBe('')
-    expect(renderToStaticMarkup(<FieldIconSources fields={{ ...native, Weapons: { state: 'known', value: 'Swords' } }}/>)).toContain('Sources for menu icons')
+    const fallback = renderToStaticMarkup(<KnowledgeValue field="Weapons" value={fields.Weapons}/>)
+    expect(fallback).toContain('Swords')
+    expect(fallback).toContain('/menu-icon-supplements/')
   })
 
-  it('keeps native artwork quiet while retaining wiki credits and missing-image diagnostics', () => {
+  it('keeps native glyphs quiet and exposes the exact supplemental credits in Sources', () => {
+    const native = { Armor: { state: 'known' as const, value: 'Heavy armor' } }
+    const supplemental = { ...native, Weapons: { state: 'known' as const, value: 'Swords' } }
+    expect(hasExternalFieldIcons(native)).toBe(false)
+    expect(FieldIconSources({ fields: native })).toBeNull()
+    expect(hasExternalFieldIcons(supplemental)).toBe(true)
+    expect(hasExternalFieldIcons({ [CLASS_FIELDS.command]: { state: 'known', value: 'Battle Skill' }, [CLASS_FIELDS.equipment]: { state: 'known', value: ['Sword', 'Heavy Body'] } })).toBe(true)
+    const sources = FieldIconSources({ fields: supplemental })!
+    expect(renderToStaticMarkup(sources)).toContain('Sources for menu icons')
+    const credits = renderToStaticMarkup(sources.props.children)
+    expect(credits).toContain('File%3ASwordAbilityIcon.png?oldid=2786')
+    expect(credits).toContain('No reviewed license declaration on the wiki file page')
+    expect(credits).toContain('Named weapon glyph')
+  })
+
+  it('keeps native artwork quiet and reports missing exact artwork without borrowing community images', () => {
     const props = { catalogId: CURRENT_CATALOG.id }
-    expect(hasExternalCatalogArtwork(props.catalogId, { id: 'base:job:0' as EntityId, kind: 'class', name: 'Warrior' })).toBe(false)
-    expect(hasExternalCatalogArtwork(props.catalogId, { id: 'base:monster:ref-849' as EntityId, kind: 'monster', name: 'Slime' })).toBe(true)
-    expect(hasExternalCatalogArtwork(props.catalogId, { id: 'synthetic:missing' as EntityId, kind: 'class', name: 'Missing' })).toBe(false)
-    expect(renderToStaticMarkup(<CatalogArtworkSource {...props} entity={{ id: 'base:job:0' as EntityId, kind: 'class', name: 'Warrior' }}/>)).toBe('')
-    expect(renderToStaticMarkup(<CatalogArtworkSource {...props} entity={{ id: 'base:monster:ref-849' as EntityId, kind: 'monster', name: 'Slime' }}/>)).toContain('Sources for Slime artwork')
-    expect(renderToStaticMarkup(<CatalogArtworkSource {...props} entity={{ id: 'synthetic:missing' as EntityId, kind: 'class', name: 'Missing' }}/>)).toContain('No exact artwork linked.')
+    const warrior = { id: 'base:job:0' as EntityId, kind: 'class' as const, name: 'Warrior' }
+    const unbound = { id: 'base:monster:ref-849' as EntityId, kind: 'monster' as const, name: 'Slime' }
+    expect(hasExternalCatalogArtwork(props.catalogId, warrior)).toBe(false)
+    expect(hasExternalCatalogArtwork(props.catalogId, unbound)).toBe(false)
+    expect(renderToStaticMarkup(<CatalogArtworkSource {...props} entity={warrior}/>)).toBe('')
+    expect(renderToStaticMarkup(<CatalogArtworkSource {...props} entity={unbound}/>)).toContain('No exact artwork linked.')
+    const fallback = renderToStaticMarkup(<CatalogArtwork {...props} detailed entity={unbound}/>)
+    expect(fallback).toContain('Slime artwork placeholder')
+    expect(fallback).not.toContain('<img')
   })
 
   it('preserves the full-body display size while using local native frames', () => {

@@ -28,6 +28,7 @@ it('rolls back a failed transaction, retries the step, and undoes its completion
 it('round-trips completion timestamps through native backup and rejects unsupported step records', async () => {
   const loaded = await loadLocalData()
   let next = toggleQuintarStep(loaded.localData, { stepId: QUINTAR_STEP.golden, playthroughId: requirePlaythrough(loaded.localData).id })
+  next = toggleQuintarStep(next, { stepId: 'native-pairing-v1:brutish-gold:fancy-aqua+woke-black', playthroughId: requirePlaythrough(next).id })
   next = toggleQuintarStep(next, { stepId: QUINTAR_STEP.trustyBlue, playthroughId: requirePlaythrough(next).id })
   const saved = await saveLocalData(next, loaded.revision)
   const preview = await previewImport(await exportBackup(), 'synthetic-quintar.zip')

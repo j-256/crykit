@@ -117,7 +117,7 @@ const project = (family, records) =>
     )
 try {
   const native = JSON.parse(await readFile(join(ROOT, 'src/catalog/native-game-data.json'), 'utf8'))
-  const sheet = JSON.parse(await readFile(join(ROOT, 'src/calculations/pc-1.6.9-v1.json'), 'utf8'))
+  const sheet = JSON.parse(await readFile(join(ROOT, 'src/calculations/character-rules-v1.json'), 'utf8'))
   if (native.source.executable.sha256 !== sheet.source.executableSha256)
     throw new Error('Combat and sheet source identities differ')
   const rules = buildCombatRules(native)
@@ -161,12 +161,12 @@ try {
     checksum: createHash('sha256').update(JSON.stringify(content)).digest('hex'),
   }
   const schema = buildCalculationSchema(
-    JSON.parse(await readFile(join(ROOT, 'src/calculations/package-v1.schema.json'), 'utf8')),
+    JSON.parse(await readFile(join(ROOT, 'scripts/lib/character-schema.json'), 'utf8')),
   )
   for (const [file, value] of [
     ['src/calculations/combat-v1.json', rules],
     ['src/catalog/native-combat-v1.json', data],
-    ['src/calculations/package-v2.schema.json', schema],
+    ['src/calculations/package-v1.schema.json', schema],
   ]) {
     const bytes = `${JSON.stringify(value, null, 2)}\n`
     const destination = join(ROOT, file)

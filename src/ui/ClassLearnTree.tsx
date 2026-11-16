@@ -1,5 +1,5 @@
 import { useId } from 'react'
-import { bundledTreeIdentity, CLASS_TREE_IDENTITY_SOURCE, classTreeSkill } from '../catalog/class-learn-tree'
+import { classTreeSkill } from '../catalog/class-learn-tree'
 import { learningCost } from '../domain/ability-estimates'
 import { definitionIconKey } from '../catalog/menu-icons'
 import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS, exportedTree, LEARN_NODE_TYPES, type ExportedTreeNode } from '../domain/crystal-edit'
@@ -30,9 +30,8 @@ export function ClassLearnTree({ entity, catalog, sourceEntity }: { entity: Cata
   const height = (rows - 1) * TREE_LAYOUT.rowHeight + TREE_LAYOUT.nodeHeight
   const skills = new Map(graph.nodes.map(node => [treePositionKey(node), classTreeSkill(entity, node, catalog, sourceEntity)]))
   const unresolved = new Set(graph.unresolved.map(treePositionKey))
-  const bundled = !entity.fields[CLASS_FIELDS.tree] && bundledTreeIdentity(entity)
   const treeField = entity.fields[CLASS_FIELDS.tree] ?? entity.fields[CRYSTAL_EDIT_FIELDS.tree]
-  const recordedSources = [...(treeField?.state === 'known' ? treeField.sources ?? [] : []), ...(bundled ? [CLASS_TREE_IDENTITY_SOURCE] : [])]
+  const recordedSources = treeField?.state === 'known' ? treeField.sources ?? [] : []
   const sources = unresolved.size > 0 || [...skills.values()].some(skill => !skill.definition) ? recordedSources : externalSources(recordedSources)
   const help = <p className="learn-tree-help">Learn every linked prerequisite to unlock a skill. LP is the learning cost. Select a skill for details.</p>
   if (!graph.nodes.length) return null

@@ -1,5 +1,7 @@
+import { referenceGuidance } from '../catalog/reference-guidance'
+import { ReferenceGuidance } from './ReferenceGuidance'
 import { useMemo, type ReactNode } from 'react'
-import { projectAcquisitionGuidance } from '../catalog/acquisition-guidance'
+import { nativeItemAcquisition } from '../catalog/acquisition-guidance'
 import { nativeGardening } from '../catalog/native-gardening'
 import { type AcquisitionKind, type AcquisitionMaterial, type AcquisitionRoute } from '../domain/item-acquisition'
 import { nativeIdentity } from '../domain/native-game'
@@ -42,18 +44,19 @@ export function ItemAcquisition({ catalog, entity, onOpenDefinition }: { catalog
   const requestedMode = navigation.route.query[MODE_QUERY]?.[0]
   const mode = acquisitionMode(entity, requestedMode)
   const nativeMode = mode?.native ?? 'unresolved'
-  const projection = useMemo(() => projectAcquisitionGuidance(catalog, entity, nativeMode), [catalog, entity, nativeMode])
-  const result = projection.acquisition
+  const result = useMemo(() => nativeItemAcquisition(catalog, entity, nativeMode), [catalog, entity, nativeMode])
   const gardening = useMemo(() => nativeMode === 'base' ? nativeGardening(catalog, entity) : undefined, [catalog, entity, nativeMode])
+  const directions = nativeMode === identity?.mode ? referenceGuidance(catalog, entity, 'directions') : []
   if (entity.kind !== 'item') return null
   return <section aria-label="How to obtain" className="panel item-acquisition">
     <div className="panel__header"><h3>How to obtain</h3>{identity && <label className="acquisition-mode"><span>Game mode</span><select onChange={event => navigation.navigate({ ...navigation.route, query: { ...navigation.route.query, [MODE_QUERY]: [event.target.value] } }, { replace: true })} value={mode?.value ?? ''}>{!mode && <option value="">Choose game mode</option>}{MODES.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>}</div>
     <div className="panel__body stack">
-      {result.routes.length === 0 && <p>No source here says how to obtain this item. It may still be obtainable.</p>}
+      {result.routes.length === 0 && directions.length === 0 && <p>No source here says how to obtain this item. It may still be obtainable.</p>}
       {GROUPS.map(group => {
         const routes = result.routes.filter(route => route.kind === group.kind)
         return routes.length > 0 && <div className="acquisition-group" key={group.kind}><h4>{group.title}</h4><ul className="acquisition-routes">{routes.map((route, index) => <Route key={`${route.evidence}:${index}`} route={route} onOpenDefinition={onOpenDefinition}/>)}</ul></div>
       })}
+      {directions.length > 0 && <div className="acquisition-group"><h4>Directions</h4><ReferenceGuidance catalog={catalog} entity={entity} kind="directions"/></div>}
       {gardening && <div className="acquisition-group"><h4>Growing this seed</h4><p>Sprouts after {gardening.minutes} {gardening.minutes === 1 ? 'minute' : 'minutes'} of play time. {gardening.wateringReductionMinutes > 0 ? `Watering once moves the sprout time earlier by ${gardening.wateringReductionMinutes} minutes.` : 'Watering does not shorten this seed\'s growth time.'}</p><p>Harvesting starts a battle with {gardening.encounters.map((encounter, index) => <span key={encounter.ref.entityId}>{index > 0 && ', '}<AcquisitionLink definitionRef={encounter.ref} onOpenDefinition={onOpenDefinition}>{encounter.name}</AcquisitionLink></span>)}.</p></div>}
       {result.unresolved.map(note => <p className="acquisition-note" key={note}>{note}</p>)}
     </div>

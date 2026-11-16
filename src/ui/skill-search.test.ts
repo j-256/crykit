@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { STARTER_CATALOG } from '../catalog/starter'
+import { CURRENT_CATALOG } from '../catalog/bundled'
 import { buildReferenceSearchItems, partitionPersonalDefinitionOptions, partitionReferenceItems } from './search'
 
 const filters = { query: '', kinds: [], categories: [], sources: [], weapon: 'Dagger' as const }
 
 describe('weapon skill search', () => {
-  const items = buildReferenceSearchItems([STARTER_CATALOG])
+  const items = buildReferenceSearchItems([CURRENT_CATALOG])
 
   it('finds dagger skills across classes plus any-weapon skills without spells or equipment', () => {
     const results = partitionReferenceItems(items, filters)
@@ -13,8 +13,7 @@ describe('weapon skill search', () => {
     for (const name of ['Eye Gouge', 'Backstab', 'Rupture', 'Avid Assault', 'Fire Seal', 'Power Break']) expect(names).toContain(name)
     for (const name of ['Fire', 'Taunt', 'Beat Down', 'Equip Dagger', 'Dagger']) expect(names).not.toContain(name)
     expect(results.confirmed.every(item => item.entity.kind === 'ability' || item.entity.kind === 'monsterMagic')).toBe(true)
-    expect(results.possible.length).toBeGreaterThan(0)
-    expect(results.possible.every(item => item.weaponRule.state === 'unknown' || item.weaponRule.state === 'conflicting')).toBe(true)
+    expect(results.possible).toEqual([])
     const unrestricted = partitionReferenceItems(items, { ...filters, unrestrictedWeaponSkills: 'enabled' })
     expect(unrestricted.confirmed.map(item => item.entity.name)).toContain('Beat Down')
     expect(unrestricted.confirmed.map(item => item.entity.name)).not.toContain('Fire')
