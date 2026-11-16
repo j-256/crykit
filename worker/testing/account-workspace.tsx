@@ -65,6 +65,16 @@ const accountBootstrapProof = {
   signinMergeDiagnostics: readSigninMergeDiagnostics,
   recordSigninMergeBoundary,
   stopSigninMergeDiagnostics,
+  async comparisonSyncDiagnostic() {
+    const token = currentProfileToken()!
+    try { return { outcome: await (await import('../../src/account/sync/outbox')).runSyncIteration(token, profileSignal(token)) } }
+    catch (error) {
+      // Only a one-way error fingerprint leaves this synthetic fixture, never arbitrary error text
+      const message = error instanceof Error ? error.message : 'Unknown failure'
+      const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(message)))
+      return { failureFingerprint: Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('') }
+    }
+  },
   async signinMergeAcceptance() {
     const token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
     try {
@@ -80,6 +90,100 @@ const accountBootstrapProof = {
       return { accepted: pending === 0 && remote.initialComplete && !remote.projectionPending && !service.hasMore && service.watermark === remote.watermark && service.publicationEpoch === remote.publicationEpoch,
         pending, localWatermark: remote.watermark, serviceWatermark: service.watermark, localEpoch: remote.publicationEpoch, serviceEpoch: service.publicationEpoch, hasMore: service.hasMore }
     } finally { database.close() }
+  },
+  async seedManagedComparisonDestination() {
+    const { progress } = await import('../../src/workspace/signin-merge.test-helpers')
+    const { editorClosureFixture } = await import('../../src/workspace/test-helpers')
+    const token = currentProfileToken()!, database = new AccountDatabase(token.accountId), fixture = await editorClosureFixture()
+    try {
+      if (await database.profileMeta.get('active')) throw new Error('Comparison qualification requires fresh synthetic storage')
+      await seedManagedWorkspace(database, token, { ...progress('account', true), editorDocuments: [fixture.file], blobs: fixture.blobs })
+    } finally { database.close() }
+  },
+  async stageManagedComparisonFixture() {
+    const { managedComparisonWritesEnabled } = await import('../../src/workspace/managed-copy-comparisons')
+    if (!managedComparisonWritesEnabled()) throw new Error('Synthetic comparison capability is disabled')
+    const { progress, now } = await import('../../src/workspace/signin-merge.test-helpers')
+    const { editorClosureFixture } = await import('../../src/workspace/test-helpers')
+    const { ownWorkspaceSnapshot } = await import('../../src/workspace/snapshot')
+    const { createGuestCopyService } = await import('../../src/workspace/guest-copy')
+    const { openAccountJson } = await import('../../src/workspace/account-cache')
+    const { IncrementalWorkspaceIntentSchema } = await import('../../src/workspace/account-mapping-origin')
+    const fixture = await editorClosureFixture(), text = await fixture.add(new Uint8Array([66, 0]), 'incoming-text', 'utf16le')
+    const state = { ...progress('local', false), editorDocuments: [{ ...fixture.file, filename: 'incoming.json', unfinished: { ...fixture.file.unfinished, text } }], blobs: fixture.blobs }
+    const token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
+    const snapshot = ownWorkspaceSnapshot({ dataGeneration: state.planner.localData.dataGeneration, version: 1, snapshotId: 'managed-comparison-qualification-original', capturedAt: now, revisionVector: {}, state }, { async check() { assertActiveProfile(token) }, async dispose() {} })
+    const service = createGuestCopyService(async () => snapshot)
+    try {
+      const preview = await service.previewSigninMerge(token), receipt = await service.commitGuestCopy(token, preview)
+      const row = (await database.outbox.get(receipt.copyId))!
+      return { copyId: receipt.copyId, version: (await openAccountJson(database, token, row.ref, IncrementalWorkspaceIntentSchema)).version, status: row.status }
+    } finally { await service.dispose(); await disposeWorkspaceSnapshot(snapshot); database.close() }
+  },
+  async comparisonStorageDigests() {
+    const database = new AccountDatabase(currentProfileToken()!.accountId)
+    try {
+      return Object.fromEntries(await Promise.all(database.tables.map(async table => [table.name, await sha256(new TextEncoder().encode(JSON.stringify(await table.toArray(), (_key, value) => value instanceof Uint8Array ? Array.from(value) : value)))])))
+    } finally { database.close() }
+  },
+  async qualifyOldIntentSchema(path: string, exportName: string, copyId: string) {
+    if (!/^\/__accounts-proof\/assets\/account-graph-[a-zA-Z0-9_-]+\.js$/.test(path)) throw new Error('Expected an immutable local graph asset')
+    const old = await import(/* @vite-ignore */ path)
+    const schema = old[exportName] as { safeParse(value: unknown): { success: boolean; error?: { issues: { code: string; path: (string | number)[] }[] } } }
+    if (typeof schema?.safeParse !== 'function') throw new Error('Expected the original intent schema export')
+    const token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
+    try {
+      const { openAccountJson } = await import('../../src/workspace/account-cache')
+      const { IncrementalWorkspaceIntentSchema } = await import('../../src/workspace/account-mapping-origin')
+      const row = (await database.outbox.get(copyId))!
+      const intent = await openAccountJson(database, token, row.ref, IncrementalWorkspaceIntentSchema)
+      if (intent.version !== 2) throw new Error('Expected the candidate comparison intent')
+      const { copiedComparisons: _copiedComparisons, ...previous } = intent
+      const oldResult = schema.safeParse(intent), control = schema.safeParse({ ...previous, version: 1 })
+      return { copyId, candidateAccepted: true, oldAccepted: oldResult.success, oldV1ControlAccepted: control.success, issues: oldResult.error?.issues.map(issue => ({ code: issue.code, path: issue.path })) }
+    } finally { database.close() }
+  },
+  async qualifyOldComparisonWorker(path: string, copyId: string) {
+    if (!/^\/__accounts-proof\/assets\/account-local-mapping-worker-[a-zA-Z0-9_-]+\.js$/.test(path)) throw new Error('Expected an immutable local mapping worker asset')
+    const token = currentProfileToken()!, database = new AccountDatabase(token.accountId), incarnation = crypto.randomUUID(), id = crypto.randomUUID()
+    const worker = new Worker(path, { type: 'module' })
+    try {
+      const row = await database.outbox.get(copyId)
+      if (!row) throw new Error('Missing synthetic comparison intent')
+      const result = new Promise<string>((resolve, reject) => {
+        worker.onmessage = event => { if (event.data.incarnation === incarnation && event.data.id === id) resolve(event.data.status) }
+        worker.onerror = () => reject(new Error('Immutable worker did not start'))
+      })
+      await withAccountKey(token, async key => { const bytes = key.slice(); worker.postMessage({ kind: 'initialize', incarnation, accountId: token.accountId, key: bytes }, [bytes.buffer]) })
+      worker.postMessage({ kind: 'map', incarnation, id, row })
+      return await result
+    } finally { worker.postMessage({ kind: 'cancel', incarnation }); worker.terminate(); database.close() }
+  },
+  async managedComparisonOriginals() {
+    const { openAccountRepository } = await import('../../src/workspace/account-repository')
+    const { captureWorkspaceSnapshot, openHistoricalSnapshot } = await import('../../src/workspace/snapshot')
+    const { exportWorkspaceBackup, readWorkspaceBackup } = await import('../../src/interchange/workspace-backup')
+    const { inspectWorkspaceClosure } = await import('../../src/workspace/closure')
+    const { blobIdentity, readBlob } = await import('../../src/workspace/blobs')
+    const repository = await openAccountRepository(currentProfileToken()!), captured = await captureWorkspaceSnapshot(repository)
+    const backup = await readWorkspaceBackup(exportWorkspaceBackup(captured))
+    try {
+      const originals = []
+      if (backup.version === 2) for (const member of backup.historicalEvidence.snapshots) {
+        const original = await openHistoricalSnapshot(backup, member.id)
+        try {
+          if (original.snapshotId !== 'managed-comparison-qualification-original') continue
+          originals.push({ id: member.id, state: { ...original.state, blobs: await Promise.all(original.state.blobs.map(async body => ({ ref: body.ref, digest: await sha256(await readBlob(body.content, body.ref.byteLength)) }))) } })
+        } finally { await disposeWorkspaceSnapshot(original) }
+      }
+      const branches = await Promise.all(backup.state.conflicts.filter(conflict => conflict.disposition.kind === 'unresolved').map(async conflict => ({ key: conflict.unit.privateKey, branches: await Promise.all(conflict.branches.map(async branch => {
+        const inspected = await inspectWorkspaceClosure(backup.state, branch.closure)
+        const value = inspected.value as unknown as { unfinished?: { text: import('../../src/workspace/documents').WorkspaceBlobRef } }
+        const body = value?.unfinished && backup.state.blobs.find(body => blobIdentity(body.ref) === blobIdentity(value.unfinished!.text))
+        return { value, ...(body ? { bytes: Array.from(await readBlob(body.content, body.ref.byteLength)) } : {}) }
+      })) })))
+      return { originals, branches }
+    } finally { await disposeWorkspaceSnapshot(backup); await disposeWorkspaceSnapshot(captured) }
   },
   async seedEmptyGuestControl() {
     if (mounted) throw new Error('Empty control requires an unmounted fresh guest')

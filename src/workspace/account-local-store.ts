@@ -1,3 +1,4 @@
+import { readManagedCopyComparisons } from './managed-copy-comparisons'
 import { prepareSelectedV1Check } from './account-selection'
 import { AccountMappingOriginSchema, IncrementalWorkspaceIntentSchema, accountMappingRootKey } from './account-mapping-origin'
 import { blobIdentity, memoryBlob, readBlob } from './blobs'
@@ -24,6 +25,19 @@ interface Admission {
   readonly observations: readonly Observation[]; readonly retained: ReadonlySet<string>; readonly inline: readonly Observation[]; readonly check: () => void; readonly projection?: EncryptedSyncState
 }
 const admissions = new WeakMap<object, Admission>()
+
+async function recheckCiphertextObservations(database: AccountDatabase, observations: Iterable<Observation>) {
+  for (const { record, chunks } of observations) {
+    const actualRecord = await database.encryptedRevisions.get(record.revisionId)
+    // Schema parsing normalizes field order without dropping any authenticated descriptor field
+    const normalized = (value: CipherRecord) => ({ ...value, descriptor: RevisionDescriptorSchema.parse(value.descriptor) })
+    if (!actualRecord || !same(normalized(actualRecord), normalized(record))) throw new Error('Consumed encrypted descriptor changed')
+    for (const captured of chunks) {
+      const actual = await database.stagedCipherChunks.get([captured.payloadId, captured.index])
+      if (!actual || actual.bytes.length !== captured.bytes.length || actual.bytes.some((byte, index) => byte !== captured.bytes[index])) throw new Error('Consumed encrypted bytes changed')
+    }
+  }
+}
 
 // Only an exact preparation made by this adapter can replace full unrelated-root admission
 // The existing activation transaction still owns the selected fence, dependency and source checks
@@ -61,16 +75,7 @@ export function accountLocalActivationCheck(database: AccountDatabase, token: Pr
         if (await database.syncState.get(admission.association.id)) throw new Error('Managed mapping origin was reused')
         await database.syncState.add(admission.association)
       }
-      for (const { record, chunks } of admission.observations) {
-        const actualRecord = await database.encryptedRevisions.get(record.revisionId)
-        // Schema parsing normalizes field order without dropping any authenticated descriptor field
-        const normalized = (value: CipherRecord) => ({ ...value, descriptor: RevisionDescriptorSchema.parse(value.descriptor) })
-        if (!actualRecord || !same(normalized(actualRecord), normalized(record))) throw new Error('Consumed encrypted descriptor changed')
-        for (const captured of chunks) {
-          const actual = await database.stagedCipherChunks.get([captured.payloadId, captured.index])
-          if (!actual || actual.bytes.length !== captured.bytes.length || actual.bytes.some((byte, index) => byte !== captured.bytes[index])) throw new Error('Consumed encrypted bytes changed')
-        }
-      }
+      await recheckCiphertextObservations(database, admission.observations)
       admission.check()
     },
     async recheckSourceCapturesInTransaction() { admission.check(); await admission.legacy?.recheckSourceCapturesInTransaction() },
@@ -224,6 +229,7 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
     if (value.operationId !== operationId || !same(value.before, expected.head) || !same(value.after, target)
       || value.sequence !== expected.headRevision + 1 || value.operation !== 'workspace-command' || value.mode !== 'additive'
       || !same(value.publicationBase, projection?.ref)) throw new Error('The saved copy intent or publication base changed')
+    if (value.version === 2) await readManagedCopyComparisons(database, token, adapter, value, before, assertCurrent, intent)
     await assertCurrent()
     // A restarted operation has lost producer authority and must authenticate its complete durable target
     // Ciphertext observations remain bound to this adapter and are rechecked in the selected-head CAS
@@ -269,7 +275,9 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
       throw error
     }
   }
-  return { adapter, lifetime, persistOperation, prepareSavedActivation, preparePersistedActivation, prepareActivation: (operationId: string, result: { readonly head: LocalRecordRef; readonly snapshot: AdmittedLocalSnapshot }, expected: AccountFence | undefined, previous?: AdmittedLocalSnapshot, intent?: LocalRecordRef, projection?: EncryptedSyncState) => prepareActivation(operationId, result, expected, previous, intent, projection), prepareLegacyActivation, prepareMappedActivation, committed(operationId: string) { check(); for (const record of pending.get(operationId) ?? []) inline.delete(record.revisionId); pending.delete(operationId); observations.clear() }, finishAdmission() { check(); observations.clear() }, async dispose() {
+  // Mapping receipts use the same live adapter observations; callers cannot provide or revive authority
+  // This closure performs only IDB reads inside the caller-owned descriptor/chunk transaction
+  return { adapter, lifetime, async recheckObservationsInTransaction() { check(); await recheckCiphertextObservations(database, observations.values()); check() }, persistOperation, prepareSavedActivation, preparePersistedActivation, prepareActivation: (operationId: string, result: { readonly head: LocalRecordRef; readonly snapshot: AdmittedLocalSnapshot }, expected: AccountFence | undefined, previous?: AdmittedLocalSnapshot, intent?: LocalRecordRef, projection?: EncryptedSyncState) => prepareActivation(operationId, result, expected, previous, intent, projection), prepareLegacyActivation, prepareMappedActivation, committed(operationId: string) { check(); for (const record of pending.get(operationId) ?? []) inline.delete(record.revisionId); pending.delete(operationId); observations.clear() }, finishAdmission() { check(); observations.clear() }, async dispose() {
     unregister(); closed = true; pending.clear(); inline.clear(); observations.clear()
     const results = await Promise.allSettled([releaseSelections(), owner.abandon()])
     const errors = results.flatMap(result => result.status === 'rejected' ? [result.reason] : [])

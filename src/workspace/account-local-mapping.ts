@@ -1,3 +1,5 @@
+import { readManagedCopyComparisons, proveManagedComparisonMapping } from './managed-copy-comparisons'
+import { prepareManagedCopiedConflicts } from './copied-conflicts'
 import { AccountMappingOriginSchema, accountMappingRootKey, IncrementalWorkspaceIntentSchema, IncrementalMappingRowSchema as rowSchema, IncrementalMappingReceiptSchema as receiptSchema } from './account-mapping-origin'
 import { z } from 'zod'
 import type { Table, Transaction } from 'dexie'
@@ -223,15 +225,32 @@ export async function prepareIncrementalMapping(database: AccountDatabase, token
     const target = await prepareAccountWorkspace(database, token, retained, opened)
     await installRecords(database, token, target.records, check)
     await openAccountWorkspace(database, token, target.head, same(semantic.validatedEvidence?.root, target.opened.inheritedEvidence) ? semantic.validatedEvidence : undefined)
-    const mapped = await stageMappedWorkspaceIntent(database, token, { version: 1, kind: 'mapped-workspace-intent', operationId: original.id, portableGroupId, operation: intent.operation, mode: intent.mode, original: { base: intent.before, target: intent.after }, base: base.head, target: target.head, localRevision: intent.sequence, changes, ...(intent.conflictResolution ? { conflictResolution: intent.conflictResolution } : {}) })
+    let comparisons: Awaited<ReturnType<typeof prepareManagedCopiedConflicts>> | undefined
+    let comparisonEvidence: AccountInheritedEvidence | undefined
+    if (intent.version === 2) {
+      const admitted = await readManagedCopyComparisons(database, token, store.adapter, intent, before, check, original.ref)
+      const inherited = await ensureIncrementalAccountEvidence(database, token, store, admitted.source, check, (handle, dispose) => { comparisonEvidence = handle; cleanup.push(dispose) })
+      if (!inherited || !comparisonEvidence) throw new Error('Managed comparison native originals are missing')
+      // Keep the exact original planner, including inert journals, in the comparison source
+      // The semantic target's publication-only checkpoint elision does not apply to originals
+      const source = await prepareAccountWorkspaceWithExistingEvidence(database, token, admitted.source.state, comparisonEvidence)
+      await installRecords(database, token, source.records, check)
+      const proof = await proveManagedComparisonMapping(database, token, admitted, source.opened, base, comparisonEvidence)
+      comparisons = await prepareManagedCopiedConflicts(database, token, proof)
+      await installRecords(database, token, comparisons.records, check)
+    }
+    const mapped = await stageMappedWorkspaceIntent(database, token, { version: 1, kind: 'mapped-workspace-intent', operationId: original.id, portableGroupId, operation: intent.operation, mode: intent.mode, original: { base: intent.before, target: intent.after }, base: base.head, target: target.head, localRevision: intent.sequence, changes, ...(comparisons ? { copiedConflicts: comparisons.root } : {}), ...(intent.conflictResolution ? { conflictResolution: intent.conflictResolution } : {}) })
     await installRecords(database, token, mapped.records, check)
     const receipt = receiptSchema.parse({ version: 1, kind: 'incremental-mapping-receipt', accountId: token.accountId, original, intent, base: base.head, target: target.head, mappedIntent: cipherRef(mapped.record), ...(predecessor ? { predecessor } : {}) })
     const record = await stageAccountJson(database, token, receipt, [original.ref, intent.before, intent.after, base.head, target.head, receipt.mappedIntent, ...(predecessor ? [predecessor.ref] : [])])
     await installRecords(database, token, [record], check)
     await check()
+    const comparisonCheck = comparisonEvidence && accountInheritedEvidenceCheck(comparisonEvidence, database, token)
     const evidenceCheck = semantic.validatedEvidence && accountInheritedEvidenceCheck(semantic.validatedEvidence, database, token)
     await mappingTransaction(database, token, [database.syncState, database.outbox, database.migrationJournal, database.encryptedRevisions, database.stagedCipherChunks], async () => {
       await evidenceCheck?.recheckInTransaction()
+      await comparisonCheck?.recheckInTransaction()
+      await store.recheckObservationsInTransaction()
       assertActiveProfile(token)
       if (await database.syncState.get(key) || !same(await database.outbox.get(original.id), original) || !same(await database.migrationJournal.get(original.id), journal)
         || !same(await database.syncState.get(rootKey(intent.before)), predecessor)) throw new Error('Mapping preparation changed')

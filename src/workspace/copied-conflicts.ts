@@ -1,3 +1,4 @@
+import { managedComparisonMappingBinding, type ManagedComparisonMappingProof } from './managed-copy-comparisons'
 import { jsonEqual } from '../persistence/local-data'
 import { SigninProgressMappingSchema, projectSigninProgress, type SigninProgressMapping } from './signin-progress'
 import { blobIdentity, hashBlob } from './blobs'
@@ -10,8 +11,8 @@ import { assertOwnedWorkspaceSnapshot, type WorkspaceSnapshot } from './snapshot
 import { capturedBackupEvidence, historicalMetadataIdentity } from '../interchange/workspace-backup-evidence'
 import { assertAccountInheritedEvidenceOwner, openAccountInheritedEvidence } from './account-evidence-snapshots'
 import { applicableCopiedComparisons, copiedBranchState } from './copied-branch'
-import { prepareAccountWorkspaceWithEvidence } from './account-graph'
-import type { PreparedAccountInheritedEvidence } from './account-evidence-snapshots'
+import { prepareAccountWorkspaceWithEvidence, prepareAccountWorkspaceWithExistingEvidence } from './account-graph'
+import type { PreparedAccountInheritedEvidence, AccountInheritedEvidence } from './account-evidence-snapshots'
 import { personalLineageChains } from '../account/sync/lineage'
 import { stagePersonalLineage } from '../account/sync/lineage-publication'
 import type { AccountPreparationOwner } from './account-prepared-records'
@@ -45,13 +46,24 @@ export async function prepareCopiedConflicts(database: AccountDatabase, token: P
   if (input.source.state !== input.snapshot.state) throw new Error('Copied source is not the owned selected snapshot')
   const identity = await historicalMetadataIdentity(capturedBackupEvidence(input.snapshot).current)
   if (!input.evidence.handle.members.some(member => member.id === identity.id)) throw new Error('Copied originals are not retained by the selected evidence root')
-  const binding = { sourceIdentity: identity.id, sourceDigest: identity.metadataStreamDigest, mode: input.mode }
+  return buildCopiedConflicts(database, token, input, { sourceIdentity: identity.id, sourceDigest: identity.metadataStreamDigest, mode: input.mode })
+}
+
+export async function prepareManagedCopiedConflicts(database: AccountDatabase, token: ProfileToken, proof: ManagedComparisonMappingProof) {
+  const admitted = await managedComparisonMappingBinding(proof, database, token)
+  return buildCopiedConflicts(database, token, { operationId: admitted.value.operationId, source: admitted.source, destination: admitted.destination, keys: admitted.value.keys, evidence: admitted.evidence, mode: admitted.value.mode, progressMappings: admitted.value.progressMappings.filter(mapping => !mapping.equivalent) }, { sourceIdentity: admitted.value.sourceIdentity, sourceDigest: admitted.value.sourceDigest, mode: admitted.value.mode })
+}
+
+async function buildCopiedConflicts(database: AccountDatabase, token: ProfileToken, input: { operationId: string; source: OpenAccountWorkspace; destination: OpenAccountWorkspace; keys: readonly string[]; owner?: AccountPreparationOwner; evidence: PreparedAccountInheritedEvidence | AccountInheritedEvidence; mode: 'additive' | 'replace'; progressMappings?: readonly SigninProgressMapping[] }, binding: { sourceIdentity: string; sourceDigest: string; mode: 'additive' | 'replace' }) {
+  const prepare = (state: import('./documents').WorkspaceState, previous?: OpenAccountWorkspace, allocations?: OpenAccountWorkspace['allocations']) => 'handle' in input.evidence
+    ? prepareAccountWorkspaceWithEvidence(database, token, state, input.evidence, previous, allocations)
+    : prepareAccountWorkspaceWithExistingEvidence(database, token, state, input.evidence, previous, allocations)
   const records: CipherRecord[] = []
   const mappedEntries: CopiedConflictRegistration[] = []
   for (const mapping of input.progressMappings ?? []) {
     if (mapping.equivalent || !input.keys.includes(mapping.destinationKey)) throw new Error('Invalid Progress comparison mapping')
     const state = projectSigninProgress(input.source.state, input.destination.state, mapping)
-    const mapped = await prepareAccountWorkspaceWithEvidence(database, token, state, input.evidence)
+    const mapped = await prepare(state)
     records.push(...mapped.records)
     mappedEntries.push(RegistrationSchema.parse({ ...binding, id: accountLocalId(), privateKey: mapping.destinationKey, source: mapped.head, destination: input.destination.head, phase: 'awaiting-destination-publication', progressMapping: { ...mapping, originalSource: input.source.head } }))
   }
@@ -68,10 +80,10 @@ export async function prepareCopiedConflicts(database: AccountDatabase, token: P
     // A deleted accepted original needs its real native tombstone, produced from the opposite
     // exact branch. Its local predecessor supplies no destination publication authority
     const acceptedDeleted = (await inspectWorkspaceClosure(input.source.state, conflict.branches[1].closure)).root.kind === 'tombstone'
-    const seed = acceptedDeleted ? await prepareAccountWorkspaceWithEvidence(database, token, pendingState, input.evidence, undefined, input.source.allocations) : undefined
+    const seed = acceptedDeleted ? await prepare(pendingState, undefined, input.source.allocations) : undefined
     if (seed) records.push(...seed.records)
-    const accepted = await prepareAccountWorkspaceWithEvidence(database, token, acceptedState, input.evidence, seed?.opened, seed?.opened.allocations ?? input.source.allocations)
-    const pending = await prepareAccountWorkspaceWithEvidence(database, token, pendingState, input.evidence, accepted.opened, accepted.opened.allocations)
+    const accepted = await prepare(acceptedState, seed?.opened, seed?.opened.allocations ?? input.source.allocations)
+    const pending = await prepare(pendingState, accepted.opened, accepted.opened.allocations)
     records.push(...accepted.records, ...pending.records)
     entries.push(RegistrationSchema.parse({ ...binding, id: accountLocalId(), privateKey: conflict.unit.privateKey, source: pending.head, destination: input.destination.head, original: { conflictId: conflict.id, source: input.source.head, accepted: accepted.head, collisionId: accountLocalId() }, phase: 'awaiting-destination-publication' }))
   }

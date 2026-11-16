@@ -1,3 +1,5 @@
+import { stageManagedCopyComparisons, managedComparisonWritesEnabled } from './managed-copy-comparisons'
+import type { WorkspaceSnapshot } from './snapshot'
 import { accountAttachmentCheck, type AccountActivationAttachment, prepareAccountReceiptAttachment, releaseAccountActivationAttachment, type AccountSyncAttachmentValue } from '../persistence/account-activation-attachments'
 import { assertActiveProfile, type ProfileToken } from '../account/profile'
 import { activateLocalAccountCommit, type AccountDatabase, type AccountFence, type PreparedLocalActivation } from '../persistence/account-database'
@@ -11,8 +13,9 @@ import { ManagedGuestCopyJournalSchema, PENDING_COPY, SAVED_COPY_PREFIX, type Gu
 import { readLocalEvidence, prepareLocalEvidence } from './local-evidence'
 import { admitLocalRoot, prepareLocalWorkspace } from './local-root'
 
-export async function stageManagedGuestCopy(database: AccountDatabase, token: ProfileToken, preview: GuestCopyPreview, input: AccountFence, incoming: CapturedGuestEvidence, mergeCurrent: (before: WorkspaceState) => Promise<WorkspaceState>, assertMayActivate: () => void, preparationAttachment?: AccountActivationAttachment) {
+export async function stageManagedGuestCopy(database: AccountDatabase, token: ProfileToken, preview: GuestCopyPreview, input: AccountFence, incoming: CapturedGuestEvidence, mergeCurrent: (before: WorkspaceState) => Promise<WorkspaceState>, assertMayActivate: () => void, preparationAttachment?: AccountActivationAttachment, selected?: WorkspaceSnapshot) {
   assertActiveProfile(token)
+  if (selected && !managedComparisonWritesEnabled()) throw new Error('Managed comparison writers are not qualified')
   if (preview.accountId !== token.accountId) throw new Error('The copy belongs to another account')
   const expected = structuredClone(input), store = createAccountLocalStore(database, token), id = preview.copyId
   const check = async () => {
@@ -31,10 +34,12 @@ export async function stageManagedGuestCopy(database: AccountDatabase, token: Pr
     const inherited = await prepareLocalEvidence(store.adapter, id, evidence)
     const state = await mergeCurrent(before.state)
     const result = await prepareLocalWorkspace(store.adapter, id, state, store.lifetime, before, inherited)
+    const source = selected ? await prepareLocalWorkspace(store.adapter, id, selected.state, store.lifetime, undefined, inherited) : undefined
+    const copiedComparisons = source && selected ? await stageManagedCopyComparisons(store.adapter, id, selected, source.snapshot, before, expected, preview.conflicts.filter(key => JSON.parse(key)[0] !== 'conflict'), preview.signin?.progressMappings ?? []) : undefined
     const projection = await database.syncState.get('projection')
-    const intent = IncrementalWorkspaceIntentSchema.parse({ version: 1, kind: 'incremental-workspace-intent', operationId: id, operation: 'workspace-command', mode: 'additive', sequence: expected.headRevision + 1, before: expected.head, after: result.head, ...(projection ? { publicationBase: projection.ref } : {}) })
+    const intent = IncrementalWorkspaceIntentSchema.parse({ version: copiedComparisons ? 2 : 1, ...(copiedComparisons ? { copiedComparisons } : {}), kind: 'incremental-workspace-intent', operationId: id, operation: 'workspace-command', mode: 'additive', sequence: expected.headRevision + 1, before: expected.head, after: result.head, ...(projection ? { publicationBase: projection.ref } : {}) })
     const encode = (value: unknown) => memoryBlob(new TextEncoder().encode(JSON.stringify(value)))
-    const intentRef = await store.adapter.stage(id, encode(intent), [expected.head, result.head, ...(projection ? [projection.ref] : [])])
+    const intentRef = await store.adapter.stage(id, encode(intent), [expected.head, result.head, ...(copiedComparisons ? [copiedComparisons] : []), ...(projection ? [projection.ref] : [])])
     const journal = ManagedGuestCopyJournalSchema.parse({ version: 2, kind: 'guest-copy', preview, expected, target: result.head, intent: intentRef })
     const ref = await store.adapter.stage(id, encode(journal), [expected.head, result.head, intentRef])
     await incoming.check(); await evidence.check(); await check()
