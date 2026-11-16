@@ -1,6 +1,7 @@
 import { SigninDecisionSchema, type SigninDecision } from './signin-decision'
 import { cleanupAccountPreparations } from './account-preparation-registry'
 import { createSigninMergeClient } from './signin-merge-client'
+import { prewarmSigninMergeWorker } from './signin-merge-prewarm'
 import { mapIncrementalAccountBaseline } from './account-local-mapping-client'
 import { createMergeOperationScope, type MergeOperationScope } from './snapshot-admission'
 import { beginSigninMergeDiagnostics, type SigninMergeStage } from './signin-merge-diagnostics'
@@ -144,6 +145,9 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   let review: ReviewedAccountData | undefined, copy: ReturnType<typeof createGuestCopyService> | undefined
   // This owner is deliberately absent from storage until Confirm; reload must ask again
   let pendingMerge: { readonly review: Awaited<ReturnType<typeof createSigninMergeClient>>; readonly decision: SigninDecision; readonly expected?: EncryptedSyncState } | undefined
+  let warmedMerge: ReturnType<typeof prewarmSigninMergeWorker> | undefined
+  const createMergeWorker = () => new Worker(new URL('./signin-merge-worker.ts', import.meta.url), { type: 'module' })
+  const releaseWarmWorker = () => { warmedMerge?.dispose(); warmedMerge = undefined }
   let preparedMerge: PreparedSigninMerge | undefined
   let saved: { row: EncryptedSyncState; value: SigninDecision } | undefined
   let scheduler: SyncSchedulerOwner | undefined, unregister: (() => void) | undefined
@@ -178,6 +182,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   }
   async function releaseReview() { const old = review; review = undefined; await old?.dispose() }
   async function releaseSource() {
+    releaseWarmWorker()
     sourceScope?.dispose(); sourceScope = undefined
     await preparedMerge?.dispose(); preparedMerge = undefined
     await pendingMerge?.review.dispose(); pendingMerge = undefined
@@ -195,6 +200,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     if (active) return active
     if (disposed) return Promise.resolve()
     const pending = Promise.resolve().then(work).catch(error => {
+      releaseWarmWorker()
       if (!disposed && !cancelling) publish({ phase: 'failed', reason: safeReason(error) })
     }).finally(() => { if (active === pending) active = undefined })
     active = pending
@@ -327,8 +333,15 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     const matches = state.source !== 'unavailable' && saved && jsonEqual(saved.value.source, identity)
     // A completed exact receipt admits cached opening without reimporting or waiting on network
     if (!recoveryEntry && matches && saved!.value.status === 'complete' && replacement?.state !== 'paused') { await verifyCompletedDecision(); activated = true; publish({ canOpenAccount: true }); await open(); return }
+    // Overlap module loading with account discovery only when a new guest review is eligible
+    // Saved preparations and recovery use their retained owners, never a speculative successor
+    if (!recoveryEntry && source?.locator && state.local?.meaningful && replacement?.state !== 'paused'
+      && saved?.value.status !== 'preparing' && !await database!.syncState.get(PENDING_COPY)) {
+      check(); warmedMerge = prewarmSigninMergeWorker(token, lifetime.signal, createMergeWorker)
+    }
     try { await prepareAccount() }
     catch (error) {
+      releaseWarmWorker()
       if (options.admittedOffline && state.canOpenAccount) {
         publish({ phase: 'choosing', fresh: false, reason: safeReason(error) }); return
       }
@@ -371,6 +384,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       check()
       if (activated) { await open(); return }
       if (state.replacement?.state === 'paused') throw new Error('REPLACEMENT_REVIEW_REQUIRED')
+      if (action !== 'merge') releaseWarmWorker()
       if (action === 'account') {
         if (!state.canOpenAccount) throw new Error('ACCOUNT_PROJECTION_UNAVAILABLE')
         publish({ phase: 'committing', action, preview: undefined, reason: undefined })
@@ -393,7 +407,10 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
           const captured = await copy.previewSigninMergeReview(token, review!)
           mergeReview = { preview: captured.preview, dispose: () => captured.dispose(), prepare: decision => copy!.prepareReviewedSigninMerge(token, captured, decision) }
         } else {
-          const start = () => createSigninMergeClient(database!, token, value.operationId, source!, identity!, review!, currentSource, value => preparationStage(value.stage), lifetime.signal, () => new Worker(new URL('./signin-merge-worker.ts', import.meta.url), { type: 'module' }), decisionKey)
+          const start = () => createSigninMergeClient(database!, token, value.operationId, source!, identity!, review!, currentSource, value => preparationStage(value.stage), lifetime.signal, () => {
+            const warmed = warmedMerge; warmedMerge = undefined
+            return warmed ? warmed.take() : createMergeWorker()
+          }, decisionKey)
           try { mergeReview = await start() }
           catch (error) {
             if (!(error instanceof Error) || error.message !== 'SIGNIN_MAPPING_REQUIRED') throw error
@@ -494,7 +511,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   }
   function reviewReplacement(action: 'device' | 'latest') {
     return execute(async () => {
-      check()
+      check(); releaseWarmWorker()
       publish({ phase: 'preparing', action, preview: undefined, reason: undefined })
       preparationStage('checking-account')
       await releaseReview(); review = await service().refresh(); check()
