@@ -14,17 +14,18 @@ import * as reconciliation from '../workspace/signin-reconciliation'
 // Coordinator state-machine tests keep their deterministic captured-source fixture
 // The separate client tests exercise reserved preparation, manifests, and private installation
 vi.mock('../workspace/signin-merge-client', () => ({
-  createSigninMergeClient: async (_database: unknown, token: Parameters<typeof import('../workspace/signin-merge-client').createSigninMergeClient>[1], _operationId: string, source: import('../workspace/guest-repository').GuestCopySource, _identity: unknown, account: import('../workspace/reviewed-replacement').ReviewedAccountData, check: () => Promise<void>, _progress: unknown, signal: AbortSignal) => {
+  createSigninMergeClient: async (_database: unknown, token: Parameters<typeof import('../workspace/signin-merge-client').createSigninMergeClient>[1], _operationId: string, source: import('../workspace/guest-repository').GuestCopySource, _identity: unknown, account: import('../workspace/reviewed-replacement').ReviewedAccountData, check: () => Promise<void>, _progress: unknown, signal: AbortSignal, createWorker: () => Worker) => {
+    const worker = source.locator ? createWorker() : undefined
     const { createGuestCopyService } = await import('../workspace/guest-copy')
     const copy = createGuestCopyService(async () => { await check(); return source }, () => signal.throwIfAborted())
     const review = await copy.previewSigninMergeReview(token, account)
-    return { preview: review.preview, prepare: (receipt: import('./account-activation-attachments').AccountSyncAttachmentValue) => copy.prepareReviewedSigninMerge(token, review, receipt), async dispose() { await review.dispose(); await copy.dispose() } }
+    return { preview: review.preview, prepare: (receipt: import('./account-activation-attachments').AccountSyncAttachmentValue) => copy.prepareReviewedSigninMerge(token, review, receipt), async dispose() { worker?.terminate(); await review.dispose(); await copy.dispose() } }
   },
 }))
 
 let service: Awaited<ReturnType<typeof conflictService>> | undefined
 const controllers: ReturnType<typeof reconciliation.createSigninReconciliation>[] = []
-afterEach(async () => { for (const controller of controllers.splice(0)) await controller.dispose(); await service?.dispose(); service = undefined; vi.restoreAllMocks() })
+afterEach(async () => { for (const controller of controllers.splice(0)) await controller.dispose(); await service?.dispose(); service = undefined; vi.restoreAllMocks(); vi.unstubAllGlobals() })
 async function setup(guest = progress('guest'), initial = workspace(createBlankLocalData({ now }))) {
   service = await conflictService()
   const device = await service.device(0, initial)
@@ -1157,4 +1158,87 @@ it('does not fall back to caller preparation when the guest worker fails', async
   expect(controller.getSnapshot().phase).toBe('failed')
   expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
   expect(await f.device.db.syncState.get('signin-receipt:decision')).toBeUndefined()
+})
+
+function locateSource(fixture: Awaited<ReturnType<typeof setup>>) {
+  const capture = fixture.options.captureGuest!
+  fixture.options.captureGuest = async () => {
+    const source = await capture()
+    return source && { ...source, locator: { databaseName: 'synthetic-coordinator-source', manifest: { version: 3, id: 'synthetic', revision: 1, root: { documentId: 'root', revisionId: 'revision' } } } }
+  }
+  const workers: Worker[] = []
+  const create = vi.fn(function () {
+    const worker = { postMessage: vi.fn(), terminate: vi.fn(), onerror: null, onmessageerror: null, onmessage: null } as unknown as Worker
+    workers.push(worker)
+    return worker
+  })
+  vi.stubGlobal('Worker', create)
+  return { create, workers }
+}
+
+it.each(['account', 'device', 'cancel', 'dispose'] as const)('loads before account discovery without merge writes and retires on %s', async action => {
+  const f = await setup(), { create, workers } = locateSource(f)
+  const run = f.options.run!
+  f.options.run = async (...args) => {
+    expect(create).toHaveBeenCalledOnce()
+    expect(workers[0].postMessage).not.toHaveBeenCalled()
+    expect(await f.device.db.syncState.get('signin-receipt:decision')).toBeUndefined()
+    expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+    expect(await f.device.db.outbox.count()).toBe(0)
+    return run(...args)
+  }
+  const controller = f.create(); await controller.begin(f.device.token)
+  expect(controller.getSnapshot().phase).toBe('choosing')
+  expect(create).toHaveBeenCalledOnce()
+  expect(workers[0].postMessage).not.toHaveBeenCalled()
+  if (action === 'cancel' || action === 'dispose') await controller[action]()
+  else await controller.choose(action)
+  expect(workers[0].terminate).toHaveBeenCalledOnce()
+})
+
+it('surfaces an asynchronous prewarm load failure and retries with one fresh uninitialized module', async () => {
+  const f = await setup(), { create, workers } = locateSource(f), controller = f.create()
+  await controller.begin(f.device.token)
+  workers[0].onerror?.call(workers[0], new Event('error') as ErrorEvent)
+  await controller.choose('merge')
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'failed', reason: 'preparation-failed' })
+  expect(create).toHaveBeenCalledOnce()
+  expect(workers[0].terminate).toHaveBeenCalledOnce()
+  expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+  expect(await f.device.db.syncState.get('signin-receipt:decision')).toBeUndefined()
+  await controller.retry()
+  expect(controller.getSnapshot().phase).toBe('choosing')
+  expect(create).toHaveBeenCalledTimes(2)
+  expect(workers[1].postMessage).not.toHaveBeenCalled()
+  await controller.choose('merge')
+  expect(controller.getSnapshot().phase).toBe('confirming')
+  expect(create).toHaveBeenCalledTimes(2)
+  await controller.cancel()
+  expect(workers[1].terminate).toHaveBeenCalledOnce()
+})
+
+it.each(['absent', 'empty', 'recovery', 'completed', 'saved'] as const)('does not prewarm an ineligible %s journey', async mode => {
+  const f = await setup(mode === 'empty' ? workspace(createBlankLocalData({ now })) : progress('guest'))
+  if (mode === 'completed' || mode === 'saved') {
+    const first = f.create(); await first.begin(f.device.token)
+    if (mode === 'completed') await first.choose('account')
+    else { await first.choose('merge'); await interruptMergeActivation(first) }
+    await first.dispose()
+  }
+  if (mode === 'absent') f.options.captureGuest = async () => undefined
+  if (mode === 'recovery') f.options.entry = { kind: 'recovery', pointId: 'AAAAAAAAAAAAAAAAAAAAAA' }
+  const { create } = locateSource(f), controller = f.create()
+  await controller.begin(f.device.token)
+  expect(controller.getSnapshot().phase).toBe(mode === 'saved' ? 'confirming' : mode === 'recovery' ? 'choosing' : 'complete')
+  expect(create).not.toHaveBeenCalled()
+})
+
+it('releases a warm module when account inspection fails', async () => {
+  const f = await setup(), { workers } = locateSource(f)
+  vi.stubGlobal('navigator', { onLine: false })
+  const controller = f.create(); await controller.begin(f.device.token)
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'failed', reason: 'offline' })
+  expect(workers).toHaveLength(1)
+  expect(workers[0].terminate).toHaveBeenCalledOnce()
+  expect(workers[0].postMessage).not.toHaveBeenCalled()
 })
