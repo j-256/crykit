@@ -1,3 +1,4 @@
+import { captureCompactCatalogSnapshot } from './catalog-capture'
 import { captureReadonlyMergeDestination } from './signin-merge-native'
 import { prepareSelectedV1Check } from './account-selection'
 import type { AccountPreparationReservation } from './account-prepared-records'
@@ -219,7 +220,9 @@ async function selectSnapshot(snapshot: WorkspaceSnapshot, selection: readonly s
   const selectedSnapshot = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: `${snapshot.snapshotId}:selection`, capturedAt: snapshot.capturedAt, revisionVector: snapshot.revisionVector, state }, { check: () => assertOwnedWorkspaceSnapshot(snapshot), async dispose() {} })
   await validateWorkspaceSnapshot(selectedSnapshot)
   const closure = [...included].flatMap(key => { const document = documents.get(key); return document && !['blob', 'blob-reference'].includes(document.kind) ? [describe(document, samples.has(key))] : [] })
-  return { records, selectedSnapshot, closure, problems: [...new Set(problems)], inherited: selected.has(HISTORY_KEY) }
+  // Selection creates new metadata; compact it without transcoding any retained source or historical stream
+  const capturedSelection = await captureCompactCatalogSnapshot(selectedSnapshot)
+  return { records, selectedSnapshot: capturedSelection, closure, problems: [...new Set(problems)], inherited: selected.has(HISTORY_KEY) }
 }
 
 async function additiveCopyState(previous: WorkspaceState, selected: WorkspaceSnapshot, preview: GuestCopyPreview): Promise<WorkspaceState> {

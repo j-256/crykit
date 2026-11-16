@@ -1,6 +1,6 @@
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
 import { sourcePayloadValid } from '../domain/source-fulfillment'
-import { capturedBackupEvidence, equalMetadataStreams, metadataSource, registerCatalogBackupEvidence } from '../interchange/workspace-backup-evidence'
+import { equalMetadataStreams, metadataSource, registerCatalogBackupEvidence } from '../interchange/workspace-backup-evidence'
 import { hashBlob } from './blobs'
 import { workspaceDocumentSource } from './document-codec'
 import { privateRecordKey, type WorkspaceState } from './documents'
@@ -33,6 +33,7 @@ export async function captureCompactCatalogSnapshot(source: WorkspaceSnapshotV1)
   const raw: SnapshotMetadataV3 = { ...previous, version: 3, catalogBodies: bodies.map(body => body.ref), state: { ...previous.state, planner: { ...previous.state.planner, catalogs } } }
   const snapshot = await readCompactSnapshot(raw, source.state.blobs, bodies, { check: () => assertOwnedWorkspaceSnapshot(source), dispose: () => disposeWorkspaceSnapshot(source) })
   const guard = (content: import('./documents').BlobSource) => ({ byteLength: content.byteLength, async *open() { await assertOwnedWorkspaceSnapshot(source); for await (const bytes of content.open()) { await assertOwnedWorkspaceSnapshot(source); yield bytes; await assertOwnedWorkspaceSnapshot(source) } await assertOwnedWorkspaceSnapshot(source) } })
-  registerCatalogBackupEvidence(snapshot, { current: guard(metadataSource(snapshotMetadata(snapshot))), historical: new Map(), blobs: capturedBackupEvidence(source).blobs, catalogBodies: bodies.map(body => ({ ref: body.ref, content: guard(body.content) })) })
+  // V1 owns exactly state.blobs; asking for backup evidence would encode an unused expanded current stream
+  registerCatalogBackupEvidence(snapshot, { current: guard(metadataSource(snapshotMetadata(snapshot))), historical: new Map(), blobs: source.state.blobs, catalogBodies: bodies.map(body => ({ ref: body.ref, content: guard(body.content) })) })
   return snapshot
 }
