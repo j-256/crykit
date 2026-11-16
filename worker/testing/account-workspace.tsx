@@ -443,6 +443,7 @@ function WorkspaceProof() {
       },
       async seedQualificationChoices(baseline: 'default' | 'guide') { return (await import('./signin-merge-qualification')).seedQualificationChoices(workspace.repository, baseline) },
       async qualificationEvidence() { return (await import('./signin-merge-qualification')).qualificationEvidence(workspace.repository) },
+      async qualifyOldPublishedProgress() { return (await import('./signin-merge-qualification')).qualifyOldPublishedProgress(workspace.repository) },
       async seedGuestProgress(label: string) {
         if (workspace.repository.kind !== 'guest') throw new Error('Guest fixture requires the device workspace')
         const before = await workspace.repository.load()

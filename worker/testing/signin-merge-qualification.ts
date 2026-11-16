@@ -76,3 +76,35 @@ export async function qualificationScan() {
     return { row: scan.row, state, heads: [...await readRemoteHeads(database, token, heads)].sort(([a], [b]) => a.localeCompare(b)) }
   } finally { database.close() }
 }
+
+// This negative fixture is not a compact-to-legacy export: only its synthetic container is v1
+// The published Progress record and every native body association remain untouched
+export async function qualifyOldPublishedProgress(repository: import('../../src/workspace/repository').WorkspaceRepository) {
+  const { captureWorkspaceSnapshot, validateWorkspaceSnapshot, disposeWorkspaceSnapshot } = await import('../../src/workspace/snapshot')
+  const { hashBlob } = await import('../../src/workspace/blobs')
+  const captured = await captureWorkspaceSnapshot(repository)
+  try {
+    const conflict = captured.state.conflicts.find(value => value.progressIdentity?.version === 2)
+    if (!conflict || conflict.progressIdentity?.version !== 2) throw new Error('Qualification requires an actual published compact Progress comparison')
+    const synthetic = Object.freeze({ version: 1 as const, dataGeneration: captured.dataGeneration, snapshotId: 'synthetic-old-progress-reader-container', capturedAt: captured.capturedAt, revisionVector: {}, state: Object.freeze({ ...captured.state, conflicts: Object.freeze([conflict]) }) })
+    await validateWorkspaceSnapshot(synthetic)
+    const bodyDigests = async () => Promise.all(synthetic.state.blobs.map(async body => ({ ref: body.ref, digest: await hashBlob(body.content) })))
+    const before = await bodyDigests()
+    for (const body of before) if (body.ref.sha256 !== body.digest) throw new Error('Published qualification body differs from its full ref')
+    // Immutable export f is the original complete snapshot validator in the retained binary
+    // The separate supported control proves the failure is not a v1 envelope or body incompatibility
+    const path = '/__accounts-proof/assets/snapshot-DPL1MswI.js'
+    const old = await import(/* @vite-ignore */ path)
+    if (typeof old.f !== 'function') throw new Error('Missing immutable old snapshot validator')
+    await old.f({ ...synthetic, state: { ...synthetic.state, conflicts: [] } })
+    let oldAccepted = false, issues: { code: string; path: (string | number)[] }[] = []
+    try { await old.f(synthetic); oldAccepted = true }
+    catch (error) {
+      const value = error as { name?: string; issues?: { code: string; path: (string | number)[] }[] }
+      if (value.name !== 'ZodError' || !Array.isArray(value.issues)) throw error
+      issues = value.issues.map(({ code, path }) => ({ code, path }))
+    }
+    const after = await bodyDigests()
+    return { candidateAccepted: true, compatibleControlAccepted: true, oldAccepted, issues, conflictId: conflict.id, identity: conflict.progressIdentity, bodies: before, bodyAssociationsPreserved: JSON.stringify(before) === JSON.stringify(after) }
+  } finally { await disposeWorkspaceSnapshot(captured) }
+}
