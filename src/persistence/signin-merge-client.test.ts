@@ -28,10 +28,23 @@ function locks() {
     finally { const count = held.get(name)! - 1; if (count) held.set(name, count); else held.delete(name) }
   } }
 }
-async function fixture(conflict = false, native = false, locator = true) {
+async function fixture(conflict = false, native = false, locator = true, retained = false) {
   service = await conflictService()
   const device = await service.device(0, progress('account'))
   await device.settle()
+  if (retained) {
+    const { editorClosureFixture } = await import('../workspace/test-helpers')
+    const { ownWorkspaceSnapshot } = await import('../workspace/snapshot')
+    const { createGuestCopyService } = await import('../workspace/guest-copy')
+    const { LAUNCH_DATA_GENERATION } = await import('../domain/data-generation')
+    const source = await editorClosureFixture()
+    const state = { ...source.state, retainedContent: [], editorDocuments: [source.file], blobs: [source.blobs[0]] }
+    const snapshot = ownWorkspaceSnapshot({ version: 1, dataGeneration: LAUNCH_DATA_GENERATION, snapshotId: 'installed-worker-original', capturedAt: '2026-11-16T00:00:00.000Z', revisionVector: {}, state }, { async check() {}, async dispose() {} })
+    const copy = createGuestCopyService(async () => snapshot)
+    try { await copy.commitGuestCopy(device.token, await copy.previewGuestCopy(device.token, ['["editor","editor-1"]'])) }
+    finally { await copy.dispose() }
+    await device.settle()
+  }
   if (native) {
     const { prepareAccountWorkspace } = await import('../workspace/account-graph')
     const prepared = await prepareAccountWorkspace(device.db, device.token, progress('account'))
@@ -281,4 +294,66 @@ it.each(['extra', 'foreign'] as const)('refuses %s reservation changes during pr
   expect(await f.device.db.profileMeta.get('active')).toEqual(before)
   expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
   expect(await f.device.db.syncState.get('signin-receipt:decision')).toBeUndefined()
+}, 30_000)
+
+it.each(['none', 'before-install', 'late-activation'] as const)('keeps installed original rows in the worker consumed proof with mutation=%s', async mutation => {
+  const f = await fixture(false, false, true, true)
+  const { createAccountLocalStore } = await import('../workspace/account-local-store')
+  const { admitLocalRoot } = await import('../workspace/local-root')
+  const { readLocalEvidence } = await import('../workspace/local-evidence')
+  const { readLocalIndex } = await import('../workspace/local-index')
+  const { INDEX_PAGE_BYTES } = await import('../workspace/directory')
+  const { readBlob } = await import('../workspace/blobs')
+  const { readAccountRecordBytes, cipherRef } = await import('../workspace/account-cache')
+  const store = createAccountLocalStore(f.device.db, f.device.token)
+  cleanups.push(() => store.dispose())
+  const before = (await f.device.db.profileMeta.get('active'))!
+  const original = await admitLocalRoot(store.adapter, before.head, store.lifetime)
+  await readLocalEvidence(store.adapter, original.root.inheritedEvidence, async () => store.lifetime.check())
+  const json = async (ref: import('../workspace/local-root').LocalRecordRef) => JSON.parse(new TextDecoder().decode(await readBlob(await store.adapter.read(ref), INDEX_PAGE_BYTES)))
+  type Row = { table: string; key: string | [string, number]; ref: import('../workspace/local-root').LocalRecordRef }
+  const rows = async (root: import('../workspace/local-root').LocalRecordRef) => (await readLocalIndex<Row>((await json(root)).roots[0].index, json)).entries
+  const originals = (await rows(original.root.inheritedEvidence)).filter(row => ['evidenceSegments', 'evidenceBlobs', 'evidenceChunks'].includes(row.table))
+  expect(originals.some(row => row.table === 'evidenceChunks')).toBe(true)
+  const record = (await f.device.db.encryptedRevisions.get(originals.find(row => row.table === 'evidenceChunks')!.ref.revisionId))!
+  const chunk = (await f.device.db.stagedCipherChunks.get([record.payloadId, 0]))!
+  const mutate = async () => { const bytes = chunk.bytes.slice(); bytes[0] ^= 1; await f.device.db.stagedCipherChunks.put({ ...chunk, bytes }) }
+  let checked = false
+  f.afterTicket = async ticket => {
+    const bytes = await readAccountRecordBytes(f.device.db, f.device.token, cipherRef(ticket.manifest), ticket.manifest)
+    const manifest = JSON.parse(new TextDecoder().decode(bytes)) as SigninMergeManifest; bytes.fill(0)
+    for (const row of originals) {
+      expect(manifest.consumed.some(record => record.revisionId === row.ref.revisionId && record.descriptor.documentId === row.ref.documentId)).toBe(true)
+      expect(manifest.output.some(record => record.revisionId === row.ref.revisionId)).toBe(false)
+    }
+    checked = true
+    if (mutation === 'before-install') await mutate()
+  }
+  try {
+    const prepare = () => f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })
+    if (mutation === 'before-install') {
+      const descriptors = await f.device.db.encryptedRevisions.toArray()
+      await expect(prepare()).rejects.toThrow()
+      expect(checked).toBe(true)
+      expect(await f.device.db.encryptedRevisions.toArray()).toEqual(descriptors)
+      expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+      expect(await f.device.db.syncState.get('signin-receipt:decision')).toBeUndefined()
+    } else {
+      const stage = await prepare()
+      expect(checked).toBe(true)
+      const receipt = (await f.device.db.syncState.get('signin-receipt:decision'))!
+      if (mutation === 'late-activation') await mutate()
+      const activate = () => stage.activate({ id: receipt.id, expected: receipt, value: { ...f.value, status: 'complete' } })
+      if (mutation === 'late-activation') await expect(activate()).rejects.toThrow()
+      else {
+        await activate()
+        const selected = (await f.device.db.profileMeta.get('active'))!
+        const after = await admitLocalRoot(store.adapter, selected.head, store.lifetime)
+        const retained = await rows(after.root.inheritedEvidence)
+        for (const row of originals) expect(retained.find(value => value.table === row.table && JSON.stringify(value.key) === JSON.stringify(row.key))?.ref).toEqual(row.ref)
+        await readLocalEvidence(store.adapter, after.root.inheritedEvidence, async () => store.lifetime.check())
+      }
+    }
+    if (mutation !== 'none') { expect(await f.device.db.profileMeta.get('active')).toEqual(before); expect(await f.device.db.outbox.count()).toBe(0) }
+  } finally { await f.device.db.stagedCipherChunks.put(chunk) }
 }, 30_000)

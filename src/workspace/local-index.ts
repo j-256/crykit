@@ -9,6 +9,7 @@ const pageSchema = z.strictObject({ version: z.literal(1), entries: z.array(z.un
 const utf8 = new TextEncoder()
 export interface LocalIndex<T> { readonly root: CipherRef; readonly entries: readonly T[] }
 const pages = new WeakMap<object, ReadonlyMap<string, CipherRef>>()
+const readPages = new WeakMap<object, readonly { readonly ref: CipherRef; readonly encoded: string }[]>()
 
 // Page reuse is exact encoded metadata reuse, not admission of a selected workspace
 // Callers still guard the captured head and the actual referenced records at activation
@@ -27,6 +28,7 @@ export async function prepareLocalIndex<T>(entries: readonly T[], write: (page: 
 
 export async function readLocalIndex<T>(root: CipherRef, read: (ref: CipherRef) => Promise<unknown>, parse: (entry: unknown) => T = value => value as T): Promise<LocalIndex<T>> {
   const entries: T[] = [], seen = new Set<string>(), captured = new Map<string, CipherRef>()
+  const inventory: { readonly ref: CipherRef; readonly encoded: string }[] = []
   async function visit(ref: CipherRef, depth: number): Promise<void> {
     const identity = blobIdentity(ref)
     if (seen.has(identity)) throw new Error('Repeated or cyclic local index page')
@@ -36,12 +38,15 @@ export async function readLocalIndex<T>(root: CipherRef, read: (ref: CipherRef) 
     const encoded = JSON.stringify(page)
     if (page.entries.length + page.children.length > INDEX_PAGE_ENTRIES || utf8.encode(encoded).byteLength > INDEX_PAGE_BYTES) throw new Error('Local index page exceeds bound')
     captured.set(encoded, ref)
+    // Equal encodings can have distinct installed refs; retain both in the physical inventory
+    inventory.push(Object.freeze({ ref: Object.freeze({ ...ref }), encoded }))
     for (const entry of page.entries) entries.push(parse(entry))
     for (const child of page.children) await visit(child, depth + 1)
   }
   await visit(refSchema.parse(root), 0)
   const result = Object.freeze({ root, entries: Object.freeze(entries) })
   pages.set(result, captured)
+  readPages.set(result, Object.freeze(inventory))
   return result
 }
 
@@ -49,4 +54,12 @@ export function admittedLocalIndexRefs(index: LocalIndex<unknown>): readonly Cip
   const captured = pages.get(index)
   if (!captured) throw new Error('Unadmitted local index')
   return [...captured.values()]
+}
+
+// Encodings come only from this module's completed read registration
+// Account row reuse still has to prove every corresponding ref is installed and observed
+export function admittedLocalIndexPages(index: LocalIndex<unknown>): readonly { readonly ref: CipherRef; readonly encoded: string }[] {
+  const captured = readPages.get(index)
+  if (!captured) throw new Error('Unadmitted local index read')
+  return captured
 }
