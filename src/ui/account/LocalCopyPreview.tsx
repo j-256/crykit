@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { assertActiveProfile, type ProfileToken } from '../../account/profile'
 import type { createGuestCopyService, GuestCopyPreview } from '../../workspace/guest-copy'
 
-export type LocalCopyService = ReturnType<typeof createGuestCopyService>
+export type LocalCopyService = Omit<ReturnType<typeof createGuestCopyService>, 'previewReadonlySigninMerge' | 'stageReadonlySigninMerge'>
 export function LocalCopyPreview({ token, service }: { readonly token: ProfileToken; readonly service: LocalCopyService }) {
   const [comparisons, setComparisons] = useState<Awaited<ReturnType<LocalCopyService['inspectCopiedComparisons']>>>([])
   const [savedCopies, setSavedCopies] = useState<Awaited<ReturnType<LocalCopyService['listSavedGuestCopies']>>>([])

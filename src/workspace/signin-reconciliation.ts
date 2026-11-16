@@ -1,6 +1,9 @@
+import { SigninDecisionSchema, type SigninDecision } from './signin-decision'
+import { cleanupAccountPreparations } from './account-preparation-registry'
+import { createSigninMergeClient } from './signin-merge-client'
+import { mapIncrementalAccountBaseline } from './account-local-mapping-client'
 import { createMergeOperationScope, type MergeOperationScope } from './snapshot-admission'
 import { beginSigninMergeDiagnostics, type SigninMergeStage } from './signin-merge-diagnostics'
-import { z } from 'zod'
 import { assertActiveProfile, onProfileSessionChange, profileSignal, type ProfileToken } from '../account/profile'
 import { OpaqueIdSchema } from '../account/protocol'
 import { attachSyncScheduler, drainSyncSchedulers, subscribeSync, type Runner, type SyncSchedulerOwner } from '../account/sync/scheduler'
@@ -11,7 +14,7 @@ import { commitAccountReceipt, prepareAccountReceiptAttachment, releaseAccountAc
 import { jsonEqual } from '../persistence/local-data'
 import { accountLocalId, openAccountJson } from './account-cache'
 import { captureExistingGuestWorkspaceForSignin, type GuestCopySource } from './guest-repository'
-import { createGuestCopyService, type GuestCopyPreview, type SigninMergeReview, type PreparedSigninMerge } from './guest-copy'
+import { createGuestCopyService, type GuestCopyPreview, type PreparedSigninMerge } from './guest-copy'
 import { GuestCopyJournalSchema, PENDING_COPY, SAVED_COPY_PREFIX } from './guest-copy-journal'
 import { captureWorkspaceDocuments, privateRecordKey, type WorkspaceState } from './documents'
 import { classifySigninLocalData, type SigninLocalSummary } from './signin-local-data'
@@ -23,13 +26,7 @@ import { disposeWorkspaceSnapshot, type WorkspaceSnapshot } from './snapshot'
 
 export const SIGNIN_DECISION_KEY = 'signin-receipt:decision'
 const RECOVERY_DECISION_PREFIX = 'signin-receipt:recovery:'
-export const SigninDecisionSchema = z.strictObject({
-  version: z.literal(1), kind: z.literal('signin-decision'), accountId: OpaqueIdSchema,
-  source: z.strictObject({ revisionVector: z.record(z.string(), z.string()), metadataDigest: z.string() }).nullable(),
-  action: z.enum(['merge', 'account', 'device', 'latest']), operationId: OpaqueIdSchema,
-  copyId: OpaqueIdSchema.optional(), cleanupPending: z.boolean().optional(), status: z.enum(['preparing', 'complete', 'cancelled']),
-}).refine(value => value.action === 'merge' ? !!value.copyId && !!value.source : value.copyId === undefined)
-export type SigninDecision = z.infer<typeof SigninDecisionSchema>
+export { SigninDecisionSchema, type SigninDecision } from './signin-decision'
 // Startup must discover this owner before ordinary pull can replace a saved copy's publication base
 // The encrypted preparing receipt grants identity; a manual pending copy alone never selects recovery
 export async function readPendingRecoveryEntry(token: ProfileToken): Promise<SigninReconciliationOptions['entry']> {
@@ -73,7 +70,7 @@ export async function readPendingRecoveryEntry(token: ProfileToken): Promise<Sig
   } finally { database.close() }
 }
 export type SigninAction = 'merge' | 'account' | 'device'
-export type SigninPreparationStage = 'waiting-for-sync' | 'reading-source' | 'opening-account' | 'syncing-account' | 'checking-account' | 'checking-source' | 'comparing-records' | 'preparing-review' | 'preparing-merge'
+export type SigninPreparationStage = 'waiting-for-sync' | 'reading-source' | 'opening-account' | 'syncing-account' | 'checking-account' | 'checking-source' | 'comparing-records' | 'preparing-review' | 'preparing-merge' | 'preparing-mapping'
 export type SigninPhase = 'inspecting' | 'preparing' | 'choosing' | 'confirming' | 'committing' | 'opening' | 'complete' | 'cancelled' | 'failed'
 export interface SigninDisplaySummary extends SigninLocalSummary {
   readonly recordNames?: Readonly<Record<string, string>>
@@ -146,7 +143,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   let sourceScope: MergeOperationScope | undefined
   let review: ReviewedAccountData | undefined, copy: ReturnType<typeof createGuestCopyService> | undefined
   // This owner is deliberately absent from storage until Confirm; reload must ask again
-  let pendingMerge: { readonly review: SigninMergeReview; readonly decision: SigninDecision; readonly expected?: EncryptedSyncState } | undefined
+  let pendingMerge: { readonly review: Awaited<ReturnType<typeof createSigninMergeClient>>; readonly decision: SigninDecision; readonly expected?: EncryptedSyncState } | undefined
   let preparedMerge: PreparedSigninMerge | undefined
   let saved: { row: EncryptedSyncState; value: SigninDecision } | undefined
   let scheduler: SyncSchedulerOwner | undefined, unregister: (() => void) | undefined
@@ -190,7 +187,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   }
   function safeReason(error: unknown) {
     const code = error instanceof Error ? error.message : ''
-    const known: Record<string, string> = { QUOTA_EXCEEDED: 'quota', LOCAL_REVISION_CONFLICT: 'review-stale', HEAD_CONFLICT: 'review-stale', REPLACEMENT_REVIEW_REQUIRED: 'replacement-review-required', IDEMPOTENCY_MISMATCH: 'source-changed', SIGNIN_SOURCE_CHANGED: 'source-changed', SIGNIN_RECEIPT_MISMATCH: 'receipt-mismatch', SIGNIN_OFFLINE: 'offline', ONLINE_ACCESS_DISCONNECTED: 'signin-required', AUTH_REQUIRED: 'signin-required', CSRF_FAILED: 'signin-required', SIGNIN_CANCELLED: 'cancelled', PROFILE_CHANGED: 'profile-changed', ACCOUNT_PROJECTION_UNAVAILABLE: 'account-unavailable' }
+    const known: Record<string, string> = { QUOTA_EXCEEDED: 'quota', LOCAL_REVISION_CONFLICT: 'review-stale', HEAD_CONFLICT: 'review-stale', REPLACEMENT_REVIEW_REQUIRED: 'replacement-review-required', IDEMPOTENCY_MISMATCH: 'source-changed', SIGNIN_SOURCE_CHANGED: 'source-changed', SIGNIN_RECEIPT_MISMATCH: 'receipt-mismatch', SIGNIN_OFFLINE: 'offline', ONLINE_ACCESS_DISCONNECTED: 'signin-required', AUTH_REQUIRED: 'signin-required', CSRF_FAILED: 'signin-required', SIGNIN_CANCELLED: 'cancelled', SIGNIN_MERGE_RESOURCE_LIMIT: 'resource-limit', SIGNIN_COORDINATION_UNAVAILABLE: 'coordination-unavailable', PROFILE_CHANGED: 'profile-changed', ACCOUNT_PROJECTION_UNAVAILABLE: 'account-unavailable' }
     if (['A pending copy must be resumed by its saved operation ID or kept before starting a new sign-in merge', 'The saved sign-in copy is unavailable', 'The saved sign-in copy identity is unsupported'].includes(code)) return 'saved-copy-review-required'
     return known[code] ?? (state.phase === 'opening' ? 'opening-failed' : 'preparation-failed')
   }
@@ -221,6 +218,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   }
   async function cleanupRecoveries() {
     // Read-only transport cleanup must never make an admitted cached account unavailable offline
+    try { if (database) await cleanupAccountPreparations(database, token) } catch { /* Unsupported coordination retains every registered payload */ }
     try { await createAccountRecoveryService(token).list() } catch { /* Reconnection retries exact local ownership */ }
   }
   async function reconnect() { if (!disposed && database) await cleanupRecoveries() }
@@ -386,9 +384,27 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       await pendingMerge?.review.dispose(); pendingMerge = undefined
       const value: SigninDecision = { version: 1, kind: 'signin-decision', accountId: token.accountId, source: identity, action, operationId: accountLocalId(), status: 'preparing' }
       if (action === 'merge') {
-        copy ??= createGuestCopyService(async () => { await currentSource(); return source! }, check, sourceScope)
         preparationStage('comparing-records')
-        const mergeReview = await copy.previewSigninMergeReview(token, review!)
+        let mergeReview: Awaited<ReturnType<typeof createSigninMergeClient>>
+        if (recoveryEntry) {
+          // Recovery owns an authenticated encrypted snapshot, not a guest database locator
+          // This explicit entry keeps its producer path; missing guest locators never fall back here
+          copy ??= createGuestCopyService(async () => { await currentSource(); return source! }, check, sourceScope)
+          const captured = await copy.previewSigninMergeReview(token, review!)
+          mergeReview = { preview: captured.preview, dispose: () => captured.dispose(), prepare: decision => copy!.prepareReviewedSigninMerge(token, captured, decision) }
+        } else {
+          const start = () => createSigninMergeClient(database!, token, value.operationId, source!, identity!, review!, currentSource, value => preparationStage(value.stage), lifetime.signal, () => new Worker(new URL('./signin-merge-worker.ts', import.meta.url), { type: 'module' }), decisionKey)
+          try { mergeReview = await start() }
+          catch (error) {
+            if (!(error instanceof Error) || error.message !== 'SIGNIN_MAPPING_REQUIRED') throw error
+            preparationStage('preparing-mapping')
+            const fence = await database!.profileMeta.get('active')
+            if (!fence) throw new Error('LOCAL_REVISION_CONFLICT')
+            await mapIncrementalAccountBaseline(database!, token, fence, lifetime.signal)
+            await freshReview(); await currentSource()
+            preparationStage('comparing-records'); mergeReview = await start()
+          }
+        }
         value.copyId = mergeReview.preview.copyId
         operationId = value.operationId
         pendingMerge = { review: mergeReview, decision: value, expected: saved?.row }
@@ -411,7 +427,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       if (pending) {
         preparationStage('checking-source'); await currentSource(); check()
         preparationStage('preparing-merge')
-        preparedMerge = await copy!.prepareReviewedSigninMerge(token, pending.review, { id: decisionKey, expected: pending.expected, value: pending.decision })
+        preparedMerge = await pending.review.prepare({ id: decisionKey, expected: pending.expected, value: pending.decision })
         // Readback is authoritative when staging persisted but its response was lost
         saved = await readDecision(); check()
       }
@@ -421,9 +437,9 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       const receipt = { id: decisionKey, expected: saved.row, value: decision }
       publish({ phase: 'committing', reason: undefined })
       if (decision.action === 'merge') {
-        if (!copy || !state.preview || decision.copyId !== state.preview.copyId) throw new Error('SIGNIN_RECEIPT_MISMATCH')
+        if ((!copy && !preparedMerge) || !state.preview || decision.copyId !== state.preview.copyId) throw new Error('SIGNIN_RECEIPT_MISMATCH')
         if (preparedMerge) await preparedMerge.activate(receipt)
-        else await copy.commitGuestCopy(token, state.preview, receipt)
+        else await copy!.commitGuestCopy(token, state.preview, receipt)
       } else {
         const replacements = service()
         if (decision.action === 'device' && state.replacement?.state !== 'paused') await currentSource()

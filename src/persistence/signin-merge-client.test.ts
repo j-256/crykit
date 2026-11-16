@@ -1,0 +1,242 @@
+import 'fake-indexeddb/auto'
+import { afterEach, expect, it, vi } from 'vitest'
+import { conflictService } from './sync-conflict-fixture'
+import { AccountDatabase, activateLocalAccountCommit } from './account-database'
+import { accountLocalId } from '../workspace/account-cache'
+import { createGuestLocalStore } from '../workspace/guest-local-store'
+import { GuestCoordinatorDatabase } from '../workspace/guest-coordinator'
+import { prepareLocalWorkspace } from '../workspace/local-root'
+import { progress } from '../workspace/signin-merge.test-helpers'
+import { createSigninMergePreparation } from '../workspace/signin-merge-preparation'
+import { captureManagedGuestSnapshot } from '../workspace/guest-managed-snapshot'
+import { createReviewedReplacementService, stableWorkspaceSnapshotIdentity } from '../workspace/reviewed-replacement'
+import { createSigninMergeClient, nativeMergeInstallationCheck } from '../workspace/signin-merge-client'
+import { admitInstalledMerge } from '../workspace/account-local-store'
+import { disposeWorkspaceSnapshot } from '../workspace/snapshot'
+import type { SigninMergeFence, SigninMergeLocator, SigninMergeTicket } from '../workspace/signin-merge-protocol'
+
+let service: Awaited<ReturnType<typeof conflictService>> | undefined
+const cleanups: (() => Promise<unknown>)[] = []
+afterEach(async () => { vi.restoreAllMocks(); for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); await service?.dispose(); service = undefined; vi.unstubAllGlobals() })
+function locks() {
+  const held = new Map<string, number>()
+  return { async request(name: string, options: LockOptions, callback: LockGrantedCallback<unknown>) {
+    options.signal?.throwIfAborted()
+    if (options.mode === 'exclusive' && held.has(name)) return callback(null)
+    held.set(name, (held.get(name) ?? 0) + 1)
+    try { return await callback({ name, mode: options.mode } as Lock) }
+    finally { const count = held.get(name)! - 1; if (count) held.set(name, count); else held.delete(name) }
+  } }
+}
+async function fixture(conflict = false, native = false, locator = true) {
+  service = await conflictService()
+  const device = await service.device(0, progress('account'))
+  await device.settle()
+  if (native) {
+    const { prepareAccountWorkspace } = await import('../workspace/account-graph')
+    const prepared = await prepareAccountWorkspace(device.db, device.token, progress('account'))
+    await activateLocalAccountCommit(device.db, device.token, { version: 1, id: accountLocalId(), expected: await device.db.profileMeta.get('active'), head: prepared.head, records: prepared.records })
+  }
+  vi.stubGlobal('navigator', { locks: locks(), onLine: true })
+  const guest = new GuestCoordinatorDatabase(`merge-worker-source-${crypto.randomUUID()}`)
+  await guest.open()
+  const store = createGuestLocalStore(guest, () => {}), id = crypto.randomUUID()
+  const prepared = await prepareLocalWorkspace(store.adapter, id, progress('local', !conflict), { check() {}, async assertCurrent() {} })
+  const { target: manifest } = await store.activate(id, prepared.head, undefined, () => {})
+  const snapshot = await captureManagedGuestSnapshot(guest, manifest, () => {})
+  cleanups.push(async () => { await disposeWorkspaceSnapshot(snapshot); await guest.delete() })
+  const replacements = createReviewedReplacementService(device.db, device.token), review = await replacements.refresh()
+  cleanups.push(() => review.dispose())
+  let loseAcknowledgment = false
+  let afterTicket: ((ticket: SigninMergeTicket) => Promise<void>) | undefined
+  const messages: unknown[] = []
+  // This transport exercises the production worker preparation and main installer in one Node realm
+  // Native worker scheduling, key transfer, locks, and termination are covered separately in browsers
+  class WorkerFixture {
+    onmessage: ((event: MessageEvent) => void) | null = null
+    onerror: (() => void) | null = null
+    onmessageerror: (() => void) | null = null
+    operation?: Awaited<ReturnType<typeof createSigninMergePreparation>>
+    database = new AccountDatabase(device.token.accountId, { existingOnly: true })
+    terminated = false
+    postMessage(input: { kind: string; incarnation: string; id?: string; operationId: string; locator: SigninMergeLocator; fence: SigninMergeFence; handle: string; key?: Uint8Array }) {
+      messages.push(structuredClone({ ...input, key: undefined }))
+      void (async () => {
+        if (input.kind === 'initialize') { input.key?.fill(0); await this.database.open(); this.onmessage?.({ data: { incarnation: input.incarnation, status: 'ready' } } as MessageEvent); return }
+        if (input.kind === 'foreground' || input.kind === 'cancel') return
+        let value: unknown
+        try {
+          if (input.kind === 'review') { this.operation = await createSigninMergePreparation(this.database, device.token, input.operationId, input.locator, input.fence, () => {}); value = { handle: this.operation.handle, preview: this.operation.preview } }
+          else if (input.kind === 'prepare') { const ticket = await this.operation!.prepare(input.handle); await afterTicket?.(ticket); value = ticket }
+          else { await this.operation?.dispose(); if (loseAcknowledgment) { this.onerror?.(); return }; value = null }
+          if (!this.terminated) this.onmessage?.({ data: { incarnation: input.incarnation, id: input.id, operationId: input.operationId, status: 'complete', value: structuredClone(value) } } as MessageEvent)
+        } catch (error) { if (!this.terminated) this.onmessage?.({ data: { incarnation: input.incarnation, id: input.id, operationId: input.operationId, status: 'failed', code: error instanceof Error ? error.message : '' } } as MessageEvent) }
+      })()
+    }
+    terminate() { this.terminated = true; void this.operation?.dispose().finally(() => this.database.close()); if (!this.operation) this.database.close() }
+  }
+  vi.stubGlobal('Worker', WorkerFixture)
+  const operationId = accountLocalId(), identity = await stableWorkspaceSnapshotIdentity(snapshot)
+  const client = await createSigninMergeClient(device.db, device.token, operationId, { snapshot, ...(locator ? { locator: { databaseName: guest.name, manifest } } : {}) }, identity, review, async () => {}, () => {}, new AbortController().signal, () => new Worker('synthetic-merge-worker'))
+  cleanups.push(client.dispose)
+  const value = { version: 1, kind: 'signin-decision', accountId: device.token.accountId, action: 'merge', status: 'preparing', copyId: client.preview.copyId, operationId, source: identity }
+  return { device, guest, client, value, messages, loseAcknowledgment() { loseAcknowledgment = true }, set afterTicket(callback: typeof afterTicket) { afterTicket = callback } }
+}
+
+it.each([false, true])('installs and activates a privately admitted merge with conflict=%s', async conflict => {
+  const f = await fixture(conflict), before = await f.device.db.profileMeta.get('active')
+  const stage = await f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })
+  expect(await f.device.db.profileMeta.get('active')).toEqual(before)
+  expect(await f.device.db.preparationPayloads.count()).toBe(0)
+  expect(await f.device.db.syncState.get('guest-copy:pending')).toBeDefined()
+  const receipt = (await f.device.db.syncState.get('signin-receipt:decision'))!
+  await stage.activate({ id: receipt.id, expected: receipt, value: { ...f.value, status: 'complete' } })
+  expect((await f.device.db.profileMeta.get('active'))!.headRevision).toBe(before!.headRevision + 1)
+  expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+  expect(await f.device.db.outbox.count()).toBe(1)
+  const prepared = { version: 1 as const, id: stage.copyId, expected: before!, head: before!.head, records: [] }
+  expect(() => admitInstalledMerge(f.device.db, f.device.token, prepared, {})).toThrow()
+  expect(() => nativeMergeInstallationCheck(f.device.db, f.device.token, { ...prepared, preparationAdmission: {} })).toThrow()
+  await expect(activateLocalAccountCommit(f.device.db, f.device.token, { ...prepared, managedAdmission: {}, preparationAdmission: {} })).rejects.toThrow()
+  expect(f.messages.every(message => !('snapshot' in (message as object)) && !('workspace' in (message as object)))).toBe(true)
+}, 30_000)
+
+it('refuses changed worker ciphertext before any descriptor or journal installation', async () => {
+  const f = await fixture(), before = await f.device.db.encryptedRevisions.toArray()
+  f.afterTicket = async ticket => {
+    const chunk = (await f.device.db.stagedCipherChunks.get([ticket.manifest.payloadId, 0]))!
+    const bytes = chunk.bytes.slice(); bytes[0] ^= 1
+    await f.device.db.stagedCipherChunks.put({ ...chunk, bytes })
+  }
+  await expect(f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })).rejects.toThrow()
+  expect(await f.device.db.encryptedRevisions.toArray()).toEqual(before)
+  expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+}, 30_000)
+
+it('activates a genuine native predecessor through the distinct private native receipt', async () => {
+  const f = await fixture(true, true), before = await f.device.db.profileMeta.get('active')
+  const stage = await f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })
+  const receipt = (await f.device.db.syncState.get('signin-receipt:decision'))!
+  await stage.activate({ id: receipt.id, expected: receipt, value: { ...f.value, status: 'complete' } })
+  const selected = (await f.device.db.profileMeta.get('active'))!
+  const { openAccountJson } = await import('../workspace/account-cache')
+  const { AccountWorkspaceRootV2Schema } = await import('../workspace/account-graph')
+  expect((await openAccountJson(f.device.db, f.device.token, selected.head, AccountWorkspaceRootV2Schema)).kind).toBe('local-workspace-graph')
+  expect(selected.headRevision).toBe(before!.headRevision + 1)
+  await expect(stage.activate({ id: receipt.id, expected: receipt, value: { ...f.value, status: 'complete' } })).rejects.toThrow()
+}, 30_000)
+
+it.each([false, true])('rejects late actual source ciphertext changes before activation, native=%s', async native => {
+  const f = await fixture(true, native), before = (await f.device.db.profileMeta.get('active'))!
+  const stage = await f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })
+  const record = (await f.device.db.encryptedRevisions.get(before.head.revisionId))!, chunk = (await f.device.db.stagedCipherChunks.get([record.payloadId, 0]))!
+  const bytes = chunk.bytes.slice(); bytes[0] ^= 1
+  await f.device.db.stagedCipherChunks.put({ ...chunk, bytes })
+  const receipt = (await f.device.db.syncState.get('signin-receipt:decision'))!
+  await expect(stage.activate({ id: receipt.id, expected: receipt, value: { ...f.value, status: 'complete' } })).rejects.toThrow()
+  expect(await f.device.db.profileMeta.get('active')).toEqual(before)
+  expect(await f.device.db.outbox.count()).toBe(0)
+  await f.device.db.stagedCipherChunks.put(chunk)
+}, 30_000)
+
+it.each(['extra-reservation', 'orphan-output', 'foreign-source-root'] as const)('rejects %s in an authenticated ticket and preserves the selected destination', async mode => {
+  const f = await fixture(), before = await f.device.db.profileMeta.get('active')
+  f.afterTicket = async ticket => {
+    const { readAccountRecordBytes, cipherRef, stageAccountJson } = await import('../workspace/account-cache')
+    const { createAccountPreparationOwner } = await import('../workspace/account-prepared-records')
+    const owner = createAccountPreparationOwner(f.device.db, f.device.token, { operationId: ticket.operationId, check() {} })
+    cleanups.push(() => owner.abandon())
+    const extra = await stageAccountJson(f.device.db, f.device.token, { kind: 'synthetic-unrelated' }, [], undefined, owner)
+    if (mode === 'extra-reservation') return
+    const bytes = await readAccountRecordBytes(f.device.db, f.device.token, cipherRef(ticket.manifest), ticket.manifest)
+    const manifest = JSON.parse(new TextDecoder().decode(bytes)); bytes.fill(0)
+    if (mode === 'orphan-output') manifest.output.push(extra)
+    else { manifest.output.push(extra); manifest.sourceRoots.push(cipherRef(extra)) }
+    const replacement = await stageAccountJson(f.device.db, f.device.token, manifest, [], undefined, owner)
+    await f.device.db.preparationPayloads.delete([ticket.operationId, ticket.manifest.payloadId])
+    await f.device.db.stagedCipherChunks.where('payloadId').equals(ticket.manifest.payloadId).delete()
+    Object.assign(ticket, { manifest: replacement })
+  }
+  await expect(f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })).rejects.toThrow()
+  expect(await f.device.db.profileMeta.get('active')).toEqual(before)
+  expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+  expect(await f.device.db.syncState.get('signin-receipt:decision')).toBeUndefined()
+}, 30_000)
+
+it('rolls back descriptor installation, reservations, and transient deletion together', async () => {
+  const f = await fixture(), before = await f.device.db.encryptedRevisions.toArray()
+  const { IDBObjectStore } = await import('fake-indexeddb')
+  const original = IDBObjectStore.prototype.put
+  const fault = vi.spyOn(IDBObjectStore.prototype, 'put').mockImplementation(function (this: IDBObjectStore, ...args: Parameters<typeof original>) {
+    if (this.name === 'syncState' && (args[0] as { id?: string }).id === 'signin-receipt:decision') throw new Error('synthetic receipt write failure')
+    return original.apply(this, args)
+  })
+  try { await expect(f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })).rejects.toThrow() }
+  finally { fault.mockRestore() }
+  expect(await f.device.db.encryptedRevisions.toArray()).toEqual(before)
+  expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+  expect(await f.device.db.syncState.get('signin-receipt:decision')).toBeUndefined()
+}, 30_000)
+
+it('refuses a source association appearing after installation before activation', async () => {
+  const f = await fixture(true, true), before = (await f.device.db.profileMeta.get('active'))!
+  const stage = await f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })
+  await f.device.db.syncState.add({ id: `source-context:${before.head.revisionId}`, ref: before.head })
+  const receipt = (await f.device.db.syncState.get('signin-receipt:decision'))!
+  await expect(stage.activate({ id: receipt.id, expected: receipt, value: { ...f.value, status: 'complete' } })).rejects.toThrow()
+  expect(await f.device.db.profileMeta.get('active')).toEqual(before)
+}, 30_000)
+
+it('retains committed worker output across a lost release acknowledgment and cold native-journal resume', async () => {
+  const f = await fixture(true), before = await f.device.db.profileMeta.get('active')
+  f.loseAcknowledgment()
+  const stage = await f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })
+  const installed = await f.device.db.encryptedRevisions.toArray()
+  expect(await f.device.db.preparationPayloads.count()).toBe(0)
+  await stage.dispose()
+  const { createGuestCopyService } = await import('../workspace/guest-copy')
+  const cold = createGuestCopyService(async () => { throw new Error('Cold resume must use its saved source') })
+  try {
+    const preview = await cold.previewSigninMerge(f.device.token, stage.copyId)
+    const receipt = (await f.device.db.syncState.get('signin-receipt:decision'))!
+    await cold.commitGuestCopy(f.device.token, preview, { id: receipt.id, expected: receipt, value: { ...f.value, status: 'complete' } })
+    expect((await f.device.db.profileMeta.get('active'))!.headRevision).toBe(before!.headRevision + 1)
+    for (const record of installed) expect(await f.device.db.encryptedRevisions.get(record.revisionId)).toEqual(record)
+  } finally { await cold.dispose() }
+}, 30_000)
+
+it('cannot install a main receipt whose private staging failed', async () => {
+  const f = await fixture(), before = await f.device.db.encryptedRevisions.toArray()
+  f.afterTicket = async () => {
+    const cache = await import('../workspace/account-cache')
+    vi.spyOn(cache, 'stageAccountJson').mockRejectedValueOnce(new Error('synthetic receipt staging failure'))
+  }
+  await expect(f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })).rejects.toThrow('synthetic receipt staging failure')
+  expect(await f.device.db.encryptedRevisions.toArray()).toEqual(before)
+  expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+}, 30_000)
+
+it('refuses an ordinary guest without a locator instead of preparing in the caller realm', async () => {
+  await expect(fixture(false, false, false)).rejects.toThrow('SIGNIN_SOURCE_CHANGED')
+}, 30_000)
+
+it.each(['extra', 'foreign'] as const)('refuses %s reservation changes during private main receipt staging', async mode => {
+  const f = await fixture(), before = await f.device.db.profileMeta.get('active')
+  f.afterTicket = async () => {
+    const cache = await import('../workspace/account-cache'), stage = cache.stageAccountJson
+    vi.spyOn(cache, 'stageAccountJson').mockImplementationOnce(async (...args) => {
+      const receipt = await stage(...args)
+      if (mode === 'extra') await stage(args[0], args[1], { synthetic: 'extra main reservation' }, [], undefined, args[5])
+      else {
+        const row = (await f.device.db.preparationPayloads.where('payloadId').equals(receipt.payloadId).first())!
+        await f.device.db.preparationPayloads.delete([row.operationId, row.payloadId])
+        await f.device.db.preparationPayloads.add({ ...row, operationId: accountLocalId() })
+      }
+      return receipt
+    })
+  }
+  await expect(f.client.prepare({ id: 'signin-receipt:decision', expected: undefined, value: f.value })).rejects.toThrow('SIGNIN_RECEIPT_MISMATCH')
+  expect(await f.device.db.profileMeta.get('active')).toEqual(before)
+  expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+  expect(await f.device.db.syncState.get('signin-receipt:decision')).toBeUndefined()
+}, 30_000)

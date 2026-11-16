@@ -1,3 +1,4 @@
+import type { AccountPreparationReservation } from './account-prepared-records'
 import { stageManagedCopyComparisons, managedComparisonWritesEnabled } from './managed-copy-comparisons'
 import type { WorkspaceSnapshot } from './snapshot'
 import { accountAttachmentCheck, type AccountActivationAttachment, prepareAccountReceiptAttachment, releaseAccountActivationAttachment, type AccountSyncAttachmentValue } from '../persistence/account-activation-attachments'
@@ -13,11 +14,11 @@ import { ManagedGuestCopyJournalSchema, PENDING_COPY, SAVED_COPY_PREFIX, type Gu
 import { readLocalEvidence, prepareLocalEvidence } from './local-evidence'
 import { admitLocalRoot, prepareLocalWorkspace } from './local-root'
 
-export async function stageManagedGuestCopy(database: AccountDatabase, token: ProfileToken, preview: GuestCopyPreview, input: AccountFence, incoming: CapturedGuestEvidence, mergeCurrent: (before: WorkspaceState) => Promise<WorkspaceState>, assertMayActivate: () => void, preparationAttachment?: AccountActivationAttachment, selected?: WorkspaceSnapshot) {
+export async function stageManagedGuestCopy(database: AccountDatabase, token: ProfileToken, preview: GuestCopyPreview, input: AccountFence, incoming: CapturedGuestEvidence, mergeCurrent: (before: WorkspaceState) => Promise<WorkspaceState>, assertMayActivate: () => void, preparationAttachment?: AccountActivationAttachment, selected?: WorkspaceSnapshot, reservation?: AccountPreparationReservation) {
   assertActiveProfile(token)
   if (selected && !managedComparisonWritesEnabled()) throw new Error('Managed comparison writers are not qualified')
   if (preview.accountId !== token.accountId) throw new Error('The copy belongs to another account')
-  const expected = structuredClone(input), store = createAccountLocalStore(database, token), id = preview.copyId
+  const expected = structuredClone(input), store = createAccountLocalStore(database, token, reservation), id = preview.copyId
   const check = async () => {
     assertActiveProfile(token); assertMayActivate()
     if (!guestPlannerValuesEqual(await database.profileMeta.get('active'), expected)) throw new Error('The copy destination changed')
@@ -46,7 +47,7 @@ export async function stageManagedGuestCopy(database: AccountDatabase, token: Pr
     // A saved journal owns the complete encrypted target even if activation is interrupted
     // It cannot make that target active or upload it until the separate captured-head CAS succeeds
     const preparationCheck = accountAttachmentCheck(database, token, { expected, head: expected.head }, preparationAttachment)
-    await store.persistOperation(id, async () => {
+    if (!reservation) await store.persistOperation(id, async () => {
       await preparationCheck?.recheckAndRetireInTransaction()
       if (!guestPlannerValuesEqual(await database.profileMeta.get('active'), expected) || await database.syncState.get(PENDING_COPY)) throw new Error('The account or pending copy changed during preparation')
       await database.syncState.add({ id: `${SAVED_COPY_PREFIX}${id}`, ref })
@@ -54,9 +55,10 @@ export async function stageManagedGuestCopy(database: AccountDatabase, token: Pr
       // The durable decision and exact encrypted target become resumable together
       await preparationCheck?.installInTransaction()
     }, assertMayActivate)
-    const prepared = await store.preparePersistedActivation(id, result, expected, before, intentRef, projection)
+    const prepared = reservation ? await store.prepareActivation(id, result, expected, before, intentRef, projection) : await store.preparePersistedActivation(id, result, expected, before, intentRef, projection)
     retained = true
-    return { journal, async activate(receipt?: AccountSyncAttachmentValue) {
+    return { journal, ref, describe: () => store.describePreparation(prepared), async activate(receipt?: AccountSyncAttachmentValue) {
+      if (reservation) throw new Error('Reserved preparation must remain inert until main installation')
       await activateGuestCopyWithReceipt(database, token, prepared, assertMayActivate, receipt)
       return result.snapshot.entries.map(entry => ({ key: entry.key, documentId: entry.ref.documentId }))
     }, async dispose() { await store.dispose() } }

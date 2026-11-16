@@ -84,7 +84,7 @@ export function createGuestRepository(original?: CryKitDatabase): WorkspaceRepos
   return repository
 }
 
-export interface GuestCopySource { readonly snapshot: WorkspaceSnapshot; readonly originals?: CapturedGuestEvidence }
+export interface GuestCopySource { readonly snapshot: WorkspaceSnapshot; readonly originals?: CapturedGuestEvidence; readonly locator?: import('./signin-merge-protocol').SigninMergeLocator }
 export async function captureGuestWorkspaceForCopy(original = getDatabase()): Promise<GuestCopySource> {
   const profile = captureGuestWorkspaceEpoch(), startup = await prepareGuestStartup(original, 'capture')
   profile.assertCurrent()
@@ -128,6 +128,6 @@ export async function captureExistingGuestWorkspaceForSignin(): Promise<GuestCop
     const { captureWorkspaceSnapshot } = await import('./snapshot')
     const snapshot = await captureWorkspaceSnapshot(repository)
     profile.assertCurrent()
-    return Object.freeze({ snapshot })
+    return Object.freeze({ snapshot, locator: { databaseName: startup.coordinator.name, manifest: startup.manifest } })
   } catch (error) { startup.coordinator.close(); throw error }
 }

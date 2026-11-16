@@ -1,3 +1,4 @@
+import { consumeManagedMergeInstallation } from './signin-merge-client'
 import { readManagedCopyComparisons } from './managed-copy-comparisons'
 import { prepareSelectedV1Check } from './account-selection'
 import { AccountMappingOriginSchema, IncrementalWorkspaceIntentSchema, accountMappingRootKey } from './account-mapping-origin'
@@ -7,7 +8,7 @@ import type { Transaction } from 'dexie'
 import type { AccountDatabase, AccountFence, CipherChunk, CipherRecord, EncryptedSyncState, PreparedLocalActivation } from '../persistence/account-database'
 import { encryptRevision } from '../account/crypto/revisions'
 import { accountLocalId, cipherRef } from './account-cache'
-import { createAccountPreparationOwner } from './account-prepared-records'
+import { createAccountPreparationOwner, type AccountPreparationReservation } from './account-prepared-records'
 import { openAccountSource, openPreparedAccountSource, stageAccountSource } from './account-streams'
 import { admitLocalRoot, admittedLocalReferences, type AdmittedLocalSnapshot, type CapturedLocalLifetime, type LocalStoreAdapter, type LocalRecordRef } from './local-root'
 import { readLocalEvidence } from './local-evidence'
@@ -21,6 +22,7 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 interface Observation { readonly record: CipherRecord; readonly chunks: readonly CipherChunk[] }
 interface Admission {
   readonly database: AccountDatabase; readonly token: ProfileToken; readonly prepared: PreparedLocalActivation
+  readonly bridge?: { recheckInTransaction(): Promise<void> }
   readonly legacy?: Awaited<ReturnType<typeof prepareSelectedV1Check>>; readonly disposeLegacy?: () => Promise<void>; readonly association?: EncryptedSyncState
   readonly observations: readonly Observation[]; readonly retained: ReadonlySet<string>; readonly inline: readonly Observation[]; readonly check: () => void; readonly projection?: EncryptedSyncState
 }
@@ -71,6 +73,7 @@ export function accountLocalActivationCheck(database: AccountDatabase, token: Pr
       admission.check()
       if (!same(await database.syncState.get('projection'), admission.projection)) throw new Error('Managed publication base changed')
       await admission.legacy?.recheckInTransaction()
+      await admission.bridge?.recheckInTransaction()
       if (admission.association) {
         if (await database.syncState.get(admission.association.id)) throw new Error('Managed mapping origin was reused')
         await database.syncState.add(admission.association)
@@ -83,10 +86,19 @@ export function accountLocalActivationCheck(database: AccountDatabase, token: Pr
   }
 }
 
-export function createAccountLocalStore(database: AccountDatabase, token: ProfileToken) {
+// The issuer registry, not receipt fields, certifies the installed worker operation
+export function admitInstalledMerge(database: AccountDatabase, token: ProfileToken, prepared: PreparedLocalActivation, receipt: object): PreparedLocalActivation {
+  if (prepared.managedAdmission || prepared.preparationAdmission) throw new Error('SIGNIN_RECEIPT_MISMATCH')
+  const proof = consumeManagedMergeInstallation(receipt, database, token, prepared), managedAdmission = Object.freeze({})
+  const result = { ...prepared, managedAdmission }
+  admissions.set(managedAdmission, { database, token, prepared: structuredClone(prepared), observations: [], retained: new Set(), inline: [], projection: proof.projection, check: proof.check, bridge: proof })
+  return result
+}
+
+export function createAccountLocalStore(database: AccountDatabase, token: ProfileToken, reservation?: AccountPreparationReservation) {
   let closed = false
   const check = () => { assertActiveProfile(token); if (closed) throw new Error('Managed account store is closed'); if (database.accountId !== token.accountId) throw new Error('Wrong managed account') }
-  const owner = createAccountPreparationOwner(database, token)
+  const owner = createAccountPreparationOwner(database, token, reservation)
   const inline = new Map<string, Observation>()
   const pending = new Map<string, CipherRecord[]>(), observations = new Map<string, Observation>()
   const lifetime: CapturedLocalLifetime = { check, assertCurrent: async () => check() }
@@ -105,7 +117,7 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
       const own = pending.get(operationId) ?? []
       const heldBytes = own.reduce((sum, record) => sum + (inline.get(record.revisionId)?.chunks.reduce((bytes, chunk) => bytes + chunk.bytes.length, 0) ?? 0), 0)
       let record: CipherRecord
-      if (heldBytes + source.byteLength + streamOverheadBytes <= INLINE_OPERATION_BYTES) {
+      if (!reservation && heldBytes + source.byteLength + streamOverheadBytes <= INLINE_OPERATION_BYTES) {
         const payloadId = accountLocalId(), documentId = previous?.documentId ?? accountLocalId(), chunks: CipherChunk[] = []
         async function* captured() { for await (const bytes of source.open()) { check(); yield bytes; check() } }
         const encrypted = await withAccountKey(token, key => encryptRevision(key, { format: 1, accountId: token.accountId, documentId, revisionId: accountLocalId(), parents: previous ? [previous.revisionId] : [], dependencies, protected: true, plainBytes: source.byteLength }, accountLocalId(), captured(), {
@@ -160,6 +172,7 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
   }
   async function persistOperation(operationId: string, writeJournal: () => Promise<void>, assertMayPersist: () => void): Promise<void> {
     check(); assertMayPersist()
+    if (reservation) throw new Error('Reserved preparation must remain inert until main installation')
     const records = pending.get(operationId)
     if (!records?.length) throw new Error('No managed preparation is available to persist')
     const signal = profileSignal(token)
@@ -277,7 +290,16 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
   }
   // Mapping receipts use the same live adapter observations; callers cannot provide or revive authority
   // This closure performs only IDB reads inside the caller-owned descriptor/chunk transaction
-  return { adapter, lifetime, async recheckObservationsInTransaction() { check(); await recheckCiphertextObservations(database, observations.values()); check() }, persistOperation, prepareSavedActivation, preparePersistedActivation, prepareActivation: (operationId: string, result: { readonly head: LocalRecordRef; readonly snapshot: AdmittedLocalSnapshot }, expected: AccountFence | undefined, previous?: AdmittedLocalSnapshot, intent?: LocalRecordRef, projection?: EncryptedSyncState) => prepareActivation(operationId, result, expected, previous, intent, projection), prepareLegacyActivation, prepareMappedActivation, committed(operationId: string) { check(); for (const record of pending.get(operationId) ?? []) inline.delete(record.revisionId); pending.delete(operationId); observations.clear() }, finishAdmission() { check(); observations.clear() }, async dispose() {
+  return { adapter, lifetime,
+    observedRecords() { check(); return structuredClone([...observations.values()].map(value => value.record)) },
+    stagedRecords(operationId: string) { check(); return structuredClone(pending.get(operationId) ?? []) },
+    describePreparation(prepared: PreparedLocalActivation) {
+      check()
+      const admission = prepared.managedAdmission && admissions.get(prepared.managedAdmission)
+      if (!admission || admission.database !== database || admission.token !== token || !same(admission.prepared, { ...prepared, managedAdmission: undefined })) throw new Error('Unadmitted managed preparation')
+      return { records: structuredClone(prepared.records), consumed: structuredClone(admission.observations.map(value => value.record)), retained: [...admission.retained], native: admission.legacy?.observations(), association: admission.association && structuredClone(admission.association) }
+    },
+    async recheckObservationsInTransaction() { check(); await recheckCiphertextObservations(database, observations.values()); check() }, persistOperation, prepareSavedActivation, preparePersistedActivation, prepareActivation: (operationId: string, result: { readonly head: LocalRecordRef; readonly snapshot: AdmittedLocalSnapshot }, expected: AccountFence | undefined, previous?: AdmittedLocalSnapshot, intent?: LocalRecordRef, projection?: EncryptedSyncState) => prepareActivation(operationId, result, expected, previous, intent, projection), prepareLegacyActivation, prepareMappedActivation, committed(operationId: string) { check(); for (const record of pending.get(operationId) ?? []) inline.delete(record.revisionId); pending.delete(operationId); observations.clear() }, finishAdmission() { check(); observations.clear() }, async dispose() {
     unregister(); closed = true; pending.clear(); inline.clear(); observations.clear()
     const results = await Promise.allSettled([releaseSelections(), owner.abandon()])
     const errors = results.flatMap(result => result.status === 'rejected' ? [result.reason] : [])

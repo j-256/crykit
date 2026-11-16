@@ -1,4 +1,4 @@
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import { createProfileWorker } from './profile-worker'
 import { installProfile, invalidateProfile, withAccountKey } from './profile'
 import { withAccountForeground } from './background-work'
@@ -43,4 +43,79 @@ it('cancels the captured realm on request cancellation without affecting a succe
   await expect(request).rejects.toThrow(/released/)
   expect(transport.terminated).toBe(true)
   expect(await withAccountKey(token, async key => key.length)).toBe(32)
+})
+
+it('waits for readiness and binds progress and terminal responses to the requested operation', async () => {
+  const token = installProfile(accountLocalId(), new Uint8Array(32)), transport = new Transport()
+  let initialized = false
+  const creating = createProfileWorker(token, transport as unknown as Worker, { ready: true }).then(value => { initialized = true; return value })
+  await Promise.resolve(); await Promise.resolve()
+  expect(initialized).toBe(false)
+  const incarnation = transport.messages[0]!.incarnation
+  transport.reply({ incarnation: 'foreign', status: 'ready' })
+  await Promise.resolve()
+  expect(initialized).toBe(false)
+  transport.reply({ incarnation, status: 'ready' })
+  const lease = await creating
+  const progress: unknown[] = []
+  const operationId = accountLocalId()
+  const pending = lease.request({ kind: 'review', operationId }, undefined, value => progress.push(value))
+  const request = transport.messages.at(-1)!
+  transport.reply({ incarnation, id: request.id, operationId: 'foreign', status: 'complete', value: 'wrong' })
+  transport.reply({ incarnation, id: request.id, operationId, status: 'progress', value: { stage: 'reading-source' } })
+  transport.reply({ incarnation, id: request.id, operationId, status: 'complete', value: 'reviewed' })
+  expect(await pending).toBe('reviewed')
+  expect(progress).toEqual([{ stage: 'reading-source' }])
+  expect(transport.messages.filter(value => value.kind === 'foreground').map(value => value.pending)).toEqual([false])
+  lease.dispose()
+})
+
+it('rejects initialization and pending work on a message deserialization failure', async () => {
+  const token = installProfile(accountLocalId(), new Uint8Array(32)), transport = new Transport()
+  const pending = createProfileWorker(token, transport as unknown as Worker, { ready: true })
+  const rejection = expect(pending).rejects.toThrow(/released/)
+  await Promise.resolve(); await Promise.resolve()
+  ;(transport as unknown as Worker).onmessageerror?.call(transport as unknown as Worker, new MessageEvent('messageerror'))
+  await rejection
+  expect(transport.terminated).toBe(true)
+})
+
+it('cancels initialization before readiness when the caller aborts', async () => {
+  const token = installProfile('captured-account', new Uint8Array(32)), controller = new AbortController()
+  const worker = { postMessage: vi.fn(), terminate: vi.fn(), onmessage: null, onerror: null, onmessageerror: null } as unknown as Worker
+  const pending = createProfileWorker(token, worker, { ready: true, signal: controller.signal })
+  const rejected = expect(pending).rejects.toThrow()
+  controller.abort()
+  await rejected
+  expect(worker.terminate).toHaveBeenCalledOnce()
+  invalidateProfile()
+})
+
+it('retires an initial foreground subscription when its immediate notification fails', async () => {
+  const token = installProfile(accountLocalId(), new Uint8Array(32)), transport = new Transport(), post = transport.postMessage.bind(transport)
+  let foreground = 0
+  transport.postMessage = value => {
+    if ((value as { kind?: string }).kind === 'foreground') { foreground++; throw new Error('synthetic failed worker transport') }
+    post(value)
+  }
+  await expect(createProfileWorker(token, transport as unknown as Worker)).rejects.toThrow(/released/)
+  const before = foreground
+  await withAccountForeground(token, async () => {})
+  expect(foreground).toBe(before)
+  expect(transport.terminated).toBe(true)
+})
+
+it('ignores completed review progress and aborted preparation progress without accepting prior request IDs', async () => {
+  const token = installProfile(accountLocalId(), new Uint8Array(32)), transport = new Transport()
+  const lease = await createProfileWorker(token, transport as unknown as Worker), operationId = accountLocalId()
+  const review = lease.request({ kind: 'review', operationId }), previous = transport.messages.at(-1)!
+  transport.reply({ incarnation: lease.incarnation, id: previous.id, operationId, status: 'complete', value: 'review' }); await review
+  const progress: unknown[] = [], controller = new AbortController()
+  const preparation = lease.request({ kind: 'prepare', operationId }, controller.signal, value => progress.push(value)), active = transport.messages.at(-1)!
+  const emit = (id: string | undefined) => transport.reply({ incarnation: lease.incarnation, id, operationId, status: 'progress', value: { stage: 'preparing-merge', observations: { status: 'complete', records: 1, bytes: 99 } } })
+  emit(previous.id); expect(progress).toEqual([])
+  emit(active.id); expect(progress).toHaveLength(1)
+  const rejection = expect(preparation).rejects.toThrow(/released/)
+  controller.abort(); await rejection
+  emit(active.id); emit(previous.id); expect(progress).toHaveLength(1)
 })

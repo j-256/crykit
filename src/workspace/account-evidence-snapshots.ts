@@ -7,7 +7,7 @@ import { assertActiveProfile, profileSignal, registerProfileCleanup, type Profil
 import { maxDependencies, maxDocumentBytes, RevisionDescriptorSchema } from '../account/protocol'
 import type { AccountDatabase, CipherChunk, CipherRecord, CipherRef } from '../persistence/account-database'
 import { CipherRefSchema, cipherRef, stageAccountBytes } from './account-cache'
-import { beginPreparedRead, createAccountPreparationOwner, resolveAccountRecord, type AccountPreparationOwner } from './account-prepared-records'
+import { beginPreparedRead, createAccountPreparationOwner, resolveAccountRecord, type AccountPreparationOwner, type AccountPreparationReservation } from './account-prepared-records'
 import { openAccountSource, stageAccountSource } from './account-streams'
 import { buildIndexPages, INDEX_PAGE_BYTES, INDEX_PAGE_ENTRIES } from './directory'
 import { WorkspaceBlobRefSchema } from './file-schemas'
@@ -419,13 +419,17 @@ export async function openAccountInheritedEvidence(database: AccountDatabase, to
 
 // The returned closure carries only private, completely authenticated physical observations
 // Recheck inside the publishing transaction so same-length ciphertext edits cannot race admission
-export function accountInheritedEvidenceCheck(handle: AccountInheritedEvidence, database: AccountDatabase, token: ProfileToken): { recheckInTransaction(): Promise<void> } {
+export function accountInheritedEvidenceCheck(handle: AccountInheritedEvidence, database: AccountDatabase, token: ProfileToken): { recheckInTransaction(): Promise<void>; observations(): readonly CipherRecord[] } {
   const owned = registration(handle)
   if (owned.database !== database || owned.token.accountId !== token.accountId || owned.token.generation !== token.generation) throw new Error('Foreign account evidence handle')
   owned.assertLive()
   const observations = owned.reader.observations
   if (observations.size !== owned.reader.records.size) throw new Error('Incomplete account evidence authentication')
-  return { async recheckInTransaction() {
+  return { observations() {
+    owned.assertLive()
+    if (observations.size !== owned.reader.records.size) throw new Error('Incomplete account evidence authentication')
+    return structuredClone([...observations.values()].map(value => value.record))
+  }, async recheckInTransaction() {
     owned.assertLive()
     for (const { record, chunks } of observations.values()) {
       const actual = await database.encryptedRevisions.get(record.revisionId)
@@ -691,10 +695,10 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
 // Retain this operation and its database until abandonment succeeds, including failed prepare
 // Cleanup attempts are distinct from preparation settlement to avoid waiting on ourselves
 export function createAccountInheritedEvidencePreparation(database: AccountDatabase, token: ProfileToken, cleanup: AccountManagedCleanup): ManagedAccountInheritedEvidencePreparation
-export function createAccountInheritedEvidencePreparation(database: AccountDatabase, token: ProfileToken): AccountInheritedEvidencePreparation
-export function createAccountInheritedEvidencePreparation(database: AccountDatabase, token: ProfileToken, cleanup?: AccountManagedCleanup): AccountInheritedEvidencePreparation & { readonly cleanup?: AccountCleanupJoin } {
+export function createAccountInheritedEvidencePreparation(database: AccountDatabase, token: ProfileToken, cleanup?: undefined, reservation?: AccountPreparationReservation): AccountInheritedEvidencePreparation
+export function createAccountInheritedEvidencePreparation(database: AccountDatabase, token: ProfileToken, cleanup?: AccountManagedCleanup, reservation?: AccountPreparationReservation): AccountInheritedEvidencePreparation & { readonly cleanup?: AccountCleanupJoin } {
   token = Object.freeze({ ...token })
-  const owner = createAccountPreparationOwner(database, token)
+  const owner = createAccountPreparationOwner(database, token, reservation)
   let started = false, closed = false, primary: unknown, preparation: Promise<PreparedAccountInheritedEvidence> | undefined
   let standaloneCleanup: Promise<void> | undefined, cleaned = false, handle: AccountInheritedEvidence | undefined
   const check = async () => { if (closed) throw new Error('Account evidence preparation was abandoned'); owner.check() }

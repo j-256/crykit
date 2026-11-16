@@ -141,6 +141,25 @@ const accountBootstrapProof = {
       return { failureFingerprint: Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('') }
     }
   },
+  async signinPreparationState(input: unknown) {
+    const token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
+    const { SigninMergeTicketSchema, SigninMergeManifestSchema, SIGNIN_MERGE_LIMITS } = await import('../../src/workspace/signin-merge-protocol')
+    const { readAccountRecordBytes, cipherRef } = await import('../../src/workspace/account-cache')
+    const { validateMergeInstallation } = await import('../../src/workspace/signin-merge-installation')
+    try {
+      const ticket = SigninMergeTicketSchema.parse(input)
+      const bytes = await readAccountRecordBytes(database, token, cipherRef(ticket.manifest), ticket.manifest, SIGNIN_MERGE_LIMITS.manifestBytes)
+      let manifest
+      try { manifest = SigninMergeManifestSchema.parse(JSON.parse(new TextDecoder().decode(bytes))) } finally { bytes.fill(0) }
+      if (manifest.accountId !== token.accountId || manifest.operationId !== ticket.operationId || manifest.copyId !== ticket.copyId) throw new Error('Synthetic ticket identity changed')
+      // Read-only structural validation cannot issue the installer's private receipt
+      await validateMergeInstallation(database, token, manifest)
+      const expected = [...manifest.output.map(record => record.payloadId), ticket.manifest.payloadId].sort()
+      const reserved = (await database.preparationPayloads.where('operationId').equals(ticket.operationId).toArray()).map(row => row.payloadId).sort()
+      const installedOutput = await database.encryptedRevisions.bulkGet(manifest.output.map(record => record.revisionId))
+      return { exactReservationSet: JSON.stringify(expected) === JSON.stringify(reserved), outputCount: manifest.output.length, installedOutputs: installedOutput.filter(Boolean).length, savedJournal: await database.syncState.get(`guest-copy:${ticket.copyId}`) }
+    } finally { database.close() }
+  },
   async signinMergeAcceptance() {
     const token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
     try {

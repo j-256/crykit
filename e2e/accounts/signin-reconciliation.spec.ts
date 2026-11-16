@@ -1,3 +1,4 @@
+import { holdSigninInstallationReply, holdSigninWorkerReply, readSigninInstallation } from './signin-merge-faults'
 import { ACCOUNT_PREPARATION_TIMEOUT_MS, beginSeededAccount, mountSeededAccount } from './signin-helpers'
 import { expect, test, type Page } from './test-fixture'
 const password = 'synthetic reconciliation browser password'
@@ -44,8 +45,10 @@ test('sign-in merges Progress once across reload and confirms account data on a 
   await phase('merge-prepared')
   await page.reload()
   await signIn(page, email)
+  await expect(page.getByRole('heading', { name: 'Choose what to keep', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+  await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Review your merge', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-  await phase('merge-resumed')
+  await phase('fresh-review-after-reload')
   await page.getByRole('button', { name: 'Confirm merge', exact: true }).click()
   await expect(page.getByRole('complementary', { name: 'Account sync' })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
   const merged = await page.evaluate(() => (window as any).workspaceProof.inspect(false))
@@ -131,6 +134,11 @@ for (const remember of [true, false]) test(`pending recovery Merge resumes befor
   await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Review your merge', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
   const read = () => page.evaluate(id => (window as any).accountBootstrapProof.recoveryDecision(id), pointId)
+  expect((await read()).decision).toBeUndefined()
+  await holdSigninInstallationReply(page)
+  await page.getByRole('button', { name: 'Confirm merge', exact: true }).click()
+  await page.waitForFunction(() => (window as any).signinInstallationCommitted === true, undefined, { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+  expect((await readSigninInstallation(page)).pending).toBeDefined()
   const prepared = await read()
   expect(prepared.decision.status).toBe('preparing')
   expect(prepared.journalVersion).toBe(2)
@@ -163,4 +171,55 @@ for (const remember of [true, false]) test(`pending recovery Merge resumes befor
   }
   await expect(sync).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
   expect(await read()).toMatchObject({ decision: completed.decision, activation: completed.activation, copies: completed.copies })
+})
+
+for (const reply of ['prepare', 'release'] as const) test(`merge worker lost ${reply} reply recovers across reload at its durable boundary`, async ({ page }) => {
+  test.setTimeout(240_000)
+  const email = await register(page)
+  await page.goto(`${app}?fixture-setup=1#/settings/account`)
+  await page.waitForFunction(() => !!(window as any).accountBootstrapProof)
+  await page.evaluate(() => (window as any).accountBootstrapProof.seedEmptyGuestControl())
+  await page.getByRole('button', { name: 'Continue using this device', exact: true }).click()
+  await page.waitForFunction(() => !!(window as any).workspaceProof, undefined, { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+  await expect(page.getByRole('button', { name: 'Account', exact: true }).first()).toBeVisible()
+  await page.reload()
+  await page.getByRole('button', { name: 'Account', exact: true }).first().click()
+  await signIn(page, email)
+  await expect(page.getByRole('heading', { name: 'Choose what to keep', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+  await holdSigninWorkerReply(page, reply)
+  await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Confirm merge', exact: true })).toBeEnabled({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+  const before = await readSigninInstallation(page)
+  expect(before.pending).toBeUndefined(); expect(before.reservations).toEqual([])
+  await page.getByRole('button', { name: 'Confirm merge', exact: true }).click()
+  await page.waitForFunction(reply => (window as any).signinWorkerReplyHeld === reply, reply, { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+  const interrupted = await readSigninInstallation(page)
+  expect(interrupted.active).toEqual(before.active)
+  if (reply === 'prepare') {
+    expect(interrupted.pending).toBeUndefined(); expect(interrupted.receipts).toEqual(before.receipts)
+    // Confirm refreshes independent remote metadata before issuing worker preparation
+    // The authenticated operation inventory, not a global revision count, defines inert output
+    const operation = await page.evaluate(() => (window as any).accountBootstrapProof.signinPreparationState((window as any).signinWorkerHeldValue))
+    expect(operation).toMatchObject({ exactReservationSet: true, installedOutputs: 0, savedJournal: undefined })
+    expect(operation.outputCount).toBeGreaterThan(0); expect(interrupted.reservations.length).toBeGreaterThan(0)
+    for (const revision of before.revisions) expect(interrupted.revisions).toContain(revision)
+    for (const chunk of before.ciphertext) expect(interrupted.ciphertext).toContainEqual(chunk)
+  } else {
+    expect(interrupted.pending).toBeDefined(); expect(interrupted.receipts).toHaveLength(1)
+    expect(interrupted.reservations).toEqual([]); expect(interrupted.revisions.length).toBeGreaterThan(before.revisions.length)
+  }
+  await page.reload()
+  await signIn(page, email)
+  if (reply === 'prepare') {
+    await expect(page.getByRole('heading', { name: 'Choose what to keep', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+    expect((await readSigninInstallation(page)).reservations).toEqual([])
+    await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
+  }
+  await expect(page.getByRole('button', { name: 'Confirm merge', exact: true })).toBeEnabled({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+  await page.getByRole('button', { name: 'Confirm merge', exact: true }).click()
+  await expect(page.getByRole('complementary', { name: 'Account sync' })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+  const after = await readSigninInstallation(page)
+  expect(after.active.headRevision).toBe(before.active.headRevision + 1)
+  expect(after.pending).toBeUndefined(); expect(after.reservations).toEqual([])
+  if (reply === 'release') for (const revision of interrupted.revisions) expect(after.revisions).toContain(revision)
 })

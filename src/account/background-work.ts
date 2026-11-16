@@ -15,7 +15,7 @@ function state(token: ProfileToken): WorkState {
 }
 
 // Scheduling state grants no storage authority; every resumed unit still checks its captured profile
-// Only the mapper worker installs a checkpoint, so foreground crypto does not wait on its own pause
+// Only dedicated account workers install a checkpoint, so foreground crypto does not wait on its own pause
 export function installAccountWorkCheckpoint(token: ProfileToken, checkpoint: () => Promise<void>): void {
   const value = state(token)
   if (value.checkpoint) throw new Error('Background work already has a captured scheduler')

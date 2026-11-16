@@ -20,6 +20,8 @@ interface Actions {
   reconnect?(): Promise<void>
 }
 const reasons: Record<string, string> = {
+  'resource-limit': 'This merge exceeds the background preparation limit. Your saved work is retained. You can retry or continue with local data.',
+  'coordination-unavailable': 'This browser could not coordinate background preparation. Your saved work is retained. You can retry or continue with local data.',
   quota: 'Preparation reached a recovery point limit or a storage limit. Pending recovery points stay protected: finish syncing or review pending replacements before retrying. Completed points can be retired when eligible; storage limits also require enough free space. A private backup preserves your data but does not free capacity.',
   'signin-required': 'This account is unlocked locally. Reconnect online access to review current account data. If reconnect fails, return to the workspace and sign in again.',
   offline: 'Fresh account data is unavailable offline. Reconnect to review a merge or replacement. An already admitted account copy can still be opened.',
@@ -67,6 +69,7 @@ const preparationLabels: Record<SigninPreparationStage, string> = {
   'checking-source': 'Checking source records and retained history...',
   'comparing-records': 'Comparing source and account records...',
   'preparing-review': 'Preparing saved versions for review...',
+  'preparing-mapping': 'Preparing saved account records for comparison...',
   'preparing-merge': 'Preparing your confirmed merge...',
 }
 

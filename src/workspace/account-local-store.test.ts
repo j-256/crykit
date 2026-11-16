@@ -77,3 +77,19 @@ it('activates a fully encrypted managed root and rejects forged or stale admissi
     expect(await database.profileMeta.get('active')).toEqual(fence)
   } finally { await store.dispose(); database.close(); invalidateProfile() }
 }, 15_000)
+
+it('keeps reserved small local stages inert and exports only its own complete inventory', async () => {
+  const token = installProfile(accountLocalId(), new Uint8Array(32)), database = new AccountDatabase(token.accountId)
+  const operationId = accountLocalId(), store = createAccountLocalStore(database, token, { operationId, check() {} })
+  try {
+    const { memoryBlob } = await import('./blobs')
+    const ref = await store.adapter.stage(operationId, memoryBlob(new Uint8Array([1, 2, 3])), [])
+    expect(await database.encryptedRevisions.count()).toBe(0)
+    expect(await database.stagedCipherChunks.count()).toBe(1)
+    expect(await database.preparationPayloads.count()).toBe(1)
+    expect(store.stagedRecords(operationId)).toEqual([expect.objectContaining({ revisionId: ref.revisionId })])
+    await expect(store.persistOperation(operationId, async () => {}, () => {})).rejects.toThrow(/inert/)
+    await store.dispose()
+    expect(await database.stagedCipherChunks.count()).toBe(1)
+  } finally { await store.dispose(); await database.delete(); invalidateProfile() }
+})
