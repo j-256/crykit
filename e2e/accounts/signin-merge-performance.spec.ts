@@ -1,7 +1,7 @@
 import { performance } from 'node:perf_hooks'
 import { ApiErrorSchema } from '../../src/account/protocol'
 import { expect, test } from './test-fixture'
-import { ACCOUNT_PREPARATION_TIMEOUT_MS, installSigninMergeResponsivenessProbe, observeSigninMergeReadback, readSigninMergeResponsivenessProbe, SIGNIN_MERGE_INPUT_TO_PAINT_TARGET_MS, SIGNIN_MERGE_REVIEW_TARGET_MS } from './signin-helpers'
+import { ACCOUNT_PREPARATION_TIMEOUT_MS, assessSigninMergeResponsiveness, installSigninMergeResponsivenessProbe, observeSigninMergeReadback, readSigninMergeResponsivenessProbe, SIGNIN_MERGE_INPUT_TO_PAINT_TARGET_MS, SIGNIN_MERGE_REVIEW_TARGET_MS } from './signin-helpers'
 
 const app = '/__accounts-proof/account-workspace.html'
 const password = 'synthetic merge measurement password'
@@ -85,6 +85,8 @@ for (const fixture of ['default-guest', 'empty-control'] as const) test(`complet
         await expect(page.getByRole('button', { name: 'Confirm merge', exact: true })).toBeEnabled({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
         await input
       })
+      report.pendingInputProbeAtReview = assessSigninMergeResponsiveness(await readSigninMergeResponsivenessProbe(page))
+      expect(report.pendingInputProbeAtReview.receiptStatus, 'Require a trusted input received during preparation and its paint receipt').toBe('pending')
       await span('confirm-to-interactive-local-open', async () => {
         await page.getByRole('button', { name: 'Confirm merge', exact: true }).click()
         await expect(page.getByRole('complementary', { name: 'Account sync' })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
@@ -114,9 +116,12 @@ for (const fixture of ['default-guest', 'empty-control'] as const) test(`complet
       report.responsiveness = await readSigninMergeResponsivenessProbe(page).catch(() => null)
       await page.evaluate(() => (window as any).signinMergeResponsiveness?.stop()).catch(() => {})
     }
+    // Late timing delivery can fill an admitted sample, but cannot rescue a missing or off-phase required receipt
+    report.pendingInputProbe = report.pendingInputProbeAtReview && report.pendingInputProbeAtReview.receiptStatus !== 'pending'
+      ? report.pendingInputProbeAtReview : assessSigninMergeResponsiveness(report.responsiveness ?? null)
     const review = report.phases.find((phase: any) => phase.name === 'merge-to-interactive-review')
     report.budgets = { review: review?.outcome === 'complete' ? review.elapsedMs <= SIGNIN_MERGE_REVIEW_TARGET_MS : null,
-      sampledInputToPaint: report.responsiveness?.events.length ? Math.max(...report.responsiveness.events.map((event: any) => event.duration)) <= SIGNIN_MERGE_INPUT_TO_PAINT_TARGET_MS : null, wholePreparationResponsiveness: null }
+      sampledInputToPaint: report.pendingInputProbe.sampledInputToPaint, wholePreparationResponsiveness: null }
     await testInfo.attach('signin-merge-measurement', { body: JSON.stringify(report), contentType: 'application/json' })
   }
 })
