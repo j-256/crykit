@@ -1291,6 +1291,32 @@ it('transfers nonempty C and D twice while preserving borrowed ciphertext and an
   } finally { await candidate.dispose(); await parent.abandon(); await f.close() }
 })
 
+it('rejects transferring a reused installed C root without adopting or deleting borrowed records', async () => {
+  const f = await inactiveFixture()
+  const { completeInactiveCandidate, exactAccountTables } = await import('./account-inactive-test-helpers')
+  const { createAccountPreparationOwner } = await import('../workspace/account-prepared-records')
+  const parent = createAccountPreparationOwner(f.database, f.token)
+  await f.database.encryptedRevisions.bulkAdd([...f.blank.records])
+  const candidate = await completeInactiveCandidate(f.database, f.token, f.blank.opened, true)
+  try {
+    await f.database.encryptedRevisions.bulkAdd([...candidate.evidence.records])
+    const before = await exactAccountTables(f.database)
+    const child = await f.createAccountInheritedEvidencePreparation(f.database, f.token).prepare({ base: candidate.inherited })
+    try {
+      expect(child.root).toEqual(candidate.evidence.root)
+      expect(child.records).toEqual([])
+      expect(child.owner.prepared(child.root)).toBeUndefined()
+      const adopt = vi.spyOn(parent, 'adopt')
+      await expect(f.inactive.adoptInactiveAccountEvidence(f.database, f.token, child, parent, f.blank.opened)).rejects.toThrow('Inactive workspace origin or source association changed')
+      expect(adopt).not.toHaveBeenCalled()
+      await child.handle.check(); parent.check(); await candidate.opened.check()
+      await child.dispose()
+      expect(isDeepStrictEqual(await exactAccountTables(f.database), before), 'Exact binary data and metadata').toBe(true)
+      await candidate.inherited.check()
+    } finally { await child.dispose() }
+  } finally { vi.restoreAllMocks(); await candidate.dispose(); await parent.abandon(); await f.close() }
+})
+
 it.each(['C-root', 'C-descendant', 'C-final', 'D-root', 'D-descendant', 'D-C-root', 'D-C-descendant', 'D-final'] as const)(
   'abandons transferred allocations after real %s authentication failure and retains cleanup retry', async phase => {
     const f = await inactiveFixture()
@@ -1300,9 +1326,13 @@ it.each(['C-root', 'C-descendant', 'C-final', 'D-root', 'D-descendant', 'D-C-roo
     const streams = await import('../workspace/account-streams')
     const graph = await import('../workspace/account-graph')
     const evidenceApi = await import('../workspace/account-evidence-snapshots')
+    const { inheritWorkspaceSnapshot } = await import('../interchange/workspace-backup')
+    const { disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
     const parent = createAccountPreparationOwner(f.database, f.token)
     await f.database.encryptedRevisions.bulkAdd([...f.blank.records])
     const candidate = await completeInactiveCandidate(f.database, f.token, f.blank.opened, true)
+    const current = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1 as const, snapshotId: 'transfer-C-current', capturedAt: '2026-10-13', revisionVector: {}, state: f.blank.opened.workspace.state }
+    const addition = phase.startsWith('C-') ? await inheritWorkspaceSnapshot(current, [{ ...current, snapshotId: 'transfer-C-new-original' }]) : undefined
     let cleanupDenied = false, transferred = false, injected = false
     const transaction = f.database.transaction.bind(f.database)
     try {
@@ -1311,7 +1341,14 @@ it.each(['C-root', 'C-descendant', 'C-final', 'D-root', 'D-descendant', 'D-C-roo
       const baseline = await exactAccountTables(f.database)
       const keep = new Set((await f.database.encryptedRevisions.toArray()).map(record => record.payloadId))
       const keepChunks = (await f.database.stagedCipherChunks.toArray()).filter(chunk => keep.has(chunk.payloadId))
-      const childC = phase.startsWith('C-') ? await f.createAccountInheritedEvidencePreparation(f.database, f.token).prepare({ base: candidate.inherited }) : undefined
+      // Installed unchanged evidence legitimately allocates nothing and cannot exercise ownership transfer
+      const childC = addition ? await f.createAccountInheritedEvidencePreparation(f.database, f.token).prepare({ base: candidate.inherited, additions: [addition] }) : undefined
+      if (childC) {
+        expect(childC.root).not.toEqual(candidate.evidence.root)
+        expect(childC.records.length).toBeGreaterThan(0)
+        expect(childC.owner.prepared(childC.root)).toBeDefined()
+        expect(childC.handle.members).toHaveLength(candidate.inherited.members.length + 1)
+      }
       await candidate.inherited.dispose()
       const adopt = parent.adopt.bind(parent)
       vi.spyOn(parent, 'adopt').mockImplementation(async owner => { await adopt(owner); transferred = true })
@@ -1367,7 +1404,7 @@ it.each(['C-root', 'C-descendant', 'C-final', 'D-root', 'D-descendant', 'D-C-roo
       await borrowed.check(); await borrowed.dispose()
       expect((await evidenceApi.accountInheritedSources(borrowedEvidence)).members).toHaveLength(1)
       await borrowedEvidence.check(); await borrowedEvidence.dispose()
-    } finally { cleanupDenied = false; vi.restoreAllMocks(); await candidate.dispose(); await parent.abandon(); await f.close() }
+    } finally { cleanupDenied = false; vi.restoreAllMocks(); await candidate.dispose(); await parent.abandon(); if (addition) await disposeWorkspaceSnapshot(addition); await f.close() }
   },
 )
 
