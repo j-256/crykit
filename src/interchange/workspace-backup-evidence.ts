@@ -17,6 +17,7 @@ type BlobEntry = WorkspaceState['blobs'][number]
 interface CapturedEvidence { readonly current: BlobSource; readonly historical: ReadonlyMap<string, BlobSource>; readonly blobs: readonly BlobEntry[]; readonly catalogBodies?: readonly BlobEntry[] }
 const captured = new WeakMap<WorkspaceSnapshot, CapturedEvidence>()
 const ID_DOMAIN = new TextEncoder().encode('crykit/historical-snapshot/v1\0')
+const COMPACT_ID_DOMAIN = new TextEncoder().encode('crykit/historical-snapshot/v2\0')
 const CAPTURE_METADATA_PAGE_BYTES = WORKSPACE_BACKUP_LIMITS.payload
 const compare = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0
 export const compareBackupRefs = (a: WorkspaceBlobRef, b: WorkspaceBlobRef) => compare(a.documentId, b.documentId) || compare(a.revisionId, b.revisionId)
@@ -75,12 +76,12 @@ export async function historicalEvidenceId(content: BlobSource): Promise<string>
   return hashBlob({ byteLength: ID_DOMAIN.length + content.byteLength, async *open() { yield ID_DOMAIN; yield* content.open() } })
 }
 // Both identities describe one traversal of the exact stored bytes, even for a mutable input source
-export async function historicalMetadataIdentity(content: BlobSource): Promise<{ id: string; metadataStreamDigest: string }> {
+export async function historicalMetadataIdentity(content: BlobSource, format: 'legacy-v1' | 'compact-v2' = 'legacy-v1'): Promise<{ id: string; metadataStreamDigest: string }> {
   const sodium = await getSodium()
   const identity = sodium.crypto_hash_sha256_init(), stream = sodium.crypto_hash_sha256_init()
   const live = new Set([identity, stream])
   try {
-    sodium.crypto_hash_sha256_update(identity, ID_DOMAIN)
+    sodium.crypto_hash_sha256_update(identity, format === 'legacy-v1' ? ID_DOMAIN : COMPACT_ID_DOMAIN)
     let length = 0
     for await (const chunk of content.open()) {
       length += chunk.length

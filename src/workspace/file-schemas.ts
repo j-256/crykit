@@ -16,7 +16,11 @@ export const ClosureSchema = z.object({ version: z.literal(1), root: ref, index:
 export const AncestorSchema = z.discriminatedUnion('kind', [z.object({ kind: z.literal('absent') }).strict(), z.object({ kind: z.literal('present'), closure: ClosureSchema }).strict()])
 export const UnitSchema = z.discriminatedUnion('kind', [z.object({ kind: z.literal('record'), privateKey: text }).strict(), z.object({ kind: z.literal('directory-mapping'), privateKey: text, shard: integer.max(63) }).strict()])
 // The optional versioned association preserves existing conflict records while retaining exact cross-ID originals
-const ProgressIdentitySchema = z.object({ version: z.literal(1), sourceKey: text, destinationKey: text, sourceIdentity: z.string().regex(/^[a-f0-9]{64}$/), sourceDigest: z.string().regex(/^[a-f0-9]{64}$/), sourceMetadata: WorkspaceBlobRefSchema }).strict()
+const ProgressIdentityV1Schema = z.object({ version: z.literal(1), sourceKey: text, destinationKey: text, sourceIdentity: z.string().regex(/^[a-f0-9]{64}$/), sourceDigest: z.string().regex(/^[a-f0-9]{64}$/), sourceMetadata: WorkspaceBlobRefSchema }).strict()
+const ProgressIdentitySchema = z.discriminatedUnion('version', [
+  ProgressIdentityV1Schema,
+  ProgressIdentityV1Schema.extend({ version: z.literal(2), sourceFormat: z.literal('compact-v2'), catalogBodies: z.array(z.object({ source: WorkspaceBlobRefSchema, retained: WorkspaceBlobRefSchema }).strict()) }).strict(),
+])
 export const WorkspaceConflictSchema = z.object({ version: z.literal(1), id: text, unit: UnitSchema, progressIdentity: ProgressIdentitySchema.optional(), commonAncestor: AncestorSchema, branches: z.tuple([z.object({ role: z.literal('local-pending'), closure: ClosureSchema }).strict(), z.object({ role: z.literal('accepted-cloud'), closure: ClosureSchema }).strict()]), disposition: z.discriminatedUnion('kind', [z.object({ kind: z.literal('unresolved') }).strict(), z.object({ kind: z.literal('resolved'), choice: z.enum(['this', 'other', 'both']), result: ClosureSchema }).strict()]) }).strict()
 export const WorkspaceRetainedContentSchema = z.discriminatedUnion('kind', [
   z.object({ version: z.literal(1), kind: z.literal('file-history'), id: text, fileKind: z.enum(['editor', 'save']), documentId: text, retainedAt: text, retention: z.enum(['protected', 'autosave-recovery']), content: ClosureSchema }).strict(),

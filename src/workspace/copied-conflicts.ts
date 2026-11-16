@@ -1,14 +1,17 @@
 import { managedComparisonMappingBinding, type ManagedComparisonMappingProof } from './managed-copy-comparisons'
 import { jsonEqual } from '../persistence/local-data'
 import { SigninProgressMappingSchema, projectSigninProgress, type SigninProgressMapping } from './signin-progress'
-import { blobIdentity, hashBlob } from './blobs'
+import { blobIdentity, hashBlob, verifiedBlob } from './blobs'
+import { equalMetadataStreams } from '../interchange/workspace-backup-evidence'
 import { workspaceDocumentSource } from './document-codec'
 import { reconstructCopiedMapping } from './copied-mapping'
 import { inspectWorkspaceClosure } from './closure'
-import { splitWorkspace } from './documents'
+import { splitWorkspace, type WorkspaceBlobRef, type WorkspaceState } from './documents'
 import { resolvedDomainClosureKeys } from './domain-closure'
 import { assertOwnedWorkspaceSnapshot, type WorkspaceSnapshot } from './snapshot'
-import { capturedBackupEvidence, historicalMetadataIdentity } from '../interchange/workspace-backup-evidence'
+import { historicalSourceIdentity, type HistoricalMemberFormat } from '../interchange/workspace-backup-catalog'
+import { capturedCopyOriginal } from './guest-evidence'
+import { comparisonOriginal } from './comparison-original'
 import { assertAccountInheritedEvidenceOwner, openAccountInheritedEvidence } from './account-evidence-snapshots'
 import { applicableCopiedComparisons, copiedBranchState } from './copied-branch'
 import { prepareAccountWorkspaceWithEvidence, prepareAccountWorkspaceWithExistingEvidence } from './account-graph'
@@ -33,9 +36,17 @@ import type { RemoteProjection } from '../account/sync/projection'
 import type { ConvergenceResult } from '../account/sync/convergence'
 import { SyncError } from '../account/sync/client'
 
-const RegistrationSchema = z.strictObject({ id: OpaqueIdSchema, privateKey: z.string().min(1), source: CipherRefSchema, destination: CipherRefSchema, sourceIdentity: z.string().regex(/^[a-f0-9]{64}$/), sourceDigest: z.string().regex(/^[a-f0-9]{64}$/), mode: z.enum(['additive', 'replace']), original: z.strictObject({ conflictId: z.string(), source: CipherRefSchema, accepted: CipherRefSchema, collisionId: OpaqueIdSchema }).optional(), phase: z.literal('awaiting-destination-publication'), progressMapping: SigninProgressMappingSchema.extend({ originalSource: CipherRefSchema }).optional() })
-const PageSchema = z.strictObject({ version: z.literal(1), kind: z.literal('copied-conflict-page'), operationId: OpaqueIdSchema, entries: z.array(RegistrationSchema), children: z.array(CipherRefSchema) }).refine(page => page.entries.length + page.children.length <= INDEX_PAGE_ENTRIES)
+const LegacyRegistrationSchema = z.strictObject({ id: OpaqueIdSchema, privateKey: z.string().min(1), source: CipherRefSchema, destination: CipherRefSchema, sourceIdentity: z.string().regex(/^[a-f0-9]{64}$/), sourceDigest: z.string().regex(/^[a-f0-9]{64}$/), mode: z.enum(['additive', 'replace']), original: z.strictObject({ conflictId: z.string(), source: CipherRefSchema, accepted: CipherRefSchema, collisionId: OpaqueIdSchema }).optional(), phase: z.literal('awaiting-destination-publication'), progressMapping: SigninProgressMappingSchema.extend({ originalSource: CipherRefSchema }).optional() })
+const CompactRegistrationSchema = LegacyRegistrationSchema.extend({ sourceFormat: z.enum(['legacy-v1', 'compact-v2']) }).strict()
+const RegistrationSchema = z.union([LegacyRegistrationSchema, CompactRegistrationSchema])
+const pageFields = { kind: z.literal('copied-conflict-page'), operationId: OpaqueIdSchema }
+// Old pages have implicit legacy semantics; every new page entry carries its own format binding
+const PageSchema = z.discriminatedUnion('version', [
+  z.strictObject({ version: z.literal(1), ...pageFields, entries: z.array(LegacyRegistrationSchema), children: z.array(CipherRefSchema) }),
+  z.strictObject({ version: z.literal(2), ...pageFields, entries: z.array(CompactRegistrationSchema), children: z.array(CipherRefSchema) }),
+]).refine(page => page.entries.length + page.children.length <= INDEX_PAGE_ENTRIES)
 export type CopiedConflictRegistration = z.infer<typeof RegistrationSchema>
+const originalFormat = (entry: CopiedConflictRegistration): HistoricalMemberFormat => 'sourceFormat' in entry ? entry.sourceFormat : 'legacy-v1'
 
 // A registration refers only to destination-encrypted graphs. Source publication IDs remain inert
 // inside inherited evidence and never authorize destination envelope parents
@@ -44,17 +55,17 @@ export async function prepareCopiedConflicts(database: AccountDatabase, token: P
   await assertOwnedWorkspaceSnapshot(input.snapshot)
   await assertAccountInheritedEvidenceOwner(input.evidence.handle, database, token)
   if (input.source.state !== input.snapshot.state) throw new Error('Copied source is not the owned selected snapshot')
-  const identity = await historicalMetadataIdentity(capturedBackupEvidence(input.snapshot).current)
-  if (!input.evidence.handle.members.some(member => member.id === identity.id)) throw new Error('Copied originals are not retained by the selected evidence root')
-  return buildCopiedConflicts(database, token, input, { sourceIdentity: identity.id, sourceDigest: identity.metadataStreamDigest, mode: input.mode })
+  const member = await capturedCopyOriginal(input.snapshot), identity = await historicalSourceIdentity(member.format, member.metadata)
+  if (!input.evidence.handle.members.some(value => ('format' in value ? value.format : 'legacy-v1') === member.format && value.id === identity.id)) throw new Error('Copied originals are not retained by the selected evidence root')
+  return buildCopiedConflicts(database, token, input, { ...(member.format === 'compact-v2' ? { sourceFormat: member.format } : {}), sourceIdentity: identity.id, sourceDigest: identity.metadataStreamDigest, mode: input.mode })
 }
 
 export async function prepareManagedCopiedConflicts(database: AccountDatabase, token: ProfileToken, proof: ManagedComparisonMappingProof) {
   const admitted = await managedComparisonMappingBinding(proof, database, token)
-  return buildCopiedConflicts(database, token, { operationId: admitted.value.operationId, source: admitted.source, destination: admitted.destination, keys: admitted.value.keys, evidence: admitted.evidence, mode: admitted.value.mode, progressMappings: admitted.value.progressMappings.filter(mapping => !mapping.equivalent) }, { sourceIdentity: admitted.value.sourceIdentity, sourceDigest: admitted.value.sourceDigest, mode: admitted.value.mode })
+  return buildCopiedConflicts(database, token, { operationId: admitted.value.operationId, source: admitted.source, destination: admitted.destination, keys: admitted.value.keys, evidence: admitted.evidence, mode: admitted.value.mode, progressMappings: admitted.value.progressMappings.filter(mapping => !mapping.equivalent) }, { ...(admitted.value.version === 2 ? { sourceFormat: admitted.value.sourceFormat } : {}), sourceIdentity: admitted.value.sourceIdentity, sourceDigest: admitted.value.sourceDigest, mode: admitted.value.mode })
 }
 
-async function buildCopiedConflicts(database: AccountDatabase, token: ProfileToken, input: { operationId: string; source: OpenAccountWorkspace; destination: OpenAccountWorkspace; keys: readonly string[]; owner?: AccountPreparationOwner; evidence: PreparedAccountInheritedEvidence | AccountInheritedEvidence; mode: 'additive' | 'replace'; progressMappings?: readonly SigninProgressMapping[] }, binding: { sourceIdentity: string; sourceDigest: string; mode: 'additive' | 'replace' }) {
+async function buildCopiedConflicts(database: AccountDatabase, token: ProfileToken, input: { operationId: string; source: OpenAccountWorkspace; destination: OpenAccountWorkspace; keys: readonly string[]; owner?: AccountPreparationOwner; evidence: PreparedAccountInheritedEvidence | AccountInheritedEvidence; mode: 'additive' | 'replace'; progressMappings?: readonly SigninProgressMapping[] }, binding: { sourceFormat?: HistoricalMemberFormat; sourceIdentity: string; sourceDigest: string; mode: 'additive' | 'replace' }) {
   const prepare = (state: import('./documents').WorkspaceState, previous?: OpenAccountWorkspace, allocations?: OpenAccountWorkspace['allocations']) => 'handle' in input.evidence
     ? prepareAccountWorkspaceWithEvidence(database, token, state, input.evidence, previous, allocations)
     : prepareAccountWorkspaceWithExistingEvidence(database, token, state, input.evidence, previous, allocations)
@@ -92,12 +103,14 @@ async function buildCopiedConflicts(database: AccountDatabase, token: ProfileTok
 }
 export async function stageCopiedConflictRegistrations(database: AccountDatabase, token: ProfileToken, operationId: string, entries: readonly CopiedConflictRegistration[], owner?: AccountPreparationOwner): Promise<{ root: CipherRef; records: readonly CipherRecord[] }> {
   const records: CipherRecord[] = []
+  const version = entries.some(entry => 'sourceFormat' in entry) ? 2 : 1
+  const pageValue = (page: { entries: readonly CopiedConflictRegistration[]; children: readonly CipherRef[] }) => ({ ...page, version, kind: 'copied-conflict-page', operationId, entries: version === 2 ? page.entries.map(entry => ({ ...entry, sourceFormat: originalFormat(entry) })) : page.entries })
   const root = await buildIndexPages(entries, async page => {
-    const value = PageSchema.parse({ ...page, kind: 'copied-conflict-page', operationId })
+    const value = PageSchema.parse(pageValue(page))
     const refs = [...new Map([...page.children, ...page.entries.flatMap(entry => [entry.source, entry.destination, ...(entry.progressMapping ? [entry.progressMapping.originalSource] : []), ...(entry.original ? [entry.original.source, entry.original.accepted] : [])])].map(ref => [JSON.stringify(ref), ref])).values()]
     const record = await stageAccountJson(database, token, value, refs, undefined, owner)
     records.push(record); return cipherRef(record)
-  }, page => new TextEncoder().encode(JSON.stringify({ ...page, kind: 'copied-conflict-page', operationId })).length)
+  }, page => new TextEncoder().encode(JSON.stringify(pageValue(page))).length)
   return { root, records }
 }
 
@@ -138,8 +151,7 @@ async function readRegistrations(database: AccountDatabase, token: ProfileToken,
       try {
         const { accountInheritedSources } = await import('./account-evidence-snapshots')
         const members = await accountInheritedSources(evidence)
-        const member = members.members.find(value => value.id === entry.sourceIdentity)
-        if (!member || (await historicalMetadataIdentity(member.metadata)).metadataStreamDigest !== entry.sourceDigest) throw new Error('Copied source metadata identity mismatch')
+        await comparisonOriginal(members, { ...entry, sourceFormat: originalFormat(entry) })
         if (entry.progressMapping) {
           if (entry.original || entry.progressMapping.destinationKey !== entry.privateKey || entry.progressMapping.equivalent) throw new Error('Invalid Progress comparison registration')
           const { originalSource: _originalSource, ...mapping } = entry.progressMapping
@@ -180,7 +192,31 @@ async function readRegistrations(database: AccountDatabase, token: ProfileToken,
 
 export async function prepareCopiedConflictPublication(database: AccountDatabase, token: ProfileToken, intent: MappedWorkspaceIntent, target: OpenAccountWorkspace, remote: RemoteProjection, existing?: ConvergenceResult): Promise<ConvergenceResult> {
   const originalReaders: Awaited<ReturnType<typeof openAccountInheritedEvidence>>[] = []
-  const metadataBodies = new Map<string, import('./documents').WorkspaceState['blobs'][number]>()
+  const metadataBodies = new Map<string, WorkspaceState['blobs'][number]>()
+  async function retainCatalogBodies(catalogs: readonly { source: WorkspaceBlobRef; body: WorkspaceState['blobs'][number] }[], occupied: WorkspaceState['blobs'], nativeBindings = false) {
+    const bodies = [...occupied, ...metadataBodies.values()]
+    const keys = new Set(bodies.map(body => blobIdentity(body.ref)))
+    const bindings: { source: WorkspaceBlobRef; retained: WorkspaceBlobRef }[] = []
+    for (const { source, body } of catalogs) {
+      assertActiveProfile(token)
+      const existing = nativeBindings ? bodies.find(value => blobIdentity(value.ref) === blobIdentity(body.ref)) : undefined
+      // A recopied binding is already native; keep it only after complete authenticated byte
+      // comparison so copying cannot leave duplicate catalog bodies behind or trust a claimed hash
+      const same = existing && jsonEqual(existing.ref, body.ref) && await equalMetadataStreams(verifiedBlob(existing.content, existing.ref.sha256), verifiedBlob(body.content, body.ref.sha256))
+      assertActiveProfile(token)
+      let retained: WorkspaceBlobRef
+      if (same) retained = existing.ref
+      else {
+        // Catalog and native source identities are separate roles and may legally collide
+        // Allocate a native storage identity without rewriting the historical catalog reference
+        do { retained = { documentId: accountLocalId(), revisionId: accountLocalId(), byteLength: source.byteLength, sha256: source.sha256, encoding: source.encoding } } while (keys.has(blobIdentity(retained)))
+      }
+      keys.add(blobIdentity(retained))
+      metadataBodies.set(`catalog:${blobIdentity(retained)}`, { ref: retained, content: body.content })
+      bindings.push({ source, retained })
+    }
+    return bindings
+  }
   try {
     const reader = createCopiedConflictReader(database, token)
     const entries = await reader.registrations(intent)
@@ -212,7 +248,7 @@ export async function prepareCopiedConflictPublication(database: AccountDatabase
       }
       let conflictId = entry.id, mapping = false
       let progressIdentity: import('./documents').WorkspaceConflict['progressIdentity']
-      let inheritedProgressBody: import('./documents').WorkspaceState['blobs'][number] | undefined
+      let inheritedProgressBodies: import('./documents').WorkspaceState['blobs'] = []
       if (entry.original) {
         const imported = await reader.workspace(entry.original.accepted)
         const compatible = compatibleCopiedBase(imported, remote.workspace, entry.privateKey)
@@ -226,7 +262,11 @@ export async function prepareCopiedConflictPublication(database: AccountDatabase
           // Only the reconstructed original pending branch carries this proof; the temporary
           // imported-base collision compares different values and must not inherit its mapping
           progressIdentity = original.progressIdentity
-          if (progressIdentity) inheritedProgressBody = originals.state.blobs.find(body => blobIdentity(body.ref) === blobIdentity(progressIdentity!.sourceMetadata))
+          if (progressIdentity) inheritedProgressBodies = [progressIdentity.sourceMetadata, ...(progressIdentity.version === 2 ? progressIdentity.catalogBodies.map(binding => binding.retained) : [])].map(ref => {
+            const body = originals.state.blobs.find(body => blobIdentity(body.ref) === blobIdentity(ref))
+            if (!body || !jsonEqual(ref, body.ref)) throw new Error('Copied Progress original body is missing')
+            return body
+          })
         }
         if (retained.conflicts.some(value => value.id === conflictId)) continue
       } else if (anchor) {
@@ -263,21 +303,30 @@ export async function prepareCopiedConflictPublication(database: AccountDatabase
       const authority: ConflictAuthority = { version: 1, unit: { kind: 'record', privateKey: entry.privateKey }, lineageId: remote.lineageId, commonAncestor: { kind: 'present', publication: ancestor }, branches: [{ role: 'local-pending', publication: await readOriginalPublication(database, token, envelope) }, { role: 'accepted-cloud', publication: ancestor }] }
       const captured = await createWorkspaceConflict({ base: remote.workspace, local: pending.opened, remote: { ...remote.workspace, state: retained }, privateKey: entry.privateKey, authority })
       if (progressIdentity) {
-        if (!inheritedProgressBody) throw new Error('Copied Progress original metadata is missing')
-        metadataBodies.set(progressIdentity.sourceIdentity, inheritedProgressBody)
+        const metadata = inheritedProgressBodies[0]
+        metadataBodies.set(`retained:${blobIdentity(metadata.ref)}`, metadata)
+        if (progressIdentity.version === 2) {
+          // Existing native bindings may survive recopy only with exact captured-body evidence
+          const catalogs = progressIdentity.catalogBodies.map((binding, index) => ({ source: binding.source, body: inheritedProgressBodies[index + 1] }))
+          progressIdentity = { ...progressIdentity, catalogBodies: await retainCatalogBodies(catalogs, captured.blobs, true) }
+        }
       }
       if (entry.progressMapping) {
+        const original = await reader.workspace(entry.progressMapping.originalSource)
+        const evidence = await openAccountInheritedEvidence(database, token, original.inheritedEvidence!)
+        originalReaders.push(evidence)
+        const { accountInheritedSources } = await import('./account-evidence-snapshots')
+        const retainedOriginal = await comparisonOriginal(await accountInheritedSources(evidence), { ...entry, sourceFormat: originalFormat(entry) })
         let body = metadataBodies.get(entry.sourceIdentity)
         if (!body) {
-          const original = await reader.workspace(entry.progressMapping.originalSource)
-          const evidence = await openAccountInheritedEvidence(database, token, original.inheritedEvidence!)
-          originalReaders.push(evidence)
-          const { accountInheritedSources } = await import('./account-evidence-snapshots')
-          const metadata = (await accountInheritedSources(evidence)).members.find(member => member.id === entry.sourceIdentity)!.metadata
+          const metadata = retainedOriginal.member.metadata
           body = { ref: { documentId: `progress-original:${entry.sourceIdentity}`, revisionId: entry.sourceDigest, byteLength: metadata.byteLength, sha256: entry.sourceDigest, encoding: 'bytes' }, content: metadata }
           metadataBodies.set(entry.sourceIdentity, body)
         }
-        progressIdentity = { version: 1, sourceKey: entry.progressMapping.sourceKey, destinationKey: entry.privateKey, sourceIdentity: entry.sourceIdentity, sourceDigest: entry.sourceDigest, sourceMetadata: body.ref }
+        const binding = { sourceKey: entry.progressMapping.sourceKey, destinationKey: entry.privateKey, sourceIdentity: entry.sourceIdentity, sourceDigest: entry.sourceDigest, sourceMetadata: body.ref }
+        progressIdentity = originalFormat(entry) === 'compact-v2'
+          ? { ...binding, version: 2, sourceFormat: 'compact-v2', catalogBodies: await retainCatalogBodies(retainedOriginal.catalogBodies.map(body => ({ source: body.ref, body })), captured.blobs) }
+          : { ...binding, version: 1 }
       }
       const conflict = { ...captured.conflict, id: conflictId, ...(progressIdentity ? { progressIdentity } : {}) }
       retained = { ...retained, conflicts: [...retained.conflicts, conflict], blobs: [...new Map([...captured.blobs, ...metadataBodies.values()].map(body => [blobIdentity(body.ref), body])).values()] }

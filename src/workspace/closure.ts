@@ -37,7 +37,7 @@ export function archiveTypedReferences(kind: WorkspaceDocument['kind'], value: u
   if (kind === 'conflict') {
     const conflict = WorkspaceConflictSchema.parse(value)
     const closures = [...(conflict.commonAncestor.kind === 'present' ? [conflict.commonAncestor.closure] : []), ...conflict.branches.map(branch => branch.closure), ...(conflict.disposition.kind === 'resolved' ? [conflict.disposition.result] : [])]
-    return [...closures.flatMap(closure => [closure.root, closure.index]), ...(conflict.progressIdentity ? [conflict.progressIdentity.sourceMetadata] : [])]
+    return [...closures.flatMap(closure => [closure.root, closure.index]), ...(conflict.progressIdentity ? [conflict.progressIdentity.sourceMetadata, ...(conflict.progressIdentity.version === 2 ? conflict.progressIdentity.catalogBodies.map(binding => binding.retained) : [])] : [])]
   }
   if (kind === 'retained-content') {
     const retained = WorkspaceRetainedContentSchema.parse(value)

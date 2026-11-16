@@ -12,7 +12,9 @@ export interface WorkspaceConflict {
   readonly unit: WorkspaceConflictUnit
   readonly commonAncestor: WorkspaceConflictAncestor
   readonly branches: readonly [WorkspaceConflictBranch, WorkspaceConflictBranch]
-  readonly progressIdentity?: { readonly version: 1; readonly sourceKey: string; readonly destinationKey: string; readonly sourceIdentity: string; readonly sourceDigest: string; readonly sourceMetadata: WorkspaceBlobRef }
+  readonly progressIdentity?: {
+    readonly sourceKey: string; readonly destinationKey: string; readonly sourceIdentity: string; readonly sourceDigest: string; readonly sourceMetadata: WorkspaceBlobRef
+  } & ({ readonly version: 1 } | { readonly version: 2; readonly sourceFormat: 'compact-v2'; readonly catalogBodies: readonly { readonly source: WorkspaceBlobRef; readonly retained: WorkspaceBlobRef }[] })
   readonly disposition: WorkspaceConflictDisposition
 }
 export interface WorkspaceConflictClosureEntry {

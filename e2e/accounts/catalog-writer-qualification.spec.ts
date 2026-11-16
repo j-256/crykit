@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto'
+import { loadAccountUpdate } from './workspace-updates'
+import { accountTableDigests, mergeInstallationBoundary } from './signin-qualification-storage'
+import { observeMappingQualificationExceptions } from './signin-mapping-exception-probe'
 import { expect, test, type Page } from './test-fixture'
-import { beginSeededAccount } from './signin-helpers'
+import { beginSeededAccount, mountSeededAccount, finishAccountSignin, ACCOUNT_PREPARATION_TIMEOUT_MS } from './signin-helpers'
 import { assertOldCompactAdmissionRefusal, captureOldSyncTerminal, OldSyncRefusal } from './catalog-writer-terminal'
 
 const app = '/__accounts-proof/account-workspace.html'
@@ -37,7 +40,7 @@ function alterFallback(input: number[], remove: boolean): number[] {
   throw new Error('Incomplete qualification archive')
 }
 
-async function oldAction(page: Page, action: 'prepare' | 'save' | 'sync' | 'export' | 'digests') {
+async function oldAction(page: Page, action: 'prepare' | 'save' | 'sync' | 'export' | 'digests' | 'editor') {
   return page.evaluate(async action => {
     if (!(window as any).oldCatalogFetchObserved) {
       const original = window.fetch.bind(window)
@@ -68,13 +71,26 @@ async function oldAction(page: Page, action: 'prepare' | 'save' | 'sync' | 'expo
       }
       const { openAccountManagedRepository } = await load('account-managed-repository-CKK6oBee.js')
       const repository = await openAccountManagedRepository(database, token, await database.profileMeta.get('active'))
+      if (action === 'editor') {
+        const state = await repository.readWorkspace(), file = state.editorDocuments.find((file: any) => file.id === 'editor-1')
+        if (!file) throw new Error('Missing shared synthetic native document')
+        const bytes = async (ref: any) => {
+          if (ref.byteLength > 1024) throw new Error('Unexpected synthetic editor body size')
+          const body = state.blobs.find((body: any) => body.ref.documentId === ref.documentId && body.ref.revisionId === ref.revisionId)
+          if (!body) throw new Error('Missing shared synthetic original')
+          const output: number[] = []
+          for await (const chunk of body.content.open()) output.push(...chunk)
+          return output
+        }
+        return { file, original: await bytes(file.original), draft: await bytes(file.unfinished.text) }
+      }
       if (action === 'prepare') { (window as any).oldCatalogQueued = { repository, loaded: await repository.load(), database }; return { prepared: true } }
       const snapshot = await (await load('snapshot-DPL1MswI.js')).i(repository)
       await (await load('snapshot-DPL1MswI.js')).a(snapshot)
       return { exported: true }
     } catch (error) {
       const value = error as { code?: string; name?: string; issues?: { path: unknown; code: string }[] }
-      return { failed: value.code ?? value.name ?? 'unknown', cachedCommitResponse: (window as any).oldCatalogCommitResponse, issues: value.issues?.map(issue => ({ path: issue.path, code: issue.code })) }
+      return { failed: value.code ?? value.name ?? 'unknown', message: error instanceof Error ? error.message.slice(0, 500) : undefined, cachedCommitResponse: (window as any).oldCatalogCommitResponse, issues: value.issues?.map(issue => ({ path: issue.path, code: issue.code })) }
     } finally { if (action !== 'prepare') database.close() }
   }, action)
 }
@@ -151,9 +167,10 @@ test('fences an old same-profile save and refuses compact export after Dexie unv
   await testInfo.attach('frozen-local-catalog-qualification', { body: JSON.stringify({ target, stale, exported, reopened, before, allCandidateTablesUnchanged: true, scope: 'same origin and profile, actual frozen exported functions; no claim about full old UI startup' }), contentType: 'application/json' })
 })
 
-for (const lostAcknowledgment of [false, true]) test(`preserves compact evidence when old saved transport resumes ${lostAcknowledgment ? 'after lost acknowledgment' : 'before commit'}`, async ({ page, browser, accountOrigin }, testInfo) => {
+for (const boundary of ['before upload', 'before commit', 'after lost acknowledgment'] as const) test(`preserves compact evidence when old saved transport resumes ${boundary}`, async ({ page, browser, accountOrigin }, testInfo) => {
   test.skip(process.env.CRYKIT_COMPACT_CATALOG_QUALIFICATION !== '1', 'Requires immutable synthetic compact writer inputs')
   test.setTimeout(180_000)
+  const lostAcknowledgment = boundary === 'after lost acknowledgment'
   const email = await register(page)
   await beginSeededAccount(page, oldApp, email, password)
   await page.evaluate(() => (window as any).accountBootstrapProof.seedSigninProgress('Synthetic old baseline'))
@@ -168,11 +185,23 @@ for (const lostAcknowledgment of [false, true]) test(`preserves compact evidence
     expect(await oldAction(page, 'prepare')).toEqual({ prepared: true })
     expect(await oldAction(page, 'save')).toEqual({ saved: true })
     let paused: { request: any; release: () => void; response?: any } | undefined
-    const requests: { path: string; status?: number; heads?: number; epoch?: number }[] = []
+    let heldUpload = false, uploadsReleased = false
+    let releaseUploads!: () => void
+    const uploadGate = new Promise<void>(resolve => { releaseUploads = resolve })
+    const requests: { path: string; method: string; status?: number; heads?: number; epoch?: number }[] = []
     await page.route('**/api/v1/sync/**', async route => {
       const request = route.request(), path = new URL(request.url()).pathname
       const input = path.endsWith('/commits') ? request.postDataJSON() : undefined
-      if (input?.heads.length && !paused && lostAcknowledgment) {
+      if (boundary === 'before upload' && request.method() === 'POST' && !uploadsReleased) {
+        // Hold the actual durable command before its first upload reaches the service
+        // Candidate format publication must complete before this request is forwarded
+        if (!paused) { heldUpload = path.endsWith('/uploads'); paused = { request: request.postDataJSON(), release() { uploadsReleased = true; releaseUploads() } } }
+        // Parallel upload requests belong to the same held command and must share its boundary
+        await uploadGate
+        const response = await route.fetch()
+        requests.push({ path, method: request.method(), status: response.status() })
+        await route.fulfill({ response })
+      } else if (input?.heads.length && !paused && lostAcknowledgment) {
         const response = await route.fetch()
         if (response.status() === 200) { paused = { request: input, release() {}, response: { status: response.status(), body: await response.json() } }; await route.abort('failed') }
         else await route.fulfill({ response })
@@ -180,17 +209,18 @@ for (const lostAcknowledgment of [false, true]) test(`preserves compact evidence
         await new Promise<void>(resolve => { paused = { request: input, release: resolve } })
         const response = await route.fetch()
         paused!.response = { status: response.status(), body: await response.json() }
-        requests.push({ path, status: response.status(), heads: input.heads.length, epoch: input.expectedPublicationEpoch })
+        requests.push({ path, method: request.method(), status: response.status(), heads: input.heads.length, epoch: input.expectedPublicationEpoch })
         await route.fulfill({ response })
       } else if (input?.heads.length && paused && !lostAcknowledgment) {
         const response = await route.fetch()
         paused.response = { status: response.status(), body: await response.json() }
-        requests.push({ path, status: response.status(), heads: input.heads.length, epoch: input.expectedPublicationEpoch })
+        requests.push({ path, method: request.method(), status: response.status(), heads: input.heads.length, epoch: input.expectedPublicationEpoch })
         await route.fulfill({ response })
-      } else { requests.push({ path, heads: input?.heads.length }); await route.continue() }
+      } else { requests.push({ path, method: request.method(), heads: input?.heads.length }); await route.continue() }
     })
     const pending = captureOldSyncTerminal(() => settle(page, true))
     await expect.poll(() => !!paused, { timeout: 60_000 }).toBe(true)
+    if (boundary === 'before upload') { expect(heldUpload).toBe(true); expect(requests.filter(request => request.method === 'POST')).toEqual([]) }
     const before = await oldAction(page, 'digests')
     if (lostAcknowledgment) { await pending; await settle(candidate) }
     const beforeMigration = await candidate.evaluate(() => (window as any).accountBootstrapProof.catalogPublicationState())
@@ -229,6 +259,136 @@ for (const lostAcknowledgment of [false, true]) test(`preserves compact evidence
       expect((await restored.evaluate(() => (window as any).accountBootstrapProof.signinMergeAcceptance())).accepted).toBe(true)
       expect(await restored.evaluate(() => (window as any).accountBootstrapProof.compactCatalogEvidence())).toEqual(published)
     } finally { await restoredContext.close() }
-    await testInfo.attach('frozen-saved-transport-qualification', { body: JSON.stringify({ before, selectedTables, afterSelectedTables, publishedSelection, finalRequest: paused!.request, finalResponse: paused!.response, requests, terminal, accepted, exactCompactEvidencePreserved: true, scope: 'independent browser profiles, actual old durable publication and transport resume' }), contentType: 'application/json' })
+    await testInfo.attach('frozen-saved-transport-qualification', { body: JSON.stringify({ boundary, noUploadForwardedBeforeCandidatePublication: boundary === 'before upload', before, selectedTables, afterSelectedTables, publishedSelection, finalRequest: paused!.request, finalResponse: paused!.response, requests, terminal, accepted, exactCompactEvidencePreserved: true, scope: 'independent browser profiles, actual old durable publication and transport resume' }), contentType: 'application/json' })
   } finally { await nextContext.close() }
+})
+
+
+test('qualifies full old startup and local operations around compact inherited evidence', async ({ page }, testInfo) => {
+  test.skip(process.env.CRYKIT_COMPACT_CATALOG_QUALIFICATION !== '1' || testInfo.project.name !== 'desktop', 'Requires immutable old assets and Chromium exception observation')
+  test.setTimeout(180_000)
+  const email = await register(page)
+  await beginSeededAccount(page, app, email, password, true)
+  await page.evaluate(() => (window as any).accountBootstrapProof.seedCompactCatalogDestination())
+  await beginSeededAccount(page, oldApp, email, password, true)
+  const workerProbe = await observeMappingQualificationExceptions(page)
+  expect(await oldAction(page, 'prepare')).toEqual({ prepared: true })
+  expect(await oldAction(page, 'save')).toEqual({ saved: true })
+  const supportedTransport = await settle(page, true)
+  expect(supportedTransport.state).not.toBe('paused')
+  await mountSeededAccount(page)
+  await page.reload()
+  await expect(page.getByRole('complementary', { name: 'Account sync' })).toBeVisible()
+  expect(await page.evaluate(() => !!(window as any).workspaceProof)).toBe(true)
+
+  await beginSeededAccount(page, app, email, password, true)
+  await page.evaluate(() => (window as any).accountBootstrapProof.migrateCatalogFixture())
+  const before = await page.evaluate(() => (window as any).accountBootstrapProof.comparisonStorageDigests())
+  const storage = await page.evaluate(() => (window as any).accountBootstrapProof.accountStorage())
+  const evidence = await page.evaluate(() => (window as any).accountBootstrapProof.compactCatalogEvidence())
+  expect(evidence.members.some((member: any) => member.format === 'compact-v2')).toBe(true)
+  const syncWrites: string[] = []
+  page.on('request', request => { if (request.method() === 'POST' && new URL(request.url()).pathname.startsWith('/api/v1/sync/')) syncWrites.push(new URL(request.url()).pathname) })
+  await page.goto(`${oldApp}#/settings/account`)
+  const locked = page.getByRole('heading', { name: 'Account workspace locked', exact: true })
+  await expect(locked.or(page.getByRole('complementary', { name: 'Account sync' }))).toBeVisible()
+  await testInfo.attach('old-full-startup-observation', { body: JSON.stringify({ supportedTransport, syncWrites, storage, evidence, before, after: await accountTableDigests(page), locked: await locked.isVisible(), mounted: await page.evaluate(() => !!(window as any).workspaceProof) }), contentType: 'application/json' })
+  expect(await locked.isVisible()).toBe(false)
+  expect(await page.evaluate(() => !!(window as any).workspaceProof)).toBe(true)
+  expect(await accountTableDigests(page)).toEqual(before)
+  expect(syncWrites).toEqual([])
+  const exported = await oldAction(page, 'export')
+  await page.evaluate(() => (window as any).workspaceProof.queueDefinition('Synthetic old compatible projection edit'))
+  const edited = await page.evaluate(() => (window as any).workspaceProof.releaseQueued())
+  const afterEdit = await accountTableDigests(page)
+  await testInfo.attach('old-full-local-operations', { body: JSON.stringify({ exported, edited, afterEdit }), contentType: 'application/json' })
+  expect(exported).toMatchObject({ failed: 'ZodError' })
+  expect(edited).toBe('saved')
+  const savedBoundary = await mergeInstallationBoundary(page)
+  // Retire the mounted scheduler before exercising the frozen transport directly on the same stored head
+  await beginSeededAccount(page, oldApp, email, password, true)
+  expect((await page.request.get('/api/v1/account')).status()).toBe(200)
+  const terminal = await captureOldSyncTerminal(() => settle(page, true))
+  await testInfo.attach('old-full-operation-terminal', { body: JSON.stringify({ terminal, syncWrites, workerSchemas: workerProbe.schemaFailures, probeFailures: workerProbe.failures }), contentType: 'application/json' })
+  expect(terminal).toMatchObject({ kind: 'refused', failure: { failed: 'Error', message: 'Account background preparation failed' } })
+  expect(workerProbe.failures).toEqual([])
+  expect(syncWrites).toEqual([])
+  expect(workerProbe.schemaFailures.some(error => error.worker.includes('account-local-mapping-worker') && JSON.stringify(error.issues) === JSON.stringify([{ path: ['version'], code: 'invalid_value' }, { path: [], code: 'unrecognized_keys' }]))).toBe(true)
+  expect((await mergeInstallationBoundary(page)).protected).toEqual(savedBoundary.protected)
+  await workerProbe.stop()
+  await beginSeededAccount(page, app, email, password, true)
+  const retained = await page.evaluate(() => (window as any).accountBootstrapProof.compactCatalogEvidence())
+  expect(retained.members).toEqual(evidence.members)
+  expect(retained.metadata).toEqual(evidence.metadata)
+  expect(retained.native).toEqual(evidence.native)
+  expect(retained.catalogs).toEqual(evidence.catalogs)
+  expect((await page.evaluate(() => (window as any).accountBootstrapProof.accountStorage())).fence).toEqual((savedBoundary.protected.profileMeta as any[]).find(row => row.key === 'active'))
+})
+
+
+test('preserves competing edits to the same native document from old and new clients', async ({ page, browser, accountOrigin }, testInfo) => {
+  test.skip(process.env.CRYKIT_COMPACT_CATALOG_QUALIFICATION !== '1', 'Requires immutable old assets and explicit candidate capability')
+  test.setTimeout(180_000)
+  const email = await register(page)
+  await beginSeededAccount(page, oldApp, email, password)
+  await page.evaluate(() => (window as any).accountBootstrapProof.seedConflictFixture())
+  const initialPublication = page.waitForResponse(response => response.url().endsWith('/sync/commits') && response.ok() && response.request().postDataJSON().heads.length > 0)
+  await mountSeededAccount(page)
+  await initialPublication
+  await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+  if (await page.getByRole('button', { name: 'Load updated data', exact: true }).isVisible()) await loadAccountUpdate(page)
+  const original = await oldAction(page, 'editor')
+  expect(original).toMatchObject({ file: { id: 'editor-1', revision: 0 }, original: [0, 216], draft: [0, 216] })
+  const otherContext = await browser.newContext({ baseURL: accountOrigin, ignoreHTTPSErrors: true, serviceWorkers: 'block' })
+  let release!: () => void
+  try {
+    const candidate = await otherContext.newPage()
+    await candidate.goto(`${app}#/settings/account`)
+    await candidate.getByLabel('Email', { exact: true }).fill(email)
+    await candidate.getByLabel('Password', { exact: true }).fill(password)
+    await candidate.getByRole('button', { name: 'Sign in', exact: true }).click()
+    await finishAccountSignin(candidate)
+    await expect.poll(() => candidate.evaluate(() => (window as any).workspaceProof.signinMergeAcceptance()), { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS }).toMatchObject({ accepted: true })
+    if (await candidate.getByRole('button', { name: 'Load updated data', exact: true }).isVisible()) await loadAccountUpdate(candidate)
+    const starting = await candidate.evaluate(() => (window as any).workspaceProof.qualificationEvidence())
+    expect(starting.editors.find((file: any) => file.id === 'editor-1')).toEqual(original.file)
+    const gate = new Promise<void>(resolve => { release = resolve })
+    await candidate.route('**/api/v1/sync/**', async route => { await gate; await route.continue() })
+    await candidate.evaluate(() => (window as any).workspaceProof.editConflictFile('Competing invalid draft.json', false, 0xd802))
+    const oldPublication = page.waitForResponse(response => response.url().endsWith('/sync/commits') && response.ok() && response.request().postDataJSON().heads.length > 0)
+    await page.evaluate(() => (window as any).workspaceProof.editConflictFile('Competing invalid draft.json', false, 0xd801))
+    await oldPublication
+    await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+    const oldWinner = await oldAction(page, 'editor')
+    expect(oldWinner).toMatchObject({ original: [0, 216], draft: [1, 216] })
+    release()
+    await candidate.unrouteAll({ behavior: 'wait' })
+    await expect.poll(() => candidate.evaluate(() => (window as any).workspaceProof.signinMergeAcceptance()), { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS }).toMatchObject({ accepted: true })
+    if (await candidate.getByRole('button', { name: 'Load updated data', exact: true }).isVisible()) await loadAccountUpdate(candidate)
+    const conflicts = await candidate.evaluate(() => (window as any).workspaceProof.conflictSnapshot())
+    expect(conflicts.conflicts).toHaveLength(1)
+    expect(conflicts.conflicts[0]).toMatchObject({ disposition: 'unresolved' })
+    expect(conflicts.conflicts[0].versions.map((value: any) => value.draftBytes).sort()).toEqual([[1, 216], [2, 216]])
+    const preserved = await candidate.evaluate(() => (window as any).workspaceProof.qualificationEvidence())
+    const conflict = preserved.conflicts.find((value: any) => value.key === '["editor","editor-1"]')
+    expect(conflict.branches.every((file: any) => JSON.stringify(file.original) === JSON.stringify(original.file.original))).toBe(true)
+    const thirdContext = await browser.newContext({ baseURL: accountOrigin, ignoreHTTPSErrors: true, serviceWorkers: 'block' })
+    try {
+      const third = await thirdContext.newPage()
+      await third.goto(`${app}#/settings/account`)
+      await third.getByLabel('Email', { exact: true }).fill(email)
+      await third.getByLabel('Password', { exact: true }).fill(password)
+      await third.getByRole('button', { name: 'Sign in', exact: true }).click()
+      await finishAccountSignin(third)
+      await expect.poll(() => third.evaluate(() => (window as any).workspaceProof.signinMergeAcceptance()), { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS }).toMatchObject({ accepted: true })
+      expect(await third.evaluate(() => (window as any).workspaceProof.conflictSnapshot())).toEqual(conflicts)
+      const downloaded = await third.evaluate(() => (window as any).workspaceProof.qualificationEvidence())
+      expect(downloaded.conflicts).toEqual(preserved.conflicts)
+      for (const branch of conflict.branches) {
+        const body = preserved.bodies.find((body: any) => body.ref.documentId === branch.unfinished.text.documentId && body.ref.revisionId === branch.unfinished.text.revisionId)
+        expect(downloaded.bodies).toContainEqual(body)
+      }
+    } finally { await thirdContext.close() }
+    await testInfo.attach('same-native-document-old-new', { body: JSON.stringify({ original, oldWinner, conflicts, branches: conflict.branches, independentDevicePreserved: true }), contentType: 'application/json' })
+  } finally { release?.(); await otherContext.close() }
 })

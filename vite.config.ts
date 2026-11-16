@@ -21,6 +21,8 @@ const SERVICE_PERSISTENCE_TEST_FILES = [
   'src/persistence/account-recovery.test.ts',
   'src/persistence/reviewed-replacement.test.ts',
   'src/persistence/signin-reconciliation.test.ts',
+  'src/persistence/signin-merge-client.test.ts',
+  'src/persistence/managed-compact-comparisons.test.ts',
   'src/persistence/conflicts.test.ts',
   'src/persistence/copied-conflict-journey.test.ts',
   'src/persistence/lineage-conflicts.test.ts',

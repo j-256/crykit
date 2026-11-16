@@ -27,6 +27,9 @@ it('rejects unknown fields and duplicate sidecar associations without reinterpre
   const { ManagedCopyComparisonsSchema } = await import('./managed-copy-comparisons')
   const sidecar = { version: 1, kind: 'managed-copy-comparisons', operationId: intent.operationId, mode: 'additive', source: ref, sourceEvidence: ref, sourceIdentity: 'a'.repeat(64), sourceDigest: 'b'.repeat(64), destination: { key: 'active', headRevision: 0, head: ref }, destinationEvidence: ref, keys: ['["editor","file"]'], progressMappings: [], originals: [] }
   expect(ManagedCopyComparisonsSchema.parse(sidecar)).toEqual(sidecar)
+  const compact = { ...sidecar, version: 2, sourceFormat: 'compact-v2' }
+  expect(ManagedCopyComparisonsSchema.parse(compact)).toEqual(compact)
+  for (const value of [{ ...sidecar, sourceFormat: 'compact-v2' }, { ...compact, sourceFormat: 'legacy-v1' }, { ...compact, version: 3 }]) expect(ManagedCopyComparisonsSchema.safeParse(value).success).toBe(false)
   for (const altered of [{ ...sidecar, version: 2 }, { ...sidecar, mode: 'replace' }, { ...sidecar, currentState: {} }, { ...sidecar, keys: [...sidecar.keys, ...sidecar.keys] }, { ...sidecar, sourceDigest: 'incomplete' }]) expect(ManagedCopyComparisonsSchema.safeParse(altered).success).toBe(false)
 })
 

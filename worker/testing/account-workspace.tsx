@@ -65,6 +65,7 @@ const accountBootstrapProof = {
   signinMergeDiagnostics: readSigninMergeDiagnostics,
   recordSigninMergeBoundary,
   stopSigninMergeDiagnostics,
+  async qualificationScan() { return (await import('./signin-merge-qualification')).qualificationScan() },
   async seedSelectedNativeAccount() {
     if (mounted) throw new Error('Native startup qualification requires an unmounted fixture')
     return (await import('./signin-merge-qualification')).seedSelectedNativeAccount()
@@ -440,6 +441,8 @@ function WorkspaceProof() {
           progress: Object.values(state.planner.localData.playthroughs).reduce((sum, value) => sum + Object.keys(value.progress).length, 0),
           conflicts: state.conflicts.length }
       },
+      async seedQualificationChoices(baseline: 'default' | 'guide') { return (await import('./signin-merge-qualification')).seedQualificationChoices(workspace.repository, baseline) },
+      async qualificationEvidence() { return (await import('./signin-merge-qualification')).qualificationEvidence(workspace.repository) },
       async seedGuestProgress(label: string) {
         if (workspace.repository.kind !== 'guest') throw new Error('Guest fixture requires the device workspace')
         const before = await workspace.repository.load()
