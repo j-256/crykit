@@ -584,11 +584,14 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
   // Each input may validly own a node also owned by another input, but the frozen result
   // permits sharing only native bodies. Claim the entire authenticated graft, including
   // nested pages and raw token segments, before retaining any of it
-  const retainClosure = (ref: CipherRef, subset = false): boolean => {
+  const retainClosure = (ref: CipherRef, bodyBindings: readonly Body[] = []): boolean => {
+    // Roles belong to this authenticated source: a subset page here may legally be
+    // arbitrary native body bytes in another root, so global body membership is not proof
+    const bodyEdges = new Set(bodyBindings.map(body => refKey(body.content)))
     const pending = [ref], closure = new Set<string>()
     while (pending.length) {
       const next = pending.pop()!, key = refKey(next)
-      if (subset && bodyNodes.has(key)) continue
+      if (bodyEdges.has(key)) continue
       if (outputNodes.has(key)) return false
       if (closure.has(key)) continue
       const record = reusableRecords.get(key)
@@ -644,7 +647,7 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
     const writeSubset = async () => {
       const subset = member.subset.map(ref => { const body = stored.get(blobIdentity(ref)); if (!body || !sameRef(ref, body.source)) throw new Error('Account historical subset body mismatch'); return body })
       const unchanged = reused && subset.length === reused.subsetBodies.length && subset.every((body, index) => refKey(body.content) === refKey(reused.subsetBodies[index].content))
-      return unchanged && retainClosure(reused.blobSubset, true) ? reused.blobSubset : page('evidence-subset-page', subset, entry => [entry.content], false)
+      return unchanged && retainClosure(reused.blobSubset, reused.subsetBodies) ? reused.blobSubset : page('evidence-subset-page', subset, entry => [entry.content], false)
     }
     if (reused && retainClosure(reused.metadata)) {
       written.push({ id: member.id, metadata: reused.metadata, blobSubset: await writeSubset() })

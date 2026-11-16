@@ -473,6 +473,94 @@ it.each(['subset-root', 'subset-child', 'metadata-page', 'metadata-segment', 'bo
   }
 })
 
+it.each(['subset-root', 'subset-child', 'metadata-page', 'metadata-segment'] as const)('unions valid cross-role sources sharing a %s record with a native body', async role => {
+  const { database, token } = account(), originalSnapshot = await original()
+  const first = role === 'subset-root' ? { ...originalSnapshot, state: { ...originalSnapshot.state, editorDocuments: [], retainedContent: [], blobs: [] } } : originalSnapshot
+  const snapshots = [await inheritWorkspaceSnapshot(first, [first])]
+  const prepared: evidence.PreparedAccountInheritedEvidence[] = []
+  const opened: evidence.AccountInheritedEvidence[] = []
+  const { readAccountBytes, stageAccountJson, cipherRef } = await import('../workspace/account-cache')
+  const { prepareAccountEvidenceUnion } = await import('../workspace/account-evidence-union')
+  let union: Awaited<ReturnType<typeof prepareAccountEvidenceUnion>> | undefined
+  const read = async (ref: CipherRef) => {
+    const bytes = await readAccountBytes(database, token, ref)
+    try { return JSON.parse(new TextDecoder().decode(bytes)) } finally { bytes.fill(0) }
+  }
+  const stage = async (value: unknown, dependencies: CipherRef[]) => {
+    const record = await stageAccountJson(database, token, value, dependencies)
+    await database.encryptedRevisions.add(record)
+    return cipherRef(record)
+  }
+  try {
+    const left = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ additions: [snapshots[0]] })
+    prepared.push(left)
+    await database.encryptedRevisions.bulkAdd([...left.records])
+    const leftRoot = await read(left.root), leftMembers = await read(leftRoot.members)
+    const leftMember = { ...leftMembers.entries[0] }
+    const empty = { version: 1, kind: role === 'metadata-page' ? 'evidence-metadata-page' : 'evidence-subset-page', entries: [], children: [] }
+    let shared: CipherRef
+    if (role === 'subset-root') shared = leftMember.blobSubset
+    else if (role === 'subset-child') {
+      shared = await stage(empty, [])
+      leftMember.blobSubset = await stage({ ...empty, children: [shared, leftMember.blobSubset] }, [shared, leftMember.blobSubset])
+    } else {
+      const stream = await read(leftMember.metadata)
+      if (role === 'metadata-segment') shared = (await read(stream.pages)).entries[0].content
+      else {
+        shared = await stage(empty, [])
+        const pagesRef = await stage({ ...empty, children: [shared, stream.pages] }, [shared, stream.pages])
+        leftMember.metadata = await stage({ ...stream, pages: pagesRef }, [pagesRef])
+      }
+    }
+    // Native blob bytes are inert and may equal an index page or token page in another
+    // source. Each source still authenticates and enforces its own typed edge roles
+    const raw = await readAccountBytes(database, token, shared), content = memoryBlob(raw)
+    const native = { ref: { documentId: 'cross-role-native-body', revisionId: 'cross-role-original', encoding: 'bytes' as const, byteLength: content.byteLength, sha256: await hashBlob(content) }, content }
+    const second = { ...first, capturedAt: '2026-10-13', state: { ...first.state, blobs: [...first.state.blobs, native] } }
+    snapshots.push(await inheritWorkspaceSnapshot(second, [second]))
+    const right = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ additions: [snapshots[1]] })
+    prepared.push(right)
+    await database.encryptedRevisions.bulkAdd([...right.records])
+    const leftMemberRef = await stage({ ...leftMembers, entries: [leftMember] }, [leftMember.metadata, leftMember.blobSubset])
+    const leftRef = await stage({ ...leftRoot, members: leftMemberRef }, [leftMemberRef, leftRoot.blobs])
+    const rightRoot = await read(right.root), rightMembers = await read(rightRoot.members), rightMember = rightMembers.entries[0]
+    const rightBlobs = await read(rightRoot.blobs), rightSubset = await read(rightMember.blobSubset)
+    const replace = (entry: { source: { documentId: string }; content: CipherRef }) => entry.source.documentId === native.ref.documentId ? { ...entry, content: shared } : entry
+    const registryEntries = rightBlobs.entries.map(replace), subsetEntries = rightSubset.entries.map(replace)
+    const blobRef = await stage({ ...rightBlobs, entries: registryEntries }, registryEntries.map((entry: { content: CipherRef }) => entry.content))
+    const subsetRef = await stage({ ...rightSubset, entries: subsetEntries }, subsetEntries.map((entry: { content: CipherRef }) => entry.content))
+    const memberRef = await stage({ ...rightMembers, entries: [{ ...rightMember, blobSubset: subsetRef }] }, [rightMember.metadata, subsetRef])
+    const rightRef = await stage({ ...rightRoot, members: memberRef, blobs: blobRef }, [memberRef, blobRef])
+    for (const ref of [leftRef, rightRef]) opened.push(await evidence.openAccountInheritedEvidence(database, token, ref))
+    expect(opened.map(handle => handle.members.length)).toEqual([1, 1])
+    expect(opened[0].members[0].id).not.toBe(opened[1].members[0].id)
+    const originals = new Map(snapshots.flatMap(snapshot => [...capturedBackupEvidence(snapshot).historical]))
+    for (const handle of opened) for (const member of (await evidence.accountInheritedSources(handle)).members) expect(await pages(member.metadata)).toEqual(await pages(originals.get(member.id)!))
+    union = await prepareAccountEvidenceUnion(database, token, leftRef, rightRef)
+    await database.encryptedRevisions.bulkAdd([...union.prepared.records])
+    const result = await evidence.openAccountInheritedEvidence(database, token, union.prepared.root)
+    opened.push(result)
+    expect(result.members.map(member => member.id)).toEqual([...originals.keys()].sort())
+    const sources = await evidence.accountInheritedSources(result)
+    for (const member of sources.members) {
+      expect(await pages(member.metadata)).toEqual(await pages(originals.get(member.id)!))
+      const snapshot = snapshots.find(value => value.historicalEvidence.snapshots[0].id === member.id)!
+      expect(member.subset).toEqual(snapshot.state.blobs.map(body => body.ref))
+    }
+    for (const body of sources.bodies) expect(await readBlob(body.content, body.ref.byteLength)).toEqual(await readBlob(second.state.blobs.find(original => blobIdentity(original.ref) === blobIdentity(body.ref))!.content, body.ref.byteLength))
+    const root = await read(union.prepared.root), entries = (await read(root.blobs)).entries
+    expect(entries.find((entry: { source: { documentId: string } }) => entry.source.documentId === native.ref.documentId).content).toEqual(shared)
+    const resultMember = (await read(root.members)).entries.find((entry: { id: string }) => entry.id === leftMember.id)
+    if (role.startsWith('subset')) expect(resultMember.blobSubset).not.toEqual(leftMember.blobSubset)
+    else expect(resultMember.metadata).not.toEqual(leftMember.metadata)
+  } finally {
+    await union?.dispose()
+    for (const handle of opened) await handle.dispose()
+    for (const value of prepared) await value.dispose()
+    for (const snapshot of snapshots) await disposeWorkspaceSnapshot(snapshot)
+  }
+})
+
 it('returns the installed root unchanged when valid legacy member pages use a different grouping', async () => {
   const { database, token, snapshot, prepared } = await installedFixture()
   const { readAccountBytes, stageAccountJson, cipherRef } = await import('../workspace/account-cache')
