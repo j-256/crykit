@@ -7,6 +7,8 @@ import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import type { LocalData } from '../src/domain/types'
 
+const COMPACT_REFERENCE_VIEWPORT_HEIGHT_PX = 480
+
 async function navigate(page: Page, destination: string) {
   await page.getByRole('button', { name: new RegExp(`^${destination}$`) }).filter({ visible: true }).click()
 }
@@ -171,7 +173,7 @@ test('direct nested modal routes restore the top layer and close one layer at a 
   await expect(settings.getByRole('link', { name: 'Back to previous page', exact: true })).toBeVisible()
 })
 
-test('reference source options remain readable, bounded, and exact', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
+test('reference source options remain readable, bounded, and exact', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }, testInfo) => {
   await importSyntheticLibrary(page, false)
   await navigate(page, 'Reference')
   if (isMobile) await page.getByRole('button', { name: /^Filters/ }).click()
@@ -182,13 +184,27 @@ test('reference source options remain readable, bounded, and exact', { tag: MOBI
   if (!isMobile) {
     const viewport = page.viewportSize()!
     const facetPanel = page.locator('.facet-panel')
-    const panelBox = (await facetPanel.boundingBox())!
-    expect(panelBox.height).toBeLessThanOrEqual(viewport.height)
-    await sourceSearch.scrollIntoViewIfNeeded()
-    await expect(sourceSearch).toBeInViewport()
-    const searchBox = (await sourceSearch.boundingBox())!
-    expect(searchBox.y).toBeGreaterThanOrEqual(0)
-    expect(searchBox.y + searchBox.height).toBeLessThanOrEqual(viewport.height)
+    for (const height of [viewport.height, COMPACT_REFERENCE_VIEWPORT_HEIGHT_PX]) {
+      await page.setViewportSize({ width: viewport.width, height })
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+      const headerBox = (await page.locator('.desktop-brand-header').boundingBox())!
+      const panelBox = (await facetPanel.boundingBox())!
+      expect(panelBox.height).toBeLessThanOrEqual(height)
+      expect(panelBox.y).toBeGreaterThanOrEqual(headerBox.y + headerBox.height)
+      expect(panelBox.y + panelBox.height).toBeLessThanOrEqual(height)
+      await sourceSearch.scrollIntoViewIfNeeded()
+      await expect(sourceSearch).toBeInViewport()
+      const searchBox = (await sourceSearch.boundingBox())!
+      expect(searchBox.y).toBeGreaterThanOrEqual(headerBox.y + headerBox.height)
+      expect(searchBox.y + searchBox.height).toBeLessThanOrEqual(height)
+      await page.screenshot({ path: testInfo.outputPath('reference-filters-' + height + '.png') })
+      await page.evaluate(() => window.scrollTo({ top: window.innerHeight, behavior: 'instant' }))
+      const stickyBox = (await facetPanel.boundingBox())!
+      expect(stickyBox.y).toBeGreaterThanOrEqual(headerBox.y + headerBox.height)
+      expect(stickyBox.y + stickyBox.height).toBeLessThanOrEqual(height)
+    }
+    await page.setViewportSize(viewport)
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
   }
   await expect(nativeSource).toBeVisible()
   const geometry = await sources.evaluate((element) => {
