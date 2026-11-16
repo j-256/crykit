@@ -1,3 +1,4 @@
+import { prepareMatchedStarter } from './signin-matched-starter'
 import { performance } from 'node:perf_hooks'
 import { ApiErrorSchema } from '../../src/account/protocol'
 import { expect, test } from './test-fixture'
@@ -6,6 +7,7 @@ import { ACCOUNT_PREPARATION_TIMEOUT_MS, assessSigninMergeResponsiveness, instal
 const app = '/__accounts-proof/account-workspace.html'
 const password = 'synthetic merge measurement password'
 // Timing cohorts never enable a CPU profiler or change existing readiness/save deadlines
+const MATCHED_STARTER_CONFIG = process.env.CRYKIT_MATCHED_STARTER_CONFIG
 const MEASUREMENT_ENABLED = process.env.CRYKIT_SIGNIN_MERGE_MEASUREMENT === '1'
 for (const fixture of ['default-guest', 'empty-control'] as const) test(`complete sign-in merge measurement: ${fixture}`, async ({ page, accountOrigin }, testInfo) => {
   test.skip(!MEASUREMENT_ENABLED, 'Opt-in controlled performance cohort')
@@ -58,6 +60,9 @@ for (const fixture of ['default-guest', 'empty-control'] as const) test(`complet
       await page.waitForFunction(() => !!(window as any).accountBootstrapProof, undefined, { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
       await page.evaluate(() => (window as any).accountBootstrapProof.seedEmptyGuestControl())
       await page.getByRole('button', { name: 'Continue using this device', exact: true }).click()
+    } else if (MATCHED_STARTER_CONFIG) {
+      const matchedStarter = await prepareMatchedStarter(page, testInfo, MATCHED_STARTER_CONFIG)
+      report.matchedStarter = matchedStarter.evidence
     } else {
       await page.goto(`${app}#/settings/account`)
       await page.getByRole('button', { name: 'Continue using this device', exact: true }).click()
@@ -65,6 +70,7 @@ for (const fixture of ['default-guest', 'empty-control'] as const) test(`complet
       await page.evaluate(() => (window as any).workspaceProof.seedDefaultGuestProgress())
     }
     await page.waitForFunction(() => !!(window as any).workspaceProof, undefined, { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+    report.conditions.fixtureMethod = MATCHED_STARTER_CONFIG ? 'baseline-preedit-starter-v1' : 'ordinary-generated-starter-v1'
     report.before = await page.evaluate(() => (window as any).workspaceProof.signinMergeFixtureSizes())
     expect(report.before.progress).toBeGreaterThan(0)
     if (fixture === 'default-guest') {
