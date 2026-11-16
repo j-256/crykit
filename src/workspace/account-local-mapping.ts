@@ -16,7 +16,7 @@ import { inspectWorkspaceClosures } from './closure'
 import { sameCipherRefs } from './account-retaining'
 import { blobIdentity } from './blobs'
 import type { WorkspaceState, WorkspaceConflictClosure } from './documents'
-import { createAccountInheritedEvidencePreparation, openAccountInheritedEvidence, type AccountInheritedEvidence } from './account-evidence-snapshots'
+import { accountInheritedEvidenceCheck, createAccountInheritedEvidencePreparation, openAccountInheritedEvidence, type AccountInheritedEvidence } from './account-evidence-snapshots'
 
 export const IncrementalMappingTicketSchema = z.strictObject({ version: z.literal(1), operationId: OpaqueIdSchema, receipt: CipherRefSchema })
 export type IncrementalMappingTicket = z.infer<typeof IncrementalMappingTicketSchema>
@@ -98,7 +98,9 @@ export async function ensureIncrementalAccountEvidence(database: AccountDatabase
     const record = await stageAccountJson(database, token, value, [value.localEvidence, value.evidence])
     await installRecords(database, token, [record], check)
     await prepared.handle.check(); await inherited.check(); await check()
-    await mappingTransaction(database, token, [database.syncState], async () => {
+    const evidenceCheck = accountInheritedEvidenceCheck(prepared.handle, database, token)
+    await mappingTransaction(database, token, [database.syncState, database.encryptedRevisions, database.stagedCipherChunks], async () => {
+      await evidenceCheck.recheckInTransaction()
       if (await database.syncState.get(key)) throw new Error('Managed historical association was already selected')
       await database.syncState.add({ id: key, ref: cipherRef(record) })
     })
@@ -227,7 +229,9 @@ export async function prepareIncrementalMapping(database: AccountDatabase, token
     const record = await stageAccountJson(database, token, receipt, [original.ref, intent.before, intent.after, base.head, target.head, receipt.mappedIntent, ...(predecessor ? [predecessor.ref] : [])])
     await installRecords(database, token, [record], check)
     await check()
-    await mappingTransaction(database, token, [database.syncState, database.outbox, database.migrationJournal], async () => {
+    const evidenceCheck = semantic.validatedEvidence && accountInheritedEvidenceCheck(semantic.validatedEvidence, database, token)
+    await mappingTransaction(database, token, [database.syncState, database.outbox, database.migrationJournal, database.encryptedRevisions, database.stagedCipherChunks], async () => {
+      await evidenceCheck?.recheckInTransaction()
       assertActiveProfile(token)
       if (await database.syncState.get(key) || !same(await database.outbox.get(original.id), original) || !same(await database.migrationJournal.get(original.id), journal)
         || !same(await database.syncState.get(rootKey(intent.before)), predecessor)) throw new Error('Mapping preparation changed')
@@ -297,7 +301,9 @@ export async function prepareIncrementalBaseline(database: AccountDatabase, toke
     const origin = AccountMappingOriginSchema.parse({ version: 1, kind: 'incremental-mapping-origin', accountId: token.accountId, operationId: journal.id, localRoot: fence.head, mappedRoot: prepared.head, headRevision: fence.headRevision })
     const record = await stageAccountJson(database, token, origin, [origin.localRoot, origin.mappedRoot])
     await installRecords(database, token, [record], check)
-    await mappingTransaction(database, token, [database.syncState, database.migrationJournal], async () => {
+    const evidenceCheck = prepared.validatedEvidence && accountInheritedEvidenceCheck(prepared.validatedEvidence, database, token)
+    await mappingTransaction(database, token, [database.syncState, database.migrationJournal, database.encryptedRevisions, database.stagedCipherChunks], async () => {
+      await evidenceCheck?.recheckInTransaction()
       if (!same(await database.migrationJournal.get(journal.id), journal) || await database.syncState.get(baselineKey(journal.id)) || await database.syncState.get(rootKey(fence.head))) throw new Error('Mapping baseline preparation changed')
       await database.syncState.add({ id: baselineKey(journal.id), ref: cipherRef(record) })
     })

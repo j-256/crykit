@@ -65,6 +65,10 @@ it('independently reopens exact original token pages and native subset order und
   const freshToken = installProfile(token.accountId, key), fresh = new AccountDatabase(token.accountId)
   databases.push(fresh)
   const reopened = await evidence.openAccountInheritedEvidence(fresh, freshToken, prepared.root)
+  const retained = await evidence.createAccountInheritedEvidencePreparation(fresh, freshToken).prepare({ base: reopened })
+  expect(retained.records).toEqual([])
+  expect(retained.root).toEqual(prepared.root)
+  await retained.dispose()
   const sources = await evidence.accountInheritedSources(reopened)
   expect(await pages(sources.members[0].metadata)).toEqual(expected)
   expect(sources.members[0].subset).toEqual(historical.state.blobs.map(body => body.ref))
@@ -119,6 +123,45 @@ it('copies a prepared base independently and preserves property-order variants w
   expect(orders).toContainEqual(['zeta', 'alpha'])
   expect(orders).toContainEqual(['alpha', 'zeta'])
   await reopened.dispose(); await copy.dispose()
+})
+
+it('retains installed originals without allocating ciphertext and stages only an added member', async () => {
+  const { database, token } = account(), first = await original()
+  const snapshot = await inheritWorkspaceSnapshot(first, [first])
+  const initial = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ additions: [snapshot] })
+  const second = { ...first, capturedAt: '2026-10-13' }
+  const addition = await inheritWorkspaceSnapshot(second, [second])
+  const independent = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ base: initial.handle, additions: [addition] })
+  console.info('evidence-staging-independent', JSON.stringify({ unchangedRecords: initial.records.length, unchangedPlainBytes: initial.records.reduce((sum, record) => sum + record.descriptor.plainBytes, 0), additionRecords: independent.records.length, additionPlainBytes: independent.records.reduce((sum, record) => sum + record.descriptor.plainBytes, 0), additionCipherBytes: (await database.stagedCipherChunks.toArray()).filter(chunk => independent.records.some(record => record.payloadId === chunk.payloadId)).reduce((sum, chunk) => sum + chunk.bytes.length, 0) }))
+  await independent.dispose()
+  await database.encryptedRevisions.bulkAdd([...initial.records])
+  const before = await database.stagedCipherChunks.toArray()
+  const unchanged = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ base: initial.handle, additions: [snapshot] })
+  console.info('evidence-staging-unchanged', JSON.stringify({ records: unchanged.records.length, plainBytes: unchanged.records.reduce((sum, record) => sum + record.descriptor.plainBytes, 0) }))
+  expect(unchanged.records).toEqual([])
+  expect(unchanged.root).toEqual(initial.root)
+  expect(await database.stagedCipherChunks.toArray()).toEqual(before)
+  const descriptors = vi.spyOn(database.encryptedRevisions, 'get'), chunks = vi.spyOn(database.stagedCipherChunks, 'get')
+  const check = evidence.accountInheritedEvidenceCheck(unchanged.handle, database, token)
+  await database.transaction('rw', database.tables, () => check.recheckInTransaction())
+  expect(descriptors).toHaveBeenCalledTimes(initial.records.length)
+  expect(chunks).toHaveBeenCalledTimes(before.length)
+  console.info('evidence-observation-bound', JSON.stringify({ records: descriptors.mock.calls.length, chunks: chunks.mock.calls.length, cipherBytes: before.reduce((sum, chunk) => sum + chunk.bytes.length, 0) }))
+  descriptors.mockRestore(); chunks.mockRestore()
+  const added = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ base: initial.handle, additions: [addition] })
+  const addedPages = await pages([...capturedBackupEvidence(addition).historical.values()][0])
+  console.info('evidence-staging-addition', JSON.stringify({ records: added.records.length, plainBytes: added.records.reduce((sum, record) => sum + record.descriptor.plainBytes, 0), cipherBytes: (await database.stagedCipherChunks.toArray()).reduce((sum, chunk) => sum + chunk.bytes.length, 0) - before.reduce((sum, chunk) => sum + chunk.bytes.length, 0) }))
+  expect(added.records.length).toBeLessThanOrEqual(addedPages.length + 5)
+  expect(added.handle.members).toHaveLength(2)
+  const oldRefs = new Set(initial.records.map(record => record.revisionId))
+  expect(added.records.flatMap(record => record.descriptor.dependencies).some(ref => oldRefs.has(ref.revisionId))).toBe(true)
+  await database.encryptedRevisions.bulkAdd([...added.records])
+  await initial.dispose(); await unchanged.dispose(); await added.dispose()
+  const reopened = await evidence.openAccountInheritedEvidence(database, token, added.root)
+  const sources = await evidence.accountInheritedSources(reopened)
+  const originals = new Map([...capturedBackupEvidence(snapshot).historical, ...capturedBackupEvidence(addition).historical])
+  for (const member of sources.members) expect(await pages(member.metadata)).toEqual(await pages(originals.get(member.id)!))
+  await reopened.dispose(); await disposeWorkspaceSnapshot(snapshot); await disposeWorkspaceSnapshot(addition)
 })
 
 it('revokes only the disposed handle, rejects busy adoption and reauthenticates through the parent', async () => {
@@ -236,6 +279,91 @@ async function installedFixture() {
   await context.database.encryptedRevisions.bulkAdd([...prepared.records])
   return { ...context, snapshot, prepared }
 }
+
+it.each(['root', 'body', 'metadata', 'descriptor', 'missing'] as const)('reauthenticates installed %s before reference reuse', async role => {
+  const { database, token, snapshot, prepared } = await installedFixture()
+  let record = role === 'root' || role === 'descriptor' || role === 'missing' ? prepared.records.at(-1)! : prepared.records[0]
+  if (role === 'metadata') {
+    const { readAccountBytes, cipherRef } = await import('../workspace/account-cache')
+    for (const candidate of prepared.records.filter(record => record.descriptor.dependencies.length)) {
+      const bytes = await readAccountBytes(database, token, cipherRef(candidate))
+      try {
+        const page = JSON.parse(new TextDecoder().decode(bytes))
+        if (page.kind === 'evidence-metadata-page') { record = prepared.records.find(record => record.revisionId === page.entries[0].content.revisionId)!; break }
+      } finally { bytes.fill(0) }
+    }
+    expect(record).not.toBe(prepared.records[0])
+  }
+  if (role === 'missing') await database.encryptedRevisions.delete(record.revisionId)
+  else if (role === 'descriptor') await database.encryptedRevisions.put({ ...record, descriptor: { ...record.descriptor, protected: false } })
+  else {
+    const chunk = (await database.stagedCipherChunks.get([record.payloadId, 0]))!
+    chunk.bytes[0] ^= 1
+    await database.stagedCipherChunks.put(chunk)
+  }
+  const before = await database.stagedCipherChunks.toArray()
+  await expect(evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ base: prepared.handle })).rejects.toThrow()
+  expect(await database.stagedCipherChunks.toArray()).toEqual(before)
+  expect(await database.profileMeta.count()).toBe(0)
+  await prepared.dispose(); await disposeWorkspaceSnapshot(snapshot)
+})
+
+it('unions independently installed archives while retaining base subset bindings and original metadata refs', async () => {
+  const { database, token, snapshot, prepared } = await installedFixture()
+  const later = { ...await original(), capturedAt: '2026-10-14' }
+  const addition = await inheritWorkspaceSnapshot(later, [later])
+  const other = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ additions: [addition] })
+  await database.encryptedRevisions.bulkAdd([...other.records])
+  const { prepareAccountEvidenceUnion } = await import('../workspace/account-evidence-union')
+  const union = await prepareAccountEvidenceUnion(database, token, prepared.root, other.root)
+  expect(union.prepared.records.length).toBeLessThanOrEqual(3)
+  const { readAccountBytes } = await import('../workspace/account-cache')
+  const read = async (ref: CipherRef) => {
+    const bytes = await readAccountBytes(database, token, ref, undefined, union.prepared.owner)
+    try { return JSON.parse(new TextDecoder().decode(bytes)) } finally { bytes.fill(0) }
+  }
+  const originalEntries = (await read((await read(prepared.root)).members)).entries
+  const unionEntries = (await read((await read(union.prepared.root)).members)).entries
+  expect(unionEntries).toContainEqual(originalEntries[0])
+  await database.encryptedRevisions.bulkAdd([...union.prepared.records])
+  await union.dispose(); await other.dispose(); await prepared.dispose()
+  const reopened = await evidence.openAccountInheritedEvidence(database, token, union.prepared.root)
+  expect(reopened.members).toHaveLength(2)
+  const sources = await evidence.accountInheritedSources(reopened)
+  const originals = new Map([...capturedBackupEvidence(snapshot).historical, ...capturedBackupEvidence(addition).historical])
+  for (const member of sources.members) expect(await pages(member.metadata)).toEqual(await pages(originals.get(member.id)!))
+  await reopened.dispose(); await disposeWorkspaceSnapshot(snapshot); await disposeWorkspaceSnapshot(addition)
+})
+
+it('returns the installed root unchanged when valid legacy member pages use a different grouping', async () => {
+  const { database, token, snapshot, prepared } = await installedFixture()
+  const { readAccountBytes, stageAccountJson, cipherRef } = await import('../workspace/account-cache')
+  const bytes = await readAccountBytes(database, token, prepared.root)
+  const root = JSON.parse(new TextDecoder().decode(bytes))
+  bytes.fill(0)
+  const group = await stageAccountJson(database, token, { version: 1, kind: 'evidence-member-page', entries: [], children: [root.members] }, [root.members])
+  const changed = await stageAccountJson(database, token, { ...root, members: cipherRef(group) }, [cipherRef(group), root.blobs])
+  await database.encryptedRevisions.bulkAdd([group, changed])
+  const legacy = await evidence.openAccountInheritedEvidence(database, token, cipherRef(changed))
+  const before = await database.stagedCipherChunks.toArray()
+  const retained = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ base: legacy, additions: [snapshot] })
+  expect(retained.root).toEqual(cipherRef(changed))
+  expect(retained.records).toEqual([])
+  expect(await database.stagedCipherChunks.toArray()).toEqual(before)
+  await retained.dispose(); await legacy.dispose(); await prepared.dispose(); await disposeWorkspaceSnapshot(snapshot)
+})
+
+it('rejects released and forged installed reuse authority without allocating', async () => {
+  const { database, token, snapshot, prepared } = await installedFixture()
+  const before = await database.stagedCipherChunks.toArray()
+  await expect(evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ base: { ...prepared.handle } })).rejects.toThrow(/registered/)
+  const transactionCheck = evidence.accountInheritedEvidenceCheck(prepared.handle, database, token)
+  await prepared.handle.dispose()
+  await expect(evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ base: prepared.handle })).rejects.toThrow(/released/)
+  await expect(database.transaction('rw', database.tables, () => transactionCheck.recheckInTransaction())).rejects.toThrow(/released/)
+  expect(await database.stagedCipherChunks.toArray()).toEqual(before)
+  await prepared.dispose(); await disposeWorkspaceSnapshot(snapshot)
+})
 
 it.each([
   ['missing edge', (value: Wire, refs: CipherRef[]) => { if (value.kind === 'inherited-snapshot-evidence') refs.pop() }],

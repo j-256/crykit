@@ -30,7 +30,7 @@ import { createBlankLocalData } from '../domain/local-data'
 import { jsonEqual } from '../persistence/local-data'
 import { attachBackupBodies, inheritWorkspaceSnapshot, readBackupMetadata, type SnapshotMetadataV1 } from '../interchange/workspace-backup-evidence'
 import { accountLocalId, cipherRef, openAccountJson, stageAccountJson } from './account-cache'
-import { accountInheritedSources, createAccountInheritedEvidencePreparation, openAccountInheritedEvidence, type AccountInheritedEvidence } from './account-evidence-snapshots'
+import { accountInheritedEvidenceCheck, accountInheritedSources, createAccountInheritedEvidencePreparation, openAccountInheritedEvidence, type AccountInheritedEvidence } from './account-evidence-snapshots'
 import { openAccountWorkspace, prepareAccountWorkspaceWithEvidence } from './account-graph'
 import { MappedWorkspaceIntentSchema, mappedChanges, stageMappedWorkspaceIntent } from './account-intents'
 import { inspectWorkspaceClosure, archiveTypedReferences, validatedWorkspaceRetentionEdges, validateWorkspaceClosure } from './closure'
@@ -388,6 +388,7 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
             journal = JournalSchema.parse({ version: 1, kind: 'guest-copy', preview, expected: authority.expected, target: prepared.head, intent: cipherRef(intent.record) })
             const saved = await stageAccountJson(database, token, journal, [previous.head, prepared.head, cipherRef(intent.record)], undefined, evidence.owner)
             await assertOwnedWorkspaceSnapshot(snapshot); await evidence.handle.check(); assertCopyActive()
+            const evidenceCheck = accountInheritedEvidenceCheck(evidence.handle, database, token)
             // Stage one complete closure without changing the selected root. Only opaque references are plaintext
             // Reopening this journal uses the exact saved target and mappings, never a recaptured guest workspace
             await database.transaction('rw', database.tables, async () => {
@@ -395,6 +396,7 @@ export function createGuestCopyService(capture: () => Promise<WorkspaceSnapshot 
               if (!jsonEqual(await database.profileMeta.get('active'), authority.expected) || await database.syncState.get(PENDING_COPY)) throw new Error('The account or pending copy changed during preparation')
               await preparationCheck?.recheckAndRetireInTransaction()
               for (const record of new Map([...prepared.records, ...(source?.records ?? []), ...(registrations?.records ?? []), ...intent.records, saved].map(record => [record.revisionId, record])).values()) await database.encryptedRevisions.add(record)
+              await evidenceCheck.recheckInTransaction()
               const ref = cipherRef(saved)
               await database.syncState.add({ id: `guest-copy:${preview.copyId}`, ref })
               await database.syncState.add({ id: PENDING_COPY, ref })

@@ -371,3 +371,66 @@ it.each(['local', 'pull'].flatMap(selector => [false, true].flatMap(nonempty => 
     } finally { await candidate.dispose(); await origin.dispose(); await bootstrap.abandon() }
   },
 )
+
+it.each(['local', 'pull'].flatMap(selector => ['borrowed', 'cold'].flatMap(proof => ['descriptor', 'chunk'].map(change => ({ selector, proof, change })))))('rejects inherited $change changes after $proof admission through $selector', async ({ selector, proof, change }) => {
+  const token = setup()
+  const evidence = await import('../workspace/account-evidence-snapshots')
+  const initial = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({})
+  await database.encryptedRevisions.bulkAdd([...initial.records])
+  const reused = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ base: initial.handle })
+  expect(reused.records).toEqual([])
+  const record = await cache.stageAccountJson(database, token, { ...graph(2), sourceEvidenceVersion: 1, inheritedEvidence: initial.root }, [initial.root])
+  const prepared = { ...await operation(record), ...(proof === 'borrowed' ? { validatedEvidence: reused.handle } : {}) }
+  const context = selector === 'pull' ? await pull(token, prepared) : undefined
+  const prepare = selection.prepareSelectedV1Check
+  let afterRace: Awaited<ReturnType<typeof snapshot>>
+  vi.spyOn(selection, 'prepareSelectedV1Check').mockImplementationOnce(async (...args) => {
+    const checked = await prepare(...args)
+    const retained = initial.records[0]
+    if (change === 'descriptor') await database.encryptedRevisions.put({ ...retained, payloadId: cache.accountLocalId() })
+    else {
+      const chunk = (await database.stagedCipherChunks.get([retained.payloadId, 0]))!
+      chunk.bytes[0] ^= 1
+      await database.stagedCipherChunks.put(chunk)
+    }
+    afterRace = await snapshot()
+    return checked
+  })
+  await expect(context ? context.run() : activateLocalAccountCommit(database, token, prepared)).rejects.toThrow()
+  expect(await snapshot()).toEqual(afterRace!)
+  await initial.handle.check(); await reused.handle.check()
+  await reused.dispose(); await initial.dispose()
+})
+
+it.each(['local', 'pull'] as const)('releases cold selection readers after successful %s activation', async selector => {
+  const token = setup(), evidence = await import('../workspace/account-evidence-snapshots')
+  const initial = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({})
+  await database.encryptedRevisions.bulkAdd([...initial.records])
+  const record = await cache.stageAccountJson(database, token, { ...graph(2), sourceEvidenceVersion: 1, inheritedEvidence: initial.root }, [initial.root])
+  const prepared = await operation(record)
+  const context = selector === 'pull' ? await pull(token, prepared) : undefined
+  const open = evidence.openAccountInheritedEvidence
+  let cold: import('../workspace/account-evidence-snapshots').AccountInheritedEvidence | undefined
+  vi.spyOn(evidence, 'openAccountInheritedEvidence').mockImplementationOnce(async (...args) => cold = await open(...args))
+  await (context ? context.run() : activateLocalAccountCommit(database, token, prepared))
+  expect((await database.profileMeta.get('active'))?.head).toEqual(prepared.head)
+  expect(cold).toBeDefined()
+  await expect(cold!.check()).rejects.toThrow(/released/)
+  await initial.handle.check(); await initial.dispose()
+})
+
+it('preserves transaction failure beside owned selection cleanup failure', async () => {
+  const token = setup(), record = await cache.stageAccountJson(database, token, graph(), [])
+  const prepared = await operation(record), before = await snapshot()
+  const primary = new Error('synthetic activation failure'), cleanup = new Error('synthetic selection cleanup failure')
+  const prepare = selection.prepareSelectedV1Check
+  vi.spyOn(selection, 'prepareSelectedV1Check').mockImplementationOnce(async (...args) => {
+    const checked = await prepare(...args)
+    return { ...checked, async dispose() { await checked.dispose(); throw cleanup } }
+  })
+  let calls = 0
+  const failed = await activateLocalAccountCommit(database, token, prepared, () => { if (++calls > 1) throw primary }).catch(error => error)
+  expect(failed).toBeInstanceOf(AggregateError)
+  expect(failed.errors).toEqual([primary, cleanup])
+  expect(await snapshot()).toEqual(before)
+})

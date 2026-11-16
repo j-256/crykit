@@ -721,3 +721,35 @@ it('resumes a native V1 preparing sign-in receipt and its exact saved copy after
     expect(await database.outbox.count()).toBe(1)
   } finally { await resumed.dispose() }
 })
+
+it('rejects changed inherited ciphertext before publishing a native saved-copy journal', async () => {
+  const { database, token, capture } = await nativeCopySetup()
+  const service = createGuestCopyService(capture), cache = await import('../workspace/account-cache')
+  const { resolveAccountRecord } = await import('../workspace/account-prepared-records')
+  const before = await database.profileMeta.get('active')
+  const stage = cache.stageAccountJson
+  let corrupted = false
+  vi.spyOn(cache, 'stageAccountJson').mockImplementation(async (...args) => {
+    const record = await stage(...args)
+    const value = args[2] as { kind?: string; target?: import('./account-database').CipherRef }
+    if (value.kind === 'guest-copy' && value.target) {
+      const bytes = await cache.readAccountBytes(args[0], args[1], value.target, undefined, args[5])
+      const root = JSON.parse(new TextDecoder().decode(bytes))
+      bytes.fill(0)
+      const inherited = await resolveAccountRecord(args[0], args[1], root.inheritedEvidence, args[5])
+      const chunk = (await args[0].stagedCipherChunks.get([inherited.payloadId, 0]))!
+      chunk.bytes[0] ^= 1
+      await args[0].stagedCipherChunks.put(chunk)
+      corrupted = true
+    }
+    return record
+  })
+  try {
+    const preview = await service.previewGuestCopy(token, ['["editor","editor-1"]'])
+    await expect(service.commitGuestCopy(token, preview)).rejects.toThrow(/ciphertext changed/)
+    expect(corrupted).toBe(true)
+    expect(await database.profileMeta.get('active')).toEqual(before)
+    expect((await database.syncState.toArray()).some(row => row.id.startsWith('guest-copy:'))).toBe(false)
+    expect(await database.outbox.count()).toBe(0)
+  } finally { vi.restoreAllMocks(); await service.dispose() }
+})

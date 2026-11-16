@@ -59,77 +59,86 @@ export async function activateLocalAccountCommit(database: AccountDatabase, toke
   }
   const { prepareSelectedV1Check } = await import('../workspace/account-selection')
   const managedSelection = managedAdmission ? (await import('../workspace/account-local-store')).accountLocalActivationCheck(database, token, prepared) : undefined
-  const selection = managedSelection ?? await prepareSelectedV1Check(database, token, { ...prepared, validatedEvidence })
-  const attached = accountAttachmentCheck(database, token, prepared, attachment)
-  const signal = profileSignal(token)
-  const fence: AccountFence = { key: 'active', headRevision: (prepared.expected?.headRevision ?? -1) + 1, head: prepared.head }
-  if (!Number.isSafeInteger(fence.headRevision)) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'The local revision limit has been reached.')
-  // All expensive preparation has finished; only IDB requests and captured-authority checks run here
-  let pending: Transaction | undefined
-  const abort = () => pending?.abort()
-  signal.addEventListener('abort', abort, { once: true })
+  const ownedSelection = managedSelection ? undefined : await prepareSelectedV1Check(database, token, { ...prepared, validatedEvidence })
+  const selection = managedSelection ?? ownedSelection!
+  let failed = false, primary: unknown
   try {
-    await database.transaction('rw', database.tables, async transaction => {
-      pending = transaction
-      assertActiveProfile(token)
-      const active = await database.profileMeta.get('active')
-      if (JSON.stringify(active) !== JSON.stringify(prepared.expected)) throw new WorkspaceError('LOCAL_REVISION_CONFLICT', 'This account changed in another tab. Reload before saving.')
-      await attached?.recheckAndRetireInTransaction()
-      if (prepared.requireSettledSync && (await database.outbox.count() || await database.syncState.get('publication'))) throw new WorkspaceError('LOCAL_REVISION_CONFLICT', 'Finish syncing before restoring this account.')
-      await managedSelection?.installInlineInTransaction()
-      for (const record of prepared.records) {
-        for (const chunk of managedSelection?.hasInlineRecord(record) ? [] : record.descriptor.chunks) {
-          const stored = await database.stagedCipherChunks.get([record.payloadId, chunk.index])
-          if (!stored || stored.bytes.byteLength !== chunk.cipherBytes) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'Encrypted staging is incomplete. The previous save is unchanged.')
+    const attached = accountAttachmentCheck(database, token, prepared, attachment)
+    const signal = profileSignal(token)
+    const fence: AccountFence = { key: 'active', headRevision: (prepared.expected?.headRevision ?? -1) + 1, head: prepared.head }
+    if (!Number.isSafeInteger(fence.headRevision)) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'The local revision limit has been reached.')
+    // All expensive preparation has finished; only IDB requests and captured-authority checks run here
+    let pending: Transaction | undefined
+    const abort = () => pending?.abort()
+    signal.addEventListener('abort', abort, { once: true })
+    try {
+      await database.transaction('rw', database.tables, async transaction => {
+        pending = transaction
+        assertActiveProfile(token)
+        const active = await database.profileMeta.get('active')
+        if (JSON.stringify(active) !== JSON.stringify(prepared.expected)) throw new WorkspaceError('LOCAL_REVISION_CONFLICT', 'This account changed in another tab. Reload before saving.')
+        await attached?.recheckAndRetireInTransaction()
+        if (prepared.requireSettledSync && (await database.outbox.count() || await database.syncState.get('publication'))) throw new WorkspaceError('LOCAL_REVISION_CONFLICT', 'Finish syncing before restoring this account.')
+        await managedSelection?.installInlineInTransaction()
+        for (const record of prepared.records) {
+          for (const chunk of managedSelection?.hasInlineRecord(record) ? [] : record.descriptor.chunks) {
+            const stored = await database.stagedCipherChunks.get([record.payloadId, chunk.index])
+            if (!stored || stored.bytes.byteLength !== chunk.cipherBytes) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'Encrypted staging is incomplete. The previous save is unchanged.')
+          }
         }
-      }
-      // Group independent native requests inside the same fenced transaction
-      // Every collision still aborts all ciphertext, and dependencies are checked only after every record is installed
-      const revisionIds = prepared.records.map(record => record.revisionId)
-      if (new Set(revisionIds).size !== revisionIds.length
-        || (await database.encryptedRevisions.bulkGet(revisionIds)).some(Boolean)) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'An encrypted revision identity was reused.')
-      await database.encryptedRevisions.bulkAdd(prepared.records)
-      // Exact dependencies include history and sources; no reference may publish before its ciphertext
-      for (const record of prepared.records) for (const ref of record.descriptor.dependencies) {
-        if (managedSelection?.isUnchangedDependency(ref) || managedSelection?.preparedDependency(ref)) continue
-        const dependency = await database.encryptedRevisions.get(ref.revisionId)
-        if (!dependency || dependency.descriptor.documentId !== ref.documentId || dependency.descriptor.accountId !== token.accountId) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'An encrypted dependency is missing.')
-      }
-      for (const ref of [prepared.head, ...(prepared.intent ? [prepared.intent] : [])]) {
-        if (managedSelection?.preparedDependency(ref)) continue
-        const record = await database.encryptedRevisions.get(ref.revisionId)
-        if (!record || record.descriptor.documentId !== ref.documentId || record.descriptor.accountId !== token.accountId) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'A prepared head is not ready.')
-      }
-      for (const { expected, replacement } of prepared.replaceIntents ?? []) {
-        const actual = await database.outbox.get(expected.id)
-        if (JSON.stringify(actual) !== JSON.stringify(expected) || replacement.id !== expected.id || replacement.status !== 'mapped-local') throw new WorkspaceError('LOCAL_REVISION_CONFLICT', 'Pending workspace preparation changed. Retry from its original base.')
-        const ready = await database.encryptedRevisions.get(replacement.ref.revisionId)
-        if (!ready || ready.descriptor.documentId !== replacement.ref.documentId || ready.descriptor.accountId !== token.accountId) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'Mapped pending preparation is unavailable.')
-        await database.outbox.put(replacement)
-      }
-      await selection.recheckInTransaction()
-      for (const capture of prepared.sourceCaptures ?? []) {
-        if ((!capture.id.startsWith('source-context:') && !capture.id.startsWith('source-view:')) || await database.syncState.get(capture.id)) throw new WorkspaceError('LOCAL_REVISION_CONFLICT', 'The source migration context changed.')
-        const ready = await database.encryptedRevisions.get(capture.ref.revisionId)
-        if (!ready || ready.descriptor.documentId !== capture.ref.documentId) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'The source migration context is unavailable.')
-        await database.syncState.add(capture)
-      }
-      await selection.recheckSourceCapturesInTransaction()
-      await attached?.installInTransaction()
-      assertActiveProfile(token)
-      await database.documentHeads.put(prepared.head)
-      if (prepared.intent) {
-        // Capture authority with the local intent; a later pull cannot substitute its envelope parents
-        const publicationBase = (await database.syncState.get('projection'))?.ref
-        await database.outbox.add({ id: prepared.id, ref: prepared.intent, status: prepared.intentStatus ?? 'unmapped-local', ...(publicationBase ? { publicationBase } : {}) })
-      }
-      await database.migrationJournal.add({ version: 1, id: prepared.id, head: prepared.head, headRevision: fence.headRevision, ...(prepared.intent ? { intent: prepared.intent } : {}), localStatus: 'active', cloudStatus: prepared.intentStatus ?? 'unmapped-local' })
-      assertMayActivate()
-      await database.profileMeta.put(fence)
-      assertActiveProfile(token)
-      assertMayActivate()
-    })
-  } finally { signal.removeEventListener('abort', abort) }
-  assertActiveProfile(token)
-  return fence
+        // Group independent native requests inside the same fenced transaction
+        // Every collision still aborts all ciphertext, and dependencies are checked only after every record is installed
+        const revisionIds = prepared.records.map(record => record.revisionId)
+        if (new Set(revisionIds).size !== revisionIds.length
+          || (await database.encryptedRevisions.bulkGet(revisionIds)).some(Boolean)) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'An encrypted revision identity was reused.')
+        await database.encryptedRevisions.bulkAdd(prepared.records)
+        // Exact dependencies include history and sources; no reference may publish before its ciphertext
+        for (const record of prepared.records) for (const ref of record.descriptor.dependencies) {
+          if (managedSelection?.isUnchangedDependency(ref) || managedSelection?.preparedDependency(ref)) continue
+          const dependency = await database.encryptedRevisions.get(ref.revisionId)
+          if (!dependency || dependency.descriptor.documentId !== ref.documentId || dependency.descriptor.accountId !== token.accountId) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'An encrypted dependency is missing.')
+        }
+        for (const ref of [prepared.head, ...(prepared.intent ? [prepared.intent] : [])]) {
+          if (managedSelection?.preparedDependency(ref)) continue
+          const record = await database.encryptedRevisions.get(ref.revisionId)
+          if (!record || record.descriptor.documentId !== ref.documentId || record.descriptor.accountId !== token.accountId) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'A prepared head is not ready.')
+        }
+        for (const { expected, replacement } of prepared.replaceIntents ?? []) {
+          const actual = await database.outbox.get(expected.id)
+          if (JSON.stringify(actual) !== JSON.stringify(expected) || replacement.id !== expected.id || replacement.status !== 'mapped-local') throw new WorkspaceError('LOCAL_REVISION_CONFLICT', 'Pending workspace preparation changed. Retry from its original base.')
+          const ready = await database.encryptedRevisions.get(replacement.ref.revisionId)
+          if (!ready || ready.descriptor.documentId !== replacement.ref.documentId || ready.descriptor.accountId !== token.accountId) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'Mapped pending preparation is unavailable.')
+          await database.outbox.put(replacement)
+        }
+        await selection.recheckInTransaction()
+        for (const capture of prepared.sourceCaptures ?? []) {
+          if ((!capture.id.startsWith('source-context:') && !capture.id.startsWith('source-view:')) || await database.syncState.get(capture.id)) throw new WorkspaceError('LOCAL_REVISION_CONFLICT', 'The source migration context changed.')
+          const ready = await database.encryptedRevisions.get(capture.ref.revisionId)
+          if (!ready || ready.descriptor.documentId !== capture.ref.documentId) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'The source migration context is unavailable.')
+          await database.syncState.add(capture)
+        }
+        await selection.recheckSourceCapturesInTransaction()
+        await attached?.installInTransaction()
+        assertActiveProfile(token)
+        await database.documentHeads.put(prepared.head)
+        if (prepared.intent) {
+          // Capture authority with the local intent; a later pull cannot substitute its envelope parents
+          const publicationBase = (await database.syncState.get('projection'))?.ref
+          await database.outbox.add({ id: prepared.id, ref: prepared.intent, status: prepared.intentStatus ?? 'unmapped-local', ...(publicationBase ? { publicationBase } : {}) })
+        }
+        await database.migrationJournal.add({ version: 1, id: prepared.id, head: prepared.head, headRevision: fence.headRevision, ...(prepared.intent ? { intent: prepared.intent } : {}), localStatus: 'active', cloudStatus: prepared.intentStatus ?? 'unmapped-local' })
+        assertMayActivate()
+        await database.profileMeta.put(fence)
+        assertActiveProfile(token)
+        assertMayActivate()
+      })
+    } finally { signal.removeEventListener('abort', abort) }
+    assertActiveProfile(token)
+    await managedSelection?.disposeSelection()
+    return fence
+  } catch (error) { failed = true; primary = error; throw error }
+  finally {
+    try { await ownedSelection?.dispose() }
+    catch (cleanup) { if (failed) throw new AggregateError([primary, cleanup], 'Account activation and selection cleanup failed'); throw cleanup }
+  }
 }
