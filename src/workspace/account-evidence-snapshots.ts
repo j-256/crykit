@@ -1,3 +1,5 @@
+import { requireCompactCatalogWriters } from './catalog-writer-capability'
+import { compactHistoricalIdentity, historicalMemberKey } from '../interchange/workspace-backup-catalog'
 import { z } from 'zod'
 import { catalogEvidenceSchemas, validateCatalogEvidenceSources, type CatalogInheritedSnapshotSources } from './catalog-evidence'
 import { accountCleanupOnlyFailure, accountPreparationFailure, assertAccountCleanupJoinable, hasNewAccountCleanupFailure, readAccountCleanupOnlyFailure, readAccountPreparationFailure, type AccountCleanupGroup, type AccountCleanupJoin, type AccountCleanupResult, type AccountManagedCleanup } from './account-cleanup-attempt'
@@ -15,7 +17,7 @@ import { NATIVE_BACKUP_JSON_LIMITS, parseBoundedJson } from '../interchange/json
 import { WORKSPACE_BACKUP_LIMITS } from '../interchange/workspace-backup-schema'
 import { attachBackupBodies, capturedBackupEvidence, compareBackupRefs, equalMetadataStreams, historicalMetadataIdentity, readBackupMetadata, type InheritedSnapshotSources, type SnapshotMetadataV1 } from '../interchange/workspace-backup-evidence'
 import { inheritedSnapshotSetDigest } from '../interchange/identity'
-import { assertOwnedWorkspaceSnapshot, validateWorkspaceSnapshotV1, type WorkspaceSnapshotV2 } from './snapshot'
+import { assertOwnedWorkspaceSnapshot, validateWorkspaceSnapshotV1, type WorkspaceSnapshotV2, type InheritedWorkspaceSnapshot } from './snapshot'
 import { withImmutableWorkspaceBodyValidation } from './closure'
 import { guestEvidenceSources, type CapturedGuestEvidence } from './guest-evidence'
 
@@ -175,11 +177,11 @@ export interface AccountInheritedEvidence {
   readonly origin: 'evidence-v1' | 'evidence-v2'
   readonly root: CipherRef
   readonly setDigest: string
-  readonly members: readonly { readonly id: string }[]
+  readonly members: readonly { readonly id: string; readonly format?: 'legacy-v1' | 'compact-v2' }[]
   check(): Promise<void>
   dispose(): Promise<void>
 }
-export interface PrepareAccountInheritedEvidenceInput { readonly base?: AccountInheritedEvidence; readonly merge?: AccountInheritedEvidence; readonly additions?: readonly WorkspaceSnapshotV2[]; readonly sourceEvidence?: CapturedGuestEvidence; readonly signal?: AbortSignal }
+export interface PrepareAccountInheritedEvidenceInput { readonly base?: AccountInheritedEvidence; readonly merge?: AccountInheritedEvidence; readonly additions?: readonly InheritedWorkspaceSnapshot[]; readonly sourceEvidence?: CapturedGuestEvidence; readonly signal?: AbortSignal }
 export interface PreparedAccountInheritedEvidence { readonly root: CipherRef; readonly records: readonly CipherRecord[]; readonly handle: AccountInheritedEvidence; readonly owner: AccountPreparationOwner; dispose(): Promise<void> }
 export interface AccountInheritedEvidencePreparation { prepare(input: PrepareAccountInheritedEvidenceInput): Promise<PreparedAccountInheritedEvidence>; abandon(): Promise<void> }
 export interface ManagedAccountInheritedEvidencePreparation extends AccountInheritedEvidencePreparation { readonly cleanup: AccountCleanupJoin }
@@ -189,6 +191,7 @@ interface Registration {
   readonly lifetime: ReadLifetime
   readonly reader: GraphReader
   readonly owner?: AccountPreparationOwner
+  readonly catalogBindings?: { readonly bodies: readonly Body[]; readonly streams: readonly { readonly member: z.infer<ReturnType<typeof catalogEvidenceSchemas<CipherRef>>['member']>; readonly segments: readonly Segment[] }[] }
   readonly streams: readonly MemberStream[]
   readonly bodies: readonly Body[]
   readonly assertLive: () => void
@@ -768,20 +771,23 @@ export function createAccountInheritedEvidencePreparation(database: AccountDatab
       preparation = (async () => {
         let stopListening = () => {}
         try {
-          const additions = captureAdditions(input.additions ?? [])
+          const compact = input.additions?.some(snapshot => snapshot.version === 3) || input.base?.origin === 'evidence-v2' || input.merge?.origin === 'evidence-v2' || input.sourceEvidence && guestEvidenceSources(input.sourceEvidence).version === 2
+          if (compact) requireCompactCatalogWriters()
+          const catalogAdditions = compact ? captureCatalogAdditions(input.additions ?? []) : []
+          const additions = compact ? [] : captureAdditions((input.additions ?? []) as readonly WorkspaceSnapshotV2[])
           // Resolve registered sidecar authority before yielding; structural copies cannot become inputs
           const source = input.sourceEvidence && guestEvidenceSources(input.sourceEvidence)
-          if (source?.version === 2 || input.base?.origin === 'evidence-v2' || input.merge?.origin === 'evidence-v2') throw new Error('Compact account evidence writers are not enabled')
-          const sidecar = source && { members: source.members.map(member => ({ id: member.id, metadata: member.metadata, subset: member.subset.map(ref => freeze(WorkspaceBlobRefSchema.parse(ref))) })), bodies: source.bodies.map(body => ({ ref: freeze(WorkspaceBlobRefSchema.parse(body.ref)), content: body.content })) }
-          const captured = { base: input.base, merge: input.merge, sourceEvidence: input.sourceEvidence, signal: input.signal }
+          const captureBody = (body: InheritedSnapshotSources['bodies'][number]) => ({ ref: freeze(WorkspaceBlobRefSchema.parse(body.ref)), content: { byteLength: body.content.byteLength, open: body.content.open.bind(body.content) } })
+          const sidecar = source && { version: source.version, members: source.members.map(member => ({ ...member, metadata: { byteLength: member.metadata.byteLength, open: member.metadata.open.bind(member.metadata) }, subset: member.subset.map(ref => freeze(WorkspaceBlobRefSchema.parse(ref))), catalogSubset: member.catalogSubset?.map(ref => freeze(WorkspaceBlobRefSchema.parse(ref))) })), bodies: source.bodies.map(captureBody), catalogBodies: source.catalogBodies?.map(captureBody) }
+          const captured = { base: input.base, merge: input.merge, sourceEvidence: input.sourceEvidence, signal: input.signal, additions: [...input.additions ?? []] }
           const profile = profileSignal(token)
           const onAbort = () => { void abandon().catch(() => {}) }
           captured.signal?.addEventListener('abort', onAbort, { once: true })
           profile.addEventListener('abort', onAbort, { once: true })
           stopListening = () => { captured.signal?.removeEventListener('abort', onAbort); profile.removeEventListener('abort', onAbort) }
-          const fresh = async () => { await check(); captured.signal?.throwIfAborted(); await captured.sourceEvidence?.check(); if (captured.base) await registration(captured.base).lifetime.check(); if (captured.merge) await registration(captured.merge).lifetime.check(); for (const { snapshot } of additions) await assertOwnedWorkspaceSnapshot(snapshot); await check(); captured.signal?.throwIfAborted() }
+          const fresh = async () => { await check(); captured.signal?.throwIfAborted(); await captured.sourceEvidence?.check(); if (captured.base) await registration(captured.base).lifetime.check(); if (captured.merge) await registration(captured.merge).lifetime.check(); for (const snapshot of captured.additions) await assertOwnedWorkspaceSnapshot(snapshot); await check(); captured.signal?.throwIfAborted() }
           await fresh()
-          const graph = await prepareGraph(database, token, owner, captured, additions, lifetime, fresh, sidecar)
+          const graph = compact ? await prepareCatalogAccountGraph(database, token, owner, captured, catalogAdditions, lifetime, fresh, sidecar) : await prepareGraph(database, token, owner, captured, additions, lifetime, fresh, sidecar)
           await fresh()
           handle = await openAccountInheritedEvidence(database, token, graph.root, owner, openerCleanup)
           await fresh()
@@ -879,7 +885,173 @@ async function openCatalogAccountEvidence(database: AccountDatabase, token: Prof
   }
   await lifetime.check()
   const handle: AccountInheritedEvidence = Object.freeze({ origin: 'evidence-v2', root, setDigest: header.setDigest, members: freeze(members.map(({ id, format }) => ({ id, format }))), check: () => lifetime.check(), dispose })
-  // V2 bindings cannot enter v1 preparation: retaining metadata alone would discard catalog edges
-  registered.set(handle, { database, token, lifetime, reader, owner, streams: [], bodies: [], sources, assertLive() { lifetime.assertOpen(); assertActiveProfile(token); owner?.check() } })
+  // V2 bindings remain role-specific so writer reuse cannot erase catalog retention edges
+  registered.set(handle, { database, token, lifetime, reader, owner, streams: [], bodies: native, catalogBindings: { bodies: catalog, streams }, sources, assertLive() { lifetime.assertOpen(); assertActiveProfile(token); owner?.check() } })
   return handle
+}
+
+
+function captureCatalogAdditions(additions: readonly InheritedWorkspaceSnapshot[]) {
+  checked(0, additions.length, WORKSPACE_BACKUP_LIMITS.frames)
+  return additions.map(snapshot => {
+    const evidence = capturedBackupEvidence(snapshot)
+    const bodies = (values: InheritedSnapshotSources['bodies']) => values.map(body => ({ ref: freeze(WorkspaceBlobRefSchema.parse(body.ref)), content: { byteLength: body.content.byteLength, open: body.content.open.bind(body.content) } }))
+    const members = snapshot.historicalEvidence.snapshots.map(member => ({ id: member.id, format: 'format' in member ? member.format as 'legacy-v1' | 'compact-v2' : 'legacy-v1' as const }))
+    checked(0, members.length + evidence.blobs.length + (evidence.catalogBodies?.length ?? 0), WORKSPACE_BACKUP_LIMITS.frames)
+    return { snapshot, members, historical: new Map(evidence.historical), bodies: bodies(evidence.blobs), catalogBodies: bodies(evidence.catalogBodies ?? []) }
+  })
+}
+
+// V2 has a distinct producer: the frozen v1 reuse rules and token identity remain unchanged
+async function prepareCatalogAccountGraph(database: AccountDatabase, token: ProfileToken, owner: AccountPreparationOwner, input: PrepareAccountInheritedEvidenceInput, additions: ReturnType<typeof captureCatalogAdditions>, lifetime: ReadLifetime, check: () => Promise<void>, sidecar?: InheritedSnapshotSources) {
+  const budget = new Budget(), inputs: InheritedSnapshotSources[] = []
+  const guardedSources = new WeakMap<BlobSource, BlobSource>()
+  const counted = (source: BlobSource): BlobSource => {
+    const previous = guardedSources.get(source)
+    if (previous) return previous
+    checked(0, source.byteLength, WORKSPACE_BACKUP_LIMITS.bytes)
+    const result = lifetime.source(source, false, () => fresh(), bytes => budget.consume(bytes.length))
+    guardedSources.set(source, result); guardedSources.set(result, result); return result
+  }
+  const reusableBodies = [new Map<string, Body>(), new Map<string, Body>()] as const
+  const reusableStreams = new Map<string, CipherRef>(), reusableIndexes = new Map<string, CipherRef>(), reusableRecords = new Map<string, CipherRecord>()
+  const installedRoots: AccountInheritedEvidence[] = []
+  const fresh = async () => {
+    await check(); input.signal?.throwIfAborted(); await input.sourceEvidence?.check()
+    for (const handle of [input.base, input.merge]) if (handle) await assertAccountInheritedEvidenceOwner(handle, database, token)
+    for (const addition of input.additions ?? []) await assertOwnedWorkspaceSnapshot(addition)
+  }
+  for (const handle of [input.base, input.merge]) {
+    if (!handle) continue
+    await assertAccountInheritedEvidenceOwner(handle, database, token)
+    const owned = registration(handle)
+    inputs.push(await accountInheritedSources(handle))
+    let installed = 0
+    for (const record of owned.reader.records.values()) {
+      const actual = await database.encryptedRevisions.get(record.revisionId)
+      if (actual) { if (!sameRecord(actual, record)) throw new Error('Account evidence descriptor changed'); installed++ }
+    }
+    if (!installed && owned.owner) continue
+    if (installed !== owned.reader.records.size) throw new Error('Incomplete installed account evidence')
+    // Reusing physical bindings still requires complete current ciphertext authentication
+    const reader = new GraphReader(database, token, budget, fresh)
+    for (const [key, record] of owned.reader.records) {
+      if (!budget.visits.has(key)) { budget.reserve(cipherRef(record), 'body'); budget.declare(record.descriptor.plainBytes) }
+      reader.records.set(key, record); reusableRecords.set(key, record)
+    }
+    for (const record of owned.reader.records.values()) for await (const _bytes of reader.source(cipherRef(record), maxDocumentBytes).open()) {}
+    for (const body of owned.bodies) reusableBodies[0].set(blobIdentity(body.source), body)
+    for (const body of owned.catalogBindings?.bodies ?? []) reusableBodies[1].set(blobIdentity(body.source), body)
+    for (const stream of owned.streams) reusableStreams.set(`legacy-v1:${stream.id}`, stream.metadata)
+    for (const stream of owned.catalogBindings?.streams ?? []) reusableStreams.set(historicalMemberKey(stream.member), stream.member.metadata)
+    for (const [key, ref] of owned.reader.indexes) if (!reusableIndexes.has(key)) reusableIndexes.set(key, ref)
+    installedRoots.push(handle)
+  }
+  if (sidecar) inputs.push(sidecar)
+  for (const addition of additions) {
+    const usedNative = new Set<string>(), usedCatalog = new Set<string>()
+    const members: CatalogInheritedSnapshotSources['members'][number][] = []
+    for (const member of addition.members) {
+      const metadata = addition.historical.get(member.id)
+      if (!metadata) throw new Error('Missing captured catalog metadata')
+      const raw = await readBackupMetadata(counted(metadata)) as SnapshotMetadataV1 | import('./snapshot').SnapshotMetadataV3
+      const subset = raw.state.blobs.map(ref => freeze(WorkspaceBlobRefSchema.parse(ref)))
+      const catalogSubset = raw.version === 3 ? raw.catalogBodies.map(ref => freeze(WorkspaceBlobRefSchema.parse(ref))) : []
+      for (const ref of subset) usedNative.add(blobIdentity(ref))
+      for (const ref of catalogSubset) usedCatalog.add(blobIdentity(ref))
+      members.push({ ...member, metadata, subset, catalogSubset })
+      await fresh()
+    }
+    inputs.push({ version: 2, members, bodies: addition.bodies.filter(body => usedNative.has(blobIdentity(body.ref))), catalogBodies: addition.catalogBodies.filter(body => usedCatalog.has(blobIdentity(body.ref))) })
+  }
+  const members = new Map<string, CatalogInheritedSnapshotSources['members'][number]>()
+  const registries = [new Map<string, InheritedSnapshotSources['bodies'][number]>(), new Map<string, InheritedSnapshotSources['bodies'][number]>()] as const
+  for (const source of inputs) {
+    checked(members.size, source.members.length, WORKSPACE_BACKUP_LIMITS.frames)
+    for (const value of source.members) {
+      const member = { ...value, format: value.format ?? 'legacy-v1', catalogSubset: value.catalogSubset ?? [] }, key = historicalMemberKey(member), previous = members.get(key)
+      if (previous && (previous.subset.length !== member.subset.length || previous.subset.some((ref, index) => !sameRef(ref, member.subset[index])) || previous.catalogSubset.length !== member.catalogSubset.length || previous.catalogSubset.some((ref, index) => !sameRef(ref, member.catalogSubset[index])) || !await equalMetadataStreams(counted(previous.metadata), counted(member.metadata)))) throw new Error('Contradictory account catalog member')
+      if (!previous) members.set(key, member)
+    }
+    for (const [role, bodies] of [source.bodies, source.catalogBodies ?? []].entries()) for (const body of bodies) {
+      const registry = registries[role], key = blobIdentity(body.ref), previous = registry.get(key)
+      if (previous && (!sameRef(previous.ref, body.ref) || !await equalMetadataStreams(counted(previous.content), counted(body.content)))) throw new Error('Contradictory account catalog body')
+      if (!previous) registry.set(key, body)
+      checked(0, registry.size, WORKSPACE_BACKUP_LIMITS.frames)
+    }
+    await fresh()
+  }
+  const ordered = [...members].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([, member]) => member)
+  // One operation charges every source traversal, including identity and semantic rereads
+  const sources: CatalogInheritedSnapshotSources = { version: 2, members: ordered.map(member => ({ ...member, metadata: counted(member.metadata) })), bodies: [...registries[0].values()].map(body => ({ ...body, content: counted(body.content) })), catalogBodies: [...registries[1].values()].map(body => ({ ...body, content: counted(body.content) })) }
+  let declared = 0
+  for (const source of [...sources.members.map(member => member.metadata), ...sources.bodies.map(body => body.content), ...sources.catalogBodies.map(body => body.content)]) declared = checked(declared, source.byteLength, WORKSPACE_BACKUP_LIMITS.bytes)
+  const setDigest = await validateCatalogEvidenceSources(sources, fresh)
+  for (const handle of installedRoots) if (handle.origin === 'evidence-v2' && handle.setDigest === setDigest) {
+    await fresh(); return { root: handle.root, records: Object.freeze([]) as readonly CipherRecord[] }
+  }
+  const records: CipherRecord[] = [], used = new Set<string>()
+  const retainClosure = (ref: CipherRef): boolean => {
+    const pending = [ref], closure = new Set<string>()
+    while (pending.length) {
+      const next = pending.pop()!, key = refKey(next)
+      if (used.has(key)) return false
+      if (closure.has(key)) continue
+      const record = reusableRecords.get(key)
+      if (!record) throw new Error('Missing authenticated catalog dependency')
+      closure.add(key); pending.push(...record.descriptor.dependencies)
+    }
+    for (const key of closure) used.add(key)
+    return true
+  }
+  const stage = async (content: BlobSource, dependencies: readonly CipherRef[]) => {
+    budget.room(1); budget.declare(content.byteLength); await fresh()
+    const record = await stageAccountSource(database, token, content, uniqueRefs(dependencies), undefined, undefined, owner)
+    records.push(freeze(structuredClone(record))); const ref = cipherRef(record)
+    budget.reserve(ref, 'staged'); used.add(refKey(ref)); await fresh(); return ref
+  }
+  const json = async (value: unknown, dependencies: readonly CipherRef[]) => {
+    const known = reusableIndexes.get(indexKey(value))
+    if (known && !used.has(refKey(known))) { used.add(refKey(known)); await fresh(); return known }
+    const bytes = jsonBytes(value)
+    try { if (bytes.length > INDEX_PAGE_BYTES || uniqueRefs(dependencies).length > maxDependencies) throw new Error('Account catalog page limit'); return await stage({ byteLength: bytes.length, async *open() { yield bytes } }, dependencies) } finally { bytes.fill(0) }
+  }
+  const page = <T>(kind: string, entries: readonly T[], edges: (entry: T) => readonly CipherRef[]) => buildIndexPages(entries, value => json({ ...value, kind }, [...value.children, ...value.entries.flatMap(edges)]), value => jsonBytes({ ...value, kind }).length)
+  const stored = [new Map<string, Body>(), new Map<string, Body>()] as const
+  for (const [role, registry] of registries.entries()) for (const body of [...registry.values()].sort((a, b) => compareBackupRefs(a.ref, b.ref))) {
+    const key = blobIdentity(body.ref), previous = reusableBodies[role].get(key)
+    const content = previous && sameRef(previous.source, body.ref) && retainClosure(previous.content) ? previous.content : await stage(counted(body.content), [])
+    stored[role].set(key, { source: body.ref, content })
+  }
+  const written: z.infer<ReturnType<typeof catalogEvidenceSchemas<CipherRef>>['member']>[] = []
+  for (const member of ordered) {
+    const previous = reusableStreams.get(historicalMemberKey(member))
+    let metadata: CipherRef
+    if (previous && retainClosure(previous)) metadata = previous
+    else {
+      const segments: Segment[] = []
+      let length = 0
+      for await (const bytes of counted(member.metadata).open()) {
+        if (!bytes.length || bytes.length > WORKSPACE_BACKUP_LIMITS.payload) throw new Error('Account catalog token page limit')
+        budget.segment(); length = checked(length, bytes.length, member.metadata.byteLength)
+        segments.push({ ordinal: segments.length, byteLength: bytes.length, sha256: await hashBytes(bytes), content: await stage({ byteLength: bytes.length, async *open() { yield bytes } }, []) })
+      }
+      if (length !== member.metadata.byteLength) throw new Error('Account catalog metadata length mismatch')
+      const pages = await page('evidence-metadata-page', segments, segment => [segment.content])
+      const compact = member.format === 'compact-v2'
+      const id = compact ? await compactHistoricalIdentity(counted(member.metadata)) : (await historicalMetadataIdentity(counted(member.metadata))).id
+      if (id !== member.id) throw new Error('Account catalog metadata identity changed')
+      metadata = await json({ version: compact ? 2 : 1, kind: 'evidence-metadata-stream', codec: compact ? 'backup-json-tokens-v2' : 'backup-json-tokens-v1', digest: await hashBlob(counted(member.metadata)), byteLength: length, pages }, [pages])
+    }
+    const subset = (refs: readonly WorkspaceBlobRef[], role: number) => page(role ? 'evidence-catalog-subset-page' : 'evidence-subset-page', refs.map(ref => {
+      const body = stored[role].get(blobIdentity(ref))
+      if (!body || !sameRef(body.source, ref)) throw new Error('Account catalog subset mismatch')
+      return body
+    }), body => [body.content])
+    written.push({ format: member.format, id: member.id, metadata, blobSubset: await subset(member.subset, 0), catalogSubset: await subset(member.catalogSubset, 1) })
+  }
+  const memberRoot = await page('evidence-catalog-member-page', written, entry => [entry.metadata, entry.blobSubset, entry.catalogSubset])
+  const blobs = await page('evidence-blob-page', [...stored[0].values()], body => [body.content]), catalogBodies = await page('evidence-catalog-body-page', [...stored[1].values()], body => [body.content])
+  const root = await json({ version: 2, kind: 'inherited-snapshot-evidence', setDigest, members: memberRoot, blobs, catalogBodies }, [memberRoot, blobs, catalogBodies])
+  await fresh(); return { root: freeze(root), records: Object.freeze(records) }
 }

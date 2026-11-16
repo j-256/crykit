@@ -1,5 +1,5 @@
+import { requireCompactCatalogWriters } from './catalog-writer-capability'
 import Dexie from 'dexie'
-import { WorkspaceBackupError } from '../interchange/workspace-backup-schema'
 import { equalLegacyValue } from './legacy-value'
 import { validateWorkspaceClosure } from './closure'
 import { CryKitDatabase } from '../persistence/database'
@@ -16,7 +16,7 @@ import { activateGuestProfile, type GuestManifest } from './guest-coordinator'
 // This producer copies destination planner/history unchanged; imported records have no operative authority
 // All three containers are fresh because the coordinator permanently fences every retired participant
 export async function importGuestInheritedEvidence(binding: GuestBindings, source: WorkspaceSnapshot, options: { readonly signal?: AbortSignal } = {}): Promise<GuestManifest> {
-  if (source.version === 3) throw new WorkspaceBackupError('UNSUPPORTED_VERSION', 'Compact snapshot import writers are not enabled; keep the original backup')
+  if (source.version === 3) requireCompactCatalogWriters()
   if (binding.manifest.version !== 1) throw new Error('Restored guest profiles require a v2 successor')
   options.signal?.throwIfAborted()
   await assertOwnedWorkspaceSnapshot(source)

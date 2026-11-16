@@ -16,7 +16,7 @@ import { GUEST_ACTIVATED_EVENT } from './guest-workspace'
 import { readManagedSources, readManagedModSource } from './managed-planner-read'
 import { createGuestManagedMonitor, type GuestManagedMonitor, type GuestMonitorState } from './guest-managed-monitor'
 import type { GuestRecoveryNotice } from './guest-recovery'
-import { registerWorkspaceCapture, ownWorkspaceSnapshot, projectWorkspaceSnapshotV1, type WorkspaceSnapshotV2 } from './snapshot'
+import { registerWorkspaceCapture, ownWorkspaceSnapshot, type InheritedWorkspaceSnapshot } from './snapshot'
 import { captureManagedGuestSnapshot } from './guest-managed-snapshot'
 import { readLocalEvidence, prepareLocalEvidence } from './local-evidence'
 import { validateGuestCurrentBodies, compareGuestEvidence, guestEvidenceFromSnapshot, guestEvidenceFromFrozenCurrent, mergeGuestEvidence, emptyPlannerEvidence } from './guest-evidence'
@@ -34,11 +34,11 @@ import { changedLocalDataWithSharedUnits, previewImport, prepareModCatalogs, sub
 import { ownedFileReceipt, registerOwnedFileCommitter, reconcilableFileOutcome, type OwnedFileOutcome } from './owned-file-command'
 
 const MANAGED_HEAD_CHANNEL = 'crykit-managed-guest-head'
-const managed = new WeakMap<WorkspaceRepository, { assertCurrent(): Promise<void>; monitor: GuestManagedMonitor; stageRestore(input: WorkspaceSnapshotV2, expected: GuestManagedManifest, operationId: string, checkInput: () => Promise<void>): Promise<{ activate(assertMayActivate: () => void): Promise<GuestManagedManifest> }>; selection(): { coordinator: GuestCoordinatorDatabase; manifest: GuestManagedManifest; assertProfile(): void }; copy(notice: GuestRecoveryNotice, canReplace: () => boolean): Promise<void>; recovery(notice: GuestRecoveryNotice): Promise<ManagedRecoveryCapture> }>()
+const managed = new WeakMap<WorkspaceRepository, { assertCurrent(): Promise<void>; monitor: GuestManagedMonitor; stageRestore(input: InheritedWorkspaceSnapshot, expected: GuestManagedManifest, operationId: string, checkInput: () => Promise<void>): Promise<{ activate(assertMayActivate: () => void): Promise<GuestManagedManifest> }>; selection(): { coordinator: GuestCoordinatorDatabase; manifest: GuestManagedManifest; assertProfile(): void }; copy(notice: GuestRecoveryNotice, canReplace: () => boolean): Promise<void>; recovery(notice: GuestRecoveryNotice): Promise<ManagedRecoveryCapture> }>()
 // Selection hints may inspect a retired wrapper, but retain its construction-time profile lifetime
 // They never grant read/write authority to the successor named by the active pointer
 export function managedGuestSelection(repository: WorkspaceRepository) { return managed.get(repository)?.selection() }
-export async function stageManagedGuestWorkspaceRestore(repository: WorkspaceRepository, input: WorkspaceSnapshotV2, expected: GuestManagedManifest, operationId: string, checkInput: () => Promise<void>) {
+export async function stageManagedGuestWorkspaceRestore(repository: WorkspaceRepository, input: InheritedWorkspaceSnapshot, expected: GuestManagedManifest, operationId: string, checkInput: () => Promise<void>) {
   const captured = managed.get(repository)
   if (!captured) throw new Error('A captured managed guest is required')
   return captured.stageRestore(input, expected, operationId, checkInput)
@@ -276,7 +276,7 @@ export async function openGuestManagedRepository(database: GuestCoordinatorDatab
       await validateWorkspaceClosure(state)
       const inherited = await readLocalEvidence(store.adapter, current.root.inheritedEvidence, check)
       const incoming = await guestEvidenceFromSnapshot(input, emptyPlannerEvidence())
-      const incomingCurrent = await guestEvidenceFromFrozenCurrent(ownWorkspaceSnapshot(projectWorkspaceSnapshotV1(input), { check: checkInput, dispose: async () => {} }))
+      const incomingCurrent = await guestEvidenceFromFrozenCurrent(input)
       const original = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: `${operationId}-selected`, capturedAt: new Date().toISOString(), revisionVector: { guest: expected.id, root: JSON.stringify(expected.root) }, state: current.state }, { check, dispose: async () => {} })
       const selected = await guestEvidenceFromFrozenCurrent(original)
       const plannerEvidence = { ...emptyPlannerEvidence(), savedChanges: projection.planner.savedChanges ?? projection.planner.localData.changes }

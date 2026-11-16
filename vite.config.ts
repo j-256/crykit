@@ -62,7 +62,7 @@ const DOM_TEST_FILES = [
 ]
 
 export default defineConfig({
-  define: { __CRYKIT_MANAGED_COMPARISON_QUALIFICATION__: false },
+  define: { __CRYKIT_COMPACT_CATALOG_QUALIFICATION__: false, __CRYKIT_MANAGED_COMPARISON_QUALIFICATION__: false },
   // Account module workers share dynamically loaded recovery and activation code
   worker: { format: 'es' },
   base: './',

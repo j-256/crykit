@@ -12,9 +12,9 @@ export async function accountEvidenceContains(database: AccountDatabase, token: 
   try {
     const right = borrowedRight ? part : await openAccountInheritedEvidence(database, token, part)
     try {
-      const members = new Set(left.members.map(value => value.id))
+      const members = new Set(left.members.map(value => `${value.format ?? 'legacy-v1'}:${value.id}`))
       await left.check(); await right.check()
-      return right.members.every(value => members.has(value.id))
+      return right.members.every(value => members.has(`${value.format ?? 'legacy-v1'}:${value.id}`))
     } finally { if (!borrowedRight) await right.dispose() }
   } finally { if (!borrowedLeft) await left.dispose() }
 }

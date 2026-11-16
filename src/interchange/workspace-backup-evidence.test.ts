@@ -419,6 +419,7 @@ it('reopens launch guest and account fixtures as independently valid historical 
       const historical = await snapshots.openHistoricalSnapshot(inherited, inherited.historicalEvidence.snapshots[0].id)
       try {
         expect(JSON.stringify(snapshotMetadata(historical))).toBe(JSON.stringify(fixture.metadata))
+        if (historical.version !== 1) throw new Error('Legacy original changed format')
         await snapshots.validateWorkspaceSnapshotV1(historical)
       } finally { await disposeWorkspaceSnapshot(historical) }
     } finally { await disposeWorkspaceSnapshot(inherited) }

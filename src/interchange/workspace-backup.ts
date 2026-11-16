@@ -36,8 +36,15 @@ async function* bounded(stream: AsyncIterable<Uint8Array> | Iterable<Uint8Array>
     for (let offset = 0; offset < bytes.length; offset += LIMITS.payload) yield bytes.subarray(offset, offset + LIMITS.payload)
   }
 }
-export async function* exportWorkspaceBackup(snapshot: WorkspaceSnapshot, options: { readonly version?: typeof WORKSPACE_BACKUP_EVIDENCE_VERSION } = {}): AsyncIterable<Uint8Array> {
-  if (snapshot.version === 3) throw new WorkspaceBackupError('UNSUPPORTED_VERSION', 'Compact snapshot writers and compatibility exports are not enabled')
+export async function* exportWorkspaceBackup(snapshot: WorkspaceSnapshot, options: { readonly version?: typeof WORKSPACE_BACKUP_VERSION | typeof WORKSPACE_BACKUP_EVIDENCE_VERSION | typeof WORKSPACE_BACKUP_CATALOG_VERSION } = {}): AsyncIterable<Uint8Array> {
+  if (snapshot.version === 3 && options.version !== undefined && options.version !== WORKSPACE_BACKUP_CATALOG_VERSION) throw new WorkspaceBackupError('UNSUPPORTED_VERSION', 'Legacy export cannot preserve exact compact catalog provenance. Choose complete backup 2.2.0.')
+  if (options.version === WORKSPACE_BACKUP_VERSION && snapshot.version === 2 && snapshot.historicalEvidence.snapshots.length) throw new WorkspaceBackupError('UNSUPPORTED_VERSION', 'Legacy complete backup 2.0.0 cannot preserve inherited workspace originals. Choose complete backup 2.1.0 or 2.2.0.')
+  if (snapshot.version !== 3 && options.version === WORKSPACE_BACKUP_CATALOG_VERSION) {
+    const { inheritCatalogSnapshot } = await import('./workspace-backup-catalog-writer')
+    const converted = await inheritCatalogSnapshot(snapshot, [])
+    try { yield* exportWorkspaceBackup(converted, options) } finally { await disposeWorkspaceSnapshot(converted) }
+    return
+  }
   if (snapshot.version === 1 && options.version === WORKSPACE_BACKUP_EVIDENCE_VERSION) {
     const owned = await inheritWorkspaceSnapshot(snapshot, [])
     try { yield* exportWorkspaceBackup(owned, options) } finally { await disposeWorkspaceSnapshot(owned) }
@@ -46,11 +53,11 @@ export async function* exportWorkspaceBackup(snapshot: WorkspaceSnapshot, option
   const withEvidence = snapshot.version === 2 && (snapshot.historicalEvidence.snapshots.length > 0 || options.version === WORKSPACE_BACKUP_EVIDENCE_VERSION)
   await assertWorkspaceSnapshotCurrent(snapshot)
   await validateWorkspaceSnapshot(snapshot)
-  const metadata = snapshotMetadata(withEvidence ? snapshot : projectWorkspaceSnapshotV1(snapshot))
+  const metadata = snapshotMetadata(snapshot.version === 3 || withEvidence ? snapshot : projectWorkspaceSnapshotV1(snapshot))
   let chain = emptyChain, frames = 0, bytes = MAGIC.length
   yield MAGIC.slice()
-  async function* frame(value: BackupFrame | BackupManifestV2, payload: Uint8Array) {
-    const encoded = utf8.encode(JSON.stringify((value.kind === 'manifest' && value.version === WORKSPACE_BACKUP_EVIDENCE_VERSION ? BackupManifestV2Schema : BackupFrameSchema).parse(value)))
+  async function* frame(value: BackupFrame | BackupManifestV2 | import('zod').z.infer<typeof BackupManifestV3Schema>, payload: Uint8Array) {
+    const encoded = utf8.encode(JSON.stringify((value.kind === 'manifest' && value.version === WORKSPACE_BACKUP_CATALOG_VERSION ? BackupManifestV3Schema : value.kind === 'manifest' && value.version === WORKSPACE_BACKUP_EVIDENCE_VERSION ? BackupManifestV2Schema : BackupFrameSchema).parse(value)))
     if (encoded.length > LIMITS.metadata || payload.length > LIMITS.payload || frames + 1 > LIMITS.frames || bytes + 8 + encoded.length + payload.length > LIMITS.bytes) throw new Error('Backup resource limit exceeded')
     if (value.kind !== 'manifest') chain = await nextChain(chain, encoded, payload)
     frames++; bytes += 8 + encoded.length + payload.length
@@ -74,7 +81,17 @@ export async function* exportWorkspaceBackup(snapshot: WorkspaceSnapshot, option
   }
   function* metadataPages() { for (const page of encodeBackupJson(metadata)) yield encodeBackupPage(page) }
   yield* content('workspace', 'deflate-json-tokens-v1', metadataPages())
-  if (withEvidence && snapshot.version === 2) {
+  if (snapshot.version === 3) {
+    const evidence = capturedBackupEvidence(snapshot)
+    for (const member of snapshot.historicalEvidence?.snapshots ?? []) {
+      const source = evidence.historical.get(member.id)
+      if (!source) throw new Error('Missing captured historical metadata')
+      async function* pages() { for await (const page of source!.open()) yield encodeBackupPage(page) }
+      yield* content(`historical:${member.format}:${member.id}`, 'deflate-json-tokens-v1', pages())
+    }
+    for (const blob of evidence.blobs) yield* content(blobIdentity(blob.ref), 'bytes', blob.content.open())
+    for (const blob of evidence.catalogBodies ?? []) yield* content(`catalog-body:${blobIdentity(blob.ref)}`, 'bytes', blob.content.open())
+  } else if (withEvidence && snapshot.version === 2) {
     const evidence = capturedBackupEvidence(snapshot)
     for (const { id } of snapshot.historicalEvidence.snapshots) {
       const source = evidence.historical.get(id)
@@ -86,7 +103,7 @@ export async function* exportWorkspaceBackup(snapshot: WorkspaceSnapshot, option
   } else for (const blob of snapshot.state.blobs) yield* content(blobIdentity(blob.ref), 'bytes', blob.content.open())
   // A failed final capture leaves no valid terminal manifest, even if the sink already received partial bytes
   await assertWorkspaceSnapshotCurrent(snapshot)
-  yield* frame({ kind: 'manifest', dataGeneration: LAUNCH_DATA_GENERATION, format: 'crykit-workspace-backup', version: withEvidence ? WORKSPACE_BACKUP_EVIDENCE_VERSION : WORKSPACE_BACKUP_VERSION, frames, bytes, documents: document, chain, vector: await vectorDigest(snapshot.revisionVector) }, new Uint8Array())
+  yield* frame({ kind: 'manifest', dataGeneration: LAUNCH_DATA_GENERATION, format: 'crykit-workspace-backup', version: snapshot.version === 3 ? WORKSPACE_BACKUP_CATALOG_VERSION : withEvidence ? WORKSPACE_BACKUP_EVIDENCE_VERSION : WORKSPACE_BACKUP_VERSION, frames, bytes, documents: document, chain, vector: await vectorDigest(snapshot.revisionVector) }, new Uint8Array())
 }
 export async function readWorkspaceBackup(stream: AsyncIterable<Uint8Array>, options: { readonly signal?: AbortSignal } = {}): Promise<WorkspaceSnapshot> {
   const iterator = stream[Symbol.asyncIterator]()

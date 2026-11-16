@@ -65,6 +65,72 @@ const accountBootstrapProof = {
   signinMergeDiagnostics: readSigninMergeDiagnostics,
   recordSigninMergeBoundary,
   stopSigninMergeDiagnostics,
+  async seedCompactCatalogDestination() {
+    const { GUIDE_CATALOG } = await import('../../src/catalog/bundled')
+    const { editorClosureFixture } = await import('../../src/workspace/test-helpers')
+    const fixture = await editorClosureFixture(), token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
+    try { await seedManagedWorkspace(database, token, { ...fixture.state, planner: { ...fixture.state.planner, catalogs: [GUIDE_CATALOG] } }) } finally { database.close() }
+  },
+  async initializeCatalogDevice() {
+    const { openAccountRepository } = await import('../../src/workspace/account-repository')
+    await openAccountRepository(currentProfileToken()!)
+  },
+  async catalogPublicationState() {
+    const token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
+    const { openAccountJson } = await import('../../src/workspace/account-cache')
+    const { z } = await import('zod')
+    try {
+      const rows = await database.syncState.toArray()
+      const decode = async (row: { id: string; ref: { documentId: string; revisionId: string } }) => ({ ...row, value: await openAccountJson(database, token, row.ref, z.unknown()) })
+      return { fence: await database.profileMeta.get('active'), rows: await Promise.all(rows.filter(row => ['projection', 'remote', 'publication'].includes(row.id) || row.id.startsWith('incremental-') || row.id.startsWith('accepted:')).map(decode)), outbox: await Promise.all((await database.outbox.toArray()).map(decode)) }
+    } finally { database.close() }
+  },
+  async syncCatalogOnce() {
+    const { runSyncIteration, registerSyncProjectionGuard } = await import('../../src/account/sync/outbox')
+    const token = currentProfileToken()!
+    // This isolated fixture has no draft owners; use the same explicit adoption gate as the provider
+    const draftFree = () => !mounted && new URLSearchParams(location.search).has('fixture-setup') && currentProfileToken() === token
+    if (!draftFree()) throw new Error('Catalog sync proof requires the unmounted owning synthetic profile')
+    const release = registerSyncProjectionGuard(token, draftFree)
+    try { return await runSyncIteration(token, profileSignal(token)) } catch (error) {
+      const { CommitProgress } = await import('../../src/account/sync/commit-progress')
+      if (error instanceof CommitProgress) return { state: 'syncing', moreWork: true }
+      throw error
+    } finally { release() }
+  },
+  async migrateCatalogFixture() {
+    const token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
+    const { prepareAccountCatalogMigration } = await import('../../src/workspace/catalog-migration')
+    const { activateLocalAccountCommit } = await import('../../src/persistence/account-database')
+    try {
+      const expected = (await database.profileMeta.get('active'))!
+      const migration = await prepareAccountCatalogMigration(database, token, expected)
+      try { return await activateLocalAccountCommit(database, token, migration.prepared) } finally { await migration.dispose() }
+    } finally { database.close() }
+  },
+  async compactCatalogEvidence() {
+    const token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
+    const { captureManagedAccountSnapshot } = await import('../../src/workspace/account-managed-snapshot')
+    const { capturedBackupEvidence } = await import('../../src/interchange/workspace-backup-evidence')
+    const { hashBlob } = await import('../../src/workspace/blobs')
+    try {
+      const snapshot = await captureManagedAccountSnapshot(database, token, (await database.profileMeta.get('active'))!)
+      try {
+        const evidence = capturedBackupEvidence(snapshot)
+        return { version: snapshot.version, currentCatalogs: snapshot.state.planner.catalogs.map(value => ({ id: value.id, revisionId: value.revisionId, checksum: value.checksum })), members: snapshot.version !== 1 ? snapshot.historicalEvidence?.snapshots : [], metadata: await Promise.all([...evidence.historical].map(async ([id, content]) => ({ id, digest: await hashBlob(content) }))), native: await Promise.all(evidence.blobs.map(async body => ({ ref: body.ref, digest: await hashBlob(body.content) }))), catalogs: await Promise.all((evidence.catalogBodies ?? []).map(async body => ({ ref: body.ref, digest: await hashBlob(body.content) }))) }
+      } finally { await disposeWorkspaceSnapshot(snapshot) }
+    } finally { database.close() }
+  },
+  async compactCatalogArchive() {
+    const token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
+    const { captureManagedAccountSnapshot } = await import('../../src/workspace/account-managed-snapshot')
+    const { exportWorkspaceBackup } = await import('../../src/interchange/workspace-backup')
+    try {
+      const snapshot = await captureManagedAccountSnapshot(database, token, (await database.profileMeta.get('active'))!)
+      try { const chunks: Uint8Array[] = []; for await (const bytes of exportWorkspaceBackup(snapshot)) chunks.push(bytes); const result = new Uint8Array(chunks.reduce((sum, bytes) => sum + bytes.length, 0)); let offset = 0; for (const bytes of chunks) { result.set(bytes, offset); offset += bytes.length } return Array.from(result) }
+      finally { await disposeWorkspaceSnapshot(snapshot) }
+    } finally { database.close() }
+  },
   async comparisonSyncDiagnostic() {
     const token = currentProfileToken()!
     try { return { outcome: await (await import('../../src/account/sync/outbox')).runSyncIteration(token, profileSignal(token)) } }

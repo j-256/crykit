@@ -9,7 +9,7 @@ import { accountLocalId, cipherRef } from './account-cache'
 import { createAccountInheritedEvidencePreparation, openAccountInheritedEvidence, type AccountInheritedEvidence, type AccountInheritedEvidencePreparation } from './account-evidence-snapshots'
 import { openAccountWorkspace, prepareAccountWorkspaceWithEvidence } from './account-graph'
 import { mappedChanges, stageMappedWorkspaceIntent } from './account-intents'
-import { assertOwnedWorkspaceSnapshot, disposeWorkspaceSnapshot, validateWorkspaceSnapshot, type WorkspaceSnapshot, type WorkspaceSnapshotV2 } from './snapshot'
+import { assertOwnedWorkspaceSnapshot, disposeWorkspaceSnapshot, validateWorkspaceSnapshot, type WorkspaceSnapshot, type InheritedWorkspaceSnapshot } from './snapshot'
 
 export interface AccountRestorePreview {
   readonly target: 'account'
@@ -27,7 +27,7 @@ interface PreviewAuthority {
   readonly expected: AccountFence
 }
 interface StageAuthority extends PreviewAuthority {
-  readonly normalized: WorkspaceSnapshotV2
+  readonly normalized: InheritedWorkspaceSnapshot
   readonly operation: AccountInheritedEvidencePreparation
   readonly base?: AccountInheritedEvidence
   readonly prepared: PreparedLocalActivation
@@ -59,8 +59,8 @@ export async function previewAccountWorkspaceRestore(database: AccountDatabase, 
   const state = snapshot.state
   const preview: AccountRestorePreview = Object.freeze({
     target: 'account', selectedProfileId: token.accountId,
-    categories: Object.freeze({ planner: 1, editor: state.editorDocuments.length, save: state.saveDocuments.length, asset: state.assets.length, history: state.planner.history.length + (snapshot.version === 2 ? snapshot.historicalEvidence.snapshots.length : 0) + 1 }),
-    privateBytes: state.blobs.reduce((sum, blob) => sum + blob.ref.byteLength, 0) + (snapshot.version === 2 ? snapshot.historicalEvidence.blobs.reduce((sum, ref) => sum + ref.byteLength, 0) : 0),
+    categories: Object.freeze({ planner: 1, editor: state.editorDocuments.length, save: state.saveDocuments.length, asset: state.assets.length, history: state.planner.history.length + (snapshot.version !== 1 ? snapshot.historicalEvidence?.snapshots.length ?? 0 : 0) + 1 }),
+    privateBytes: state.blobs.reduce((sum, blob) => sum + blob.ref.byteLength, 0) + (snapshot.version !== 1 ? snapshot.historicalEvidence?.blobs.reduce((sum, ref) => sum + ref.byteLength, 0) ?? 0 : 0) + (snapshot.version === 3 ? (snapshot.historicalEvidence?.catalogBodies ?? snapshot.catalogBodies).reduce((sum, ref) => sum + ref.byteLength, 0) : 0),
     effect: 'replace-selected-profile',
   })
   previews.set(preview, { database, token, snapshot, expected, branch })

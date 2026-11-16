@@ -20,7 +20,7 @@ export async function catalogEvidenceSetDigest(members: readonly { format: Histo
 
 // Manifest, chain and EOF checks must precede this reader; every role is admitted independently
 // Native originals never satisfy retained catalog registry edges, even when their refs happen to match
-export async function finishCatalogSnapshot(current: import('../workspace/documents').BlobSource, documents: readonly BackupDocument[], staging: Awaited<ReturnType<typeof createBackupStaging>>, expectedVector: string, signal?: AbortSignal): Promise<WorkspaceSnapshotV3> {
+export async function finishCatalogSnapshot(current: import('../workspace/documents').BlobSource, documents: readonly BackupDocument[], staging: Awaited<ReturnType<typeof createBackupStaging>>, expectedVector: string, signal?: AbortSignal, retainedOwner?: SnapshotOwner): Promise<WorkspaceSnapshotV3> {
   const raw = await readBackupMetadata(current) as SnapshotMetadataV3
   const { state: _state, ...header } = raw
   SnapshotHeaderV3Schema.parse(header)
@@ -47,7 +47,7 @@ export async function finishCatalogSnapshot(current: import('../workspace/docume
   }
   const native = registry(nativeRefs, ''), catalogs = registry(catalogRefs, 'catalog-body:')
   let disposed = false, active = false
-  const owner: SnapshotOwner = { async check() { signal?.throwIfAborted(); if (disposed) throw new Error('Backup snapshot was released') }, async dispose() { disposed = true; await staging.dispose() } }
+  const owner: SnapshotOwner = { async check() { signal?.throwIfAborted(); if (disposed) throw new Error('Backup snapshot was released'); await retainedOwner?.check() }, async dispose() { disposed = true; try { await staging.dispose() } finally { await retainedOwner?.dispose() } } }
   const usedNative = new Set<string>(), usedCatalog = new Set<string>()
   const note = (value: { state: { blobs: readonly import('../workspace/documents').WorkspaceBlobRef[] }; catalogBodies?: readonly import('../workspace/documents').WorkspaceBlobRef[] }) => {
     for (const ref of value.state.blobs) usedNative.add(blobIdentity(ref))

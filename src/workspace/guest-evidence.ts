@@ -1,3 +1,5 @@
+import { requireCompactCatalogWriters } from './catalog-writer-capability'
+import { catalogEvidenceSetDigest, historicalMemberKey, compactHistoricalIdentity } from '../interchange/workspace-backup-catalog'
 import { z } from 'zod'
 import { catalogEvidenceSchemas, validateCatalogEvidenceSources, type CatalogInheritedSnapshotSources } from './catalog-evidence'
 import Dexie from 'dexie'
@@ -10,7 +12,7 @@ import { INDEX_PAGE_BYTES, INDEX_PAGE_ENTRIES } from './directory'
 import { attachBackupBodies, capturedBackupEvidence, compareBackupRefs, equalMetadataStreams, historicalMetadataIdentity, metadataSource, readBackupMetadata, type InheritedSnapshotSources, type SnapshotMetadataV1 } from '../interchange/workspace-backup-evidence'
 import { WORKSPACE_BACKUP_LIMITS } from '../interchange/workspace-backup-schema'
 import { inheritedSnapshotSetDigest } from '../interchange/identity'
-import { assertOwnedWorkspaceSnapshot, openHistoricalSnapshot, disposeWorkspaceSnapshot, validateWorkspaceSnapshotV1, snapshotMetadata, projectWorkspaceSnapshotV1, type WorkspaceSnapshot, type WorkspaceSnapshotV1, type WorkspaceSnapshotV2 } from './snapshot'
+import { assertOwnedWorkspaceSnapshot, openHistoricalSnapshot, disposeWorkspaceSnapshot, validateWorkspaceSnapshot, validateWorkspaceSnapshotV1, snapshotMetadata, projectWorkspaceSnapshotV1, type WorkspaceSnapshot, type WorkspaceSnapshotV2, type WorkspaceSnapshotV3 } from './snapshot'
 import { withImmutableWorkspaceBodyValidation } from './closure'
 
 const integer = z.number().int().nonnegative().safe(), digest = z.string().regex(/^[0-9a-f]{64}$/)
@@ -168,10 +170,12 @@ export async function readGuestEvidence(rows: GuestEvidenceRows, check: () => Pr
 
 interface Writer { put(table: string, row: unknown): Promise<unknown> }
 async function writeGraph(writer: Writer, sources: InheritedSnapshotSources, plannerStream: BlobSource): Promise<void> {
-  if (sources.version === 2) throw new Error('Compact guest evidence writers are not enabled')
+  const compact = sources.version === 2
+  if (compact) requireCompactCatalogWriters()
+  if (compact) await validateCatalogEvidenceSources(sources as CatalogInheritedSnapshotSources, async () => {})
   const ref = (): Locator => ({ version: 1, key: crypto.randomUUID() })
   const put = async (table: string, value: unknown) => { const key = ref(); await writer.put(table, { key: key.key, value }); return key }
-  const page = async (kind: PageKind, entries: readonly unknown[]): Promise<Locator> => {
+  const page = async (kind: PageKind | 'evidence-catalog-member-page' | 'evidence-catalog-body-page' | 'evidence-catalog-subset-page', entries: readonly unknown[]): Promise<Locator> => {
     const layer = async (values: readonly unknown[], children: boolean) => {
       const result: Locator[] = []
       let chunk: unknown[] = []
@@ -188,7 +192,7 @@ async function writeGraph(writer: Writer, sources: InheritedSnapshotSources, pla
     while (refs.length > 1) refs = await layer(refs, true)
     return refs[0]
   }
-  const stream = async (source: BlobSource): Promise<Locator> => {
+  const stream = async (source: BlobSource, catalog = false): Promise<Locator> => {
     const segments: z.infer<typeof segmentSchema>[] = []
     let length = 0
     // Token pages are individually parsed JSON arrays; splitting one changes the accepted stream grammar
@@ -199,23 +203,27 @@ async function writeGraph(writer: Writer, sources: InheritedSnapshotSources, pla
       segments.push({ ordinal: segments.length, byteLength: part.length, sha256: await hashBlob(memoryBlob(part)), content }); length += part.length
     }
     if (length !== source.byteLength) throw new Error('Metadata staging length mismatch')
-    return put('evidenceRoots', { version: 1, kind: 'evidence-metadata-stream', codec: 'backup-json-tokens-v1', digest: await hashBlob(source), byteLength: length, pages: await page('evidence-metadata-page', segments) })
+    return put('evidenceRoots', { version: catalog ? 2 : 1, kind: 'evidence-metadata-stream', codec: catalog ? 'backup-json-tokens-v2' : 'backup-json-tokens-v1', digest: await hashBlob(source), byteLength: length, pages: await page('evidence-metadata-page', segments) })
   }
+  const subset = (refs: readonly WorkspaceBlobRef[], catalog = false) => page(catalog ? 'evidence-catalog-subset-page' : 'evidence-subset-page', refs.map(source => ({ source, content: { version: 1, key: `${catalog ? 'catalog-body:' : ''}${blobIdentity(source)}` } })))
   const members = []
-  for (const member of sources.members) members.push({ id: member.id, metadata: await stream(member.metadata), blobSubset: await page('evidence-subset-page', member.subset.map(source => ({ source, content: { version: 1, key: blobIdentity(source) } }))) })
-  const shared = []
-  for (const body of [...sources.bodies].sort((a, b) => compareBackupRefs(a.ref, b.ref))) {
-    const key = blobIdentity(body.ref)
-    await writer.put('evidenceBlobs', { key, ref: body.ref })
-    let index = 0, length = 0
-    for await (const bytes of body.content.open()) for (let offset = 0; offset < bytes.length; offset += BLOB_CHUNK_BYTES) {
-      const part = bytes.slice(offset, offset + BLOB_CHUNK_BYTES)
-      await writer.put('evidenceChunks', { key, index: index++, bytes: part }); length += part.length
+  for (const member of sources.members) members.push({ ...(compact ? { format: member.format ?? 'legacy-v1', catalogSubset: await subset(member.catalogSubset ?? [], true) } : {}), id: member.id, metadata: await stream(member.metadata, member.format === 'compact-v2'), blobSubset: await subset(member.subset) })
+  const bodies = async (entries: WorkspaceState['blobs'], catalog = false) => {
+    const shared = []
+    for (const body of [...entries].sort((a, b) => compareBackupRefs(a.ref, b.ref))) {
+      const key = `${catalog ? 'catalog-body:' : ''}${blobIdentity(body.ref)}`
+      await writer.put('evidenceBlobs', { key, ref: body.ref })
+      let index = 0, length = 0
+      for await (const bytes of body.content.open()) for (let offset = 0; offset < bytes.length; offset += BLOB_CHUNK_BYTES) {
+        const part = bytes.slice(offset, offset + BLOB_CHUNK_BYTES)
+        await writer.put('evidenceChunks', { key, index: index++, bytes: part }); length += part.length
+      }
+      if (length !== body.ref.byteLength) throw new Error('Historical body staging length mismatch')
+      shared.push({ source: body.ref, content: { version: 1, key } })
     }
-    if (length !== body.ref.byteLength) throw new Error('Historical native staging length mismatch')
-    shared.push({ source: body.ref, content: { version: 1, key } })
+    return page(catalog ? 'evidence-catalog-body-page' : 'evidence-blob-page', shared)
   }
-  const inheritedEvidence = await put('evidenceRoots', { version: 1, kind: 'inherited-snapshot-evidence', setDigest: await inheritedSnapshotSetDigest(members.map(member => member.id)), members: await page('evidence-member-page', members), blobs: await page('evidence-blob-page', shared) })
+  const inheritedEvidence = await put('evidenceRoots', { version: compact ? 2 : 1, kind: 'inherited-snapshot-evidence', setDigest: compact ? await catalogEvidenceSetDigest(sources.members as CatalogInheritedSnapshotSources['members']) : await inheritedSnapshotSetDigest(members.map(member => member.id)), members: await page(compact ? 'evidence-catalog-member-page' : 'evidence-member-page', members), blobs: await bodies(sources.bodies), ...(compact ? { catalogBodies: await bodies(sources.catalogBodies ?? [], true) } : {}) })
   const plannerEvidence = ref()
   await writer.put('plannerEvidence', { key: plannerEvidence.key, stream: await stream(plannerStream) })
   await writer.put('documents', { key: GUEST_EXTENSION_KEY, value: { version: 1, kind: 'guest-workspace-extensions', inheritedEvidence, plannerEvidence } })
@@ -258,12 +266,19 @@ export async function writeGuestEvidence(database: Dexie, evidence: CapturedGues
 export async function compareGuestEvidence(a: CapturedGuestEvidence, b: CapturedGuestEvidence): Promise<void> {
   const left = captured.get(a), right = captured.get(b)
   if (!left || !right) throw new Error('A captured guest evidence sidecar is required')
+  if (left.sources.version !== right.sources.version) throw new Error('Guest evidence format changed')
+  const leftCatalogs = left.sources.catalogBodies ?? [], rightCatalogs = right.sources.catalogBodies ?? []
+  if (leftCatalogs.length !== rightCatalogs.length) throw new Error('Guest catalog registry changed')
+  // Registries are sets that durable encoders sort; member subsets retain their original order
+  const rightCatalogRegistry = new Map(rightCatalogs.map(body => [blobIdentity(body.ref), body]))
+  for (const body of leftCatalogs) { const other = rightCatalogRegistry.get(blobIdentity(body.ref)); if (!other || !sameRef(body.ref, other.ref) || !await equalMetadataStreams(body.content, other.content)) throw new Error('Guest catalog body changed') }
   if (a.setDigest !== b.setDigest || left.sources.members.length !== right.sources.members.length || left.sources.bodies.length !== right.sources.bodies.length || !await equalMetadataStreams(left.plannerStream, right.plannerStream)) throw new Error('Guest evidence changed')
   for (const [index, member] of left.sources.members.entries()) {
     const other = right.sources.members[index]
-    if (member.id !== other.id || member.subset.length !== other.subset.length || member.subset.some((ref, index) => !sameRef(ref, other.subset[index])) || !await equalMetadataStreams(member.metadata, other.metadata)) throw new Error('Guest historical evidence changed')
+    if (member.format !== other.format || (member.catalogSubset?.length ?? 0) !== (other.catalogSubset?.length ?? 0) || (member.catalogSubset ?? []).some((ref, index) => !sameRef(ref, other.catalogSubset![index])) || member.id !== other.id || member.subset.length !== other.subset.length || member.subset.some((ref, index) => !sameRef(ref, other.subset[index])) || !await equalMetadataStreams(member.metadata, other.metadata)) throw new Error('Guest historical evidence changed')
   }
-  for (const [index, body] of left.sources.bodies.entries()) { const other = right.sources.bodies[index]; if (!sameRef(body.ref, other.ref) || !await equalMetadataStreams(body.content, other.content)) throw new Error('Guest historical body changed') }
+  const rightBodyRegistry = new Map(right.sources.bodies.map(body => [blobIdentity(body.ref), body]))
+  for (const body of left.sources.bodies) { const other = rightBodyRegistry.get(blobIdentity(body.ref)); if (!other || !sameRef(body.ref, other.ref) || !await equalMetadataStreams(body.content, other.content)) throw new Error('Guest historical body changed') }
 }
 
 // Imported changes are inert originals; only the destination's actual local changes can extend them
@@ -279,30 +294,33 @@ export function mergeGuestSavedChanges(originals: GuestPlannerEvidence['savedCha
 
 // Only a registered, fully validated portable owner can supply import originals
 // Copying to a durable target and reopening it still runs the complete graph validation
-export async function guestEvidenceFromSnapshot(snapshot: WorkspaceSnapshotV2, planner: GuestPlannerEvidence): Promise<CapturedGuestEvidence> {
+export async function guestEvidenceFromSnapshot(snapshot: WorkspaceSnapshotV2 | WorkspaceSnapshotV3, planner: GuestPlannerEvidence): Promise<CapturedGuestEvidence> {
   await assertOwnedWorkspaceSnapshot(snapshot)
   GuestPlannerEvidenceSchema.parse(planner)
-  const original = capturedBackupEvidence(snapshot), members: InheritedSnapshotSources['members'][number][] = [], keys = new Set<string>()
-  for (const { id } of snapshot.historicalEvidence.snapshots) {
+  const compact = snapshot.version === 3
+  const original = capturedBackupEvidence(snapshot), catalogKeys = new Set<string>(), members: InheritedSnapshotSources['members'][number][] = [], keys = new Set<string>()
+  for (const { id } of snapshot.historicalEvidence?.snapshots ?? []) {
     const child = await openHistoricalSnapshot(snapshot, id)
     try {
       const metadata = original.historical.get(id)
       if (!metadata) throw new Error('Missing inherited metadata')
       const subset = child.state.blobs.map(blob => blob.ref)
       for (const ref of subset) keys.add(blobIdentity(ref))
-      members.push({ id, metadata, subset })
+      const catalogSubset = child.version === 3 ? child.catalogBodies : []
+      for (const ref of catalogSubset) catalogKeys.add(blobIdentity(ref))
+      members.push({ id, metadata, subset, ...(compact ? { format: child.version === 3 ? 'compact-v2' : 'legacy-v1', catalogSubset } : {}) })
     } finally { await disposeWorkspaceSnapshot(child) }
   }
   const bodies = original.blobs.filter(blob => keys.has(blobIdentity(blob.ref)))
   const ownedPlanner = freezeEvidence(structuredClone(planner))
-  const evidence: CapturedGuestEvidence = Object.freeze({ setDigest: await inheritedSnapshotSetDigest(members.map(member => member.id)), planner: ownedPlanner, check: () => assertOwnedWorkspaceSnapshot(snapshot) })
-  captured.set(evidence, { sources: { members, bodies }, plannerStream: metadataSource(ownedPlanner) })
+  const evidence: CapturedGuestEvidence = Object.freeze({ setDigest: compact ? await catalogEvidenceSetDigest(members as CatalogInheritedSnapshotSources['members']) : await inheritedSnapshotSetDigest(members.map(member => member.id)), planner: ownedPlanner, check: () => assertOwnedWorkspaceSnapshot(snapshot) })
+  captured.set(evidence, { sources: { members, bodies, ...(compact ? { version: 2, catalogBodies: original.catalogBodies?.filter(body => catalogKeys.has(blobIdentity(body.ref))) ?? [] } : {}) }, plannerStream: metadataSource(ownedPlanner) })
   return evidence
 }
 
 export async function mergeGuestEvidence(destination: CapturedGuestEvidence, source: CapturedGuestEvidence, planner: GuestPlannerEvidence): Promise<CapturedGuestEvidence> {
   await destination.check(); await source.check()
-  if ([destination, source].some(value => guestEvidenceSources(value).version === 2)) throw new Error('Compact guest evidence writers are not enabled')
+  if ([destination, source].some(value => guestEvidenceSources(value).version === 2)) return mergeCatalogGuestEvidence(destination, source, planner)
   GuestPlannerEvidenceSchema.parse(planner)
   const members = new Map<string, InheritedSnapshotSources['members'][number]>(), bodies = new Map<string, WorkspaceState['blobs'][number]>()
   for (const evidence of [destination, source]) {
@@ -333,12 +351,23 @@ export async function validateGuestCurrentBodies(state: WorkspaceState, evidence
 }
 
 // The selected source's old operative endpoints are original backup evidence, not another live undo branch
-export async function guestEvidenceFromFrozenCurrent(snapshot: WorkspaceSnapshotV1): Promise<CapturedGuestEvidence> {
+export async function guestEvidenceFromFrozenCurrent(snapshot: WorkspaceSnapshot): Promise<CapturedGuestEvidence> {
   return captureCurrentEvidence(snapshot)
 }
 
 async function captureCurrentEvidence(snapshot: WorkspaceSnapshot, preserveStored = false): Promise<CapturedGuestEvidence> {
   await assertOwnedWorkspaceSnapshot(snapshot)
+  if (snapshot.version === 3) {
+    await validateWorkspaceSnapshot(snapshot)
+    const { historicalEvidence: _history, ...flat } = snapshotMetadata(snapshot)
+    const metadata = metadataSource(flat), id = await compactHistoricalIdentity(metadata), planner = emptyPlannerEvidence()
+    const all = capturedBackupEvidence(snapshot)
+    const sources: CatalogInheritedSnapshotSources = { version: 2, members: [{ format: 'compact-v2', id, metadata, subset: snapshot.state.blobs.map(body => body.ref), catalogSubset: snapshot.catalogBodies }], bodies: snapshot.state.blobs, catalogBodies: (all.catalogBodies ?? []).filter(body => snapshot.catalogBodies.some(ref => sameRef(ref, body.ref))) }
+    await validateCatalogEvidenceSources(sources, () => assertOwnedWorkspaceSnapshot(snapshot))
+    const evidence = Object.freeze({ setDigest: await catalogEvidenceSetDigest(sources.members), planner, check: () => assertOwnedWorkspaceSnapshot(snapshot) })
+    captured.set(evidence, { sources, plannerStream: metadataSource(planner) })
+    return evidence
+  }
   const current = projectWorkspaceSnapshotV1(snapshot)
   await validateWorkspaceSnapshotV1(current)
   const metadata = preserveStored && snapshot.version === 1 ? capturedBackupEvidence(snapshot).current : metadataSource(snapshotMetadata(current))
@@ -368,14 +397,15 @@ export async function guestEvidenceForCopy(selected: WorkspaceSnapshot, source?:
     const exact = guestEvidenceSources(originals)
     // A native capture already retains its complete raw source, before the pure picker projection
     // Require its full declared membership and body identities; never omit an older stored original
-    if (source.version !== 2 || exact.members.length !== source.historicalEvidence.snapshots.length
-      || exact.members.some((member, index) => member.id !== source.historicalEvidence.snapshots[index].id)
+    if (source.version === 1 || !source.historicalEvidence || exact.members.length !== source.historicalEvidence.snapshots.length
+      || exact.members.some((member, index) => { const retained = source.historicalEvidence!.snapshots[index]; return member.id !== retained.id || (member.format ?? 'legacy-v1') !== ('format' in retained ? retained.format : 'legacy-v1') })
       || exact.bodies.length !== source.historicalEvidence.blobs.length
-      || exact.bodies.some((body, index) => !sameRef(body.ref, source.historicalEvidence.blobs[index]))) throw new Error('Copy original evidence differs from the captured source')
+      || exact.bodies.some((body, index) => !sameRef(body.ref, source.historicalEvidence!.blobs[index]))) throw new Error('Copy original evidence differs from the captured source')
+    if (source.version === 3 && (exact.catalogBodies ?? []).some(body => !source.historicalEvidence!.catalogBodies.some(ref => sameRef(body.ref, ref)))) throw new Error('Copy catalog originals differ from the captured source')
     result = await mergeGuestEvidence(result, originals, planner)
   } else if (source && source !== selected) result = await mergeGuestEvidence(result, await captureCurrentEvidence(source, true), planner)
   for (const snapshot of new Set([selected, ...(source && !originals ? [source] : [])])) {
-    if (snapshot.version === 2) result = await mergeGuestEvidence(result, await guestEvidenceFromSnapshot(snapshot, planner), planner)
+    if (snapshot.version !== 1) result = await mergeGuestEvidence(result, await guestEvidenceFromSnapshot(snapshot, planner), planner)
   }
   return result
 }
@@ -495,5 +525,33 @@ async function readCatalogGuestEvidence(rows: GuestEvidenceRows, check: () => Pr
   const planner = freezeEvidence(plannerRaw as GuestPlannerEvidence)
   const evidence = Object.freeze({ setDigest: root.setDigest, planner, check })
   captured.set(evidence, { sources: freezeEvidence(sources), plannerStream })
+  return evidence
+}
+
+async function mergeCatalogGuestEvidence(destination: CapturedGuestEvidence, source: CapturedGuestEvidence, planner: GuestPlannerEvidence): Promise<CapturedGuestEvidence> {
+  GuestPlannerEvidenceSchema.parse(planner)
+  const members = new Map<string, CatalogInheritedSnapshotSources['members'][number]>()
+  const bodies = new Map<string, WorkspaceState['blobs'][number]>(), catalogs = new Map<string, WorkspaceState['blobs'][number]>()
+  for (const evidence of [destination, source]) {
+    await evidence.check()
+    const input = guestEvidenceSources(evidence)
+    for (const value of input.members) {
+      const member = { ...value, format: value.format ?? 'legacy-v1', catalogSubset: value.catalogSubset ?? [] }, key = historicalMemberKey(member), previous = members.get(key)
+      if (previous && (previous.subset.length !== member.subset.length || previous.subset.some((ref, index) => !sameRef(ref, member.subset[index])) || previous.catalogSubset.length !== member.catalogSubset.length || previous.catalogSubset.some((ref, index) => !sameRef(ref, member.catalogSubset[index])) || !await equalMetadataStreams(previous.metadata, member.metadata))) throw new Error('Contradictory inherited catalog member')
+      if (!previous) members.set(key, member)
+    }
+    for (const [registry, entries] of [[bodies, input.bodies], [catalogs, input.catalogBodies ?? []]] as const) for (const body of entries) {
+      const key = blobIdentity(body.ref), previous = registry.get(key)
+      if (previous && (!sameRef(previous.ref, body.ref) || !await equalMetadataStreams(previous.content, body.content))) throw new Error('Contradictory inherited catalog body')
+      if (!previous) registry.set(key, body)
+    }
+    await evidence.check()
+  }
+  const sources: CatalogInheritedSnapshotSources = { version: 2, members: [...members].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([, member]) => member), bodies: [...bodies.values()].sort((a, b) => compareBackupRefs(a.ref, b.ref)), catalogBodies: [...catalogs.values()].sort((a, b) => compareBackupRefs(a.ref, b.ref)) }
+  const check = async () => { await destination.check(); await source.check() }
+  await validateCatalogEvidenceSources(sources, check)
+  const ownedPlanner = freezeEvidence(structuredClone(planner))
+  const evidence = Object.freeze({ setDigest: await catalogEvidenceSetDigest(sources.members), planner: ownedPlanner, check })
+  captured.set(evidence, { sources, plannerStream: metadataSource(ownedPlanner) })
   return evidence
 }

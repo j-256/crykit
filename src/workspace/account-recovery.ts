@@ -1,3 +1,5 @@
+import { sameCatalogBodyRef } from './catalog-reference'
+import { compactHistoricalIdentity } from '../interchange/workspace-backup-catalog'
 import { z } from 'zod'
 import type { Table, Transaction } from 'dexie'
 import { assertActiveProfile, profileSignal, type ProfileToken } from '../account/profile'
@@ -43,9 +45,14 @@ function admittedBytes(descriptor: RevisionDescriptor) {
 // Matching labels or visible records cannot prove that an original's history/conflicts survived
 async function validateCoverage(successor: WorkspaceSnapshot, predecessor: WorkspaceSnapshot, inherited = true): Promise<string> {
   const original = capturedBackupEvidence(predecessor), next = capturedBackupEvidence(successor)
-  const current = predecessor.version === 1 ? original.current : metadataSource(snapshotMetadata(projectWorkspaceSnapshotV1(predecessor)))
-  const identity = inherited ? await historicalMetadataIdentity(current) : undefined
-  if (!inherited && await backupMetadataDigest(snapshotMetadata(projectWorkspaceSnapshotV1(successor))) !== await backupMetadataDigest(snapshotMetadata(projectWorkspaceSnapshotV1(predecessor)))) throw integrity()
+  const flat = (snapshot: WorkspaceSnapshot) => {
+    if (snapshot.version !== 3) return snapshotMetadata(projectWorkspaceSnapshotV1(snapshot))
+    const { historicalEvidence: _history, ...metadata } = snapshotMetadata(snapshot)
+    return metadata
+  }
+  const current = predecessor.version === 1 ? original.current : metadataSource(flat(predecessor))
+  const identity = inherited ? predecessor.version === 3 ? { id: await compactHistoricalIdentity(current) } : await historicalMetadataIdentity(current) : undefined
+  if (!inherited && await backupMetadataDigest(flat(successor)) !== await backupMetadataDigest(flat(predecessor))) throw integrity()
   for (const [id, metadata] of [...(inherited ? [[identity!.id, current] as const] : []), ...original.historical]) {
     const inherited = next.historical.get(id)
     if (!inherited || !await equalMetadataStreams(metadata, inherited)) throw integrity()
@@ -53,7 +60,12 @@ async function validateCoverage(successor: WorkspaceSnapshot, predecessor: Works
   const bodies = new Map(next.blobs.map(body => [blobIdentity(body.ref), body]))
   for (const body of original.blobs) {
     const inherited = bodies.get(blobIdentity(body.ref))
-    if (!inherited || !exact(inherited.ref, body.ref) || !await equalMetadataStreams(inherited.content, body.content)) throw integrity()
+    if (!inherited || !sameCatalogBodyRef(inherited.ref, body.ref) || !await equalMetadataStreams(inherited.content, body.content)) throw integrity()
+  }
+  const catalogs = new Map((next.catalogBodies ?? []).map(body => [blobIdentity(body.ref), body]))
+  for (const body of original.catalogBodies ?? []) {
+    const inherited = catalogs.get(blobIdentity(body.ref))
+    if (!inherited || !sameCatalogBodyRef(inherited.ref, body.ref) || !await equalMetadataStreams(inherited.content, body.content)) throw integrity()
   }
   return backupMetadataDigest(snapshotMetadata(predecessor))
 }
