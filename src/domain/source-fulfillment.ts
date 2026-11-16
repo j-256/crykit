@@ -1,5 +1,5 @@
 import { SOURCE_REVISION_RECEIPTS, type BundledSourceRevisionReceipt } from '../catalog/source-revisions'
-import { checkpointContentDigest } from './checkpoint-identity'
+import { checkpointContentDigest, checkpointContentDigestAsync } from './checkpoint-identity'
 import { parseCatalogSourceId, parseSourceRevision } from './source-identity'
 import { sourcePayloadContent } from './source-payload'
 import { deeplyImmutable } from './immutable-value'
@@ -24,7 +24,7 @@ export function sourcePayloadValid(catalog: CatalogSnapshot, receipts: readonly 
   return valid
 }
 
-function validatePayload(catalog: CatalogSnapshot, receipts: readonly BundledSourceRevisionReceipt[]): boolean {
+function payloadValidation(catalog: CatalogSnapshot, receipts: readonly BundledSourceRevisionReceipt[]) {
   const identity = parseCatalogSourceId(catalog.id)
   if (!identity || !parseSourceRevision(identity.origin, catalog.revisionId)) return false
   const receipt = identity.origin !== 'imported' ? bundledReceipt(catalogPin(catalog), receipts) : undefined
@@ -43,7 +43,29 @@ function validatePayload(catalog: CatalogSnapshot, receipts: readonly BundledSou
   }
   const { checksum, ...content } = catalog
   const prefix = identity.origin === 'imported' || catalog.payloadSource ? 'payload:sha256:' : 'builtin:sha256:'
-  return checksum === `${prefix}${checkpointContentDigest(sourcePayloadContent(content))}`
+  return { checksum, prefix, content: sourcePayloadContent(content) }
+}
+function validatePayload(catalog: CatalogSnapshot, receipts: readonly BundledSourceRevisionReceipt[]): boolean {
+  const validation = payloadValidation(catalog, receipts)
+  return !!validation && validation.checksum === `${validation.prefix}${checkpointContentDigest(validation.content)}`
+}
+
+// Decide immutability before the first await; freezing a changed caller input later cannot bless old bytes
+// Only canonical bundled receipts and a complete real digest may populate the existing exact-object cache
+export async function prepareSourcePayloadValidation(catalog: CatalogSnapshot, check: () => void): Promise<boolean> {
+  check()
+  if (!deeplyImmutable(catalog)) throw new Error('Source preparation requires an immutable catalog')
+  const cached = validatedPayloads.get(catalog)
+  if (cached !== undefined) return cached
+  await new Promise<void>(resolve => setTimeout(resolve, 0)); check()
+  const validation = payloadValidation(catalog, SOURCE_REVISION_RECEIPTS)
+  if (!validation) return false
+  const digest = await checkpointContentDigestAsync(validation.content, check)
+  check()
+  await new Promise<void>(resolve => setTimeout(resolve, 0)); check()
+  const valid = validation.checksum === `${validation.prefix}${digest}`
+  if (valid) validatedPayloads.set(catalog, true)
+  return valid
 }
 
 export function fulfillSource(requested: ModCatalogPin, catalogs: readonly CatalogSnapshot[], receipts: readonly BundledSourceRevisionReceipt[] = SOURCE_REVISION_RECEIPTS): { readonly catalog: CatalogSnapshot; readonly suppliedBy: ModCatalogPin } | undefined {
