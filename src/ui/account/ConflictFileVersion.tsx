@@ -6,6 +6,7 @@ import { blobIdentity, readBlob } from '../../workspace/blobs'
 import type { WorkspaceBlobRef, WorkspaceDocument, WorkspaceState } from '../../workspace/documents'
 import { EditorWorkspaceDocumentSchema, SaveWorkspaceDocumentSchema, WorkspaceAssetSchema } from '../../workspace/file-schemas'
 import { downloadBytes } from '../browser-actions'
+import { Button } from '../components'
 
 const PREVIEW_BYTES = 64 * 1024
 interface ContentRole { readonly label: string; readonly ref: WorkspaceBlobRef }
@@ -48,7 +49,15 @@ function Content({ token, role, blobs, filename, version }: { readonly token: Pr
       if (captured === lifetime.current) setError(download ? 'This saved file could not be downloaded. The local download limit is 128 MiB. Both originals remain saved.' : 'This content could not be previewed. Previews are limited to 64 KiB. Download the saved content to inspect it.')
     } finally { bytes?.fill(0) }
   }
-  return <div><p>{role.label}: {role.ref.byteLength} bytes ({role.ref.encoding})</p><button onClick={() => { void inspect(false) }}>Inspect {role.label.toLowerCase()}</button><button onClick={() => { void inspect(true) }}>Download {role.label.toLowerCase()}</button>{preview !== undefined && <><p>{role.ref.encoding === 'bytes' ? 'Hexadecimal bytes' : 'Escaped text; Unicode escapes preserve saved code units'}</p><pre aria-label={`${role.label} content`}>{preview}</pre></>}{error && <p role="alert">{error}</p>}</div>
+  return <div className="conflict-file-content">
+    <p>{role.label}: {role.ref.byteLength} bytes ({role.ref.encoding})</p>
+    <div className="conflict-file-actions">
+      <Button type="button" tone="secondary" icon="eye" onClick={() => { void inspect(false) }}>Inspect {role.label.toLowerCase()}</Button>
+      <Button type="button" tone="secondary" icon="download" onClick={() => { void inspect(true) }}>Download {role.label.toLowerCase()}</Button>
+    </div>
+    {preview !== undefined && <><p>{role.ref.encoding === 'bytes' ? 'Hexadecimal bytes' : 'Escaped text; Unicode escapes preserve saved code units'}</p><pre aria-label={`${role.label} content`}>{preview}</pre></>}
+    {error && <p role="alert">{error}</p>}
+  </div>
 }
 export function ConflictFileVersion({ token, documents, blobs, version }: { readonly token: ProfileToken; readonly documents: readonly WorkspaceDocument[]; readonly blobs: WorkspaceState['blobs']; readonly version: string }) {
   return <>{documents.filter(document => ['editor', 'save', 'asset'].includes(document.kind)).map(document => {
@@ -67,6 +76,6 @@ export function ConflictFileVersion({ token, documents, blobs, version }: { read
       filename = file.relativePath; metadata = `${file.mediaType}; ${file.width} × ${file.height}; source ${file.sourceKey}`
       roles = [{ label: 'Original asset', ref: file.original }]
     }
-    return <div key={document.key}><p><strong>{filename}</strong></p><p>{metadata}</p>{roles.map(role => <Content key={role.label} token={token} role={role} blobs={blobs} filename={filename} version={version}/>)}</div>
+    return <div className="conflict-file" key={document.key}><p className="conflict-file-name"><strong>{filename}</strong></p><p className="conflict-file-metadata">{metadata}</p>{roles.map(role => <Content key={role.label} token={token} role={role} blobs={blobs} filename={filename} version={version}/>)}</div>
   })}</>
 }
