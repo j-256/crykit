@@ -12,6 +12,7 @@
   --desktop-brand-width: 232px;
   /* Reserve room for the two-line wordmark and wrapped tagline */
   --desktop-header-height: 88px;
+  --desktop-content-inset: 36px;
   --rail-control-size: 48px;
   --rail-toggle-size: 32px;
   --rail-scroll-cue-height: 28px;
@@ -123,7 +124,7 @@ svg { width: 20px; height: 20px; flex: 0 0 auto; }
 .development-refresh.icon-button { width: 28px; height: 28px; min-width: 28px; min-height: 28px; padding: 5px; color: var(--cyan-300); }
 .development-refresh.icon-button svg { width: 16px; height: 16px; }
 .mobile-header, .bottom-nav { display: none; }
-.content { width: min(1440px, 100%); margin: 0 auto; padding: 36px clamp(22px, 3vw, 40px) 80px; }
+.content { width: min(1440px, 100%); margin: 0 auto; padding: var(--desktop-content-inset) clamp(22px, 3vw, 40px) 80px; }
 
 .screen-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
 .screen-header__description { max-width: 600px; margin-bottom: 0; color: var(--text-dim); font-size: .9rem; }
@@ -843,7 +844,8 @@ select[multiple] option { padding: 6px 8px; border-radius: 3px; }
 
 .reference-layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 16px; align-items: start; }
 .reference-layout--detail { grid-template-columns: minmax(0, 1fr); }
-.facet-panel { min-width: 0; position: sticky; top: 86px; max-height: calc(100dvh - 104px); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+/* Budget for the initial content inset too, before the panel reaches its sticky position */
+.facet-panel { --facet-panel-gap: 16px; min-width: 0; position: sticky; top: calc(var(--desktop-header-height) + var(--facet-panel-gap)); max-height: calc(100dvh - var(--desktop-header-height) - var(--desktop-content-inset) - var(--facet-panel-gap)); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .facet-group { padding: 15px 16px; border-bottom: 1px solid var(--line); }
 .facet-group:last-child { border-bottom: 0; }
 .facet-group h3 { margin-bottom: 9px; font-family: inherit; font-size: .72rem; letter-spacing: .06em; text-transform: uppercase; }
