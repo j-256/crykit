@@ -17,7 +17,7 @@ interface Props {
 
 const COMPACT_SIZE = 48
 const DETAIL_SIZE = 128
-const MAX_WIKI_SCALE = 2
+const MAX_MOD_SCALE = 2
 const MAX_NATIVE_SCALE = 4
 const MAX_CLASS_WORLD_SCALE = 2
 const INLINE_SIZE = 28
@@ -45,7 +45,7 @@ function ArtworkImage({ artwork, entity, detailed, compact, maximumScale }: { re
   const [failed, setFailed] = useState(false)
   if (failed) return <ArtworkPlaceholder compact={compact} detailed={detailed} entity={entity}/>
   const limit = compact ? INLINE_SIZE : detailed ? DETAIL_SIZE : COMPACT_SIZE
-  const scale = Math.min(maximumScale ?? (artwork.source === 'native' ? MAX_NATIVE_SCALE : MAX_WIKI_SCALE), limit / artwork.asset.width, limit / artwork.asset.height)
+  const scale = Math.min(maximumScale ?? (artwork.source === 'native' ? MAX_NATIVE_SCALE : MAX_MOD_SCALE), limit / artwork.asset.width, limit / artwork.asset.height)
   const bounds = artwork.asset.contentBounds
   const offsetX = bounds ? artwork.asset.width / 2 - bounds.x - bounds.width / 2 : 0
   const offsetY = bounds ? artwork.asset.height / 2 - bounds.y - bounds.height / 2 : 0
@@ -79,6 +79,6 @@ export function CatalogArtworkSource({ catalogId, entity }: Props) {
   const artwork = catalogArtwork(catalogId, entity)
   if (!artwork) return <small className="wiki-sprite-missing">No exact artwork linked.</small>
   if (!isExternalArtwork(artwork)) return null
-  const provenance = artwork.provenance === 'community-wiki' ? 'Community wiki artwork; Switch and mod-pack appearance is unverified.' : 'Bundled from the supplied PC mod export; Nintendo Switch appearance is unverified.'
-  return <Sources label={`Sources for ${entity.name} artwork`}><p>{artwork.asset.descriptionUrl ? <a href={artwork.asset.descriptionUrl} rel="noreferrer" target="_blank">{artwork.asset.title.replace(/^File:/, '')}</a> : artwork.asset.title}<br/>{artwork.asset.license}</p><ul>{artwork.binding.sources.map((source, index) => <li key={`${source.url ?? source.locator}:${index}`}>{source.url ? <a href={source.url} rel="noreferrer" target="_blank">{source.title}</a> : <strong>{source.title}</strong>} · {source.locator}{source.applicability ? <> · {source.applicability}</> : null}</li>)}</ul><p>{provenance}</p></Sources>
+  const provenance = 'Bundled from the supplied PC mod export; Nintendo Switch appearance is unverified.'
+  return <Sources label={`Sources for ${entity.name} artwork`}><p>{artwork.asset.title}<br/>{artwork.asset.license}</p><ul>{artwork.binding.sources.map((source, index) => <li key={`${source.url ?? source.locator}:${index}`}>{source.url ? <a href={source.url} rel="noreferrer" target="_blank">{source.title}</a> : <strong>{source.title}</strong>} · {source.locator}{source.applicability ? <> · {source.applicability}</> : null}</li>)}</ul><p>{provenance}</p></Sources>
 }

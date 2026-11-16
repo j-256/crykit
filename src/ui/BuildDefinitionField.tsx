@@ -1,6 +1,5 @@
 import { BuildLibraryImport } from './BuildLibraryImport'
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { isPotentiallyLearnableInnate } from '../catalog/switch'
 import { passiveRoles } from '../domain/passive-roles'
 import { nativeDisplayName } from '../domain/native-game'
 import { entityDefinitionKey, logicalEntityKey } from '../domain'
@@ -13,7 +12,7 @@ import { definitionKindLabel, findDefinitionOption, useDefinitionLibrary, type D
 import { Icon, type IconName } from './icons'
 import { DefinitionArtwork } from './GameIcon'
 import { matchesEquipmentSlot, matchesSlot, subCommandLabel } from './definition-fields'
-import { definitionChoiceSourceLabel, hasNameEvidenceOnly, isReferenceArticle, ppCostLabel, similarNameOptions } from './build-evidence'
+import { definitionChoiceSourceLabel, ppCostLabel, similarNameOptions } from './build-evidence'
 import { BuildSelectionDetails, BuildSelectionFacts } from './BuildSelectionDetails'
 import { HistoricalInnateLearningBadge, ModBadge } from './DefinitionModLabel'
 import { preferredDefinitionChoices } from './definition-preferences'
@@ -89,7 +88,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   const definitionIndex = useMemo(() => new Map(open ? options.map(option => [option.key, option.record]) : []), [open, options])
   const slotOptions = useMemo(() => {
     const kinds = new Set(allowedKindKey.split(','))
-    return availableOptions.filter(option => option.key === selected?.key || kinds.has(option.kind) && !excludedKeys.has(logicalEntityKey(localData, option.ref)) && !isReferenceArticle(localData, option.ref) && (equipmentSlot ? matchesEquipmentSlot(option, equipmentSlot) : matchesSlot(option, label)))
+    return availableOptions.filter(option => option.key === selected?.key || kinds.has(option.kind) && !excludedKeys.has(logicalEntityKey(localData, option.ref)) && (equipmentSlot ? matchesEquipmentSlot(option, equipmentSlot) : matchesSlot(option, label)))
   }, [allowedKindKey, availableOptions, equipmentSlot, excludedKeys, label, localData, selected?.key])
   const permissionAssessments = useMemo(() => new Map(equipmentPermissions && open ? slotOptions.map(option => [option.key, buildContent && equipmentSlot && equipmentSlots
     ? pickerEquipmentAssessment(option, buildContent, equipmentSlot, equipmentSlots, ref => definitionIndex.get(entityDefinitionKey(ref)), ref => logicalEntityKey(localData, ref))
@@ -118,7 +117,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
   const matchingChoices = useMemo(() => {
     if (!open) return []
     const choices = includeAlternatives ? slotOptions : preferredDefinitionChoices(slotOptions, selected?.key)
-    return choices.filter(option => (option.key === selected?.key || (option.kind === 'innate' ? isPotentiallyLearnableInnate(option.record) : option.kind !== 'passive' || passiveRoles(option.record).learnable !== 'false') && pickerAvailableForSetup(option, includeUnavailable) && (!category || pickerCategoryKey(option) === category) && (!withinPp || remainingPp === undefined || option.ppCost?.state === 'known' && option.ppCost.value <= remainingPp)) && searchMatches.get(option.key))
+    return choices.filter(option => (option.key === selected?.key || (option.kind === 'innate' ? (option.record.kind === 'innate' && passiveRoles(option.record).learnable === 'true') : option.kind !== 'passive' || passiveRoles(option.record).learnable !== 'false') && pickerAvailableForSetup(option, includeUnavailable) && (!category || pickerCategoryKey(option) === category) && (!withinPp || remainingPp === undefined || option.ppCost?.state === 'known' && option.ppCost.value <= remainingPp)) && searchMatches.get(option.key))
       .sort((a, b) => {
         const priorityDifference = (priorityByKey.get(a.key) ?? priorityGroups.length) - (priorityByKey.get(b.key) ?? priorityGroups.length)
         if (priorityDifference) return priorityDifference
@@ -128,7 +127,7 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
           const difference = Number(left === undefined) - Number(right === undefined) || (right ?? 0) - (left ?? 0)
           if (difference) return difference
         }
-        return (searchMatches.get(a.key)?.rank ?? 0) - (searchMatches.get(b.key)?.rank ?? 0) || modListPriority(a.modAvailability) - modListPriority(b.modAvailability) || Number(permissionAssessments.get(a.key)?.status === 'invalid') - Number(permissionAssessments.get(b.key)?.status === 'invalid') || Number(hasNameEvidenceOnly(a.record)) - Number(hasNameEvidenceOnly(b.record)) || optionName(a).localeCompare(optionName(b))
+        return (searchMatches.get(a.key)?.rank ?? 0) - (searchMatches.get(b.key)?.rank ?? 0) || modListPriority(a.modAvailability) - modListPriority(b.modAvailability) || Number(permissionAssessments.get(a.key)?.status === 'invalid') - Number(permissionAssessments.get(b.key)?.status === 'invalid') || optionName(a).localeCompare(optionName(b))
       })
   }, [category, includeAlternatives, includeUnavailable, label, open, permissionAssessments, priorityByKey, priorityGroups.length, remainingPp, searchMatches, selected?.key, slotOptions, sort, withinPp])
   const duplicatePassives = matchingChoices.filter(option => option.key !== selected?.key && equippedElsewhere.has(logicalEntityKey(localData, option.ref)))
@@ -221,6 +220,6 @@ export function BuildDefinitionField({ label, allowedKinds, value, open, query, 
         {hasMore && <button className={`picker-result${activeIndex === visible.length ? ' picker-result--active' : ''}`} id={`${id}-option-${visible.length}`} onMouseDown={(event) => event.preventDefault()} onClick={() => onResultLimitChange(resultLimit + BUILD_DEFINITION_PAGE_SIZE)} role="option" aria-selected={false} tabIndex={-1} type="button">Show more results</button>}
       </div>
     </Dropdown>
-    {showSelectionDetails && selected && <div className="build-field__evidence">{label !== 'Sub-command' && <BuildSelectionFacts option={selected}/>}{pickerHandedness(selected) && <p className="field__hint">{pickerHandedness(selected)}</p>}{modPlanningReason(selected.modAvailability) && <p className="field__hint">{modPlanningReason(selected.modAvailability)} Your selection is kept.</p>}{selected.modAvailability?.requiredMod && onConfigureMod && <div className="build-field__mod-action"><Button aria-label={`${selected.name} mod settings`} onClick={() => onConfigureMod(selected.modAvailability!.requiredMod!)} tone="quiet" type="button">Mod settings</Button></div>}{isReferenceArticle(localData, selected.ref) && <p className="field__hint">This selection links to an article. Choose an equipment item to replace it.</p>}<details><summary aria-label={`Details for ${selected.name}`}>Details</summary><BuildSelectionDetails alternatives={similarNames.get(selected.key)} catalogs={catalogs} gameSetup={gameSetup} localData={localData} option={selected} showClassPermissions={label !== 'Sub-command'}/></details></div>}
+    {showSelectionDetails && selected && <div className="build-field__evidence">{label !== 'Sub-command' && <BuildSelectionFacts option={selected}/>}{pickerHandedness(selected) && <p className="field__hint">{pickerHandedness(selected)}</p>}{modPlanningReason(selected.modAvailability) && <p className="field__hint">{modPlanningReason(selected.modAvailability)} Your selection is kept.</p>}{selected.modAvailability?.requiredMod && onConfigureMod && <div className="build-field__mod-action"><Button aria-label={`${selected.name} mod settings`} onClick={() => onConfigureMod(selected.modAvailability!.requiredMod!)} tone="quiet" type="button">Mod settings</Button></div>}<details><summary aria-label={`Details for ${selected.name}`}>Details</summary><BuildSelectionDetails alternatives={similarNames.get(selected.key)} catalogs={catalogs} gameSetup={gameSetup} localData={localData} option={selected} showClassPermissions={label !== 'Sub-command'}/></details></div>}
   </div>
 }

@@ -1,9 +1,12 @@
+import { checkpointContentDigest } from './checkpoint-identity'
+import { createSampleLocalData } from './sample-data'
+import { validateNativeLocalDataGraph } from '../interchange/native'
 import { expect, it } from 'vitest'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { fulfillSource, sourcePayloadValid } from './source-fulfillment'
 import type { CatalogId, CatalogRevisionId } from './types'
 import { artifactSuppliesCatalog } from './source-artifacts'
-import { CURRENT_CATALOG, GUIDE_CATALOG } from '../catalog/bundled'
+import { CURRENT_CATALOG } from '../catalog/bundled'
 
 const imported = async () => (await previewCrystalEdit(new TextEncoder().encode(JSON.stringify({ ID: 'Synthetic bundled source', EditorVersion: 34, Equipment: [{ ID: 3, Name: 'Synthetic Dirk' }] })), 'private-original.json')).proposed.catalogs[0]!
 
@@ -24,7 +27,7 @@ it('fulfills exact requests across origins without rewriting payload citations o
 
 it('checks current packaged payloads and never reuses a shallow-frozen validation result', async () => {
   expect(sourcePayloadValid(CURRENT_CATALOG)).toBe(true)
-  expect(sourcePayloadValid(GUIDE_CATALOG)).toBe(true)
+  expect(sourcePayloadValid(CURRENT_CATALOG)).toBe(true)
   const catalog = await imported()
   const mutable = { ...structuredClone(catalog.entities) }
   const shallow = Object.freeze({ ...catalog, entities: mutable })
@@ -46,4 +49,22 @@ it('requires a trusted bundled receipt, exact interpretation, and verified compl
   expect(sourcePayloadValid(forged, [pin])).toBe(false)
   expect(fulfillSource(requested, [forged], [pin])).toBeUndefined()
   expect(fulfillSource({ catalogId: pin.id, catalogRevisionId: pin.revisionId }, [original], [{ ...pin, checksum: 'payload:sha256:' + '0'.repeat(64) }])).toBeUndefined()
+})
+
+it('admits complete retained source bodies without packaging historical receipts or retargeting missing references', () => {
+  const { checksum: _checksum, ...current } = CURRENT_CATALOG
+  const content = { ...current, revisionId: 'v1' as CatalogRevisionId }
+  const retired = { ...content, checksum: `builtin:sha256:${checkpointContentDigest(content)}` }
+  expect(sourcePayloadValid(retired, [])).toBe(true)
+  const personal = createSampleLocalData(retired)
+  const before = JSON.stringify(personal)
+  expect(() => validateNativeLocalDataGraph(personal, [retired])).not.toThrow()
+  expect(JSON.stringify(personal)).toBe(before)
+  expect(fulfillSource({ catalogId: retired.id, catalogRevisionId: retired.revisionId }, [])).toBeUndefined()
+  expect(fulfillSource({ catalogId: retired.id, catalogRevisionId: retired.revisionId }, [CURRENT_CATALOG])).toBeUndefined()
+  expect(fulfillSource({ catalogId: retired.id, catalogRevisionId: retired.revisionId }, [retired])?.catalog).toBe(retired)
+  const entity = Object.values(retired.entities)[0]!
+  expect(sourcePayloadValid({ ...retired, entities: { ...retired.entities, [entity.id]: { ...entity, name: 'Altered after capture' } } }, [])).toBe(false)
+  expect(sourcePayloadValid({ ...retired, checksum: 'builtin:sha256:' + '0'.repeat(64) }, [])).toBe(false)
+  expect(sourcePayloadValid(retired, [{ id: retired.id, revisionId: retired.revisionId, checksum: 'builtin:sha256:' + '0'.repeat(64) }])).toBe(false)
 })

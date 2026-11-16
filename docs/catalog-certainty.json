@@ -6,346 +6,64 @@
       "complete": 1195,
       "partial": 466,
       "unsupported": 68,
-      "historicalFallbacks": {
-        "complete": 648,
-        "partial": 240,
-        "unsupported": 16
-      },
       "unsupportedReasons": {
-        "Item behavior has no supported description": 17,
-        "Stat modifier: ReplaceAttackWith": 12,
-        "Stat modifier: Reaction": 16,
-        "Stat modifier: SetStatusAfterExpiry": 9,
-        "Stat modifier: MDefMax": 7,
-        "Stat modifier: PDefMax": 7,
-        "Ability modifier: Teleport": 50,
-        "Stat modifier: Addi_HealingReturn": 1,
-        "Ability modifier: ThreatGainFlat": 3,
-        "Weapon type scope details": 157,
         "Ability power formula": 284,
         "Ability defense and scaling details": 287,
         "Ability combat details": 377,
+        "Weapon type scope details": 157,
         "Ability modifier: DamageReturnRateOverflow_100": 16,
         "Ability modifier: RemoveOneFromStatusCategory": 10,
+        "Ability modifier: ThreatGainFlat": 3,
         "Ability modifier: RemoveAllStatusCategory": 11,
-        "Ability modifier: OncePerTurn": 8,
-        "Ability modifier: DamagePerSelfBuff": 2,
+        "Stat modifier: Reaction": 16,
+        "Ability modifier: Teleport": 50,
+        "Stat modifier: PDefMax": 7,
+        "Stat modifier: MDefMax": 7,
         "Ability modifier: DamageReturnRateOnKill_100": 1,
+        "Ability modifier: DamageReturnRateNoOverflow_100": 7,
+        "Ability modifier: RandomStatusTarget": 2,
+        "Ability modifier: OncePerTurn": 8,
+        "Status application": 1,
+        "Ability modifier: ConsumeComboTokens": 6,
+        "Ability modifier: DamagePerTargetDebuff": 3,
         "Ability modifier: ConvertAPToMP": 1,
         "Ability modifier: ConvertMPToAP": 1,
-        "Ability modifier: RandomStatusTarget": 2,
-        "Ability modifier: DamageReturnRateNoOverflow_100": 7,
-        "Ability modifier: DamagePerTargetDebuff": 3,
-        "Ability modifier: ConsumeComboTokens": 6,
-        "Item special behavior": 3,
-        "Ability modifier: SetMountType": 16,
-        "Ability modifier: SetMountToMyQuintar": 2,
-        "Status application": 1,
         "Ability modifier: StatusRequiredTarget": 3,
+        "Ability modifier: SetMountType": 16,
+        "Stat modifier: SetStatusAfterExpiry": 9,
         "Ability modifier: ServiceShortcut": 2,
+        "Ability modifier: DamagePerSelfBuff": 2,
         "Ability modifier: CanUseWhileDead": 3,
+        "Ability modifier: SetMountToMyQuintar": 2,
         "Ability modifier: DamageRateVsStatus": 1,
+        "Stat modifier: ReplaceAttackWith": 12,
+        "Item behavior has no supported description": 17,
+        "Item special behavior": 3,
         "Item flavor vocabulary": 4,
         "Stat modifier: DamageBonusFromAPCost": 1,
+        "Stat modifier: Addi_HealingReturn": 1,
         "Authored description contains unsupported vocabulary": 4
       }
     },
     "fieldFacts": {
-      "nativeValues": 2396,
-      "differingOriginals": 7,
-      "archivedEquipmentFields": 1030
+      "nativeValues": 1869,
+      "differingOriginals": 0,
+      "archivedEquipmentFields": 0
     },
     "acquisition": {
-      "replacedFields": 64,
-      "retainedGuideFields": 138,
-      "disagreements": 1
-    },
-    "identities": {
-      "relations": {
-        "command-of-class": 24,
-        "same-definition": 306
-      },
-      "dispositions": {
-        "native-identity-review": 270,
-        "native-linked": 330,
-        "native-geography-review": 113,
-        "article-review": 22
-      }
+      "routes": 1988,
+      "unresolved": 0
     }
   },
   "catalogId": "crystal-project/vanilla",
-  "revisionId": "v1",
-  "checksum": "builtin:sha256:d19f3e53399ab5afca59da8e7b6c204086a51f2e879927d027780ce969daa073",
+  "revisionId": "v2",
+  "checksum": "builtin:sha256:378b896511f248eb715f338ef2ec9f1296578eb08d82688b784dd5bcd5570e32",
   "states": {
-    "known": 97599,
-    "unknown": 897,
-    "conflicting": 519,
-    "notApplicable": 6185
+    "known": 79458,
+    "unknown": 0,
+    "conflicting": 0,
+    "notApplicable": 2395
   },
   "scope": "Catalog definitions only; personal observations and unrecorded Game Setup choices retain their knowledge states",
-  "gaps": [
-    {
-      "state": "conflicting",
-      "kind": "item",
-      "field": "Cost",
-      "reason": "Original source claims differ",
-      "count": 2,
-      "examples": [
-        "base:item:ref-144",
-        "base:item:ref-146"
-      ]
-    },
-    {
-      "state": "conflicting",
-      "kind": "item",
-      "field": "Effect",
-      "reason": "Original source claims differ",
-      "count": 4,
-      "examples": [
-        "base:item:132",
-        "base:item:ref-144",
-        "base:item:ref-145"
-      ]
-    },
-    {
-      "state": "conflicting",
-      "kind": "item",
-      "field": "Location",
-      "reason": "Original source claims differ",
-      "count": 513,
-      "examples": [
-        "base:equipment:0",
-        "base:equipment:11",
-        "base:equipment:71"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "ability",
-      "field": "Class",
-      "reason": "The scraped wiki sources do not document class for this ability",
-      "count": 20,
-      "examples": [
-        "base:ability:ref-1",
-        "base:ability:ref-2",
-        "base:ability:ref-3"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "ability",
-      "field": "Cost",
-      "reason": "The scraped wiki sources do not document cost for this ability",
-      "count": 20,
-      "examples": [
-        "base:ability:ref-1",
-        "base:ability:ref-2",
-        "base:ability:ref-3"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "ability",
-      "field": "Description",
-      "reason": "The scraped wiki sources do not document description for this ability",
-      "count": 5,
-      "examples": [
-        "base:ability:ref-2",
-        "base:ability:ref-7",
-        "base:ability:ref-8"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "ability",
-      "field": "Learning cost",
-      "reason": "The scraped wiki sources do not document learning cost for this ability",
-      "count": 20,
-      "examples": [
-        "base:ability:ref-1",
-        "base:ability:ref-2",
-        "base:ability:ref-3"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "ability",
-      "field": "Type",
-      "reason": "The scraped wiki sources do not document type for this ability",
-      "count": 20,
-      "examples": [
-        "base:ability:ref-1",
-        "base:ability:ref-2",
-        "base:ability:ref-3"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "command",
-      "field": "Description",
-      "reason": "The class page names this command but does not provide a separate command summary",
-      "count": 24,
-      "examples": [
-        "base:command:ref-28",
-        "base:command:ref-29",
-        "base:command:ref-30"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "innate",
-      "field": "grants",
-      "reason": "The wiki description is preserved, but its granted permissions are not normalized for validation",
-      "count": 25,
-      "examples": [
-        "base:innate:ref-1062",
-        "base:innate:ref-640",
-        "base:innate:ref-935"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "innate",
-      "field": "ppCost",
-      "reason": "The scraped wiki fields do not document a numeric PP cost",
-      "count": 25,
-      "examples": [
-        "base:innate:ref-1062",
-        "base:innate:ref-640",
-        "base:innate:ref-935"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "innate",
-      "field": "requirements",
-      "reason": "The wiki description is preserved, but its requirements are not normalized to exact catalog references or permissions",
-      "count": 25,
-      "examples": [
-        "base:innate:ref-1062",
-        "base:innate:ref-640",
-        "base:innate:ref-935"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "innate",
-      "field": "slotKinds",
-      "reason": "The wiki does not map this definition to this Game Setup's slot IDs",
-      "count": 25,
-      "examples": [
-        "base:innate:ref-1062",
-        "base:innate:ref-640",
-        "base:innate:ref-935"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "item",
-      "field": "Location",
-      "reason": "The scraped wiki sources do not document location for this item",
-      "count": 61,
-      "examples": [
-        "base:item:14",
-        "base:item:133",
-        "base:item:134"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "item",
-      "field": "requirements",
-      "reason": "The source describes acquisition, but does not establish normalized build requirements",
-      "count": 5,
-      "examples": [
-        "base:item:50",
-        "base:item:49",
-        "base:item:114"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "item",
-      "field": "requirements",
-      "reason": "The wiki description is preserved, but its requirements are not normalized to exact catalog references or permissions",
-      "count": 244,
-      "examples": [
-        "base:item:18",
-        "base:item:0",
-        "base:item:102"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "item",
-      "field": "slotKinds",
-      "reason": "The wiki does not map this definition to this Game Setup's slot IDs",
-      "count": 146,
-      "examples": [
-        "base:item:ref-55",
-        "base:item:ref-56",
-        "base:item:ref-57"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "monster",
-      "field": "Drops",
-      "reason": "The scraped wiki sources do not document drops for this monster",
-      "count": 91,
-      "examples": [
-        "base:monster:ref-645",
-        "base:monster:ref-648",
-        "base:monster:ref-649"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "monster",
-      "field": "Steals",
-      "reason": "The scraped wiki sources do not document steals for this monster",
-      "count": 132,
-      "examples": [
-        "base:monster:ref-643",
-        "base:monster:ref-644",
-        "base:monster:ref-645"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "passive",
-      "field": "grants",
-      "reason": "The wiki description is preserved, but its granted permissions are not normalized for validation",
-      "count": 3,
-      "examples": [
-        "base:passive:ref-641",
-        "base:passive:ref-939",
-        "base:passive:ref-1056"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "passive",
-      "field": "requirements",
-      "reason": "The wiki description is preserved, but its requirements are not normalized to exact catalog references or permissions",
-      "count": 3,
-      "examples": [
-        "base:passive:ref-641",
-        "base:passive:ref-939",
-        "base:passive:ref-1056"
-      ]
-    },
-    {
-      "state": "unknown",
-      "kind": "passive",
-      "field": "slotKinds",
-      "reason": "The wiki does not map this definition to this Game Setup's slot IDs",
-      "count": 3,
-      "examples": [
-        "base:passive:ref-641",
-        "base:passive:ref-939",
-        "base:passive:ref-1056"
-      ]
-    }
-  ]
+  "gaps": []
 }

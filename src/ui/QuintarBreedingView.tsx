@@ -33,7 +33,7 @@ function QuintarStepArtwork({ step, loading = 'eager' }: {
   readonly loading?: 'eager' | 'lazy'
 }) {
   const [artworkFailed, setArtworkFailed] = useState(false)
-  const artworkKey = step ? STEP_ARTWORK[step.id] ?? (step.parents ? 'egg' : undefined) : 'golden'
+  const artworkKey = step ? STEP_ARTWORK[step.id] ?? (step.result?.type === 'Gold' ? 'golden' : step.parents ? 'egg' : undefined) : 'golden'
   const artwork = artworkKey && quintarGuideArtwork(artworkKey)
   return artwork && !artworkFailed ? <img alt="" decoding="async" height={artwork.asset.height} loading={loading} onError={() => setArtworkFailed(true)} src={artwork.url} width={artwork.asset.width}/> : <Icon name={step ? PHASE_ICONS[step.phase] : 'check'}/>
 }
@@ -55,7 +55,7 @@ const QuintarStepTile = memo(function QuintarStepTile({ step, number, complete, 
   const ocarinaPrice = step.id === QUINTAR_STEP.ocarina ? quintarOcarinaPrice(catalog) : undefined
   const parents = quintarParentsAfterStep(step)
   const hasPairingGuidance = Boolean(step.parents || races.length || parents.keep.length || parents.release.length || missingParents)
-  const references = QUINTAR_STEP_REFERENCES[step.id].filter(target => catalog?.entities[target.entityId]?.kind === target.kind)
+  const references = (QUINTAR_STEP_REFERENCES[step.id] ?? []).filter(target => catalog?.entities[target.entityId]?.kind === target.kind)
   return <article aria-busy={pending || undefined} className="quintar-tile" data-complete={complete} data-next={next || undefined} data-step={step.id} data-type={step.result?.type}>
     <button aria-label={`Step ${number}: ${step.title}. ${complete ? 'Mark incomplete' : 'Mark complete'}`} aria-pressed={complete} className="quintar-tile__toggle" id={`quintar-step-${step.id}`} onClick={() => onToggle(step.id, complete)} type="button">
       <span className="quintar-tile__top"><span className="quintar-tile__number">{String(number).padStart(2, '0')}</span><span className="quintar-tile__status">{complete ? 'Complete' : next ? 'Next step' : 'Not marked'}</span><span aria-hidden="true" className="quintar-tile__check">{complete ? <Icon name="check"/> : <span/>}</span></span>
@@ -67,7 +67,7 @@ const QuintarStepTile = memo(function QuintarStepTile({ step, number, complete, 
     {hasPairingGuidance && <div className="quintar-tile__guide">
       {step.parents && <p className="quintar-tile__pair"><strong>{step.parents[0].name}</strong><span role="img" aria-label="paired with">+</span><strong>{step.parents[1].name}</strong></p>}
       {races.length > 0 && <div className="quintar-tile__races"><span><Icon name="trophy"/>First-place wins before breeding</span>{races.map(parent => <p key={parent.name}><strong>{parent.name}</strong><span>{parent.wins === 0 ? 'No wins required' : `${parent.wins} different ${parent.wins === 1 ? 'track' : 'tracks'} total`}</span></p>)}</div>}
-      {parents.keep.length > 0 && <p className="quintar-tile__keep"><Icon name="shield"/><span><strong>Keep:</strong> {parents.keep.join(' and ')} for later pairings.</span></p>}
+      {parents.keep.length > 0 && <p className="quintar-tile__keep"><Icon name="shield"/><span><strong>Keep:</strong> {parents.keep.join(' and ')} for this plan.</span></p>}
       {parents.release.length > 0 && <p className="quintar-tile__release"><strong>After hatching:</strong> {parents.release.join(' and ')} can be released for this route.</p>}
       {missingParents && <p className="quintar-tile__missing">Prerequisites not marked: {missingParents}. You can record this step independently.</p>}
     </div>}
@@ -89,6 +89,8 @@ export function QuintarBreedingView({ localData, catalogs, onToggle }: {
   const playthrough = requirePlaythrough(localData)
   const referenceCatalog = preferredStarterCatalog(catalogs)
   const completed = playthrough.quintarBreeding
+  const activeStepIds = new Set(QUINTAR_BREEDING_STEPS.map(step => step.id))
+  const earlierCompletions = Object.keys(completed ?? {}).filter(id => !activeStepIds.has(id as QuintarBreedingStepId)).length
   const { queuedUpdates, enqueue } = useQueuedTileUpdates<QuintarBreedingStepId, boolean>()
   const [failure, setFailure] = useState<{ readonly stepId: QuintarBreedingStepId; readonly message: string }>()
   const isComplete = (stepId: QuintarBreedingStepId) => queuedUpdates.get(stepId)?.state ?? Boolean(completed && Object.hasOwn(completed, stepId))
@@ -114,6 +116,7 @@ export function QuintarBreedingView({ localData, catalogs, onToggle }: {
     button?.focus({ preventScroll: true })
   }
   return <ProgressPage count={completeCount} notices={failure && <InlineNotice title="Step not saved" tone="danger">{failure.message} Once saving finishes, the tile shows its saved state. <Button disabled={queuedUpdates.has(failure.stepId)} onClick={() => toggle(failure.stepId, isComplete(failure.stepId))} tone="secondary">Retry step</Button></InlineNotice>} summaryIcon={<QuintarStepArtwork key={nextStep?.id} step={nextStep}/>} summaryDetails={<div className="quintar-summary__next"><div className="quintar-summary__copy"><span>{nextStep ? 'Next unmarked step' : 'Guide complete'}</span><strong>{nextStep?.title ?? 'Your Golden Quintar route is complete!'}</strong></div><p>{nextStep ? 'Mark steps in any order.' : 'Click any completed tile to undo its mark.'}</p>{nextStep && <Button onClick={focusNextStep} tone="secondary">Go to next step</Button>}</div>} total={QUINTAR_BREEDING_STEPS.length} variant="quintar">
+    {earlierCompletions > 0 && <InlineNotice title="Earlier route records preserved">Your Playthrough retains {earlierCompletions} completed {earlierCompletions === 1 ? 'step' : 'steps'} from an earlier route. Those checkmarks remain saved separately from this route.</InlineNotice>}
     <details className="quintar-tips">
       <summary>Breeding tips</summary>
       <div>
@@ -122,7 +125,7 @@ export function QuintarBreedingView({ localData, catalogs, onToggle }: {
         <p><strong>Food and readiness:</strong> This route needs a "Happy!" quintar with enough fullness and rest. Feed berries before cheese: cheese fills the quintar and prevents more food until fullness falls.</p>
         <ul>{QUINTAR_NATIVE_EVIDENCE.food.filter(food => GUIDE_FOOD_ITEM_IDS.has(food.itemID)).map(food => <li key={food.itemID}><strong>{food.name}:</strong> feed below {food.fullnessBelow} fullness. {food.happinessGain > 0 ? <>Adds {food.happinessGain} happiness (up to {food.happinessMaximum}) and {food.fullnessGain} fullness (up to {food.fullnessMaximum}).</> : <>Fills fullness to {food.fullnessMaximum} and reduces tiredness by up to {food.tirednessReduction}, stopping at {food.tirednessMinimum}; a lower tiredness value stays unchanged.</>}</li>)}</ul>
         <p>A Cookie can fill happiness while the quintar still needs food or rest to reach the Happy! status.</p>
-        <Sources anchor={<p><strong>Release advice follows this route:</strong> hatch the child first, keep every parent needed by a later pairing, and keep any quintar you want for another purpose. Checkmarks track completed steps. They do not update your nursery roster or inventory.</p>} label="Sources for Quintar breeding"><p>Route sequence and capture landmarks: <a href={QUINTAR_GUIDE_SOURCE} rel="noreferrer" target="_blank">the wiki's Method 2</a>. Pairings match the native outcomes; release advice follows this route.</p></Sources>
+        <Sources anchor={<p><strong>Release advice follows this route:</strong> hatch the child first, keep every parent needed by a later pairing, and keep any quintar you want for another purpose. Checkmarks do not update your nursery roster or inventory.</p>} label="Quintar guide sources"><p>Location tips and route order: <a href={QUINTAR_GUIDE_SOURCE} rel="noreferrer" target="_blank">Quintar Breeding, Method 2</a>.</p></Sources>
       </div>
     </details>
     <div className="quintar-guide">{QUINTAR_PHASES.map(phase => {

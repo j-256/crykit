@@ -65,7 +65,7 @@ export function offlinePlugin(options: { readonly publicAssets?: readonly string
         if (name.startsWith('ocr/')) group = 'screenshots'
         else if (!essentialArtwork && originals.length > 0) {
           if (originals.every(path => /(?:^|\/)src\/assets\/world-map\//.test(path))) group = 'maps'
-          else if (originals.every(path => /(?:^|\/)src\/assets\/(?:game-assets|wiki-sprites|mod-artwork)\//.test(path))) group = 'artwork'
+          else if (originals.every(path => /(?:^|\/)src\/assets\/(?:game-assets|menu-icon-supplements|mod-artwork)\//.test(path))) group = 'artwork'
         }
         groups[group].push(index)
         sizes.push(name === OFFLINE_CONTENT_MANIFEST ? 0 : entry ? Buffer.byteLength(entry.type === 'chunk' ? entry.code : entry.source) : readFileSync(join(publicDirectory, name)).byteLength)

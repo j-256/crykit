@@ -1,6 +1,9 @@
+import { CURRENT_CATALOG } from '../catalog/bundled'
+import { referenceGuidance } from '../catalog/reference-guidance'
+import { ReferenceGuidance } from './ReferenceGuidance'
 import { nativeDescription, referenceDescription } from '../catalog/native-description'
 import { nativeMechanic } from '../catalog/native-mechanics'
-import { nativeDisplayDescription, nativeRecord, nativeSourceRecord } from '../domain/native-game'
+import { nativeSourceRecord } from '../domain/native-game'
 import type { CatalogEntity, CatalogSnapshot } from '../domain/types'
 import { MoneyText } from './MoneyText'
 import { SourceReferences } from './KnowledgeValue'
@@ -13,21 +16,14 @@ export function descriptionTextMatches(left: string | undefined, right: string |
   return Boolean(left?.trim() && right?.trim() && left.replace(/\s+/g, ' ').trim() === right.replace(/\s+/g, ' ').trim())
 }
 
-export function referenceNarrativeDescription(entity: CatalogEntity): string | undefined {
-  const native = nativeDescription(entity)
-  const field = entity.fields.Description
-  const original = field?.state === 'known' && typeof field.value === 'string' && field.value.trim() ? field.value : nativeDisplayDescription(entity)
-  const inheritedDescription = nativeRecord(entity.legacy) && entity.legacy.nativeDescriptionSupplemental === true
-  return !nativeMechanic(entity) && inheritedDescription && native?.lines.length && original && original !== referenceDescription(entity) && !native.lines.includes(original) ? original : undefined
-}
-
 export function ReferenceDescription({ entity, catalog, compact = false, fallback = 'No description supplied.', hideGeneratedSummary = false }: { entity: CatalogEntity; catalog?: CatalogSnapshot; compact?: boolean; fallback?: string; hideGeneratedSummary?: boolean }) {
   const record = nativeSourceRecord(entity)
   const native = nativeDescription(entity)
-  const generatedSummary = record && native && !record.Description && !native.lines.length && !(nativeRecord(entity.legacy) && entity.legacy.nativeDescriptionSupplemental === true)
+  const guidanceCatalog = catalog ?? CURRENT_CATALOG
+  const supplemental = referenceGuidance(guidanceCatalog, entity, 'description')
+  const generatedSummary = record && native && !record.Description && !native.lines.length
   // A source-record inventory is useful in evidence, but it is not a gameplay description
-  const description = hideGeneratedSummary && generatedSummary ? undefined : referenceDescription(entity)
-  const narrative = compact ? undefined : referenceNarrativeDescription(entity)
+  const description = (hideGeneratedSummary || supplemental.length > 0) && generatedSummary ? undefined : referenceDescription(entity)
   const mechanic = nativeMechanic(entity)
   const field = entity.fields.Description
   const sourcesFor = (text: string) => {
@@ -36,12 +32,11 @@ export function ReferenceDescription({ entity, catalog, compact = false, fallbac
     return externalSources(matchesField && field.sources?.length ? field.sources : entity.sources)
   }
   const sources = sourcesFor(description ?? '')
-  const narrativeSources = sourcesFor(narrative ?? '')
   const text = <p style={{ whiteSpace: 'pre-line' }}><MoneyText>{description ?? fallback}</MoneyText></p>
-  const narrativeHeading = <h3>Description</h3>
   return <div className="reference-description">
-    {!compact && description && !native?.lines.length && !mechanic && sources.length ? <Sources anchor={text} label="Sources for Description"><SourceReferences sources={sources}/></Sources> : text}
+    {(description || supplemental.length === 0) && (!compact && description && !native?.lines.length && !mechanic && sources.length ? <Sources anchor={text} label="Sources for Description"><SourceReferences sources={sources}/></Sources> : text)}
+    {(!compact || !native?.lines.length) && <ReferenceGuidance catalog={guidanceCatalog} compact={compact} entity={entity} kind="description"/>}
+    {!compact && <ReferenceGuidance catalog={guidanceCatalog} entity={entity} kind="master-directions"/>}
     {!compact && mechanic?.calculationLinks?.length ? <p>{mechanic.calculationLinks.map(link => <a key={link.href} href={link.href} rel="noreferrer" target="_blank">{link.label} </a>)}</p> : null}
-    {narrative && <section aria-label="Description" className="reference-description__narrative">{narrativeSources.length ? <Sources anchor={narrativeHeading} label="Sources for Description"><SourceReferences sources={narrativeSources}/></Sources> : narrativeHeading}<p style={{ whiteSpace: 'pre-line' }}><MoneyText>{narrative}</MoneyText></p></section>}
   </div>
 }

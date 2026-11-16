@@ -1,0 +1,5219 @@
+{
+  "schemaVersion": 1,
+  "nativeSource": {
+    "platform": "Windows",
+    "gameVersion": "1.6.9",
+    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+    "contentDigest": "0d23c964921fde7518e30721b0b08da5e62f0ad505fc0a0ef0a389863297894e"
+  },
+  "rights": {
+    "attribution": "Crystal Project Wiki contributors",
+    "license": "CC-BY-SA",
+    "licenseUrl": "https://www.fandom.com/licensing",
+    "changes": "Selected excerpts, with text already covered by native descriptions omitted and punctuation normalized"
+  },
+  "records": [
+    {
+      "entityId": "base:equipment:415",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 415,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "It replaces the Attack command with the multi-target Cleave.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Gravedigger",
+          "snapshot": "revision 11910",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Gravedigger?oldid=11910"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:22",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 22,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Gaea Shard is a tool that teleports the party to the roof of the Gaea Shrine in Capital Sequoia. One shard is consumed each time it's used.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Gaea Shard",
+          "snapshot": "revision 7599",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Gaea_Shard?oldid=7599"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:12",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 12,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Mercury Shard is a tool that teleports the party to the roof of the Mercury Shrine between Spawning Meadows and Seaside Cliffs. One shard is consumed each time it's used.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Mercury Shard",
+          "snapshot": "revision 10926",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Mercury_Shard?oldid=10926"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:56",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 56,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Poseidon Shard is a tool that teleports the party to the roof of the Poseidon Shrine on the cliff behind the Salmon Shack in Salmon River. One shard is consumed each time it's used.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Poseidon Shard",
+          "snapshot": "revision 12266",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Poseidon_Shard?oldid=12266"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:58",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 58,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Mars Shard is a tool that teleports the party to the roof of the Mars Shrine in Poko Poko Desert. One shard is consumed each time it's used.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Mars Shard",
+          "snapshot": "revision 7126",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Mars_Shard?oldid=7126"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:62",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 62,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Ganymede Shard is a tool that teleports the party to the roof of the Ganymede Shrine between Shoudu Province and Flyer's Crag. One shard is consumed each time it's used.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Ganymede Shard",
+          "snapshot": "revision 12268",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Ganymede_Shard?oldid=12268"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:63",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 63,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Triton Shard is a tool that teleports the party to the roof of the Triton Shrine in Tall, Tall Heights. One shard is consumed each time it's used.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Triton Shard",
+          "snapshot": "revision 7594",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Triton_Shard?oldid=7594"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:154",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 154,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Callisto Shard is a tool that teleports the party to the Callisto Shrine above the Summit Shrine in Land's End. One shard is consumed each time it's used.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Callisto Shard",
+          "snapshot": "revision 7583",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Callisto_Shard?oldid=7583"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:61",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 61,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Europa Shard is a tool that teleports the party to the middle level of the Europa Shrine in the Jidamba Tangle. One shard is consumed each time it's used.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Europa Shard",
+          "snapshot": "revision 7634",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Europa_Shard?oldid=7634"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:165",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 165,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Dione Shard is a tool that teleports the party to the hill above the entrance to the Dione Shrine, between the Quintar Reserve and Flyer's Lookout. One shard is consumed each time it's used.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dione Shard",
+          "snapshot": "revision 7600",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dione_Shard?oldid=7600"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:207",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 207,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Neptune Shard is a tool that teleports the party to the inside of the Neptune Shrine in the Deep Sea between Sara Sara Bazaar and The Sequoia. One shard is consumed each time it's used.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Neptune Shard",
+          "snapshot": "revision 12270",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Neptune_Shard?oldid=12270"
+        }
+      ]
+    },
+    {
+      "entityId": "base:passive:0",
+      "nativeIdentity": {
+        "database": "passive",
+        "databaseId": 0,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Counter physical damage with:\nCounter\nSingle target weapon skill.\nDamage: Atk + Atk x 0.005 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Monk > Skills > Passives > Counter",
+          "snapshot": "revision 13278",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Monk?oldid=13278"
+        }
+      ]
+    },
+    {
+      "entityId": "base:passive:54",
+      "nativeIdentity": {
+        "database": "passive",
+        "databaseId": 54,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Use when critically damaged:\nPocket Sand\nInflict Debuff for 1 turn: Blind (Always miss physical attacks.)",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Rogue > Skills > Passives > Pocket Sand",
+          "snapshot": "revision 13280",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Rogue?oldid=13280"
+        }
+      ]
+    },
+    {
+      "entityId": "base:passive:77",
+      "nativeIdentity": {
+        "database": "passive",
+        "databaseId": 77,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Receive an additional 10% of any healing given.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cleric > Skills > Passives > Inner Warmth",
+          "snapshot": "revision 13282",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cleric?oldid=13282"
+        }
+      ]
+    },
+    {
+      "entityId": "base:passive:35",
+      "nativeIdentity": {
+        "database": "passive",
+        "databaseId": 35,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Use when critically damaged:\nSafeguard\nApply Buff for 4 turns:\nArmor Up (Take 35% less physical damage.)\nResist Up (Take 35% less magical damage.)",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Shaman > Skills > Passives > Safeguard",
+          "snapshot": "revision 13287",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Shaman?oldid=13287"
+        }
+      ]
+    },
+    {
+      "entityId": "base:passive:70",
+      "nativeIdentity": {
+        "database": "passive",
+        "databaseId": 70,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Use when critically damaged:\nCritical Power.\nApply buff for 4 turns: Magic Up (Deal 35% more magical damage.)",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dervish > Skills > Passives > Critical Power",
+          "snapshot": "revision 13297",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dervish?oldid=13297"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:17",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 17,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 1.5 Atk + Atk x 0.015 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Warrior > Skills > Battle Skill > Bruiser Crush",
+          "snapshot": "revision 13324",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Warrior?oldid=13324"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:3",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 3,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 1.5 Atk + Atk x 0.015 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Warrior > Skills > Battle Skill > Paragon Crush",
+          "snapshot": "revision 13324",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Warrior?oldid=13324"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:16",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 16,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 1.5 Atk + Atk x 0.015 Str + 0.5 Str\nRecoil Damage: 20%",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Warrior > Skills > Battle Skill > Blitz Crush",
+          "snapshot": "revision 13324",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Warrior?oldid=13324"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:26",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 26,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 1.5 Atk + Atk x 0.015 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Warrior > Skills > Battle Skill > Battle Crush",
+          "snapshot": "revision 13324",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Warrior?oldid=13324"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:2",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 2,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Warrior > Skills > Battle Skill > Power Break",
+          "snapshot": "revision 13324",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Warrior?oldid=13324"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:27",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 27,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Warrior > Skills > Battle Skill > Armor Break",
+          "snapshot": "revision 13324",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Warrior?oldid=13324"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:315",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 315,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Recovery: 40 + 1.4 Spi\nCan use out of combat.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Warlock > Skills > Mixed Magic > Heal",
+          "snapshot": "revision 13284",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Warlock?oldid=13284"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:317",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 317,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Revive Dead: 50 + 0.8 Spi\nCan use out of combat.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Warlock > Skills > Mixed Magic > Life",
+          "snapshot": "revision 13284",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Warlock?oldid=13284"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:128",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 128,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Removes one Buff.\nRemoves one Debuff.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Warlock > Skills > Mixed Magic > Dispel",
+          "snapshot": "revision 13284",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Warlock?oldid=13284"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:257",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 257,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 60 + 1.4 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Warlock > Skills > Mixed Magic > Blaze",
+          "snapshot": "revision 13284",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Warlock?oldid=13284"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:322",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 322,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 60 + 1.45 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Warlock > Skills > Mixed Magic > Douse",
+          "snapshot": "revision 13284",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Warlock?oldid=13284"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:319",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 319,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 60 + 1.5 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Warlock > Skills > Mixed Magic > Frost",
+          "snapshot": "revision 13284",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Warlock?oldid=13284"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:7",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 7,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Recovery: 50 + 1.5 Spi\nCan use out of combat.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cleric > Skills > White Magic > Cure",
+          "snapshot": "revision 13282",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cleric?oldid=13282"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:55",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 55,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Recovery: 150 + 2 Spi\nCan use out of combat.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cleric > Skills > White Magic > Curen",
+          "snapshot": "revision 13282",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cleric?oldid=13282"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:56",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 56,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Recovery: 150 + 2 Spi\nCan use out of combat.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cleric > Skills > White Magic > Curena",
+          "snapshot": "revision 13282",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cleric?oldid=13282"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:57",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 57,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Revive Dead: 60 + Spi\nCan use out of combat.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cleric > Skills > White Magic > Raise",
+          "snapshot": "revision 13282",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cleric?oldid=13282"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:58",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 58,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Revive Dead: 150 + 2.5 Spi\nCan use out of combat.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cleric > Skills > White Magic > Return",
+          "snapshot": "revision 13282",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cleric?oldid=13282"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:59",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 59,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 60 + 1.8 Spi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cleric > Skills > White Magic > Spark Shine",
+          "snapshot": "revision 13282",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cleric?oldid=13282"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:60",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 60,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 360 + 6 Spi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cleric > Skills > White Magic > Star Flare",
+          "snapshot": "revision 13282",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cleric?oldid=13282"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:61",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 61,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Removes all Debuffs.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cleric > Skills > White Magic > Mend",
+          "snapshot": "revision 13282",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cleric?oldid=13282"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:5",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 5,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 50 + 1.7 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Wizard > Skills > Black Magic > Fire",
+          "snapshot": "revision 13283",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Wizard?oldid=13283"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:46",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 46,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 50 + 2.7 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Wizard > Skills > Black Magic > Firen",
+          "snapshot": "revision 13283",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Wizard?oldid=13283"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:47",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 47,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 250 + 3.2 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Wizard > Skills > Black Magic > Firena",
+          "snapshot": "revision 13283",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Wizard?oldid=13283"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:6",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 6,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 50 + 1.8 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Wizard > Skills > Black Magic > Bolt",
+          "snapshot": "revision 13283",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Wizard?oldid=13283"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:48",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 48,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 60 + 3.1 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Wizard > Skills > Black Magic > Bolten",
+          "snapshot": "revision 13283",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Wizard?oldid=13283"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:49",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 49,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 250 + 3.3 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Wizard > Skills > Black Magic > Boltena",
+          "snapshot": "revision 13283",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Wizard?oldid=13283"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:50",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 50,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 350 + 4.5 Mnd\nIgnores Resistance.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Wizard > Skills > Black Magic > Flare",
+          "snapshot": "revision 13283",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Wizard?oldid=13283"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:51",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 51,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 350 + 4.3 Mnd\nIgnores 50% Resistance.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Wizard > Skills > Black Magic > Thunder",
+          "snapshot": "revision 13283",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Wizard?oldid=13283"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:53",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 53,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Counter physical damage with:\nLightning\nDamage: 30 + 2.9 Mnd\nThunder Elemental",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Wizard > Skills > Black Magic > Storm Stance",
+          "snapshot": "revision 13283",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Wizard?oldid=13283"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:8",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 8,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.0125 Str + Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Monk > Skills > Martial Arts > Beat Down",
+          "snapshot": "revision 13278",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Monk?oldid=13278"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:29",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 29,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.0125 Str + 0.5 Str\nAffected by average of target's Defense and Resistance.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Monk > Skills > Martial Arts > Earth Split",
+          "snapshot": "revision 13278",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Monk?oldid=13278"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:30",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 30,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.015 Str + 0.75 Str\nAffected by average of target's Defense and Resistance.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Monk > Skills > Martial Arts > Thunder Chop",
+          "snapshot": "revision 13278",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Monk?oldid=13278"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:31",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 31,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.015 Str + Str\nAffected by average of target's Defense and Resistance.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Monk > Skills > Martial Arts > Wind Punch",
+          "snapshot": "revision 13278",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Monk?oldid=13278"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:32",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 32,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 7 Spi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Monk > Skills > Martial Arts > Chi Burst",
+          "snapshot": "revision 13278",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Monk?oldid=13278"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:34",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 34,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "AP Accumulate: 3 + 0.03 Spi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Monk > Skills > Martial Arts > Focus Energy",
+          "snapshot": "revision 13278",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Monk?oldid=13278"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:35",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 35,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Removes one Debuff.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Monk > Skills > Martial Arts > First-Aid",
+          "snapshot": "revision 13278",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Monk?oldid=13278"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:71",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 71,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Agi + 0.5 Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Fencer > Skills > Swordplay > Poison Tip",
+          "snapshot": "revision 13286",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Fencer?oldid=13286"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:72",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 72,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Agi + 0.5 Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Fencer > Skills > Swordplay > Barbed Cap",
+          "snapshot": "revision 13286",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Fencer?oldid=13286"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:76",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 76,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Agi + 0.5 Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Fencer > Skills > Swordplay > Swallowtail",
+          "snapshot": "revision 13286",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Fencer?oldid=13286"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:74",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 74,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Agi + 0.5 Agi\nIgnores 25% Defense.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Fencer > Skills > Swordplay > Piercethrough",
+          "snapshot": "revision 13286",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Fencer?oldid=13286"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:73",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 73,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Agi + 0.5 Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Fencer > Skills > Swordplay > Feathercut",
+          "snapshot": "revision 13286",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Fencer?oldid=13286"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:75",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 75,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Agi + 0.5 Agi\nLifesteal: 50%",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Fencer > Skills > Swordplay > Snowfang",
+          "snapshot": "revision 13286",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Fencer?oldid=13286"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:77",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 77,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Agi + 0.5 Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Fencer > Skills > Swordplay > Nighthawk",
+          "snapshot": "revision 13286",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Fencer?oldid=13286"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:78",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 78,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Agi + 0.5 Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Fencer > Skills > Swordplay > Checkmate",
+          "snapshot": "revision 13286",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Fencer?oldid=13286"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:100",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 100,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Aegis > Skills > Chivalry > Resist Break",
+          "snapshot": "revision 13290",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Aegis?oldid=13290"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:99",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 99,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Aegis > Skills > Chivalry > Magic Break",
+          "snapshot": "revision 13290",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Aegis?oldid=13290"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:94",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 94,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Removes all Debuffs.\nApply Buff for 2 turns: Crystal Form (Defense becomes 9999. Resistance becomes 9999. Turn is skipped.)",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Aegis > Skills > Chivalry > Crystal Form",
+          "snapshot": "revision 13290",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Aegis?oldid=13290"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:143",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 143,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Agi + 0.5 Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Hunter > Skills > Hunt > Quickshot",
+          "snapshot": "revision 13325",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Hunter?oldid=13325"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:142",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 142,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Agi + 0.5 Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Hunter > Skills > Hunt > Take Aim",
+          "snapshot": "revision 13325",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Hunter?oldid=13325"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:144",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 144,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Agi + 0.5 Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Hunter > Skills > Hunt > Barrage",
+          "snapshot": "revision 13325",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Hunter?oldid=13325"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:145",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 145,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.015 Agi + 0.5 Agi\nWeak against high Defense.*",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Hunter > Skills > Hunt > Thorned Shot",
+          "snapshot": "revision 13325",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Hunter?oldid=13325"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:336",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 336,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 2 Atk + Atk x 0.01 Agi + 0.5 Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Hunter > Skills > Hunt > Pickoff",
+          "snapshot": "revision 13325",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Hunter?oldid=13325"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:147",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 147,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 50 + 2 Atk + Atk x 0.01 Agi + Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Hunter > Skills > Hunt > Snipe",
+          "snapshot": "revision 13325",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Hunter?oldid=13325"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:149",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 149,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Recovery: 1.5 Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Hunter > Skills > Hunt > Unguent",
+          "snapshot": "revision 13325",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Hunter?oldid=13325"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:340",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 340,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.01 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beatsmith > Skills > Beatmaker > Bass Kick",
+          "snapshot": "revision 13298",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beatsmith?oldid=13298"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:341",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 341,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.0075 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beatsmith > Skills > Beatmaker > Beat Roll",
+          "snapshot": "revision 13298",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beatsmith?oldid=13298"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:339",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 339,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beatsmith > Skills > Beatmaker > Rhythm Break",
+          "snapshot": "revision 13298",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beatsmith?oldid=13298"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:344",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 344,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beatsmith > Skills > Beatmaker > Third Act",
+          "snapshot": "revision 13298",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beatsmith?oldid=13298"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:337",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 337,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str\nDeals bonus damage per Buff applied to the user.\nBonus: 60 + 0.6 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beatsmith > Skills > Beatmaker > Crescendo",
+          "snapshot": "revision 13298",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beatsmith?oldid=13298"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:347",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 347,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 200 + 2 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beatsmith > Skills > Beatmaker > Requiem",
+          "snapshot": "revision 13298",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beatsmith?oldid=13298"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:346",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 346,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Recovery: 80 + 1.3 Spi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beatsmith > Skills > Beatmaker > Rhapsody",
+          "snapshot": "revision 13298",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beatsmith?oldid=13298"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:388",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 388,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "MP Restore: 10 + 0.02 Spi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beatsmith > Skills > Beatmaker > Mana Song",
+          "snapshot": "revision 13298",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beatsmith?oldid=13298"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:102",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 102,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 100 + Atk + Atk x 0.01 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Reaper > Skills > Reaping > Reaping Cut",
+          "snapshot": "revision 13294",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Reaper?oldid=13294"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:103",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 103,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str\nIgnores 50% Defense.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Reaper > Skills > Reaping > Rending Cut",
+          "snapshot": "revision 13294",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Reaper?oldid=13294"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:104",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 104,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 100 + Atk + Atk x 0.005 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Reaper > Skills > Reaping > Nightfall",
+          "snapshot": "revision 13294",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Reaper?oldid=13294"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:105",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 105,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 200 + Atk + Atk x 0.01 Str + Str\nLifesteal On Kill: 200%",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Reaper > Skills > Reaping > Guillotine",
+          "snapshot": "revision 13294",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Reaper?oldid=13294"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:106",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 106,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 0.5 Atk + Atk x 0.002 Str + 0.8 Str\nLifesteal: 300%",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Reaper > Skills > Reaping > Lifedrink",
+          "snapshot": "revision 13294",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Reaper?oldid=13294"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:107",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 107,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 0.8 Atk + Atk x 0.005 Str + 0.5 Str\nLifesteal: 50%",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Reaper > Skills > Reaping > Bloodwell",
+          "snapshot": "revision 13294",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Reaper?oldid=13294"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:108",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 108,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 50 + Atk + Atk x 0.005 Str + 0.5 Str\nLifesteal: 100%",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Reaper > Skills > Reaping > Satanic",
+          "snapshot": "revision 13294",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Reaper?oldid=13294"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:303",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 303,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 10 + 0.1 Atk + Atk x 0.001 Str + 0.15 Str\nMP Absorb: 35%",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Reaper > Skills > Reaping > Moon Slash",
+          "snapshot": "revision 13294",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Reaper?oldid=13294"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:239",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 239,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Converts target's AP to MP until AP is zero or MP is full.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Chemist > Skills > Item > MP Juice",
+          "snapshot": "revision 13292",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Chemist?oldid=13292"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:240",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 240,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Converts target's MP to AP until MP is zero or AP is full.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Chemist > Skills > Item > AP Juice",
+          "snapshot": "revision 13292",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Chemist?oldid=13292"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:223",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 223,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 400 + 4.5 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Summoner > Skills > Summon > Shaku",
+          "snapshot": "revision 13305",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Summoner?oldid=13305"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:224",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 224,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 400 + 4.5 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Summoner > Skills > Summon > Pamoa",
+          "snapshot": "revision 13305",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Summoner?oldid=13305"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:226",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 226,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 400 + 4.5 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Summoner > Skills > Summon > Niltsi",
+          "snapshot": "revision 13305",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Summoner?oldid=13305"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:227",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 227,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 400 + 4.5 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Summoner > Skills > Summon > Ioske",
+          "snapshot": "revision 13305",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Summoner?oldid=13305"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:225",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 225,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 400 + 4.5 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Summoner > Skills > Summon > Guaba",
+          "snapshot": "revision 13305",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Summoner?oldid=13305"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:228",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 228,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 450 + 5 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Summoner > Skills > Summon > Coyote",
+          "snapshot": "revision 13305",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Summoner?oldid=13305"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:230",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 230,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Recovery: 200 + 3 Spi\nRemoves all Debuffs.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Summoner > Skills > Summon > Pinga",
+          "snapshot": "revision 13305",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Summoner?oldid=13305"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:234",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 234,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "MP Restore: 10 + 0.05 Spi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Summoner > Skills > Summon > Pah",
+          "snapshot": "revision 13305",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Summoner?oldid=13305"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:119",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 119,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 60 + 1.6 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Shaman > Skills > Hex Magic > Acid",
+          "snapshot": "revision 13287",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Shaman?oldid=13287"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:120",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 120,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 60 + 1.6 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Shaman > Skills > Hex Magic > Bio",
+          "snapshot": "revision 13287",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Shaman?oldid=13287"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:122",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 122,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 20 + 2.5 Mnd\nLifesteal: 100%",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Shaman > Skills > Hex Magic > Drain",
+          "snapshot": "revision 13287",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Shaman?oldid=13287"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:86",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 86,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Recovery: 100 + 1.8 Spi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Nomad > Skills > Waterbend > Healing Spring",
+          "snapshot": "revision 13296",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Nomad?oldid=13296"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:132",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 132,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 250 + 1.8 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dervish > Skills > Prayer Magic > Quakesand",
+          "snapshot": "revision 13297",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dervish?oldid=13297"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:133",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 133,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 350 + 2.9 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dervish > Skills > Prayer Magic > Fissure",
+          "snapshot": "revision 13297",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dervish?oldid=13297"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:114",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 114,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.01 Vit + Vit",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Valkyrie > Skills > Valhalla > Bracing Strike",
+          "snapshot": "revision 13303",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Valkyrie?oldid=13303"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:342",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 342,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str\nLifesteal: 100%",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beastmaster > Skills > Wild Arts > Feast",
+          "snapshot": "revision 13307",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beastmaster?oldid=13307"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:431",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 431,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 20 + 0.1 Str\nMP Absorb: 200%",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beastmaster > Skills > Wild Arts > Famine",
+          "snapshot": "revision 13307",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beastmaster?oldid=13307"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:221",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 221,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 50 + Atk + Atk x 0.005 Str + 0.75 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beastmaster > Skills > Wild Arts > Gouge",
+          "snapshot": "revision 13307",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beastmaster?oldid=13307"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:331",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 331,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Dex + 0.5 Dex",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Assassin > Skills > Execute > Bloody Slice",
+          "snapshot": "revision 13302",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Assassin?oldid=13302"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:215",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 215,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Dex + 0.5 Dex",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Assassin > Skills > Execute > Maim Focus",
+          "snapshot": "revision 13302",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Assassin?oldid=13302"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:218",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 218,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Dex + 0.5 Dex",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Assassin > Skills > Execute > Maim Sustain",
+          "snapshot": "revision 13302",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Assassin?oldid=13302"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:333",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 333,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Agi + 0.5 Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Assassin > Skills > Execute > Harm Power",
+          "snapshot": "revision 13302",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Assassin?oldid=13302"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:222",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 222,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Dex + 0.5 Dex\nDeals bonus damage per Debuff applied to the target.\nBonus: 100 + Dex\nRemoves all Debuffs.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Assassin > Skills > Execute > Coup de Grace",
+          "snapshot": "revision 13302",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Assassin?oldid=13302"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:40",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 40,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Dex + 0.5 Dex",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Rogue > Skills > Trickery > Shadow Cut",
+          "snapshot": "revision 13280",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Rogue?oldid=13280"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:194",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 194,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str\nDeals bonus damage per combo token on the target.\nBonus: 0.2 Atk + Atk x 0.002 Str.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Samurai > Skills > Jikiden > Ken: Asura",
+          "snapshot": "revision 13299",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Samurai?oldid=13299"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:195",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 195,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk x 0.005 Str + 0.5 Str\nDeals bonus damage per combo token on the target.\nBonus: 0.7 Atk + Atk x 0.007 Str.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Samurai > Skills > Jikiden > Ken: Heavenslash",
+          "snapshot": "revision 13299",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Samurai?oldid=13299"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:196",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 196,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 0.8 Atk + Atk x 0.005 Str + 0.5 Str\nDeals bonus damage per combo token on the target.\nBonus: 0.3 Atk + Atk x 0.003 Str.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Samurai > Skills > Jikiden > Ken: Omnislice",
+          "snapshot": "revision 13299",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Samurai?oldid=13299"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:25",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 25,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Recovery: 20 + 1.5 Spi\nRemoves one Debuff.\nCan use out of combat.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scholar > Skills > Monster Magic > Roost",
+          "snapshot": "revision 13288",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scholar?oldid=13288"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:70",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 70,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 30 + 2.8 Lck\nIgnores Resistance.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scholar > Skills > Monster Magic > Lucky Dice",
+          "snapshot": "revision 13288",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scholar?oldid=13288"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:101",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 101,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Recovery: 60 + 1.2 Spi\nCan use out of combat.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scholar > Skills > Monster Magic > Sun Bath",
+          "snapshot": "revision 13288",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scholar?oldid=13288"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:197",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 197,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Can use out of combat.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scholar > Skills > Monster Magic > Regenerate",
+          "snapshot": "revision 13288",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scholar?oldid=13288"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:200",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 200,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "MP Damage: 10 + 0.12 Mnd\nIgnores Resistance.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scholar > Skills > Monster Magic > MP Sickle",
+          "snapshot": "revision 13288",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scholar?oldid=13288"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:202",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 202,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "AP Accumulate: 9 + 0.02 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scholar > Skills > Monster Magic > Adrenaline",
+          "snapshot": "revision 13288",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scholar?oldid=13288"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:205",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 205,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 230 + 3 Mnd\nIgnores 50% Resistance.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scholar > Skills > Monster Magic > Fire Breath",
+          "snapshot": "revision 13288",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scholar?oldid=13288"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:206",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 206,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 300 + 3.2 Mnd + 3.2 Spi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scholar > Skills > Monster Magic > Explode",
+          "snapshot": "revision 13288",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scholar?oldid=13288"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:207",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 207,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 240 + 3.3 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scholar > Skills > Monster Magic > Whirlwind",
+          "snapshot": "revision 13288",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scholar?oldid=13288"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:245",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 245,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Can use out of combat.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scholar > Skills > Monster Magic > Build Life",
+          "snapshot": "revision 13288",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scholar?oldid=13288"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:264",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 264,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 120 + 2 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scholar > Skills > Monster Magic > Aero",
+          "snapshot": "revision 13288",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scholar?oldid=13288"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:376",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 376,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Can use out of combat.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scholar > Skills > Monster Magic > Lifegiver",
+          "snapshot": "revision 13288",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scholar?oldid=13288"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:321",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 321,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 80 + 2.5 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Shaman > Skills > Hex Magic > Acid II",
+          "snapshot": "revision 13287",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Shaman?oldid=13287"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:113",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 113,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "AP Transfer: 6 + 0.06 Vit",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Valkyrie > Skills > Valhalla > AP Transfer",
+          "snapshot": "revision 13303",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Valkyrie?oldid=13303"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:219",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 219,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Assassin > Skills > Execute > Avid Assault",
+          "snapshot": "revision 13302",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Assassin?oldid=13302"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:320",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 320,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 80 + 2.5 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Shaman > Skills > Hex Magic > Bio II",
+          "snapshot": "revision 13287",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Shaman?oldid=13287"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:192",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 192,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 0.5 Atk + Atk x 0.0025 Str + 0.25 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Samurai > Skills > Jikiden > Blade Song",
+          "snapshot": "revision 13299",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Samurai?oldid=13299"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:84",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 84,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 150 + 1.5 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Nomad > Skills > Waterbend > Chill Blast",
+          "snapshot": "revision 13296",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Nomad?oldid=13296"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:136",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 136,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 360 + 3.15 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dervish > Skills > Prayer Magic > Cyclone",
+          "snapshot": "revision 13297",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dervish?oldid=13297"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:83",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 83,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 120 + 3.4 Mnd\nIgnores 50% Resistance.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Nomad > Skills > Waterbend > Drown",
+          "snapshot": "revision 13296",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Nomad?oldid=13296"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:170",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 170,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Dex + 0.5 Dex",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Ninja > Skills > Ninjutsu > Earth Seal",
+          "snapshot": "revision 13306",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Ninja?oldid=13306"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:121",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 121,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 150 + 3 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Shaman > Skills > Hex Magic > Epidemic",
+          "snapshot": "revision 13287",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Shaman?oldid=13287"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:332",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 332,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 150 + 2.5 Atk + Atk x 0.01 Str + 1.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Assassin > Skills > Execute > Executioner",
+          "snapshot": "revision 13302",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Assassin?oldid=13302"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:43",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 43,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 0.5 Atk + Atk x 0.0025 Dex + 0.25 Dex",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Rogue > Skills > Trickery > Eye Gouge",
+          "snapshot": "revision 13280",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Rogue?oldid=13280"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:193",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 193,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Samurai > Skills > Jikiden > Fierce Ember",
+          "snapshot": "revision 13299",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Samurai?oldid=13299"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:191",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 191,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Samurai > Skills > Jikiden > Fierce Wind",
+          "snapshot": "revision 13299",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Samurai?oldid=13299"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:166",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 166,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Dex + 0.5 Dex",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Ninja > Skills > Ninjutsu > Fire Seal",
+          "snapshot": "revision 13306",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Ninja?oldid=13306"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:220",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 220,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 50 + Atk + Atk x 0.005 Str + 0.75 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beastmaster > Skills > Wild Arts > Furrow",
+          "snapshot": "revision 13307",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beastmaster?oldid=13307"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:335",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 335,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Agi + 0.5 Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Assassin > Skills > Execute > Harm Magic",
+          "snapshot": "revision 13302",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Assassin?oldid=13302"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:216",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 216,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Agi + 0.5 Agi",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Assassin > Skills > Execute > Harm Memory",
+          "snapshot": "revision 13302",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Assassin?oldid=13302"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:109",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 109,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Recovery: 100 + 0.55 Vit + 0.55 Spi\nCan use out of combat.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Valkyrie > Skills > Valhalla > Healing Breeze",
+          "snapshot": "revision 13303",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Valkyrie?oldid=13303"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:214",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 214,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 400 + 1.5 Atk + Atk x 0.005 Str + 0.75 Str\nRemoves one Buff.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beastmaster > Skills > Wild Arts > Hew",
+          "snapshot": "revision 13307",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beastmaster?oldid=13307"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:167",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 167,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Dex + 0.5 Dex",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Ninja > Skills > Ninjutsu > Ice Seal",
+          "snapshot": "revision 13306",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Ninja?oldid=13306"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:82",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 82,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 100 + 4.4 Mnd\nAffected by Defense as if it were physical.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Nomad > Skills > Waterbend > Icicle Barrage",
+          "snapshot": "revision 13296",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Nomad?oldid=13296"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:345",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 345,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str\nOn expiry, apply: Instant Kill",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beastmaster > Skills > Wild Arts > Jugular",
+          "snapshot": "revision 13307",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beastmaster?oldid=13307"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:138",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 138,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 1000 + 5.5 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dervish > Skills > Prayer Magic > Meteor",
+          "snapshot": "revision 13297",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dervish?oldid=13297"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:134",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 134,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 500 + 3.9 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dervish > Skills > Prayer Magic > Rockslide",
+          "snapshot": "revision 13297",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dervish?oldid=13297"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:90",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 90,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Counter any damage with:\n8 AP. Single target magic.\nDamage: 200 + 2.5 Mnd\nIce Elemental",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Nomad > Skills > Waterbend > Shrapnel Armor",
+          "snapshot": "revision 13296",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Nomad?oldid=13296"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:9",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 9,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 80 + 1.5 Atk + Atk x 0.01 Dex + 0.5 Dex",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Rogue > Skills > Trickery > Sneak Attack",
+          "snapshot": "revision 13280",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Rogue?oldid=13280"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:140",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 140,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Recovery: 50 + 1.5 Mnd\nRemoves one Debuff.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dervish > Skills > Prayer Magic > Soul Prayer",
+          "snapshot": "revision 13297",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dervish?oldid=13297"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:115",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 115,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.01 Vit + 2 Vit",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Valkyrie > Skills > Valhalla > Steeling Strike",
+          "snapshot": "revision 13303",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Valkyrie?oldid=13303"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:110",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 110,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Recovery: 100 + 0.55 Vit + 0.55 Spi\nCan use out of combat.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Valkyrie > Skills > Valhalla > Steeling Wind",
+          "snapshot": "revision 13303",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Valkyrie?oldid=13303"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:190",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 190,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 0.5 Atk + Atk x 0.0025 Str + 0.25 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Samurai > Skills > Jikiden > Swift Ember",
+          "snapshot": "revision 13299",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Samurai?oldid=13299"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:189",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 189,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 0.5 Atk + Atk x 0.0025 Str + 0.25 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Samurai > Skills > Jikiden > Swift Wind",
+          "snapshot": "revision 13299",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Samurai?oldid=13299"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:168",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 168,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Dex + 0.5 Dex",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Ninja > Skills > Ninjutsu > Thunder Seal",
+          "snapshot": "revision 13306",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Ninja?oldid=13306"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:135",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 135,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 200 + 1.8 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dervish > Skills > Prayer Magic > Tornado",
+          "snapshot": "revision 13297",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dervish?oldid=13297"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:39",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 39,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 0.5 Atk + Atk x 0.0025 Dex + 0.25 Dex",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Rogue > Skills > Trickery > Trick Slash",
+          "snapshot": "revision 13280",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Rogue?oldid=13280"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:137",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 137,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 550 + 4.1 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dervish > Skills > Prayer Magic > Typhoon",
+          "snapshot": "revision 13297",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dervish?oldid=13297"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:139",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 139,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "AP Damage: 6 + 0.03 Mnd\nIgnores Resistance.\nAP Absorb: 100%",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dervish > Skills > Prayer Magic > Vigor Drain",
+          "snapshot": "revision 13297",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dervish?oldid=13297"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:217",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 217,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Str + 0.5 Str",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Assassin > Skills > Execute > Voracity",
+          "snapshot": "revision 13302",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Assassin?oldid=13302"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:81",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 81,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: 150 + 2 Mnd",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Nomad > Skills > Waterbend > Water Blast",
+          "snapshot": "revision 13296",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Nomad?oldid=13296"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:171",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 171,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Dex + 0.5 Dex",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Ninja > Skills > Ninjutsu > Water Seal",
+          "snapshot": "revision 13306",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Ninja?oldid=13306"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:91",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 91,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Use at the start of each turn:\nRipple Wave\n12 AP. Multi-target magic.\nDamage: 150 + 2 Mnd.\nWater Elemental",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Nomad > Skills > Waterbend > Wave Armor",
+          "snapshot": "revision 13296",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Nomad?oldid=13296"
+        }
+      ]
+    },
+    {
+      "entityId": "base:ability:169",
+      "nativeIdentity": {
+        "database": "ability",
+        "databaseId": 169,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Damage: Atk + Atk x 0.005 Dex + 0.5 Dex",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Ninja > Skills > Ninjutsu > Wind Seal",
+          "snapshot": "revision 13306",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Ninja?oldid=13306"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:155",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 155,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Callisto Stone is a tool that teleports the party to the Callisto Shrine above the Summit Shrine in Land's End.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Callisto Stone",
+          "snapshot": "revision 7584",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Callisto_Stone?oldid=7584"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:166",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 166,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Dione Stone is a tool that teleports the party to the hill above the entrance to the Dione Shrine, between the Quintar Reserve and Flyer's Lookout.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dione Stone",
+          "snapshot": "revision 7598",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dione_Stone?oldid=7598"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:64",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 64,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Europa Stone is a tool that teleports the party to the middle level of the Europa Shrine in the Jidamba Tangle.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Europa Stone",
+          "snapshot": "revision 7635",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Europa_Stone?oldid=7635"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:23",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 23,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Gaea Stone is a tool that teleports the party to the roof of the Gaea Shrine in Capital Sequoia.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Gaea Stone",
+          "snapshot": "revision 7116",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Gaea_Stone?oldid=7116"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:65",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 65,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Ganymede Stone is a tool that teleports the party to the roof of the Ganymede Shrine between Shoudu Province and Flyer's Crag.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Ganymede Stone",
+          "snapshot": "revision 12269",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Ganymede_Stone?oldid=12269"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:19",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 19,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Home Point Stone is a tool that teleports the party to their Home Point.\nIf the party hasn't set a Home Point yet, the Home Point Stone teleports the party to the starting position in Spawning Meadows.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Home Point Stone",
+          "snapshot": "revision 7133",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Home_Point_Stone?oldid=7133"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:59",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 59,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Mars Stone is a tool that teleports the party to the roof of the Mars Shrine in Poko Poko Desert.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Mars Stone",
+          "snapshot": "revision 12536",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Mars_Stone?oldid=12536"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:13",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 13,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Mercury Stone is a tool that teleports the party to the roof of the Mercury Shrine between Spawning Meadows and Seaside Cliffs.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Mercury Stone",
+          "snapshot": "revision 10927",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Mercury_Stone?oldid=10927"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:208",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 208,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Neptune Stone is a tool that teleports the party to the inside of the Neptune Shrine in the Deep Sea between Sara Sara Bazaar and The Sequoia.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Neptune Stone",
+          "snapshot": "revision 12271",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Neptune_Stone?oldid=12271"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:57",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 57,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Poseidon Stone is a tool that teleports the party to the roof of the Poseidon Shrine on the cliff behind the Salmon Shack in Salmon River.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Poseidon Stone",
+          "snapshot": "revision 12267",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Poseidon_Stone?oldid=12267"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:48",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 48,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "The Salmon Violin is a tool that allows you to summon a Salmon mount. This scaly friend will enable you to explore any body of water you so choose.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Salmon Violin",
+          "snapshot": "revision 13160",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Salmon_Violin?oldid=13160"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:66",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 66,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "A Triton Stone is a tool that teleports the party to the roof of the Triton Shrine in Tall, Tall Heights.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Triton Stone",
+          "snapshot": "revision 7295",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Triton_Stone?oldid=7295"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:50",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 50,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Summons an Ibek mount.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Mounts > Ibek",
+          "snapshot": "revision 5937",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Mounts?oldid=5937"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:49",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 49,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Summons an Owl mount.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Mounts > Owl",
+          "snapshot": "revision 5937",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Mounts?oldid=5937"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:114",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 114,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Summons the faster Salmon mount.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Mounts > Salmon",
+          "snapshot": "revision 5937",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Mounts?oldid=5937"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:140",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 140,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Reusable travel to New World Temple.",
+      "sources": [
+        {
+          "sourceId": "https://crystal-project.fandom.com/wiki/Tools?oldid=7601",
+          "snapshot": "revision 7601",
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Tools according to Archive > row 29, New World Stone"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:253",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 253,
+        "mode": "base"
+      },
+      "kind": "description",
+      "text": "Reusable travel to The Old World Temple.",
+      "sources": [
+        {
+          "sourceId": "https://crystal-project.fandom.com/wiki/Tools?oldid=7601",
+          "snapshot": "revision 7601",
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Tools according to Archive > row 31, Old World Stone"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:3",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 3,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Sara Sara Bazaar x 2 (Both underwater at the end of the right pier. Arrrr.)\nSara Sara Beach x 6 (Three found on the east section of the beach along the cliffs, near the Ibek's Cave homepoint. Two found on cliffs on west part of beach. One hidden underground, entrance is in the large green section on the west side of the giant cube.)",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Silver Ore",
+          "snapshot": "revision 11592",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Silver_Ore?oldid=11592"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:67",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 67,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Rolling Quintar Fields x 1 (Hidden underground, to the east of the topmost point of the large mesa just outside the Capital. There is a group of 3 trees, and a 4th in a pit. Entrance is in the west side of the pit.)\nSara Sara Bazaar x 2 (Both underwater at the end of the right pier. Arrrr.)",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Silver Ingot",
+          "snapshot": "revision 11599",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Silver_Ingot?oldid=11599"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:68",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 68,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Rolling Quintar Fields x 1 (Hidden underground, southwest of quintar enthusiast's house.)\nQuintar Sanctum x 2 (One found on the northeast of the lower section, requires bouncing up from mushrooms. Other is found near the first dust, but much higher up. More mushroom bouncing required. Just west of a sign saying \"Qwei\".)\nSara Sara Bazaar x 2 (Both underwater at the end of the right pier. Arrrr.)",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Silver Dust",
+          "snapshot": "revision 13337",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Silver_Dust?oldid=13337"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:0",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 0,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in Spawning Meadows from Nan's Knick Knacks in Old Nan's Watering Hole.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Short Sword",
+          "snapshot": "revision 12055",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Short_Sword?oldid=12055"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:89",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 89,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "From the dirt ledge behind the crystal where mushrooms run, you can jump onto stone pillars on the right. From there, jump onto a stone ledge above the running mushrooms, then cross to the left side to reach the chest.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Help the Prince",
+          "snapshot": "revision 12041",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Help_the_Prince?oldid=12041"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:93",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 93,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Craftwork Sword is a one-handed sword used in crafting. It can be found in Capital Sequoia, in the library, on top of the bookshelves. Fall down from chimney above.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Craftwork Sword",
+          "snapshot": "revision 12033",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Craftwork_Sword?oldid=12033"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:177",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 177,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can switch between sword and shield.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Swords/table > Boomer Sword",
+          "snapshot": "revision 11969",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Swords/table?oldid=11969"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:377",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 377,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Cutlass is a one-handed sword. It inflicts Evasion Down. It can be found in a chest in Shoudu Province, after winning 2 battles in a row at the Sky Arena, and unlocking the 2-battle treasury.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cutlass",
+          "snapshot": "revision 12035",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cutlass?oldid=12035"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:303",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 303,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "In the Deep Sea, in a locked underwater ruin at the south side of Jidamba Tangle, directly south of the Juses summon tree.\nThe Forgotten Key unlocks the ruin containing the Soul Keeper. The Forgotten Key can be found in the Deep Sea, in an underwater burrow west of the Sequoia.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Soul Keeper",
+          "snapshot": "revision 12845",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Soul_Keeper?oldid=12845"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:279",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 279,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Located in Castle Sequoia in the lava dungeon. At the end of the dungeon, take the lava fish to the east instead of heading north to the lava waterfall exit.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Oily Sword",
+          "snapshot": "revision 12521",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Oily_Sword?oldid=12521"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:94",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 94,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Craftwork Axe is a one-handed axe used in crafting. It can be found in Capital Sequoia, above the House of The Know-It-All Ducks, accessed via the chimney.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Craftwork Axe",
+          "snapshot": "revision 12018",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Craftwork_Axe?oldid=12018"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:2",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 2,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "A Cleaver is a two-handed axe. One can be found in Spawning Meadows, in a chest after several jumps over the waterfall. More can be purchased in Delende from the Fish Hatchery Weapon Shop.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cleaver",
+          "snapshot": "revision 12017",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cleaver?oldid=12017"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:386",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 386,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Hatchet is a one-handed axe. It has less variance than other axes. It can be found in a chest in Poko Poko Desert. You need the Ibek to reach it.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Hatchet",
+          "snapshot": "revision 12063",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Hatchet?oldid=12063"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:3",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 3,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in Spawning Meadows from Old Nan's Knick-Knack Shop in Old Nan's Watering Hole.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dirk",
+          "snapshot": "revision 12793",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dirk?oldid=12793"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:198",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 198,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Butter Cutter is a dagger. It can be found in a chest in Poko Poko Desert. You may need an Ibek to reach it.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Butter Cutter",
+          "snapshot": "revision 12813",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Butter_Cutter?oldid=12813"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:305",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 305,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Soul Kris is a dagger. It can be found in a chest in Shoudu Province, after winning 2 battles in a row at the Sky Arena, and unlocking the 2-battle treasury.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Soul Kris",
+          "snapshot": "revision 12814",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Soul_Kris?oldid=12814"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:318",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 318,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Yasha is a dagger. It can be found in a chest in Shoudu Province, after winning all 10 battles in a row at the Sky Arena, and unlocking the 10-battle treasury.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Yasha",
+          "snapshot": "revision 12830",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Yasha?oldid=12830"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:73",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 73,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in Spawning Meadows from Nan's Knick Knacks in Old Nan's Watering Hole.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Rapier",
+          "snapshot": "revision 11800",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Rapier?oldid=11800"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:10",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 10,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be found in a chest, in Poko Poko Desert, after a series of jumps",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dueller",
+          "snapshot": "revision 11809",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dueller?oldid=11809"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:403",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 403,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Chartreuse is a rapier. It can be found in a chest, in Delende, underwater on an unclimbable butte above the Indecent Dweller cave. You'll need a gliding and a diving mount to reach it.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Chartreuse",
+          "snapshot": "revision 11818",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Chartreuse?oldid=11818"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:367",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 367,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Muramasa is a katana. It has high Attack, but no element or other bonuses. It can be found in a chest in Shoudu Province, after winning all 10 battles in a row at the Sky Arena, and unlocking the 10-battle treasury.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Muramasa",
+          "snapshot": "revision 12831",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Muramasa?oldid=12831"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:98",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 98,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Craftwork Spear is a spear used in crafting. It can be found in Capital Sequoia, in the maze, on the east side, about halfway up.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Craftwork Spear",
+          "snapshot": "revision 12098",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Craftwork_Spear?oldid=12098"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:418",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 418,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be found in the Beaurior Rock, you need to take the east elevator down and go south",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Halberd",
+          "snapshot": "revision 12088",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Halberd?oldid=12088"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:417",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 417,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Radiance is a two handed spear found to the right of the \"Slip Glide Ride\" exit. Directly to the right of the exit, there is a wall with a piece of gold in front of it. Inside the wall is an ice block that you can push to reveal a small alcove with a red chest containing the spear.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Radiance",
+          "snapshot": "revision 12085",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Radiance?oldid=12085"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:293",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 293,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "A Grim Scythe is a scythe. It applies Clarity, which reduces ability charge times by half. One can be found in a chest in the Ancient Reservoir, requiring Salmon. More can be purchased in Shoudu Province from the Weapon Merchant behind the Shoudu Market Save Point.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Grim Scythe",
+          "snapshot": "revision 13335",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Grim_Scythe?oldid=13335"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:414",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 414,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "You need to solve an ice block challenge to reach it\nThe ice block west of the hut do : right, up, right, down, right",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Frost Reaper",
+          "snapshot": "revision 12530",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Frost_Reaper?oldid=12530"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:415",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 415,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Gravedigger is a scythe. It replaces the Attack command with the multi-target Cleave. It can be found in a chest in Shoudu Province, after winning 8 battles in a row at the Sky Arena, and unlocking the 8-battle treasury.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Gravedigger",
+          "snapshot": "revision 11910",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Gravedigger?oldid=11910"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:412",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 412,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Steal: Neo Warden in Castle Sequoia mushroom area",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scythes/table > Twilight",
+          "snapshot": "revision 10848",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scythes/table?oldid=10848"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:181",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 181,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Hunting Bow is a bow. It can be found in a chest, in Rolling Quintar Fields, underground.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Hunting Bow",
+          "snapshot": "revision 12850",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Hunting_Bow?oldid=12850"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:281",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 281,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "An Artemis is a bow. It has a smaller penalty to accuracy than other bows, and makes the user's first turn faster. It can be purchased in the Quintar Reserve from the Quintar Reserve Shop in a tree just east of the Quintar Mausoleum after you possess the Babel Quintar.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Artemis",
+          "snapshot": "revision 12870",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Artemis?oldid=12870"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:5",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 5,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in Spawning Meadows from Nan's Knick Knacks in Old Nan's Watering Hole.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Short Staff",
+          "snapshot": "revision 11763",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Short_Staff?oldid=11763"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:62",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 62,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "A Cedar Staff is a staff. One can be found in Spawning Meadows, in a chest after several jumps over the waterfall on the way to Old Nan's Watering Hole. More can be purchased from the Delende Camp Weapon Shop, the Proving Meadows Weapon Shop, and Magic and Magic Things.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cedar Staff",
+          "snapshot": "revision 11764",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cedar_Staff?oldid=11764"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:188",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 188,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Walking Stick is a staff. It can be found in a chest, at Cobblestone Crag. You have to climb up after you meet Ashley and Reid.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Walking Stick",
+          "snapshot": "revision 11770",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Walking_Stick?oldid=11770"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:289",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 289,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Steal: Parasite X on Castle Sequoia lava mushroom level",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Staves/table > Beats Stick",
+          "snapshot": "revision 13316",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Staves/table?oldid=13316"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:8",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 8,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in Spawning Meadows from Nan's Knick Knacks in Old Nan's Watering Hole.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Ash Wand",
+          "snapshot": "revision 11918",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Ash_Wand?oldid=11918"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:101",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 101,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Craftwork Wand is a wand used in crafting. It can be found in Capital Sequoia, in the maze, in the lower west corner, in the dead end.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Craftwork Wand",
+          "snapshot": "revision 11924",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Craftwork_Wand?oldid=11924"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:189",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 189,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be found in a chest, in the Quintar Nest, but you need to come from the Jojo Sewers",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Static Rod",
+          "snapshot": "revision 11927",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Static_Rod?oldid=11927"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:432",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 432,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "It can be found in a chest in The Undercity\nFrom the Home Point \"Prize Counter\" (the counter of the Sky Arena) go west and found a building with a hole on the ground\nFrom there, go north, then east on the pipe.\nFall on the purple chest, then on the lamp below\nYou can see the chest at the end",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cursegiver",
+          "snapshot": "revision 11933",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cursegiver?oldid=11933"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:358",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 358,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be found in a chest, in Jidamba Eaclaneya, you need to take the east waterhole",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Flameseeker",
+          "snapshot": "revision 11944",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Flameseeker?oldid=11944"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:224",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 224,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be found in a chest, in Okimoto N.S., in the Ninja Yashiki, you need to go down the hidden staircase",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Art of War",
+          "snapshot": "revision 11872",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Art_of_War?oldid=11872"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:443",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 443,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Malifice is a book. It has a high Max. MP bonus, but the bonus reduces each turn. It can be found in a chest in Shoudu Province, after winning 8 battles in a row at the Sky Arena, and unlocking the 8-battle treasury.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Malifice",
+          "snapshot": "revision 11886",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Malifice?oldid=11886"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:44",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 44,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in Spawning Meadows from Nan's Knick Knacks in Old Nan's Watering Hole.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Buckler",
+          "snapshot": "revision 8977",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Buckler?oldid=8977"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:88",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 88,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be found in a chest, at the entrance of Trial Caves. Jump on the red lamps on the right side of the staircase to reach the chest.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Stalwart Shield",
+          "snapshot": "revision 13131",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Stalwart_Shield?oldid=13131"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:178",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 178,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can switch between sword and shield.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Boomer Shield",
+          "snapshot": "revision 13134",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Boomer_Shield?oldid=13134"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:445",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 445,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in Quintar Reserve from the Quintar Reserve Shop in a tree just east of the Quintar Mausoleum. You will need the Babel Quintar from the Quintar Mausoleum to talk to the shopkeeper.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Turtle Shell",
+          "snapshot": "revision 9605",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Turtle_Shell?oldid=9605"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:25",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 25,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in Spawning Meadows from Old Nan's Knick-Knack Shop in Old Nan's Watering Hole.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Chain Helm",
+          "snapshot": "revision 12353",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Chain_Helm?oldid=12353"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:74",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 74,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Storm Helm is a heavy helmet. It can be found in a chest in The Pale Grotto, after a series of jumps.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Storm Helm",
+          "snapshot": "revision 13148",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Storm_Helm?oldid=13148"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:464",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 464,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Obtained as a prize from The Sky Arena in Shoudu Province. Simply win the first battle and speak to the receptionist.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Horned Helm",
+          "snapshot": "revision 12369",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Horned_Helm?oldid=12369"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:470",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 470,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "It can found in a chest, in Tall, Tall Heights. You need to push the ice cube right, down, left, up, left, up",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Insignia Helm",
+          "snapshot": "revision 12351",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Insignia_Helm?oldid=12351"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:18",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 18,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in Spawning Meadows from Nan's Knick Knacks in Old Nan's Watering Hole.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Breastplate",
+          "snapshot": "revision 9088",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Breastplate?oldid=9088"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:510",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 510,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be found in Capital Sequoia, In the Gardener's Hut. Will require Gardener's Key from the Maze, or the Skeleton Key from Sequoia Athenaeum.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Craftwork Mail",
+          "snapshot": "revision 9087",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Craftwork_Mail?oldid=9087"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:461",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 461,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Obtained from The Sky Arena in Shoudu Province. After winning 6 battles speak to the receptionist.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Sky Armor",
+          "snapshot": "revision 9102",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Sky_Armor?oldid=9102"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:130",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 130,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be found in a chest, in Slip Glide Ride, to reach it you need to go all around and fall on the right side of the chest",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Plate of Lion",
+          "snapshot": "revision 9122",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Plate_of_Lion?oldid=9122"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:24",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 24,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in Spawning Meadows from Old Nan's Knick-Knack Shop in Old Nan's Watering Hole.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Leather Cap",
+          "snapshot": "revision 11823",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Leather_Cap?oldid=11823"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:485",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 485,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be found in a chest, in Shoudu Province, there is an open window you can jump in.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Suitor Hat",
+          "snapshot": "revision 12539",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Suitor_Hat?oldid=12539"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:487",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 487,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in the Quintar Reserve Shop in a tree just east of the Quintar Mausoleum after you possess the Babel Quintar.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Red Headgear",
+          "snapshot": "revision 11845",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Red_Headgear?oldid=11845"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:17",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 17,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in Spawning Meadows from Old Nan's Knick-Knack Shop in Old Nan's Watering Hole.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Leather Outfit",
+          "snapshot": "revision 11733",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Leather_Outfit?oldid=11733"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:268",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 268,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Smelly Gi is medium armor. It can be found in a chest in the Jojo Sewers, above the waterfall on the way to the Boomer Society.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Smelly Gi",
+          "snapshot": "revision 11753",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Smelly_Gi?oldid=11753"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:57",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 57,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Red Coat is medium armor. Unlike most medium armor, it increases Mind, not Attack. It's found in a chest in Ancient Reservoir, in the rafters directly above the crystal.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Red Coat",
+          "snapshot": "revision 11721",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Red_Coat?oldid=11721"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:493",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 493,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in the Quintar Reserve from the Quintar shop in a tree just east of the Quintar Mausoleum after you possess the Babel Quintar.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Quintar Pelt",
+          "snapshot": "revision 11744",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Quintar_Pelt?oldid=11744"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:347",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 347,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Shadow Gi is medium armor. It can be found in a chest in Shoudu Province, after winning all 10 battles in a row at the Sky Arena, and unlocking the 10-battle treasury.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Shadow Gi",
+          "snapshot": "revision 12832",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Shadow_Gi?oldid=12832"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:543",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 543,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Each seal can only be obtained once per playthrough, so it may be wise to master the class for all characters that will use it before making the trade.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Ninja Vest",
+          "snapshot": "revision 11758",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Ninja_Vest?oldid=11758"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:31",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 31,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in Spawning Meadows from Old Nan's Knick-Knack Shop in Old Nan's Watering Hole.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Hemp Hood",
+          "snapshot": "revision 12418",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Hemp_Hood?oldid=12418"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:32",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 32,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "A Cotton Hood is a light hat. One can be found in a chest in Delende, in a tunnel under the main road. More can be purchased from the Delende Camp Armor Shop, the Fish Hatchery Armor Shop, the Proving Meadows Armor Shop, and Magic and Magic Things.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cotton Hood",
+          "snapshot": "revision 12419",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cotton_Hood?oldid=12419"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:516",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 516,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Craftwork Crown is a light hat used in crafting. It can be found in Capital Sequoia, near the northeast corner of the maze.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Craftwork Crown",
+          "snapshot": "revision 12422",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Craftwork_Crown?oldid=12422"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:133",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 133,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Reward: talk to mushroom in Quintar Sanctum",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Light hats/table > Circlet",
+          "snapshot": "revision 13323",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Light_hats/table?oldid=13323"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:356",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 356,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "It can be found in a chest, in Beaurior Rock, you need take the west elevator down to reach the area",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Guard Crown",
+          "snapshot": "revision 12437",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Guard_Crown?oldid=12437"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:354",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 354,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "It can be found in the bouncy area in underground Castle Sequoia above one of the exits.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Protector",
+          "snapshot": "revision 12525",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Protector?oldid=12525"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:19",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 19,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be purchased in Spawning Meadows from Old Nan's Knick-Knack Shop in Old Nan's Watering Hole.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Hemp Robe",
+          "snapshot": "revision 9241",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Hemp_Robe?oldid=9241"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:134",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 134,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Reward: talk to mushroom in Quintar Sanctum",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Light armor/table > Dress",
+          "snapshot": "revision 11534",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Light_armor/table?oldid=11534"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:196",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 196,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "A Fang Pendant is an accessory. One can be found in a chest at the entrance of the maze of Capital Sequoia. More can be purchased from the Capital Accessories Shop. Greenjackets in Jidamba Tangle have a 60% chance to have a Fang Pendant to steal.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Fang Pendant",
+          "snapshot": "revision 11257",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Fang_Pendant?oldid=11257"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:562",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 562,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "This can be found in a chest in Poko Poko Desert, you need to start from the east gate of the town.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scope Specs",
+          "snapshot": "revision 8194",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scope_Specs?oldid=8194"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:490",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 490,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Can be crafted at the Quintar Shop in Quintar Reserve. You will require the Babel Quintar in order to speak to the shopkeeper, and the following items for the recipe:",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Fursuit",
+          "snapshot": "revision 10869",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Fursuit?oldid=10869"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:244",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 244,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Given as a reward from the Sky Arena, in Shoudu Province. After beating fight number 9, speak to the front desk.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Tall Stand Ring",
+          "snapshot": "revision 13105",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Tall_Stand_Ring?oldid=13105"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:286",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 286,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Stone of Jodan is an accessory. You will need to fight the Crag Demon, then find Marlin in the Jojo Sewers, and trade the Crag Demon Horn for the Stone of Jodan.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Stone of Jodan",
+          "snapshot": "revision 13101",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Stone_of_Jodan?oldid=13101"
+        }
+      ]
+    },
+    {
+      "entityId": "base:equipment:346",
+      "nativeIdentity": {
+        "database": "equipment",
+        "databaseId": 346,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Given as a reward from the Sky Arena, in Shoudu Province. After beating fight number 7, speak to the front desk and then head to the treasure rooms.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Ribbon",
+          "snapshot": "revision 13100",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Ribbon?oldid=13100"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:179",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 179,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Gardener's Key in the nearby hedge maze unlocks the Gardener's Shed.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Tuber Seed",
+          "snapshot": "revision 8068",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Tuber_Seed?oldid=8068"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:19",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 19,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "Astley gives you a Home Point Stone in an early cutscene in Delende. If you didn't talk to Astley, the pupil next to the Home Point inside the House of The Know-It-All Ducks in Capital Sequoia gives you a Home Point Stone.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Home Point Stone",
+          "snapshot": "revision 7133",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Home_Point_Stone?oldid=7133"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:147",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 147,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Skeleton Key is your reward for gaining access to the Sequoia Athenaeum and completing the ice block puzzles within. This key can open any locked door in the game that requires a key, and is the intended method of accessing the locked room on the second floor in the Capital Sequoia Luxury Weapon shop.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Skeleton Key",
+          "snapshot": "revision 8077",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Skeleton_Key?oldid=8077"
+        }
+      ]
+    },
+    {
+      "entityId": "base:item:196",
+      "nativeIdentity": {
+        "database": "item",
+        "databaseId": 196,
+        "mode": "base"
+      },
+      "kind": "directions",
+      "text": "The Treasure Finder is found in The Deep Sea, below the north edge of Tall, Tall Heights. Answer all 8 Quizzards correctly to unlock the door leading to the Treasure Finder.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Treasure Finder",
+          "snapshot": "revision 7702",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Treasure_Finder?oldid=7702"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:0",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 0,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In Capital Sequoia, from the roof of the luxury shops, walk under the green roof.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Warrior > Master",
+          "snapshot": "revision 13324",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Warrior?oldid=13324"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:5",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 5,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In Capital Sequoia, on the roof of the Red Door Inn, climb up the boxes and into the wood structure.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Monk > Master",
+          "snapshot": "revision 13278",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Monk?oldid=13278"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:2",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 2,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In Capital Sequoia, next to the Weary Wanderer's Lodge, climb up the boxes and into the side door above the inn.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Rogue > Master",
+          "snapshot": "revision 13280",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Rogue?oldid=13280"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:4",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 4,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In Capital Sequoia, through a side door one floor above Armor \"4\" All.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Cleric > Master Location",
+          "snapshot": "revision 13282",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Cleric?oldid=13282"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:3",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 3,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In Capital Sequoia, upstairs from the Wizard with a SoJ in Jojo Sewers, you can climb boxes to the roof of Weapons \"R\" Us and into the blue-roofed structure.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Wizard > Master Location",
+          "snapshot": "revision 13283",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Wizard?oldid=13283"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:14",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 14,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In Capital Sequoia, above the House of The Know-It-All Ducks and Sam the Sadist.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Warlock > Master Location",
+          "snapshot": "revision 13284",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Warlock?oldid=13284"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:1",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 1,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In the Overpass west of Delende.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Fencer > Master",
+          "snapshot": "revision 13286",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Fencer?oldid=13286"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:8",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 8,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "Northeast area of Seaside Cliffs.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Shaman > Master",
+          "snapshot": "revision 13287",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Shaman?oldid=13287"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:13",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 13,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In Yamagawa M.A. The Master is that Scholar to the left of the Crystal.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Scholar > Master",
+          "snapshot": "revision 13288",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Scholar?oldid=13288"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:10",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 10,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In the Overpass west of Okimoto N.S.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Aegis > Master",
+          "snapshot": "revision 13290",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Aegis?oldid=13290"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:7",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 7,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In the Overpass north of the Rolling Quintar Fields.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Hunter > Master",
+          "snapshot": "revision 13325",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Hunter?oldid=13325"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:17",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 17,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In Tall, Tall Heights near the southeast corner of the Castle Ramparts.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Chemist > Master",
+          "snapshot": "revision 13292",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Chemist?oldid=13292"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:6",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 6,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In the Overpass north of the Callisto Shrine.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Reaper > Master",
+          "snapshot": "revision 13294",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Reaper?oldid=13294"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:18",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 18,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In the Overpass west of Okimoto N.S.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Ninja > Master",
+          "snapshot": "revision 13306",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Ninja?oldid=13306"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:12",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 12,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In the Overpass northwest of the River Cat's Ego where you find the Crystal.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Nomad > Master",
+          "snapshot": "revision 13296",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Nomad?oldid=13296"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:11",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 11,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In Sara Sara Beach northwest of the Poko Poko Desert.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Dervish > Master",
+          "snapshot": "revision 13297",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Dervish?oldid=13297"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:9",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 9,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In Capital Sequoia, same room as the Crystal.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beatsmith > Master",
+          "snapshot": "revision 13298",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beatsmith?oldid=13298"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:20",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 20,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In Shoudu Province on the east side of town.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Samurai > Master",
+          "snapshot": "revision 13299",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Samurai?oldid=13299"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:15",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 15,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In the Overpass west of the Beaurior Volcano.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Valkyrie > Master",
+          "snapshot": "revision 13303",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Valkyrie?oldid=13303"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:21",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 21,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In the Overpass, above the ice cave in the Northern Stretch, straight north from the top left corner of the Castle Ramparts.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Summoner > Master",
+          "snapshot": "revision 13305",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Summoner?oldid=13305"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:23",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 23,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In the Overpass, southwest of the Castle Ramparts.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Beastmaster > Master",
+          "snapshot": "revision 13307",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Beastmaster?oldid=13307"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:16",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 16,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In Jidamba Tangle, on the west side.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Weaver > Master",
+          "snapshot": "revision 13308",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Weaver?oldid=13308"
+        }
+      ]
+    },
+    {
+      "entityId": "base:job:22",
+      "nativeIdentity": {
+        "database": "job",
+        "databaseId": 22,
+        "mode": "base"
+      },
+      "kind": "master-directions",
+      "text": "In the Chalice of Tar, in a cave on the southwest cliffs.",
+      "sources": [
+        {
+          "applicability": "Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified",
+          "locator": "Mimic > Master",
+          "snapshot": "revision 13310",
+          "sourceId": "https://crystal-project.fandom.com/wiki/Mimic?oldid=13310"
+        }
+      ]
+    }
+  ]
+}

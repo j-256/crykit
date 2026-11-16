@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
-import { nativeFieldFacts } from '../catalog/native-field-facts'
+import { nativeEquipmentFacts } from '../catalog/native-equipment-facts'
 import { nativeSourceRecord } from '../domain/native-game'
 import type { CatalogEntity, Knowledge } from '../domain/types'
 import { ReferenceDefinitionFacts, isTechnicalReferenceFact } from './ReferenceDefinitionFacts'
@@ -99,12 +99,13 @@ describe('Reference gameplay hierarchy', () => {
     const original = DEFAULT_CATALOG.entities['base:equipment:134']!
     const definition: CatalogEntity = { ...original, slotKinds: { state: 'unknown', reason: 'Equipment slot not recorded' } }
     const before = JSON.stringify(definition)
-    const html = renderToStaticMarkup(<ReferenceDefinitionFacts definition={definition} facts={[]} planningFacts={nativeFieldFacts(DEFAULT_CATALOG, original)}/>)
+    const nativeFacts = nativeEquipmentFacts(DEFAULT_CATALOG, original)!.facts
+    const html = renderToStaticMarkup(<ReferenceDefinitionFacts definition={definition} facts={nativeFacts.map(fact => [fact.field, fact.value] as const)} verifiedNativeFacts={nativeFacts}/>)
     expect(html).toContain('Slot kinds')
     expect(html).toContain('Equipment slot not recorded')
-    expect(html).toContain('<dt>Defense</dt>')
+    expect(html).toContain('<span>Defense</span>')
     expect(html).toContain('>19<')
-    expect(html).toContain('<dt>Resistance</dt>')
+    expect(html).toContain('<span>Resistance</span>')
     expect(html).toContain('>78<')
     expect(html).not.toContain('Sources for Defense')
     expect(html).not.toContain('Sources for Resistance')

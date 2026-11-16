@@ -1,3 +1,5 @@
+import { ReferenceGuidance } from './ReferenceGuidance'
+import { FieldIconSources, GameIcon, hasExternalFieldIcons } from './GameIcon'
 import { definitionOrigins } from '../domain/definition-origins'
 import { ReferenceLink } from './ReferenceLink'
 import type { ReactNode } from 'react'
@@ -8,13 +10,12 @@ import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
 import { catalogEntity } from '../domain/entity-identities'
 import type { CatalogSnapshot, GameSetupRevision, LocalData } from '../domain/types'
 import { MoneyText } from './MoneyText'
-import { compactKnowledge, decisionFacts, definitionChoiceSourceLabel, hasNameEvidenceOnly, nativeStatSourceNotice, ppCostLabel, selectionSummaryLines } from './build-evidence'
+import { compactKnowledge, decisionFacts, definitionChoiceSourceLabel, nativeStatSourceNotice, ppCostLabel, selectionSummaryLines } from './build-evidence'
 import { definitionKindLabel, type DefinitionOption } from './definitions'
 import { HistoricalInnateLearningBadge, ModBadge } from './DefinitionModLabel'
 import { KnowledgeValue, SourceReferences } from './KnowledgeValue'
 import { StatLabel } from './StatRatings'
 import { fieldIconKey } from '../catalog/menu-icons'
-import { FieldIconSources, GameIcon, hasExternalFieldIcons } from './GameIcon'
 import { CatalogArtworkSource, hasExternalCatalogArtwork } from './WikiSprite'
 import { Icon } from './icons'
 import { Sources } from './Sources'
@@ -55,7 +56,7 @@ export function BuildSelectionFacts({ option, interactiveHelp = true, showClassP
   const facts = selectionFacts(option, showClassPermissions).filter(({ label }) => !/^cost$/i.test(label))
   if (option.kind === 'class' && facts.length) return <span className="build-selection-facts build-class-facts">{[...facts].sort((left, right) => Number(!/^command$/i.test(left.label)) - Number(!/^command$/i.test(right.label))).slice(0, 4).map(fact => <ClassSummaryFact interactiveHelp={interactiveHelp} key={fact.label} {...fact}/>)}</span>
   const lines = selectionSummaryLines(option).filter(line => !/^(cost|pp):/i.test(line))
-  return <span className="build-selection-facts"><MoneyText>{lines.length ? lines.slice(0, 4).join(' · ') : hasNameEvidenceOnly(option.record) ? 'Stats and effects unknown' : 'Stats and effects not recorded'}</MoneyText></span>
+  return <span className="build-selection-facts"><MoneyText>{lines.length ? lines.slice(0, 4).join(' · ') : 'Stats and effects not recorded'}</MoneyText></span>
 }
 
 export function BuildSelectionDetails({ option, comparedWith, alternatives = [], catalogs = [], localData, gameSetup, heading, showClassPermissions = true }: { option: DefinitionOption; comparedWith?: DefinitionOption; alternatives?: readonly DefinitionOption[]; catalogs?: readonly CatalogSnapshot[]; localData?: LocalData; gameSetup?: GameSetupRevision; heading?: ReactNode; showClassPermissions?: boolean }) {
@@ -84,7 +85,7 @@ export function BuildSelectionDetails({ option, comparedWith, alternatives = [],
   const externalArtwork = option.ref.kind === 'catalog' && hasExternalCatalogArtwork(option.ref.catalogId, { ...option.record, id: option.ref.entityId })
   const iconFields = option.kind === 'class' ? Object.fromEntries(facts.map(({ label, value }) => [label, value])) : option.record.fields
   const externalIcons = hasExternalFieldIcons(iconFields)
-  const uncertain = alternatives.length > 0 || hasNameEvidenceOnly(option.record) || facts.some(fact => fact.value.state === 'unknown' || fact.value.state === 'conflicting') || option.ppCost?.state === 'unknown' || option.ppCost?.state === 'conflicting'
+  const uncertain = alternatives.length > 0 || facts.some(fact => fact.value.state === 'unknown' || fact.value.state === 'conflicting') || option.ppCost?.state === 'unknown' || option.ppCost?.state === 'conflicting'
   const showSources = external.length > 0 || externalArtwork || externalIcons || uncertain || option.ref.kind === 'personal' || option.kind === 'class' && !verified && sourceRefs.length > 0
   const identity = heading ?? <strong>{option.name}</strong>
   const sourceControl = showSources ? <Sources anchor={identity} label={`Sources for ${option.name}`}><p>{definitionChoiceSourceLabel(option)}</p>{sourceNotice && <p>{sourceNotice}</p>}{option.kind !== 'class' && option.record.rawDescription && <p><MoneyText>{option.record.rawDescription}</MoneyText></p>}{alternatives.length > 0 && <p className="field__hint">Similar spelling: {alternatives.map((other) => other.name).join(', ')}. These entries have separate IDs. CryKit has not confirmed they are the same item.</p>}<dl className="definition-list">{Object.entries(sourceFields).sort(([left], [right]) => Number(/^cost$/i.test(left)) - Number(/^cost$/i.test(right))).map(([label, value]) => <div className="definition-row" key={label}><dt>{label}</dt><dd><KnowledgeValue field={label} showSources value={value}/></dd></div>)}{option.ppCost && <div className="definition-row"><dt>PP cost</dt><dd><KnowledgeValue showSources value={option.ppCost}/></dd></div>}</dl><p className="field__hint">{option.sourceLabel}</p><SourceReferences includeGameExports sources={option.kind === 'class' ? sourceRefs : uncertain ? option.record.sources : externalSources(option.record.sources)}/><FieldIconSources fields={iconFields}/>{option.ref.kind === 'catalog' && <CatalogArtworkSource catalogId={option.ref.catalogId} entity={{ ...option.record, id: option.ref.entityId }}/>}</Sources> : null
@@ -95,6 +96,7 @@ export function BuildSelectionDetails({ option, comparedWith, alternatives = [],
     <div className="cluster">{sourceControl ?? identity}{legacyInnate && <HistoricalInnateLearningBadge record={option.record}/>}{option.modAvailability?.requiredMod && <ModBadge name={option.modAvailability.requiredMod} showState={false} state={option.modAvailability.state}/>}{(!heading || showPpCost) && <small>{!heading ? definitionKindLabel(option.kind) : ''}{showPpCost ? `${!heading ? ' · ' : ''}${ppCostLabel(option)}` : ''}</small>}</div>
     {modPlanningReason(option.modAvailability) && <p className="field__hint">{modPlanningReason(option.modAvailability)}</p>}
     {previous && option.kind !== 'class' ? <table className="build-fact-table"><caption>Catalog facts compared with {comparedWith!.name}</caption><thead><tr><th>{comparedWith!.name}</th><th>{option.name}</th></tr></thead><tbody><tr><td><SelectionSummary option={comparedWith!} showPpCost/></td><td><SelectionSummary option={option} showPpCost/></td></tr></tbody></table> : previous ? <table className="build-fact-table"><caption>Catalog facts compared with {comparedWith!.name}</caption><thead><tr><th>Field</th><th>{comparedWith!.name}</th><th>{option.name}</th></tr></thead><tbody>{labels.map((label) => <tr key={label}><th><StatLabel label={label}/></th><td><KnowledgeValue compact field={label} value={previous.find((fact) => fact.label === label)?.value ?? { state: 'unknown' }}/></td><td><KnowledgeValue compact field={label} value={facts.find((fact) => fact.label === label)?.value ?? { state: 'unknown' }}/></td></tr>)}</tbody></table> : option.kind === 'class' ? <dl className="definition-list">{displayedFacts.map(({ label, value }) => <div className="definition-row" key={label}><dt><StatLabel label={label}/></dt><dd><KnowledgeValue compact field={label} value={value}/></dd></div>)}</dl> : <SelectionSummary option={option}/>}
+    {catalog && option.ref.kind === 'catalog' && (option.kind !== 'class' || showClassPermissions) && <><ReferenceGuidance catalog={catalog} entity={option.record} kind="description"/><ReferenceGuidance catalog={catalog} entity={option.record} kind="master-directions"/></>}
     {showAbilities && <CommandAbilities catalogs={catalogs} command={command?.value.state === 'known' && typeof command.value.value === 'string' ? command.value.value : 'Command abilities'} gameSetup={gameSetup} localData={localData} option={option}/>}
   </div>
 }

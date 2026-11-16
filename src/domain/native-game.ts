@@ -31,7 +31,7 @@ export interface NativeGameSnapshot {
   readonly databases: Readonly<Record<string, JsonValue>>
   readonly enums: Readonly<Record<string, Readonly<Record<string, string>>>>
   readonly identityBindings: Readonly<Record<string, string>>
-  readonly identitySource: { readonly sha256: string; readonly classTreesSha256: string; readonly commit: string }
+  readonly identitySource: { readonly sha256: string; readonly classTreesSha256: string; readonly commit?: string }
 }
 export interface NativeRelationship {
   readonly label: string
@@ -159,7 +159,7 @@ export function validateNativeSnapshot(snapshot: NativeGameSnapshot): void {
     const values = snapshot.enums[name]
     if (!nativeRecord(values) || !Object.keys(values).length || Object.entries(values).some(([code, label]) => !/^-?\d+$/.test(code) || typeof label !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(label))) throw new Error(`Native executable enum ${name} is invalid or missing`)
   }
-  if (!/^[a-f0-9]{64}$/.test(snapshot.identitySource.classTreesSha256) || !/^[a-f0-9]{64}$/.test(snapshot.identitySource.sha256) || !/^[a-f0-9]{40}$/.test(snapshot.identitySource.commit) || Object.entries(snapshot.identityBindings).some(([key, id]) => !/^(?:job|item|equipment|ability|passive):\d+$/.test(key) || !id || id.includes('\0'))) throw new Error('Native identity crosswalk evidence is invalid')
+  if (!/^[a-f0-9]{64}$/.test(snapshot.identitySource.classTreesSha256) || !/^[a-f0-9]{64}$/.test(snapshot.identitySource.sha256) || snapshot.identitySource.commit !== undefined && !/^[a-f0-9]{40}$/.test(snapshot.identitySource.commit) || Object.entries(snapshot.identityBindings).some(([key, id]) => !/^(?:job|item|equipment|ability|passive):\d+$/.test(key) || !id || id.includes('\0'))) throw new Error('Native identity crosswalk evidence is invalid')
   const records = (value: JsonValue | undefined, context: string): void => {
     if (!Array.isArray(value) || value.length > MAX_NATIVE_RECORDS) throw new Error(`${context} must be a bounded record array`)
     const ids = new Set<number>()
@@ -301,16 +301,4 @@ export function buildNativeCatalog(snapshot: NativeGameSnapshot): CatalogSnapsho
     entities[id] = { id, kind: 'other', name: `Game ${label(key).toLowerCase()}`, aliases: [], fields: { Category: { state: 'known', value: ['Game configuration'] }, 'Game version': { state: 'known', value: version }, [label(key)]: { state: 'known', value, sources: [source] } }, sources: [source] }
   }
   return { id: NATIVE_GAME_CATALOG_ID, revisionId: `windows-${version}:${snapshot.contentDigest}` as CatalogRevisionId, schemaVersion: 'native-game-1', checksum: `builtin:sha256:${snapshot.catalogChecksum}`, importedAt: snapshot.capturedAt as Timestamp, applicability: { state: 'known', value: `Windows ${version} native reference data; Switch 1.6.6 equivalence unresolved` }, rights: { state: 'unknown', reason: 'Crystal Project game data has source-specific rights; no AGPL or CC-BY-SA content grant is asserted' }, entities, claims: [], legacy: { nativeSource: snapshot.source as unknown as JsonValue, nativeIdentityBindings: snapshot.identityBindings, nativeEnums: snapshot.enums, sourceContentDigest: snapshot.contentDigest, modeNames: [...modeNames] } }
-}
-
-export function assembleNativeBase(supplement: CatalogSnapshot, snapshot: NativeGameSnapshot): CatalogSnapshot {
-  const native = buildNativeCatalog(snapshot)
-  const entities: Record<string, CatalogEntity> = Object.fromEntries(Object.entries(supplement.entities).map(([id, entity]) => [id, { ...entity, legacy: { ...(nativeRecord(entity.legacy) ? entity.legacy : {}), supplemental: true } }]))
-  for (const [id, entity] of Object.entries(native.entities)) {
-    const secondary = entities[id]
-    const description = nativeSourceRecord(entity)?.Description
-    const supplementalDescription = secondary?.rawDescription && !(typeof description === 'string' && description.trim())
-    entities[id] = secondary ? { ...secondary, ...entity, ...(supplementalDescription ? { rawDescription: secondary.rawDescription } : {}), aliases: [...new Set([...entity.aliases, ...secondary.aliases, ...(secondary.name === entity.name ? [] : [secondary.name])])], fields: { ...secondary.fields, ...entity.fields }, sources: [...entity.sources, ...secondary.sources], legacy: { ...(nativeRecord(secondary.legacy) ? secondary.legacy : {}), ...(nativeRecord(entity.legacy) ? entity.legacy : {}), supplemental: false, ...(supplementalDescription ? { nativeDescriptionSupplemental: true } : {}) } } : entity
-  }
-  return { ...native, id: supplement.id, revisionId: supplement.revisionId, checksum: supplement.checksum, entities, claims: supplement.claims, legacy: { ...(nativeRecord(native.legacy) ? native.legacy : {}), primarySource: 'native-game', supplementalSources: 'Community wiki, Crystal Edit class copies, modding guide, and Switch observations retain their individual provenance' } }
 }

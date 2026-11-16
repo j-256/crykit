@@ -28,7 +28,9 @@ function payloadValidation(catalog: CatalogSnapshot, receipts: readonly BundledS
   const identity = parseCatalogSourceId(catalog.id)
   if (!identity || !parseSourceRevision(identity.origin, catalog.revisionId)) return false
   const receipt = identity.origin !== 'imported' ? bundledReceipt(catalogPin(catalog), receipts) : undefined
-  if (identity.origin !== 'imported' && (!receipt || receipt.checksum !== catalog.checksum)) return false
+  // Complete retained vanilla/guide bodies prove their own integrity without shipping old receipts
+  // Packaged revisions still require their pinned checksum; mod aliases still need trusted payload bindings
+  if (receipt && receipt.checksum !== catalog.checksum || identity.origin === 'mod' && !receipt) return false
   if (catalog.payloadSource) {
     if (identity.origin !== 'mod' || !receipt?.payloadSource || !samePin(catalog.payloadSource, receipt.payloadSource)) return false
     if (parseCatalogSourceId(catalog.payloadSource.catalogId)?.origin !== 'imported' || !parseSourceRevision('imported', catalog.payloadSource.catalogRevisionId)) return false

@@ -63,7 +63,7 @@ test('privacy review accepts only pinned geometry bytes and checks staged conten
     const bytes = Buffer.from([1, 0, 2])
     const file = 'src/assets/world-map/geometry-0-0-0.bin'
     writeFileSync(join(cwd, file), bytes)
-    const manifests = ['game-assets', 'mod-artwork', 'wiki-sprites', 'mod-sprites']
+    const manifests = ['game-assets', 'mod-artwork', 'mod-sprites']
     for (const name of manifests) writeFileSync(join(cwd, `src/catalog/${name}.json`), JSON.stringify({ assets: {}, atlases: {} }))
     writeFileSync(join(cwd, 'src/catalog/world-map.json'), JSON.stringify({ layers: [{ id: 0, geometry: [{ file: 'geometry-0-0-0.bin', sha256: createHash('sha256').update(bytes).digest('hex') }] }] }))
     git(['add', file, 'src/catalog/world-map.json', ...manifests.map(name => `src/catalog/${name}.json`)])

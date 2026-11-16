@@ -1,48 +1,33 @@
-import factsJson from './native-mechanics.json' with { type: 'json' }
-import codeEvidence from './game-code-evidence.json' with { type: 'json' }
-import { GUIDE_CATALOG, GUIDE_SOURCE_ENTITY_IDS } from './bundled'
+import facts from './native-mechanics.json' with { type: 'json' }
 import { NATIVE_GAME_DATA } from './native-game'
 import { sameValue } from '../domain/definition-values'
 import { nativeGameplayScopeLabel } from '../domain/native-game'
-import type { CatalogEntity, JsonValue, Knowledge, PersonalDefinition } from '../domain/types'
-
-interface NativeMechanicReceipt {
-  readonly sourceId: string
-  readonly entityId: string
-  readonly description: string
-  readonly expectedDescription: string
-  readonly expectedFields: Readonly<Record<string, Knowledge<JsonValue>>>
-  readonly replacedFields: readonly string[]
-  readonly evidence: readonly string[]
-  readonly calculationLinks?: readonly { readonly label: string; readonly href: string }[]
-}
+import type { CatalogEntity, EntityId, PersonalDefinition, SourceRef } from '../domain/types'
 
 export interface NativeMechanic {
   readonly description: string
   readonly scope: string
-  readonly replacedFields: readonly string[]
-  readonly originalFields: Readonly<Record<string, Knowledge<JsonValue>>>
-  readonly originalDescription: string
   readonly evidence: readonly string[]
   readonly calculationLinks?: readonly { readonly label: string; readonly href: string }[]
 }
 
-const facts = factsJson as unknown as { readonly source: typeof codeEvidence.source; readonly files: Readonly<Record<string, string>>; readonly entries: readonly NativeMechanicReceipt[] }
-const reviewedFiles: Readonly<Record<string, string>> = codeEvidence.files
-const sourceMatches = facts.source.executableSha256 === NATIVE_GAME_DATA.source.executable.sha256 && facts.source.executableSha256 === codeEvidence.source.executableSha256 && facts.source.systemDataSha256 === codeEvidence.source.systemDataSha256 && facts.source.gameVersion === NATIVE_GAME_DATA.source.gameVersion && facts.source.platform === NATIVE_GAME_DATA.source.platform && Object.entries(facts.files).every(([path, digest]) => reviewedFiles[path] === digest)
-// Translate reviewed source keys through the guide allocation without rewriting native evidence
-const receipts = new Map(facts.entries.map(receipt => [GUIDE_SOURCE_ENTITY_IDS.get(receipt.sourceId), receipt]))
-const FORMULA_REFERENCE_SOURCE_ID = 'base:mechanic:growth-and-damage'
-const VERIFIED_FORMULA_SCOPE_PHRASE = 'verified Windows PC 1.6.9 calculation package'
+// A matching modifier name is insufficient: these descriptions belong to the fingerprinted build
+const sourceMatches = facts.source.executableSha256 === NATIVE_GAME_DATA.source.executable.sha256 && facts.source.systemDataSha256 === NATIVE_GAME_DATA.source.files.find(file => file.path === 'Database/system.dat')?.sha256 && facts.source.gameVersion === NATIVE_GAME_DATA.source.gameVersion && facts.source.platform === NATIVE_GAME_DATA.source.platform
+const scope = nativeGameplayScopeLabel(facts.source.platform, facts.source.gameVersion)
+const definitions = Object.fromEntries(facts.entries.map(entry => {
+  const source: SourceRef = { sourceId: `native-game:windows:${facts.source.gameVersion}`, locator: entry.evidence.join('; '), snapshot: `executable SHA-256 ${facts.source.executableSha256}`, applicability: scope }
+  const entity: CatalogEntity = { id: entry.id as EntityId, kind: 'other', name: entry.name, aliases: [], rawDescription: entry.description, fields: { Description: { state: 'known', value: entry.description, sources: [source] }, Category: { state: 'known', value: ['Mechanics', entry.category], sources: [source] } }, sources: [source] }
+  return [entry.id, entity]
+}))
+const entries = new Map(facts.entries.map(entry => [entry.id, entry]))
+
+export function nativeMechanicDefinitions(): Readonly<Record<string, CatalogEntity>> {
+  if (!sourceMatches) throw new Error('Native mechanic evidence does not match the game source')
+  return definitions
+}
 
 export function nativeMechanic(entity: CatalogEntity | PersonalDefinition): NativeMechanic | undefined {
-  if (!sourceMatches || 'revision' in entity) return undefined
-  const receipt = receipts.get(entity.id)
-  if (!receipt) return undefined
-  const baseline = GUIDE_CATALOG.entities[entity.id]
-  if (!receipt || !baseline || GUIDE_SOURCE_ENTITY_IDS.get(receipt.sourceId) !== entity.id || entity.kind !== baseline.kind || entity.name !== baseline.name || entity.rawDescription !== receipt.expectedDescription || !sameValue(entity.fields, receipt.expectedFields) || !sameValue(entity.fields, baseline.fields) || !sameValue(entity.sources, baseline.sources)) return undefined
-  const scope = nativeGameplayScopeLabel(facts.source.platform, facts.source.gameVersion)
-  // Project only the pinned formula receipt's scope phrase; source receipts stay immutable
-  const description = receipt.sourceId === FORMULA_REFERENCE_SOURCE_ID && scope === 'PC 1.6.9.0' ? receipt.description.replace(VERIFIED_FORMULA_SCOPE_PHRASE, `verified ${scope} calculation package`) : receipt.description
-  return { description, scope, replacedFields: receipt.replacedFields, originalFields: Object.fromEntries(receipt.replacedFields.flatMap(field => entity.fields[field] ? [[field, entity.fields[field]!]] : [])), originalDescription: receipt.expectedDescription, evidence: receipt.evidence, ...(receipt.calculationLinks ? { calculationLinks: receipt.calculationLinks } : {}) }
+  const entry = entries.get(entity.id)
+  if (!sourceMatches || 'revision' in entity || !entry || !sameValue(entity, definitions[entity.id])) return undefined
+  return { description: entry.description, scope, evidence: entry.evidence, ...('calculationLinks' in entry ? { calculationLinks: entry.calculationLinks } : {}) }
 }

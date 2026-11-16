@@ -102,9 +102,9 @@ it('retains both interpretations of identical original bytes through a backup', 
   const catalog = preview.proposed.catalogs[0]!
   const first = await commitImport(preview, { mode: 'add-reference' })
   const firstPin = modLibrary(first.catalogs).find(mod => mod.id === catalog.id)!.revisions[0]!
-  const interpreted = await sealImportedCatalog({ ...catalog, revisionId: catalog.revisionId.replace(/-p1$/, '-p2') as CatalogRevisionId, legacy: { ...(jsonRecord(catalog.legacy) ? catalog.legacy : {}), interpretation: 'p2', steamWorkshopFileId: '123456' } })
+  const interpreted = await sealImportedCatalog({ ...catalog, revisionId: catalog.revisionId.replace(/-p[0-9]+$/, '-p999') as CatalogRevisionId, legacy: { ...(jsonRecord(catalog.legacy) ? catalog.legacy : {}), interpretation: 'p999', steamWorkshopFileId: '123456' } })
   const receipt = Object.values(preview.proposed.localData.importReceipts)[0]!
-  const receiptId = receipt.id.replace(/:p1$/, ':p2') as ImportReceiptId
+  const receiptId = receipt.id.replace(/:p[0-9]+$/, ':p999') as ImportReceiptId
   const nextPreview = { ...preview, id: receiptId, proposed: { ...preview.proposed, catalogs: [interpreted], sources: preview.proposed.sources.map(source => ({ ...source, catalogs: [{ id: interpreted.id, revisionId: interpreted.revisionId, checksum: interpreted.checksum }] })), localData: { ...preview.proposed.localData, importReceipts: { [receiptId]: { ...receipt, id: receiptId, catalogs: [{ catalogId: interpreted.id, catalogRevisionId: interpreted.revisionId }] } } } } }
   const updated = await commitImport(nextPreview, { mode: 'add-reference' })
   expect(updated.localData.gameSetups).toEqual(before.localData.gameSetups)

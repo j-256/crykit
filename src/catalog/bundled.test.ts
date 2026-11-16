@@ -1,25 +1,26 @@
-import { HISTORICAL_VANILLA } from './source-collection.test-helpers'
 import { describe, expect, it } from 'vitest'
 import { createBlankLocalData } from '../domain/local-data'
 import { exportedTree, growthRatings } from '../domain/crystal-edit'
 import { NativeCatalogSnapshotSchema } from '../interchange/native-schema'
 import { catalogContentForChecksum } from '../interchange/catalog-checksum'
 import { sha256 } from '../interchange/util'
-import { BUNDLED_CATALOGS, CURRENT_CATALOG, DEFAULT_CATALOG, GUIDE_CATALOG, preferredStarterCatalog } from './bundled'
+import { BUNDLED_CATALOGS, CURRENT_CATALOG, DEFAULT_CATALOG, preferredStarterCatalog } from './bundled'
+import { nativeIdentity } from '../domain/native-game'
+import { nativeMechanic } from './native-mechanics'
 import { VANILLA_CATALOG_REVISION_ID } from './vanilla-catalog'
-import { projectSourceSemantics } from './source-semantics'
 import { CONFIRMED_SKILL_MAPS, suggestSkillTreeMap, SWITCH_MOD_PACKS_MAP_SET } from './skill-maps'
 
 describe('bundled catalog assembly', () => {
+  const historical = { ...CURRENT_CATALOG, revisionId: 'v1' as typeof CURRENT_CATALOG.revisionId, checksum: 'synthetic-historical-catalog' }
   it('prefers the current revision when historical catalogs are listed first', () => {
-    expect(preferredStarterCatalog([HISTORICAL_VANILLA, CURRENT_CATALOG])).toBe(CURRENT_CATALOG)
-    expect(preferredStarterCatalog([HISTORICAL_VANILLA])).toBeUndefined()
+    expect(preferredStarterCatalog([historical, CURRENT_CATALOG])).toBe(CURRENT_CATALOG)
+    expect(preferredStarterCatalog([historical])).toBeUndefined()
   })
 
-  it('retains immutable baseline revisions with canonical identities and no development revision or alias metadata', async () => {
-    expect(BUNDLED_CATALOGS).toEqual([CURRENT_CATALOG, GUIDE_CATALOG])
+  it('retains one immutable baseline with canonical identities and no development revision or alias metadata', async () => {
+    expect(BUNDLED_CATALOGS).toEqual([CURRENT_CATALOG])
     expect(DEFAULT_CATALOG).toBe(CURRENT_CATALOG)
-    expect(Object.keys(DEFAULT_CATALOG.entities).every(id => /^(base|mod):/.test(id))).toBe(true)
+    expect(Object.values(DEFAULT_CATALOG.entities).every(entity => nativeIdentity(entity) || nativeMechanic(entity) || /^base:system:\d+$/.test(entity.id) && entity.sources.every(source => source.sourceId.startsWith('native-game:')))).toBe(true)
     expect(DEFAULT_CATALOG.legacy).not.toHaveProperty('previousRevisionId')
     expect(DEFAULT_CATALOG.legacy).not.toHaveProperty('entityIdAliases')
     for (const entity of Object.values(DEFAULT_CATALOG.entities)) expect(entity.legacy ?? {}).not.toHaveProperty('previousEntityIds')
@@ -34,20 +35,6 @@ describe('bundled catalog assembly', () => {
     expect(exportedTree(warrior).find(node => node.row === 0 && node.column === 1)).toMatchObject({ nodeType: 2, dataId: 28 })
     const { checksum, ...content } = DEFAULT_CATALOG
     expect(checksum).toBe(`builtin:sha256:${await sha256(new TextEncoder().encode(catalogContentForChecksum(content)))}`)
-  })
-
-  it('retains contradictory guide descriptions as competing claims', () => {
-    const entity = GUIDE_CATALOG.entities['ref-385']!
-    expect(entity.fields.Description).toMatchObject({ state: 'conflicting', claims: [{ value: "The user is instantly KO'd when the ability resolves" }, { value: "The user's HP is reduced to 1 when the ability resolves" }] })
-    expect(entity.sources[0]?.locator).not.toEqual(entity.sources[1]?.locator)
-  })
-
-  it('projects equivalent source phrasing without rewriting bundled evidence', () => {
-    const adjudicator = DEFAULT_CATALOG.entities['base:equipment:245']!
-    expect(adjudicator.fields.Location?.state).toBe('conflicting')
-    expect(projectSourceSemantics(adjudicator).fields.Location).toMatchObject({ state: 'known', value: 'Drop: Anubis in the Ancient Labyrinth' })
-    const assassinSeal = DEFAULT_CATALOG.entities['base:equipment:582']!
-    expect(projectSourceSemantics(assassinSeal).fields.Location?.state).toBe('conflicting')
   })
 
   it('preserves independently observed Switch maps without resolving them against a different revision', () => {

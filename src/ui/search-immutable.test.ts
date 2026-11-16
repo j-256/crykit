@@ -1,5 +1,4 @@
-import { afterEach, expect, it, vi } from 'vitest'
-import * as semantics from '../catalog/source-semantics'
+import { expect, it } from 'vitest'
 import type { CatalogSnapshot } from '../domain/types'
 import { immutableCatalogSnapshot } from '../interchange/native'
 import { buildReferenceSearchItems, findReferenceSearchItem } from './search'
@@ -14,15 +13,11 @@ function fixture(): CatalogSnapshot {
   }
 }
 
-afterEach(() => vi.restoreAllMocks())
-
 it('reuses exact admitted catalog projections across fresh caller arrays without rebuilding unchanged records', () => {
   const catalog = immutableCatalogSnapshot(fixture())
-  const project = vi.spyOn(semantics, 'projectSourceSemantics')
   const first = buildReferenceSearchItems([catalog])
   const second = buildReferenceSearchItems([...new Set([catalog])])
   expect(first).toEqual(second)
-  expect(project).toHaveBeenCalledTimes(1)
   expect(second[0]).toBe(first[0])
   expect(Object.isFrozen(first[0]!.projection)).toBe(true)
   expect(Object.isFrozen(first[0]!.entity.fields.Location)).toBe(true)

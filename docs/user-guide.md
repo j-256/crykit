@@ -176,7 +176,7 @@ To author placements, open **Mods > Editor workspace > Map editor**. **New map m
 
 ## Browse reference data
 
-Verified native game facts appear as ordinary content without citation markers. Uncertain values and external claims, including wiki guidance and mod or imported records, use a small superscript quotation-mark **Sources** icon attached to the relevant text. Click or tap it for attribution and evidence in a compact popup. Escape closes the popup and returns focus to the icon; readable descriptions and gameplay requirements stay with the content. Original source records remain preserved even when their citations are not shown.
+Verified native game facts appear as ordinary content without citation markers. Uncertain values and external claims, including mod or imported records, use a small superscript quotation-mark **Sources** icon attached to the relevant text. Click or tap it for attribution and evidence in a compact popup. Escape closes the popup and returns focus to the icon; readable descriptions and gameplay requirements stay with the content. Original source records remain preserved even when their citations are not shown.
 
 A searchable, revisioned reference combines native Crystal Project 1.6.9.0 game records, mod exports, and attributed community evidence for items, classes, abilities, passives, innates, Monster Magic, monsters, commands, statuses, recipes, and locations. Catalog presence never establishes ownership or learning. Documented facts, source conflicts, and missing details remain distinct, and Nintendo Switch or official mod-pack parity is not assumed; see [catalog sources](catalog-sources.md). Sample equipment follows the bundled class pages' initial equipment lists, while unverified rules and displayed stats remain unresolved. Additional reference files and personal records can be imported locally.
 
@@ -184,7 +184,7 @@ A searchable, revisioned reference combines native Crystal Project 1.6.9.0 game 
 
 Reference groups categories into equipment families, classes and skills, combat effects, world and enemy details, and mods. Search reaches every category, including imported categories and detailed source tags. Definition types are grouped by purpose; choosing a type narrows the category suggestions.
 
-Equipment categories combine base-game and mod definitions under the same type. Choose **Axes**, for example, to see both base and mod axes, then use **Source mod** to narrow the results to **Base game** or a particular mod. Reviewed native equipment types use readable labels, such as **Light armor** for Dress, without repeating an equivalent older wiki Type field.
+Equipment categories combine base-game and mod definitions under the same type. Choose **Axes**, for example, to see both base and mod axes, then use **Source mod** to narrow the results to **Base game** or a particular mod. Native equipment types use readable labels, such as **Light armor** for Dress.
 
 Separate class, equipment-slot, element, source-mod, source, and PP filters use recorded fields and documented associations where available. Alternatives within a filter are combined; different filters narrow results together.
 
@@ -212,7 +212,7 @@ Choose **Enabled**, **Disabled**, or **Unknown** for each named mod in the Game 
 
 Mod badges follow exact source identity and recorded settings. A display name alone does not establish which mod supplies a definition. The Monk's base-game Brawler passive is a separate definition from a class with the same name.
 
-Vanilla class ratings, equipment permissions, and learn trees ship with the app, extracted directly from the game's database. Class details include a growth calculator, and the modding guide provides searchable modifier references. Crystal Edit `mod.json` imports support custom classes and vanilla edits without replacing personal records. See [Class data, Crystal Edit imports, and growth estimates](crystal-edit.md).
+Vanilla class ratings, equipment permissions, and learn trees ship with the app, extracted directly from the game's database. Class details include a growth calculator, and reviewed native mechanics have standalone reference entries. Crystal Edit `mod.json` imports support custom classes and vanilla edits without replacing personal records. See [Class data, Crystal Edit imports, and growth estimates](crystal-edit.md).
 
 ### Report reference data and create custom definitions
 

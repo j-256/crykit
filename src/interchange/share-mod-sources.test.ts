@@ -80,7 +80,7 @@ describe('modded Build source recovery', () => {
   it.each(['baseline', 'interpretation'] as const)('does not replace an unavailable %s with the packaged or parser default', async missing => {
     const { data, source, revision, setup } = await fixture()
     const composition = setup.modComposition!
-    const changed = { ...setup, modComposition: { ...composition, ...(missing === 'baseline' ? { baseline: { ...composition.baseline, catalogRevisionId: 'v999' as never } } : { layers: composition.layers.map(layer => ({ ...layer, catalogRevisionId: layer.catalogRevisionId.replace(/-p1$/, '-p2') as never })) }) } }
+    const changed = { ...setup, modComposition: { ...composition, ...(missing === 'baseline' ? { baseline: { ...composition.baseline, catalogRevisionId: 'v999' as never } } : { layers: composition.layers.map(layer => ({ ...layer, catalogRevisionId: layer.catalogRevisionId.replace(/-p[0-9]+$/, '-p999') as never })) }) } }
     const before = structuredClone({ data, changed }), recovery = prepareLocalBuildModRecovery(revision.content, changed, [...BUNDLED_CATALOGS, source])
     expect(recovery.draft).toBeUndefined()
     expect(recovery.missingSources).toHaveLength(1)
@@ -88,9 +88,9 @@ describe('modded Build source recovery', () => {
   })
 })
 
-it('preserves an exact native alias link and an explicit separate-definition choice during recovery', async () => {
+it('preserves an explicit native replacement link and a separate-definition choice during recovery', async () => {
   const { data, source, revision, setup } = await fixture('{"ID":"synthetic-sharing","Title":"Synthetic Sharing Mod","Jobs":[{"ID":24,"Name":"Synthetic Class"}],"Passives":[{"ID":20,"Name":"Synthetic learnable innate","PP":7,"IsInnate":true,"IsLearnable":true}]}')
-  const alias = asId<EntityId>('base:innate:ref-53')
+  const alias = asId<EntityId>('base:passive:17')
   const linked = { ...setup, modComposition: { ...setup.modComposition!, links: [{ modelKey: 'crystal-edit:Passives:20', targetEntityId: alias }] } }
   const ref: CatalogRef = { kind: 'catalog', catalogId: CURRENT_CATALOG.id, catalogRevisionId: modCatalogRevision(setup.id), entityId: alias }
   const content = { ...revision.content, passives: [{ ref }] }, before = structuredClone({ data, linked, content })

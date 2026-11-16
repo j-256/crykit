@@ -1,7 +1,5 @@
-import rulesData from '../calculations/pc-1.6.9-v1.json' with { type: 'json' }
+import rulesData from '../calculations/character-rules-v1.json' with { type: 'json' }
 import nativeData from '../catalog/native-stats-v1.json' with { type: 'json' }
-import guideData from '../calculations/guide-v1.json' with { type: 'json' }
-import parityData from '../calculations/pc-parity-v1.json' with { type: 'json' }
 import { MIN_NATIVE_INTEGER, MAX_NATIVE_INTEGER } from './native-number.ts'
 
 export type Expression = number | string | readonly Expression[]
@@ -95,8 +93,4 @@ function checked(value: number): number {
 
 export function calculateFormula(name: string, inputs: readonly number[], rules: ArithmeticRules = PC_RULES): number {
   return evaluateExpression(['call', name, ...inputs], {}, rules)
-}
-
-export function calculationPackage() {
-  return { format: 'crystal-project-calculations', schemaVersion: 1, id: PC_MODEL, rules: rulesData, data: nativeData, legacy: guideData, verification: parityData }
 }

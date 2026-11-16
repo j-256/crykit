@@ -17,9 +17,8 @@ const node = (names, args, rest) => ({
 })
 
 export function buildCalculationSchema(characterSchema) {
-  const nativeProperties = Object.fromEntries(
-    Object.entries(characterSchema.properties).filter(([name]) => name !== 'legacy'),
-  )
+  // The character component supplies fields and definitions, never a standalone export format
+  const nativeProperties = characterSchema.properties
   const expression = ref('combatExpression')
   const value = ref('combatValue')
   const definitions = {
@@ -102,13 +101,16 @@ export function buildCalculationSchema(characterSchema) {
     }),
   }
   return {
-    ...characterSchema,
-    $id: 'urn:crykit:calculation-package:2',
-    title: 'Crystal Project character and combat calculation package',
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    $id: 'urn:crykit:calculation-package:1',
+    title: 'Crystal Project character, combat, and effective modifier calculation package',
+    description: 'Portable rules and numeric inputs; describes export structure and arithmetic syntax, not permission to execute imported rules',
+    type: 'object',
     properties: {
+      format: { const: 'crystal-project-calculations' },
+      schemaVersion: { const: 1 },
+      id: { const: 'crystal-project-calculations-v1' },
       ...nativeProperties,
-      schemaVersion: { const: 2 },
-      id: { const: 'pc-1.6.9-package-v2' },
       combat: ref('combatRules'),
       combatData: object({
         schemaVersion: { const: 1 },
@@ -124,16 +126,37 @@ export function buildCalculationSchema(characterSchema) {
       previewVerification: ref('previewVerification'),
       example: object({ user: value, target: value, ability: value, context: value }),
       enemy: { type: 'object' },
+      modifiers: object({
+        schemaVersion: { const: 1 },
+        engine: { const: 'pc-1.6.9-v1' },
+        executableSha256: { type: 'string', pattern: '^[a-f0-9]{64}$' },
+        evidence: text,
+        sourceFiles: { type: 'object', additionalProperties: { type: 'string', pattern: '^[a-f0-9]{64}$' } },
+        defaults: { type: 'object', additionalProperties: { type: ['number', 'null'] } },
+        operations: { type: 'object', additionalProperties: list(object({ field: text, operation: { enum: ['add', 'multiply', 'percent', 'level', 'turn', 'repeatCap'] } })) },
+      }),
+      modifierVerification: object({
+        schemaVersion: { const: 1 },
+        engine: { const: 'pc-1.6.9-v1' },
+        evidence: { type: 'object' },
+        cases: list(object({ name: text, level: integer, turnCount: integer, records: list({ type: 'object' }), expected: { type: 'object' } })),
+      }),
     },
     required: [
-      ...characterSchema.required.filter((name) => name !== 'legacy'),
+      'format',
+      'schemaVersion',
+      'id',
+      ...characterSchema.required,
       'combat',
       'combatData',
       'combatVerification',
       'previewVerification',
       'example',
       'enemy',
+      'modifiers',
+      'modifierVerification',
     ],
+    additionalProperties: false,
     $defs: { ...characterSchema.$defs, ...definitions },
   }
 }

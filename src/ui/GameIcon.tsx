@@ -1,14 +1,16 @@
 import { useContext, useState } from 'react'
 import { entityDefinitionKey } from '../domain/core'
+import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
 import type { CatalogEntity, CatalogEntityKind, CatalogSnapshot, EntityRef, LocalData } from '../domain/types'
 import { catalogArtwork, menuIcon, type MenuIcon } from '../catalog/sprites'
 import { definitionIconKey, fieldIconKeys } from '../catalog/menu-icons'
 import { resolveDefinition } from '../domain/definitions'
 import { ArtworkPlaceholder, CatalogArtwork } from './WikiSprite'
-import { Sources } from './Sources'
 import { LocalArtworkContext } from './mods/PrivateArtwork'
+import { Sources } from './Sources'
 
 const ICON_SIZE = 24
+const CLASS_ICON_FIELDS = [[CLASS_FIELDS.command, 'Command'], [CRYSTAL_EDIT_FIELDS.command, 'Command'], [CLASS_FIELDS.equipment, 'Weapons'], [CRYSTAL_EDIT_FIELDS.equipment, 'Weapons']] as const
 export { LocalArtworkContext } from './mods/PrivateArtwork'
 
 function IconImage({ icon, iconKey, placeholderKind = 'other' }: { icon: MenuIcon; iconKey: string; placeholderKind?: CatalogEntityKind }) {
@@ -50,7 +52,13 @@ export function DefinitionArtwork({ localData, catalogs, value, compact = true }
 }
 
 function externalFieldIconKeys(fields: CatalogEntity['fields']): readonly string[] {
-  return fieldIconKeys(fields).filter(key => menuIcon(key)?.provenance === 'community-wiki')
+  const keys = new Set(fieldIconKeys(fields))
+  // Credits follow the same command and equipment facts when native or mod fields supply their display values
+  for (const [field, label] of CLASS_ICON_FIELDS) {
+    const value = fields[field]
+    if (value) for (const key of fieldIconKeys({ [label]: value })) keys.add(key)
+  }
+  return [...keys].filter(key => menuIcon(key)?.provenance === 'supplemental-source')
 }
 
 export function hasExternalFieldIcons(fields: CatalogEntity['fields']): boolean {
@@ -62,6 +70,6 @@ export function FieldIconSources({ fields }: { fields: CatalogEntity['fields'] }
   if (!keys.length) return null
   return <Sources label="Sources for menu icons"><ul>{keys.map(key => {
     const icon = menuIcon(key)!
-    return <li key={key}>{icon.asset.descriptionUrl ? <a href={icon.asset.descriptionUrl} rel="noreferrer" target="_blank">{icon.binding.name}</a> : <span>{icon.binding.name} · {icon.binding.sources.map(source => source.locator).join('; ')}</span>} · {icon.asset.license}{icon.binding.region && (icon.provenance === 'installed-game' ? ' · Region of the original game texture' : ' · Region of a public equipment-menu image')}</li>
+    return <li key={key}>{icon.asset.descriptionUrl ? <a href={icon.asset.descriptionUrl} rel="noreferrer" target="_blank">{icon.binding.name}</a> : icon.binding.name} · {icon.asset.license}<ul>{icon.binding.sources.map((source, index) => <li key={`${source.url ?? source.locator}:${index}`}>{source.url ? <a href={source.url} rel="noreferrer" target="_blank">{source.title}</a> : source.title} · {source.locator}</li>)}</ul></li>
   })}</ul></Sources>
 }

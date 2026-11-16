@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
-import { actorIconRegion, buildGameIdentityCrosswalk, classCompositeDimensions, databaseTextureReferences, gameIconRegion, hash, nativeArtworkIdentity, parseArchipelagoItems, parseGameDatabase, parsePythonStringAssignments, parseStarterRecords, parseTexturePack, reviewedNativeMappings, safeTextureRelativePath, stableSourceDigest, verifyReviewedNativeDatabase } from './game-assets.mjs'
+import { actorIconRegion, classCompositeDimensions, databaseTextureReferences, gameIconRegion, hash, parseGameDatabase, parseTexturePack, safeTextureRelativePath, stableSourceDigest } from './game-assets.mjs'
 
 function encodedDatabase(records, version = 10) {
   const json = Buffer.from(JSON.stringify(records))
@@ -57,46 +57,6 @@ test('database texture inventory records exact references, indices, and unresolv
   const result = databaseTextureReferences('item', [{ ID: 4, Name: 'Synthetic', TexturePath: 'Icon/Test', TextureIndex: 3, Nested: { ActorTexturePathM: 'Actor/Missing' } }], new Set(['Icon/Test']))
   assert.deepEqual(result.references, [{ database: 'item', pointer: '/0/TexturePath', texturePath: 'Icon/Test', textureIndex: 3, record: { id: 4, name: 'Synthetic' } }])
   assert.deepEqual(result.unresolved, [{ database: 'item', pointer: '/0/Nested/ActorTexturePathM', value: 'Actor/Missing', record: { id: 4, name: 'Synthetic' } }])
-})
-
-test('Archipelago parsing creates only explicit source-backed native identity mappings', () => {
-  const constantsSource = 'WARRIOR_JOB = "Job - Warrior"\nROOST = "Scholar - Roost"\n'
-  const constants = parsePythonStringAssignments(constantsSource)
-  const itemSource = `job_index_offset = 1
-item_index_offset = 101
-equipment_index_offset = 1001
-scholar_index_offset = 100001
-item_table = {
-    WARRIOR_JOB: ItemData(JOB, 0 + job_index_offset, ItemClassification.progression),
-    "Item - Potion": ItemData(ITEM, 0 + item_index_offset, ItemClassification.filler),
-    "Equipment - Short Sword": ItemData(EQUIPMENT, 4 + equipment_index_offset, ItemClassification.useful),
-    ROOST: ItemData(SCHOLAR_ABILITY, 25 + scholar_index_offset, ItemClassification.useful),
-}
-`
-  const items = parseArchipelagoItems(itemSource, constants)
-  const starterSource = `  ["base:class:warrior", "class", "Warrior", "apworld-classes"],
-  ["base:item:potion", "item", "Potion", "apworld-items"],
-  ["base:item:short-sword", "item", "Short Sword", "apworld-items"],
-  ["base:monster-magic:roost", "monsterMagic", "Roost", "apworld-monster-magic"],
-  ["base:ability:attack", "ability", "Attack", "wiki-warrior"],
-`
-  const records = parseStarterRecords(starterSource)
-  const crosswalk = buildGameIdentityCrosswalk(records, items)
-  assert.deepEqual(Object.keys(crosswalk.mappings), records.slice(0, 4).map(record => record.id))
-  assert.deepEqual(crosswalk.mappings['base:item:short-sword'], {
-    kind: 'item', name: 'Short Sword', sourceKey: 'apworld-items', upstreamName: 'Equipment - Short Sword', upstreamCategory: 'EQUIPMENT', upstreamCode: 1005, database: 'equipment', databaseId: 4, locator: 'worlds/crystal_project/items.py:8',
-  })
-  assert.match(crosswalk.unresolved[0].reason, /no reviewed native database crosswalk/)
-})
-
-test('reviewed travel identities reject a changed database or mismatched record', () => {
-  const bytes = Buffer.from('synthetic item database')
-  const mapping = reviewedNativeMappings({ schemaVersion: 1, database: 'item', databaseSha256: hash(bytes), records: [{ id: 'base:item:ibek-bell', kind: 'item', name: 'Ibek Bell', databaseId: 50 }] })['base:item:ibek-bell']
-  assert.deepEqual(nativeArtworkIdentity(mapping), { sourceKey: 'reviewed-native-item', databaseSha256: hash(bytes), locator: 'Database/item.dat record 50' })
-  assert.doesNotThrow(() => verifyReviewedNativeDatabase(mapping, bytes, { ID: 50, Name: 'Ibek Bell' }))
-  assert.throws(() => verifyReviewedNativeDatabase(mapping, Buffer.from('changed'), { ID: 50, Name: 'Ibek Bell' }), /changed database bytes/)
-  assert.throws(() => verifyReviewedNativeDatabase(mapping, bytes, { ID: 50, Name: 'Owl Drum' }), /does not match/)
-  assert.throws(() => reviewedNativeMappings({ schemaVersion: 1, database: 'item', databaseSha256: hash(bytes), records: [{ id: 'base:item:ibek-bell', kind: 'item', name: 'Ibek Bell', databaseId: 50 }, { id: 'base:item:owl-drum', kind: 'item', name: 'Owl Drum', databaseId: 50 }] }), /duplicated/)
 })
 
 test('texture output paths and aggregate source digests are deterministic and traversal-safe', () => {

@@ -1,7 +1,7 @@
 import { parseCatalogSourceId } from './source-identity'
 import { withoutRetainedMechanics } from './retained-selections'
 import modifierData from '../calculations/native-modifiers-v1.json' with { type: 'json' }
-import { calculateFormula, evaluateExpression, NATIVE_DATA, PC_RULES } from './calculation-rules'
+import { calculateFormula, evaluateExpression, PC_RULES } from './calculation-rules'
 import { calculationModResolver } from './calculation-mods'
 import { catalogClassSource, type DefinitionResolver } from './build-mechanics'
 import { nativeStatRecord, nativeById, type NativeRecord } from './native-stat-record'
@@ -245,7 +245,7 @@ export function collectEffectiveModifiers(content: BuildRevisionContent, slots: 
     if (!job || !Array.isArray(job.PassiveIDs)) { issues.push('Class innate list is unknown.'); records.push({ record: {}, label: 'Class innate', group: 'passive' }); return }
     const source = catalogClassSource(ref, resolve)
     const definition = source?.definition
-    const binding = !crystalEditPlanningRecord(definition) && (nativeIdentity(definition ?? { fields: {} })?.database === 'job' || source?.ref.catalogId === NATIVE_DATA.catalogId && Object.hasOwn(NATIVE_DATA.bindings, source.ref.entityId))
+    const binding = !crystalEditPlanningRecord(definition) && nativeIdentity(definition ?? { fields: {} })?.database === 'job'
     const mod = definition && 'legacy' in definition ? bundledModIdentity(definition) : undefined
     const metadata = definition && 'legacy' in definition && jsonRecord(definition.legacy) ? definition.legacy : undefined
     const links = jsonRecord(metadata?.passiveEntityIds) ? metadata.passiveEntityIds : {}

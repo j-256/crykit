@@ -1,9 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import sharp from 'sharp'
 import { NO_NATIVE_ARTWORK, nativeArtworkEntries, nativeArtworkPlan, validateNativeArtworkCoverage, validateNativeReferenceArtwork, validateNativeUiArtwork } from './native-artwork.mjs'
-import { visibleContentBounds } from './sprite-content-bounds.mjs'
 
 const textures = new Map([
   ['Icon/Test', { width: 240, height: 104, sha256: 'icon-hash' }],
@@ -81,26 +79,6 @@ test('UI artwork rejects changed currency cells, swapped coins, and seal identit
     const changed = structuredClone(manifest)
     mutate(changed)
     assert.throws(() => validateNativeUiArtwork(changed, textures), /invalid|stale/)
-  }
-})
-
-test('native standing portraits and menu glyphs preserve the visible pixels of their pinned wiki predecessors', async () => {
-  const manifest = JSON.parse(readFileSync(new URL('../src/catalog/game-assets.json', import.meta.url)))
-  const wiki = JSON.parse(readFileSync(new URL('../src/catalog/wiki-sprites.json', import.meta.url)))
-  const visiblePixels = async (directory, asset) => {
-    const bytes = readFileSync(new URL(`../src/assets/${directory}/${asset.file}`, import.meta.url))
-    const bounds = await visibleContentBounds(bytes)
-    const result = await sharp(bytes).extract({ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height }).ensureAlpha().raw().toBuffer()
-    for (let index = 0; index < result.length; index += 4) if (result[index + 3] === 0) result.fill(0, index, index + 3)
-    return { width: bounds.width, height: bounds.height, pixels: result }
-  }
-  for (const [group, previous] of [['classWorld', wiki.entities], ['menuIcons', wiki.icons]]) {
-    assert.ok(Object.keys(manifest[group]).length > 0)
-    for (const [key, binding] of Object.entries(manifest[group])) {
-      const old = previous[key]
-      assert.ok(old, `Pinned predecessor is missing: ${key}`)
-      assert.deepEqual(await visiblePixels('game-assets', manifest.assets[binding.asset]), await visiblePixels('wiki-sprites', wiki.assets[old.asset]), key)
-    }
   }
 })
 

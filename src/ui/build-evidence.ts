@@ -1,33 +1,12 @@
 import { nativeDescription } from '../catalog/native-description'
-import { STARTER_CATALOG_ID } from '../catalog/catalog-ids'
 import { NATIVE_GAME_DATA } from '../catalog/native-game'
 import { nativeDefinitionLabel, nativeDisplayDescription, nativeGameplayScopeLabel, nativeIdentity, nativeRecord, nativeSourceRecord } from '../domain/native-game'
 import { effectText } from '../domain/mechanics-facts'
-import { definitionLineageRootRef, sameLogicalEntity } from '../domain/definitions'
-import type { CatalogEntity, EntityRef, JsonValue, Knowledge, PersonalDefinition, LocalData, ValidationIssue } from '../domain/types'
+import { sameLogicalEntity } from '../domain/definitions'
+import type { CatalogEntity, JsonValue, Knowledge, PersonalDefinition, LocalData, ValidationIssue } from '../domain/types'
 import type { DefinitionOption } from './definitions'
 
 type Definition = CatalogEntity | PersonalDefinition
-const REFERENCE_ARTICLES = new Set([
-  'base:item:ref-62',
-  'base:item:ref-68',
-  'base:item:ref-70',
-  'base:item:ref-88',
-  'base:item:ref-112',
-  'base:item:ref-113',
-  'base:item:ref-122',
-  'base:item:ref-127',
-  'base:item:ref-128',
-  'base:item:ref-138',
-  'base:item:ref-139',
-  'base:item:ref-169',
-  'base:item:ref-183',
-  'base:item:ref-189',
-  'base:item:ref-194',
-  'base:item:ref-196',
-  'base:item:ref-199',
-  'base:item:ref-217',
-])
 const DECISION_FIELDS = /^(stat bonuses|stat|other effects|other|effects?|attack|defense|magic|resistance|strength|vitality|dexterity|agility|mind|spirit|speed|luck|hp|mp|weapons?|armor|innate passives?|command|pp|cost|cost \(copper\))$/i
 const SUMMARY_LINE_FIELDS = /^(stat bonuses|stat|other effects|other|effects?)$/i
 const SUMMARY_EFFECT_FIELDS = ['Other effects', 'Effects', 'Effect', 'Other'] as const
@@ -56,18 +35,6 @@ const NATIVE_PERCENT_SUMMARY_LABELS = (() => {
     return label && !/[@[\]\r\n]/.test(label) ? [[tag, label]] : []
   }) : [])
 })()
-
-export function isReferenceArticle(localData: LocalData, ref: EntityRef): boolean {
-  const root = definitionLineageRootRef(localData, ref)
-  return root.kind === 'catalog' && root.catalogId === STARTER_CATALOG_ID && REFERENCE_ARTICLES.has(root.entityId)
-}
-
-export function hasNameEvidenceOnly(record: Definition): boolean {
-  if (nativeSourceRecord(record)) return false
-  const legacy = 'legacy' in record ? record.legacy : undefined
-  const wiki = legacy && typeof legacy === 'object' && !Array.isArray(legacy) ? (legacy as Record<string, JsonValue>).wiki : undefined
-  return Boolean(wiki && typeof wiki === 'object' && !Array.isArray(wiki) && (wiki as Record<string, JsonValue>).missingDetailPageOrRow === true)
-}
 
 export function decisionFacts(record: Definition): readonly { readonly label: string; readonly value: Knowledge<JsonValue> }[] {
   const seen = new Set<string>()

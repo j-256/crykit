@@ -1,8 +1,9 @@
-import { QUINTAR_PARTNER_RACE_WINS, quintarOffspring, type QuintarTraits } from './quintar-native-rules'
+import { QUINTAR_PARTNER_RACE_WINS, quintarOffspring, type QuintarNature, type QuintarTraits, type QuintarType } from './quintar-native-rules'
+import { QUINTAR_GUIDE_SUPPLEMENT } from './quintar-guide-supplement'
 export { QUINTAR_NURSERY_CAPACITY } from './quintar-native-rules'
 export type { QuintarType } from './quintar-native-rules'
 
-export const QUINTAR_GUIDE_SOURCE = 'https://crystal-project.fandom.com/wiki/Quintar_Breeding?oldid=13333'
+export const QUINTAR_GUIDE_SOURCE = QUINTAR_GUIDE_SUPPLEMENT.source.sourceId
 
 export const QUINTAR_STEP = Object.freeze({
   babel: 'babel',
@@ -25,7 +26,7 @@ export const QUINTAR_STEP = Object.freeze({
   summon: 'summon',
 } as const)
 
-export type QuintarBreedingStepId = typeof QUINTAR_STEP[keyof typeof QUINTAR_STEP]
+export type QuintarBreedingStepId = typeof QUINTAR_STEP[keyof typeof QUINTAR_STEP] | `native-pairing-v1:${string}`
 export type QuintarPhase = 'unlock' | 'capture' | 'aqua' | 'black' | 'gold'
 
 export interface GuideQuintar extends QuintarTraits {
@@ -68,19 +69,28 @@ const QUINTARS = Object.freeze({
   golden: { name: 'Brutish Gold', type: 'Gold', nature: 'Brutish' },
 } as const satisfies Record<string, GuideQuintar>)
 
+// These exact native monster identities keep the guide's four starting quintars distinct
+export const QUINTAR_STARTING_QUINTARS = Object.freeze([
+  { id: QUINTAR_STEP.trustyBlue, monsterID: 317, result: QUINTARS.trustyBlue },
+  { id: QUINTAR_STEP.trustyRed, monsterID: 304, result: QUINTARS.trustyRed },
+  { id: QUINTAR_STEP.wokeRiver, monsterID: 318, result: QUINTARS.wokeRiver },
+  { id: QUINTAR_STEP.brutishDesert, monsterID: 316, result: QUINTARS.brutishDesert },
+])
+
 function breed(id: QuintarBreedingStepId, phase: QuintarPhase, result: GuideQuintar, parents: readonly [GuideQuintar, GuideQuintar], requires: readonly QuintarBreedingStepId[]): QuintarBreedingStep {
   const nativeResult = quintarOffspring(...parents)
   if (nativeResult?.type !== result.type || nativeResult.nature !== result.nature) throw new Error(`Quintar route pairing disagrees with the native rules: ${id}`)
   return { id, phase, title: result.type === 'Gold' ? 'Hatch Golden Quintar' : `Hatch ${result.name}`, instruction: 'Make both parents Happy!, breed them, and hatch the resulting egg.', parents, requires, result }
 }
 
+// Route order follows the attributed supplement; every pairing is checked against native outcomes
 export const QUINTAR_BREEDING_STEPS: readonly QuintarBreedingStep[] = Object.freeze([
-  { id: QUINTAR_STEP.babel, phase: 'unlock', title: 'Obtain Babel Quintar', instruction: 'Bring a swimming mount into the Quintar Mausoleum beneath the Quintar Reserve. Complete its switch puzzles to obtain Babel Quintar and speak with quintars.', requires: [] },
-  { id: QUINTAR_STEP.ocarina, phase: 'unlock', title: 'Buy Quintar Ocarina', instruction: 'Visit the Quintar Shop inside Dione Shrine. The Ocarina calls your chosen nursery mount.', requires: [QUINTAR_STEP.babel] },
-  { id: QUINTAR_STEP.trustyBlue, phase: 'capture', title: 'Hatch Trusty Blue', instruction: 'Look east of Yamagawa M.A. or northwest of Dione Shrine. Defeat a Trusty Blue, send its egg to the nursery, and hatch it.', requires: [QUINTAR_STEP.babel], result: QUINTARS.trustyBlue },
-  { id: QUINTAR_STEP.trustyRed, phase: 'capture', title: 'Hatch Trusty Red', instruction: 'Look in the Overpass northwest of Okimoto N.S. or north of Sara Sara Beach. Defeat a Trusty Red, send its egg to the nursery, and hatch it.', requires: [QUINTAR_STEP.babel], result: QUINTARS.trustyRed },
-  { id: QUINTAR_STEP.wokeRiver, phase: 'capture', title: 'Hatch Woke River', instruction: "Look northwest of the River Cat's Ego or northwest of Triton Shrine. Defeat a Woke River, send its egg to the nursery, and hatch it.", requires: [QUINTAR_STEP.babel], result: QUINTARS.wokeRiver },
-  { id: QUINTAR_STEP.brutishDesert, phase: 'capture', title: 'Hatch Brutish Desert', instruction: 'Search the desert nests northeast or northwest of Sara Sara Bazaar. Defeat a Brutish Desert, send its egg to the nursery, and hatch it.', requires: [QUINTAR_STEP.babel], result: QUINTARS.brutishDesert },
+  { id: QUINTAR_STEP.babel, phase: 'unlock', title: 'Obtain Babel Quintar', instruction: QUINTAR_GUIDE_SUPPLEMENT.instructions.babel, requires: [] },
+  { id: QUINTAR_STEP.ocarina, phase: 'unlock', title: 'Buy Quintar Ocarina', instruction: QUINTAR_GUIDE_SUPPLEMENT.instructions.ocarina, requires: [QUINTAR_STEP.babel] },
+  { id: QUINTAR_STEP.trustyBlue, phase: 'capture', title: 'Hatch Trusty Blue', instruction: QUINTAR_GUIDE_SUPPLEMENT.instructions.trustyBlue, requires: [QUINTAR_STEP.babel], result: QUINTARS.trustyBlue },
+  { id: QUINTAR_STEP.trustyRed, phase: 'capture', title: 'Hatch Trusty Red', instruction: QUINTAR_GUIDE_SUPPLEMENT.instructions.trustyRed, requires: [QUINTAR_STEP.babel], result: QUINTARS.trustyRed },
+  { id: QUINTAR_STEP.wokeRiver, phase: 'capture', title: 'Hatch Woke River', instruction: QUINTAR_GUIDE_SUPPLEMENT.instructions.wokeRiver, requires: [QUINTAR_STEP.babel], result: QUINTARS.wokeRiver },
+  { id: QUINTAR_STEP.brutishDesert, phase: 'capture', title: 'Hatch Brutish Desert', instruction: QUINTAR_GUIDE_SUPPLEMENT.instructions.brutishDesert, requires: [QUINTAR_STEP.babel], result: QUINTARS.brutishDesert },
   breed(QUINTAR_STEP.fancyRed, 'aqua', QUINTARS.fancyRed, [QUINTARS.trustyRed, QUINTARS.wokeRiver], [QUINTAR_STEP.trustyRed, QUINTAR_STEP.wokeRiver]),
   breed(QUINTAR_STEP.fancyBlue, 'aqua', QUINTARS.fancyBlue, [QUINTARS.trustyBlue, QUINTARS.wokeRiver], [QUINTAR_STEP.trustyBlue, QUINTAR_STEP.wokeRiver]),
   breed(QUINTAR_STEP.wokeBlue, 'aqua', QUINTARS.wokeBlue, [QUINTARS.fancyBlue, QUINTARS.trustyBlue], [QUINTAR_STEP.fancyBlue, QUINTAR_STEP.trustyBlue]),
@@ -95,7 +105,26 @@ export const QUINTAR_BREEDING_STEPS: readonly QuintarBreedingStep[] = Object.fre
   { id: QUINTAR_STEP.summon, phase: 'gold', title: 'Summon your Golden Quintar', instruction: 'Set the hatched Golden Quintar as your Ocarina mount at the nursery, then use the Ocarina. Your mount combines speed, higher jumps, swimming, and gliding.', requires: [QUINTAR_STEP.golden, QUINTAR_STEP.ocarina] },
 ])
 
-export const QUINTAR_BREEDING_STEP_IDS: ReadonlySet<string> = new Set(QUINTAR_BREEDING_STEPS.map(step => step.id))
+export const QUINTAR_GOLD_STEP_ID = QUINTAR_STEP.golden
+
+function acceptedStepIds(): ReadonlySet<string> {
+  const ids = new Set<string>(Object.values(QUINTAR_STEP))
+  const natures: readonly QuintarNature[] = ['Fiendish', 'Brutish', 'Woke', 'Fancy', 'Trusty']
+  const types = Object.keys(QUINTAR_PARTNER_RACE_WINS) as QuintarType[]
+  const traits = types.flatMap(type => natures.map(nature => ({ type, nature })))
+  const key = (quintar: QuintarTraits) => `${quintar.nature.toLowerCase()}-${quintar.type.toLowerCase()}`
+  // Earlier generated-route observations retain their own recipe identities instead of marking this route complete
+  // Preserve both parent orders used by the v1 identity contract, including recipes outside the displayed route
+  for (let first = 0; first < traits.length; first++) for (let second = first + 1; second < traits.length; second++) {
+    const parents = [traits[first]!, traits[second]!] as const
+    const result = quintarOffspring(...parents)
+    if (!result) continue
+    for (const pair of [parents, [parents[1], parents[0]]]) ids.add(`native-pairing-v1:${key(result)}:${pair.map(key).join('+')}`)
+  }
+  return ids
+}
+
+export const QUINTAR_BREEDING_STEP_IDS = acceptedStepIds()
 
 export function quintarRaceRequirements(step: QuintarBreedingStep): readonly { readonly name: string; readonly wins: number }[] {
   const parents = step.parents
@@ -108,6 +137,7 @@ export function quintarRaceRequirements(step: QuintarBreedingStep): readonly { r
 
 export function quintarParentsAfterStep(step: QuintarBreedingStep): { readonly keep: readonly string[]; readonly release: readonly string[] } {
   const index = QUINTAR_BREEDING_STEPS.findIndex(entry => entry.id === step.id)
+  if (index < 0) return { keep: [], release: [] }
   const needed = new Set(QUINTAR_BREEDING_STEPS.slice(index + 1).flatMap(entry => entry.parents?.map(parent => parent.name) ?? []))
   const parents = step.parents?.map(parent => parent.name) ?? []
   return { keep: parents.filter(name => needed.has(name)), release: parents.filter(name => !needed.has(name)) }

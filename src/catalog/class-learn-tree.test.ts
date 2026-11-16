@@ -4,17 +4,15 @@ import { describe, expect, it } from 'vitest'
 import { CRYSTAL_EDIT_FIELDS, exportedTree } from '../domain/crystal-edit'
 import { learnTreeGraph } from '../domain/learn-tree'
 import { asId } from '../domain/core'
-import { NATIVE_RECORD_FIELD } from '../domain/native-game'
+import { nativeIdentity, nativeSourceRecord, NATIVE_RECORD_FIELD } from '../domain/native-game'
 import { TEST_NOW } from '../domain/test-helpers'
 import type { PersonalDefinition, PersonalDefinitionId } from '../domain/types'
 import { previewCrystalEdit } from '../interchange/crystal-edit'
 import { syntheticCrystalEdit } from '../interchange/crystal-edit.test-helpers'
 import { DEFAULT_CATALOG } from './bundled'
-import { addCrystalEditFacts } from './crystal-edit'
-import { STARTER_CATALOG } from './starter'
-import { bundledTreeIdentity, classTreeSkill } from './class-learn-tree'
+import { classTreeSkill } from './class-learn-tree'
 
-describe('class-tree identity supplement', () => {
+describe('native class-tree identities', () => {
   it('resolves native tree skills within their database mode and preserves absent costs', () => {
     const monk = DEFAULT_CATALOG.entities[baseGameEntityId('job', 5, 'Vanilla')]!
     const node = exportedTree(monk).find(node => node.nodeType === 2 && node.dataId === 34)!
@@ -39,7 +37,7 @@ describe('class-tree identity supplement', () => {
   it('resolves every skill in the exact bundled trees without mutating their content', () => {
     const catalog = DEFAULT_CATALOG
     const before = JSON.stringify(catalog)
-    for (const entity of Object.values(catalog.entities).filter(entity => bundledTreeIdentity(entity))) {
+    for (const entity of Object.values(catalog.entities).filter(entity => nativeIdentity(entity)?.database === 'job')) {
       const graph = learnTreeGraph(exportedTree(entity))
       expect(graph.unresolved, entity.name).toEqual([])
       for (const node of graph.nodes) {
@@ -61,16 +59,17 @@ describe('class-tree identity supplement', () => {
     expect(magic).toMatchObject({ name: 'Adrenaline', kind: 'monsterMagic', monsterLearned: true, definition: { id: 'base:ability:202' } })
   })
 
-  it('leaves modified trees and unrelated imported trees with matching numeric IDs unresolved', () => {
-    const original = addCrystalEditFacts(STARTER_CATALOG).entities['base:class:warrior']!
-    const tree = exportedTree(original).map(node => ({ ...node, dataId: node.row === 0 && node.column === 1 ? 999 : node.dataId }))
-    const changed = { ...original, fields: { ...original.fields, [CRYSTAL_EDIT_FIELDS.tree]: { state: 'known' as const, value: tree, sources: original.sources } } }
-    expect(bundledTreeIdentity(changed)).toBeUndefined()
-    const unknown = classTreeSkill(changed, tree.find(node => node.nodeType === 3 && node.dataId === 7)!, DEFAULT_CATALOG)
-    expect(unknown.name).toBe('Passive #7')
+  it('rejects changed node identities and unrelated copied trees with matching numeric IDs', () => {
+    const original = DEFAULT_CATALOG.entities['base:job:0']!
+    const tree = exportedTree(original)
+    const node = tree.find(node => node.nodeType === 2 && node.dataId === 28)!
+    expect(classTreeSkill(original, { ...node, dataId: 17 }, DEFAULT_CATALOG).definition).toBeUndefined()
+    const unrelated = { ...original, id: 'synthetic:unrelated-class' as typeof original.id, fields: { [CRYSTAL_EDIT_FIELDS.tree]: { state: 'known' as const, value: tree.map(node => ({ ...node })), sources: [{ sourceId: 'synthetic-unrelated-mod' }] } }, legacy: {} }
+    const unknown = classTreeSkill(unrelated, node, DEFAULT_CATALOG)
+    expect(unknown.name).toBe('Ability #28')
     expect(unknown.jp).toBeUndefined()
-    const unrelated = { ...original, fields: { ...original.fields, [CRYSTAL_EDIT_FIELDS.tree]: { state: 'known' as const, value: exportedTree(original).map(node => ({ ...node })), sources: [{ sourceId: 'synthetic-unrelated-mod' }] } } }
-    expect(bundledTreeIdentity(unrelated)).toBeUndefined()
+    expect(unknown.definition).toBeUndefined()
+    expect(nativeSourceRecord(unrelated)).toBeUndefined()
   })
 
   it('resolves imported definitions within their catalog and preserves missing costs and targets', async () => {

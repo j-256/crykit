@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CATALOG, GUIDE_CATALOG } from '../catalog/bundled'
+import { CURRENT_CATALOG, DEFAULT_CATALOG } from '../catalog/bundled'
 import { nativeSourceRecord } from '../domain/native-game'
 import type {
   CatalogClaim,
@@ -86,6 +86,19 @@ describe('reference search projection', () => {
   }])
   const items = buildReferenceSearchItems([snapshot])
 
+  it('indexes admitted explanations and directions without changing native source records', () => {
+    const shard = CURRENT_CATALOG.entities['base:item:22']!
+    const before = JSON.stringify(shard)
+    const item = projectReferenceEntity(CURRENT_CATALOG, shard)
+    expect(item.projection.text).toMatchObject({ state: 'known', value: expect.stringContaining('teleports the party to the roof of the Gaea Shrine') })
+    const sword = projectReferenceEntity(CURRENT_CATALOG, CURRENT_CATALOG.entities['base:equipment:0']!)
+    expect(sword.projection.text).toMatchObject({ state: 'known', value: expect.stringContaining("Nan's Knick Knacks") })
+    const imported = projectReferenceEntity({ ...CURRENT_CATALOG, checksum: 'synthetic-import' }, shard)
+    expect(imported.projection.text).toMatchObject({ state: 'known', value: expect.not.stringContaining('teleports the party') })
+    expect(JSON.stringify(shard)).toBe(before)
+    expect(shard.sources.some(source => source.sourceId.includes('fandom.com'))).toBe(false)
+  })
+
   it('searches names, aliases, and raw text without treating normalized effects as labels', () => {
     expect(partitionReferenceItems(items, { query: 'field lance', kinds: [], categories: [], sources: [] }).confirmed.map((item) => item.entity.id)).toEqual(['spear'])
     expect(partitionReferenceItems(items, { query: 'balanced reach', kinds: [], categories: [], sources: [] }).confirmed.map((item) => item.entity.id)).toEqual(['spear'])
@@ -147,47 +160,39 @@ describe('reference search projection', () => {
     expect(findReferenceSearchItem([historical, guarded], { ...ref, entityId: 'toString' })).toBeUndefined()
   })
 
-  it('keeps mode audiences and extraction artifact visibility consistent between details and search', () => {
+  it('keeps mode audiences and independent identities consistent between details and search', () => {
     const mode = DEFAULT_CATALOG.entities['base:monster:201:mode:Chaos']!
-    const artifact = entity('base:other:ref-911', { kind: 'other', name: 'Artifact' })
-    const modeCatalog = { ...catalog([spear, mode, artifact]), id: DEFAULT_CATALOG.id }
+    const independent = entity('synthetic:other:independent', { kind: 'other', name: 'Independent record' })
+    const modeCatalog = { ...catalog([spear, mode, independent]), id: DEFAULT_CATALOG.id }
     const indexed = buildReferenceSearchItems([modeCatalog])
     for (const item of indexed) expect(findReferenceSearchItem([modeCatalog], item.keyParts)).toEqual(item)
     expect(findReferenceSearchItem([modeCatalog], { catalogId: modeCatalog.id, catalogRevisionId: modeCatalog.revisionId, entityId: mode.id })?.audience).toBe('alternatives')
-    expect(findReferenceSearchItem([modeCatalog], { catalogId: modeCatalog.id, catalogRevisionId: modeCatalog.revisionId, entityId: artifact.id })).toBeUndefined()
+    expect(findReferenceSearchItem([modeCatalog], { catalogId: modeCatalog.id, catalogRevisionId: modeCatalog.revisionId, entityId: independent.id })?.entity).toEqual(independent)
   })
 
-  it('projects reference audiences and suppresses explicit extraction artifacts', () => {
-    const records = [
-      entity('base:other:ref-913', { kind: 'other', name: 'Diagnostic' }),
-      entity('base:other:ref-928', { kind: 'other', name: 'History' }),
-      entity('base:other:ref-915', { kind: 'other', name: 'Tooling' }),
-      entity('base:other:ref-911', { kind: 'other', name: 'Artifact' }),
-      entity('imported:other:technical-looking', { kind: 'other', name: 'Imported technical-looking record' }),
-    ]
-    const projected = buildReferenceSearchItems([{ ...catalog(records), id: DEFAULT_CATALOG.id }, { ...GUIDE_CATALOG, entities: { 'ref-464': { ...GUIDE_CATALOG.entities['ref-464']!, name: 'Technical' } } }])
-    expect(projected.map(item => [item.entity.name, item.audience])).toEqual([
-      ['Diagnostic', 'diagnostic'],
-      ['History', 'about'],
-      ['Imported technical-looking record', 'default'],
-      ['Technical', 'technical'],
-      ['Tooling', 'tooling'],
+  it('projects native technical audiences without classifying imported records by their names', () => {
+    const technical = CURRENT_CATALOG.entities['mechanic:stat:467']!
+    const imported = entity('imported:other:technical-looking', { kind: 'other', name: technical.name })
+    const projected = buildReferenceSearchItems([{ ...CURRENT_CATALOG, entities: { [technical.id]: technical } }, catalog([imported])])
+    expect(projected.map(item => [item.entity.id, item.audience])).toEqual([
+      [technical.id, 'technical'],
+      [imported.id, 'default'],
     ])
   })
 
-  it('counts equivalent source wording as known without changing the immutable catalog', () => {
+  it('preserves independently recorded source claims without inferring equivalent wording', () => {
     const location = { state: 'conflicting' as const, claims: [
       { value: 'Chest: Shoudu Province', sources: [{ sourceId: 'table' }] },
       { value: 'It can be found in a chest, in Shoudu Province', sources: [{ sourceId: 'detail' }] },
     ] }
     const shoes = entity('shoes', { kind: 'item', name: 'Acrobat Shoes', fields: { Location: location } })
     const item = projectReferenceEntity(catalog([shoes]), shoes)
-    expect(item.entity.fields.Location).toEqual({ state: 'known', value: 'Chest: Shoudu Province', sources: [{ sourceId: 'table' }, { sourceId: 'detail' }] })
-    expect(item.knowledgeCounts).toMatchObject({ known: 1, conflicting: 0 })
+    expect(item.entity.fields.Location).toEqual(location)
+    expect(item.knowledgeCounts).toMatchObject({ known: 0, conflicting: 1 })
     expect(shoes.fields.Location).toBe(location)
   })
 
-  it('searches native Dress MP and counts direct facts without duplicate legacy summaries', () => {
+  it('searches native Dress effects without mutating the source record', () => {
     const dress = DEFAULT_CATALOG.entities['base:equipment:134']!
     const original = JSON.stringify(dress)
     expect(dress.fields['Max mp']).toBeUndefined()
@@ -203,14 +208,8 @@ describe('reference search projection', () => {
       expect(result.excluded).toEqual([item])
     }
 
-    const originalSummaries = ['Stat', 'Stat bonuses', 'Effect', 'Other effects', 'Defense/Resistance/Mind/Spirit'].flatMap(field => dress.fields[field] ? [dress.fields[field]!] : [])
-    expect(originalSummaries.length).toBeGreaterThan(0)
-    expect(originalSummaries.every(value => value.state === 'known')).toBe(true)
-    const unreviewedCatalog = { ...DEFAULT_CATALOG, id: 'imported:synthetic-dress' as CatalogId }
-    const unreviewed = projectReferenceEntity(unreviewedCatalog, dress)
-    expect(item.knowledgeCounts).toEqual({ ...unreviewed.knowledgeCounts, known: unreviewed.knowledgeCounts.known + 1 - originalSummaries.length })
-    expect(item.entity.fields.Stat).toEqual(dress.fields.Stat)
-    expect(item.entity.fields.Effect).toEqual(dress.fields.Effect)
+    expect(item.knowledgeCounts.known).toBeGreaterThan(0)
+    expect(item.entity.fields['Native source record']).toEqual(dress.fields['Native source record'])
     expect(item.entity.fields['Max mp']).toBeUndefined()
     expect(JSON.stringify(dress)).toBe(original)
   })

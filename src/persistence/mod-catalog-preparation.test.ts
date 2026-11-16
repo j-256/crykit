@@ -1,6 +1,6 @@
 import { syntheticCatalog } from '../workspace/test-helpers'
 import { afterEach, expect, it, vi } from 'vitest'
-import { STARTER_CATALOG } from '../catalog/starter'
+import { CURRENT_CATALOG as STARTER_CATALOG } from '../catalog/bundled'
 import { addGameSetupRevision, createBlankLocalData } from '../domain/local-data'
 import { previewImport } from '../interchange/import'
 import { immutableCatalogSnapshot, validateNativeLocalDataGraph } from '../interchange/native'

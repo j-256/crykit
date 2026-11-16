@@ -101,7 +101,6 @@ test('privacy allows the public contact while rejecting adjacent and similar pri
   const publicContact = 'abuse@crykit.lasers.app'
   const manifests = [
     ['mod-artwork.json', { atlases: {}, assets: {} }],
-    ['wiki-sprites.json', { assets: {} }],
     ['mod-sprites.json', { assets: {} }],
     ['game-assets.json', { assets: {} }],
     ['world-map.json', { layers: [] }],

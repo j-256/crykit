@@ -33,8 +33,5 @@ export function nativeStatRecord(ref: EntityRef | null, family: Family, resolve:
     const patch = identity?.database === family && identity.mode === 'base' && mode !== 'standard' ? NATIVE_DATA.patches.find(patch => patch.name.toLowerCase() === mode)?.records[family].find(record => record.ID === identity.databaseId) : undefined
     return { ...native, ...patch }
   }
-  const bindings = NATIVE_DATA.bindings as Readonly<Record<string, { readonly family: string; readonly id: number }>>
-  const binding = ref.kind === 'catalog' && ref.catalogId === NATIVE_DATA.catalogId ? bindings[ref.entityId] : undefined
-  if (binding?.family === family) return nativeById(family, binding.id, mode)
   return undefined
 }

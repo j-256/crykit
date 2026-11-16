@@ -1,34 +1,19 @@
-import { parseCatalogSourceId } from './source-identity'
 import { bundledModEntityId, bundledModIdentity } from './bundled-mods'
 import { nativeEntityId, nativeIdentity, nativeRecord } from './native-game'
 import type { CatalogEntity, CatalogRef, CatalogSnapshot, EntityId, EntityRef, JsonValue } from './types'
 
-export type SupplementalEntityIds = Readonly<Record<string, number>>
-
-export function compiledEntityId(entity: CatalogEntity, supplementalIds: SupplementalEntityIds): EntityId {
+export function compiledEntityId(entity: CatalogEntity): EntityId {
   const native = nativeIdentity(entity)
   if (native) return nativeEntityId(native.database, native.databaseId, native.mode)
+  // System configuration uses native projection IDs and has no supplemental source identity
+  if (/^base:system:[0-9]+$/.test(entity.id) && entity.sources.every(source => source.sourceId.startsWith('native-game:'))) return entity.id
   const mod = bundledModIdentity(entity)
   if (mod) return bundledModEntityId(mod.key, mod.family, mod.modelId)
-  // Supplemental allocations are permanent identities; list positions and name slugs cannot replace them
-  const id = supplementalIds[entity.id]
-  const parts = entity.id.split(':')
-  if (!Number.isSafeInteger(id) || id! <= 0 || !['base', 'mod'].includes(parts[0]!) || parts.length < 3) throw new Error(`Missing supplemental identity allocation: ${entity.id}`)
-  const family = entity.kind === 'monsterMagic' ? 'monster-magic' : entity.kind
-  const scope = parts[0] === 'mod' ? `mod:${parts[1]}:${family}` : parts[1] === 'mechanic' ? parts.slice(0, -1).join(':') : `base:${family}`
-  return `${scope}:ref-${id}` as EntityId
+  throw new Error(`Catalog definition has no native or mod identity: ${entity.id}`)
 }
 
-export function compileCatalogIdentities(source: CatalogSnapshot, supplementalIds: SupplementalEntityIds): CatalogSnapshot {
-  const allocations = Object.values(supplementalIds)
-  if (allocations.some(id => !Number.isSafeInteger(id) || id <= 0) || new Set(allocations).size !== allocations.length) throw new Error('Supplemental identity allocations must be unique positive integers')
-  const guide = parseCatalogSourceId(source.id)?.origin === 'guide'
-  const ids = new Map(Object.values(source.entities).map(entity => {
-    if (!guide) return [entity.id as string, compiledEntityId(entity, supplementalIds)] as const
-    const allocation = supplementalIds[entity.id]
-    if (!Number.isSafeInteger(allocation) || allocation! <= 0 || nativeIdentity(entity) || bundledModIdentity(entity)) throw new Error(`Invalid guide identity allocation: ${entity.id}`)
-    return [entity.id as string, `ref-${allocation}` as EntityId] as const
-  }))
+export function compileCatalogIdentities(source: CatalogSnapshot): CatalogSnapshot {
+  const ids = new Map(Object.values(source.entities).map(entity => [entity.id as string, compiledEntityId(entity)]))
   if (new Set(ids.values()).size !== ids.size) throw new Error('Source definitions compile to conflicting catalog identities')
   const targetId = (id: string): EntityId => {
     const target = ids.get(id)

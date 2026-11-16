@@ -1,99 +1,83 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_CATALOG, GUIDE_CATALOG } from '../catalog/bundled'
-import { projectAcquisitionGuidance } from '../catalog/acquisition-guidance'
+import { CURRENT_CATALOG } from '../catalog/bundled'
 import { nativeDescription } from '../catalog/native-description'
-import { nativeFieldFacts } from '../catalog/native-field-facts'
 import { nativeMechanic } from '../catalog/native-mechanics'
-import type { CatalogEntity } from '../domain/types'
-import { ReferenceDescription, referenceNarrativeDescription } from './ReferenceDescription'
-import { ReferenceSourceDetails } from './ReferenceSourceDetails'
+import type { CatalogEntity, EntityId } from '../domain/types'
+import { ReferenceDescription } from './ReferenceDescription'
 
-const entity = (id: string) => DEFAULT_CATALOG.entities[id]!
-const sourceDetails = (definition: CatalogEntity) => {
-  const catalog = GUIDE_CATALOG.entities[definition.id] === definition ? GUIDE_CATALOG : DEFAULT_CATALOG
-  return renderToStaticMarkup(<ReferenceSourceDetails catalog={catalog} entity={definition} guidance={projectAcquisitionGuidance(catalog, definition)} nativeFacts={nativeFieldFacts(catalog, definition)} archivedFacts={definition.fields.Description ? [['Description', definition.fields.Description]] : []} onOpenDefinition={() => undefined}/>)
-}
+const entity = (id: string) => CURRENT_CATALOG.entities[id]!
 
 describe('readable reference descriptions', () => {
-  it('shows Dress strategy and directions immediately beside its native effects while retaining attribution separately', () => {
+  it('shows exact native equipment effects without mutating their source', () => {
     const dress = entity('base:equipment:134')
     const before = JSON.stringify(dress)
     expect(nativeDescription(dress)?.complete).toBe(true)
-    const html = renderToStaticMarkup(<ReferenceDescription entity={dress}/>)
+    const html = renderToStaticMarkup(<ReferenceDescription catalog={CURRENT_CATALOG} entity={dress}/>)
     expect(html).toMatch(/Resistance:\s*\+78/)
-    expect(html).toContain('<h3>Description</h3>')
-    expect(html).toContain('aria-label="Sources for Description"')
-    expect(html).toContain('such as Chemists.')
-    expect(html).toContain('before reaching the Chemist crystal')
-    expect(html).not.toMatch(/<details|Guide notes|Original source description/)
-    const sources = sourceDetails(dress)
-    expect(sources).not.toContain('before reaching the Chemist crystal')
-    expect(sources).not.toContain('Original source description')
-    expect(sources).toContain('https://crystal-project.fandom.com/wiki/Dress?oldid=12426')
+    expect(html).toMatch(/Max\. MP:\s*\+20/)
+    expect(html).not.toContain('sources-trigger')
     expect(JSON.stringify(dress)).toBe(before)
   })
 
-  it('retains readable acquisition prose when a native route corroborates it without repeating the prose in Sources', () => {
-    const salmon = entity('base:item:11')
-    const before = JSON.stringify(salmon)
-    expect(projectAcquisitionGuidance(DEFAULT_CATALOG, salmon).replacedFields).toContain('Description')
-    const html = renderToStaticMarkup(<ReferenceDescription entity={salmon}/>)
-    expect(html).toContain('Can be purchased in Delende from the Shady Merchant for')
-    expect(html).toContain('aria-label="13 copper"')
-    const sources = sourceDetails(salmon)
-    expect(sources).not.toContain('Can be purchased in Delende from the Shady Merchant for')
-    expect(sources).toContain('Rotten_Salmon')
-    expect(sources).toContain('The matching game routes appear under How to obtain.')
-    expect(JSON.stringify(salmon)).toBe(before)
-  })
-
-  it('keeps corrected historical effects in evidence while displaying the reviewed native description', () => {
+  it('displays exact native recovery and AP-cost mechanic facts', () => {
     const stew = entity('base:item:132')
     const html = renderToStaticMarkup(<ReferenceDescription entity={stew}/>)
     expect(html).toContain('100% Missing HP')
-    expect(html.split('<section')[0]).not.toContain('sources-trigger')
-    expect(html).not.toContain('Recovery: 100% HP')
-    expect(sourceDetails(stew)).toContain('Recovery: 100% HP')
-    const mechanic = GUIDE_CATALOG.entities['ref-495']!
-    const replacement = nativeMechanic(mechanic)!
-    expect(replacement).toBeDefined()
-    expect(renderToStaticMarkup(<ReferenceDescription entity={mechanic}/>)).toContain('Value1 (X) is the native ability ID.')
-    expect(renderToStaticMarkup(<ReferenceDescription entity={mechanic}/>)).not.toContain('Increases the AP cost of ability Y by X')
-    expect(sourceDetails(mechanic)).toContain('Increases the AP cost of ability Y by X')
+    expect(html).not.toContain('sources-trigger')
+    const mechanic = entity('mechanic:stat:467')
+    expect(nativeMechanic(mechanic)).toBeDefined()
+    const mechanics = renderToStaticMarkup(<ReferenceDescription catalog={CURRENT_CATALOG} entity={mechanic}/>)
+    expect(mechanics).toContain('Value1 (X) is the native ability ID.')
+    expect(mechanics).toContain('Value2 (Y) is the flat AP-cost adjustment')
+    expect(mechanics).not.toContain('sources-trigger')
   })
 
-  it('keeps exactly corroborated descriptions quiet without promoting changed or unsupported prose', () => {
-    const definition = GUIDE_CATALOG.entities['ref-464']!
-    const field = definition.fields.Description
-    if (field?.state !== 'known') throw new Error('The description fixture must be known')
-    expect(renderToStaticMarkup(<ReferenceDescription catalog={GUIDE_CATALOG} entity={definition}/>)).not.toContain('sources-trigger')
-    const changed = { ...definition, rawDescription: 'Synthetic changed description', fields: { ...definition.fields, Description: { ...field, value: 'Synthetic changed description' } } }
-    expect(renderToStaticMarkup(<ReferenceDescription catalog={GUIDE_CATALOG} entity={changed}/>)).toContain('Sources for Description')
-    expect(renderToStaticMarkup(<ReferenceDescription catalog={GUIDE_CATALOG} entity={GUIDE_CATALOG.entities['ref-501']!}/>)).toContain('Sources for Description')
+  it('fills a missing gameplay summary with attributed text while native descriptions keep precedence', () => {
+    const shard = entity('base:item:22')
+    expect(nativeDescription(shard)?.complete).toBe(false)
+    const html = renderToStaticMarkup(<ReferenceDescription catalog={CURRENT_CATALOG} entity={shard} hideGeneratedSummary/>)
+    expect(html).toContain('teleports the party to the roof of the Gaea Shrine')
+    expect(html).toContain('Sources for Description')
+    expect(html).not.toContain('No description supplied.')
+    expect(html).not.toContain('base database')
+    const dress = entity('base:equipment:134')
+    expect(renderToStaticMarkup(<ReferenceDescription catalog={CURRENT_CATALOG} entity={dress}/>)).not.toContain('Sources for Description')
   })
 
-  it('does not repeat authored native prose or add long narrative text to compact descriptions', () => {
+  it('keeps class master directions separate from descriptions and acquisition notes', () => {
+    const warrior = entity('base:job:0')
+    const html = renderToStaticMarkup(<ReferenceDescription catalog={CURRENT_CATALOG} entity={warrior} hideGeneratedSummary/>)
+    expect(html).toContain('Class master')
+    expect(html).toContain('walk under the green roof')
+    expect(html).not.toContain('Mastery reward')
+    const sword = entity('base:equipment:0')
+    expect(renderToStaticMarkup(<ReferenceDescription catalog={CURRENT_CATALOG} entity={sword}/>)).not.toContain('Nan&#x27;s Knick Knacks')
+  })
+
+  it('retains imported description evidence without promoting it to verified native prose', () => {
+    const sources = [{ sourceId: 'https://example.test/synthetic-guide', locator: 'Synthetic custom description' }]
+    const definition: CatalogEntity = { id: 'imported:synthetic' as EntityId, kind: 'item', name: 'Synthetic item', aliases: [], rawDescription: 'Synthetic imported effect', fields: { Description: { state: 'known', value: 'Synthetic imported effect', sources } }, sources }
+    const before = JSON.stringify(definition)
+    expect(nativeDescription(definition)).toBeUndefined()
+    const html = renderToStaticMarkup(<ReferenceDescription entity={definition}/>)
+    expect(html).toContain('Synthetic imported effect')
+    expect(html).toContain('Sources for Description')
+    expect(renderToStaticMarkup(<ReferenceDescription compact entity={definition}/>)).not.toContain('sources-trigger')
+    expect(JSON.stringify(definition)).toBe(before)
+    const original = entity('mechanic:stat:467')
+    const changed = { ...original, rawDescription: 'Synthetic changed effect', fields: { ...original.fields, Description: { state: 'known' as const, value: 'Synthetic changed effect', sources } } }
+    expect(nativeMechanic(changed)).toBeUndefined()
+    expect(renderToStaticMarkup(<ReferenceDescription catalog={CURRENT_CATALOG} entity={changed}/>)).toContain('Sources for Description')
+  })
+
+  it('does not repeat authored native prose in full or compact descriptions', () => {
     const immortal = entity('base:passive:25')
     expect(nativeDescription(immortal)?.lines).toContain(immortal.rawDescription)
-    expect(referenceNarrativeDescription(immortal)).toBeUndefined()
-    const html = renderToStaticMarkup(<ReferenceDescription entity={immortal}/>)
-    expect(html.match(/Once per battle, automatically revive/g)).toHaveLength(1)
-    expect(html).not.toContain('sources-trigger')
-    expect(renderToStaticMarkup(<ReferenceDescription compact entity={entity('base:equipment:134')}/>)).not.toContain('before reaching the Chemist crystal')
-  })
-
-  it('keeps formatted crafting prose and currency together without repeating its flattened source summary', () => {
-    const bow = entity('base:equipment:149')
-    const field = bow.fields.Description
-    expect(field?.state).toBe('known')
-    expect(referenceNarrativeDescription(bow)).toBe(field?.state === 'known' ? field.value : undefined)
-    const html = renderToStaticMarkup(<ReferenceDescription entity={bow}/>)
-    expect(html).toContain('aria-label="30 silver"')
-    expect(html).toContain('Silver Bow x1')
-    expect(html).toContain('Gold Ingot x3')
-    const sources = sourceDetails(bow)
-    expect(sources).not.toContain('Can be crafted in Shoudu Province')
-    expect(sources).toContain('Gold_Bow')
+    for (const compact of [false, true]) {
+      const html = renderToStaticMarkup(<ReferenceDescription compact={compact} entity={immortal}/>)
+      expect(html.match(/Once per battle, automatically revive/g)).toHaveLength(1)
+      expect(html).not.toContain('sources-trigger')
+    }
   })
 })

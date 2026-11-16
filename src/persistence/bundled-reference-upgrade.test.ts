@@ -3,7 +3,7 @@ import Dexie from 'dexie'
 import { afterEach, expect, it } from 'vitest'
 import { DEFAULT_CATALOG, compileBundledSourceId } from '../catalog/bundled'
 import { createSampleLocalData } from '../domain/sample-data'
-import { HISTORICAL_BUNDLED_CATALOG } from '../domain/withdrawn-catalogs'
+const HISTORICAL_BUNDLED_CATALOG = { id: 'crystal-project-public-starter', revisionId: 'catalog-v1', checksum: 'synthetic-prelaunch' } as const
 import { createPersonalDefinition } from '../domain'
 import type { LocalData } from '../domain/types'
 import { CryKitDatabase, setDatabaseForTests } from './database'
@@ -24,7 +24,7 @@ async function fixture(badHistory = false) {
   const database = new Dexie(name)
   database.version(4).stores(TABLES)
   // Source-key references belong to the original bundled revision, never the fresh-profile catalog
-  const before = createSampleLocalData({ ...DEFAULT_CATALOG, ...HISTORICAL_BUNDLED_CATALOG })
+  const before = createSampleLocalData({ ...DEFAULT_CATALOG, ...HISTORICAL_BUNDLED_CATALOG, id: HISTORICAL_BUNDLED_CATALOG.id as typeof DEFAULT_CATALOG.id, revisionId: HISTORICAL_BUNDLED_CATALOG.revisionId as typeof DEFAULT_CATALOG.revisionId })
   const after = createPersonalDefinition(before, { name: 'Synthetic retained definition', kind: 'item' })
   const oldBefore = historical(before)
   const oldAfter = historical(after)

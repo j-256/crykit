@@ -91,7 +91,7 @@ export async function previewCrystalEdit(bytes: Uint8Array, filename: string, at
         [CRYSTAL_EDIT_VERSION_FIELD]: { state: 'known' as const, value: editorVersion, sources: [source] },
         [CRYSTAL_EDIT_LOCALIZATION_FIELD]: { state: 'known' as const, value: root.IsLocalization === true, sources: [source] },
         ...(family === 'Jobs' ? classFields(record, source) : {}),
-        ...(family === 'Jobs' ? { 'Class change': { state: 'known' as const, value: (record.ID as number) <= LAST_VANILLA_JOB_ID ? `Edits vanilla class ID ${record.ID}` : 'Adds a custom class', sources: [source, { sourceId: 'community:geef-modding-guide', locator: 'Crystal Edit anatomy > Editor controls and Grid viewers', applicability: 'Vanilla job IDs 0 through 23 are editable and cannot be deleted' }] } } : {}),
+        ...(family === 'Jobs' ? { 'Class change': { state: 'known' as const, value: (record.ID as number) <= LAST_VANILLA_JOB_ID ? `Edits vanilla class ID ${record.ID}` : 'Adds a custom class', sources: [source] } } : {}),
       }
       const origin = { kind: 'catalog' as const, catalogId, catalogRevisionId: revisionId, entityId: id }
       entities[id] = { id, kind: effectiveKind, name: record.Name as string, aliases: [], fields, sources: [source], origins: { mechanical: origin, text: origin }, ...(typeof record.Description === 'string' && record.Description ? { rawDescription: record.Description } : {}), ...(['passive', 'innate'].includes(effectiveKind) && typeof record.PP === 'number' ? { ppCost: { state: 'known' as const, value: record.PP, sources: [source] } } : {}) }

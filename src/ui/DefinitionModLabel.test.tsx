@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { HistoricalInnateLearningBadge, ModBadge } from './DefinitionModLabel'
-import { LEARNABLE_INNATE_FIELD } from '../catalog/switch'
+const LEARNABLE_INNATE_FIELD = 'Learnable through Learnable Innate Skill'
 
 describe('mod badge', () => {
   it('uses one reusable label for a mod identity', () => {

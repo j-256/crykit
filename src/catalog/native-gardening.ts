@@ -1,6 +1,5 @@
 import facts from './native-gardening.json' with { type: 'json' }
 import { bundledCatalogForSnapshot } from './bundled'
-import { projectSourceSemantics } from './source-semantics'
 import { sameValue } from '../domain/definition-values'
 import { nativeIdentity, nativeRecord, nativeSourceRecord } from '../domain/native-game'
 import type { CatalogEntity, CatalogRef, CatalogSnapshot } from '../domain/types'
@@ -19,7 +18,7 @@ export function nativeGardening(catalog: CatalogSnapshot, entity: CatalogEntity)
   const metadata = nativeRecord(catalog.legacy) ? catalog.legacy : {}
   const source = nativeRecord(metadata.nativeSource) ? metadata.nativeSource : {}
   const executable = nativeRecord(source.executable) ? source.executable : {}
-  if (!snapshot || metadata.sourceContentDigest !== facts.nativeContentDigest || executable.sha256 !== facts.gameExecutableSha256 || identity?.mode !== 'base' || identity.database !== 'item' || !baseline || !sameValue(entity, baseline) && !sameValue(entity, projectSourceSemantics(baseline))) return undefined
+  if (!snapshot || metadata.sourceContentDigest !== facts.nativeContentDigest || executable.sha256 !== facts.gameExecutableSha256 || identity?.mode !== 'base' || identity.database !== 'item' || !baseline || !sameValue(entity, baseline)) return undefined
   const seed = facts.seeds.find(entry => entry.itemID === identity.databaseId)
   if (!seed) return undefined
   const troop = Object.values(catalog.entities).find(entry => { const native = nativeIdentity(entry); return native?.mode === 'base' && native.database === 'troop' && native.databaseId === seed.troopID })

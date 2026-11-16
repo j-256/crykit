@@ -4,7 +4,6 @@ import { readFile, writeFile, rename } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
-import { parseStarterRecords } from './game-assets.mjs'
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)))
 const OUTPUT = join(ROOT, 'src/catalog/native-stats-v1.json')
@@ -25,8 +24,8 @@ const USAGE = `Usage: node scripts/update-native-stats.mjs [-i <game-installatio
 Project versioned numeric inputs from the shared bundled PC 1.6.9.0 snapshot.
 Optional input verifies Crystal Project.exe and Content/Database/*.dat against it.
 Requires Node.js; extraction needs no installation or network access.
-Native IDs use the pinned identity crosswalk; passive bindings require an explicit
-wiki class plus membership in that native job. No descriptions or local paths are saved.
+Numeric records and mode patches retain exact native IDs and source fingerprints.
+No secondary identity crosswalks, descriptions, or local paths are saved.
   -i, --input <directory>  Verify the matching installation while projecting
       --check              Validate the committed snapshot offline
   -h, --help               Show help
@@ -47,7 +46,6 @@ function validate(snapshot) {
     const records = snapshot.records[family]
     if (!Array.isArray(records) || new Set(records.map(record => record.ID)).size !== records.length || records.some(record => !Number.isSafeInteger(record.ID) || typeof record.Name !== 'string')) throw new Error(`Invalid ${family} records`)
   }
-  for (const binding of Object.values(snapshot.bindings)) if (!snapshot.records[binding.family]?.some(record => record.ID === binding.id) || !binding.evidence) throw new Error('Invalid native identity binding')
 }
 
 try {
@@ -62,33 +60,11 @@ try {
     if (values.input && hash(await readFile(join(values.input, 'Content/Database', `${family}.dat`))) !== inputs[family]) throw new Error(`Installed ${family} database differs from the bundled snapshot`)
   }
   if (values.input && hash(await readFile(join(values.input, 'Crystal Project.exe'))) !== executableSha256) throw new Error('Installed executable differs from the bundled snapshot')
-  const rules = JSON.parse(await readFile(join(ROOT, 'src/calculations/pc-1.6.9-v1.json'), 'utf8'))
+  const rules = JSON.parse(await readFile(join(ROOT, 'src/calculations/character-rules-v1.json'), 'utf8'))
   for (const [tag, modifier] of Object.entries(rules.statMods)) if (native.enums.SangStatModTag[tag] !== modifier.name) throw new Error(`Stat modifier ${tag} differs from the verified executable enum`)
-  const crosswalk = JSON.parse(await readFile(join(ROOT, 'src/catalog/game-identities.json'), 'utf8'))
-  const wiki = JSON.parse(await readFile(join(ROOT, 'src/catalog/wiki-data.json'), 'utf8'))
-  const starterSource = await readFile(join(ROOT, 'src/catalog/data.ts'), 'utf8')
-  const starterRecords = parseStarterRecords(starterSource)
-  const normalize = name => name.toLowerCase().trim().replace(/\s+/g, ' ')
-  const bindings = {}
-  for (const [entityId, mapping] of Object.entries(crosswalk.mappings)) {
-    if (!FIELDS[mapping.database] || !data[mapping.database][mapping.databaseId]) continue
-    bindings[entityId] = { family: mapping.database, id: mapping.databaseId, evidence: `Pinned native identity crosswalk: ${mapping.locator}` }
-  }
-  for (const entity of wiki.entities.filter(entity => ['passive', 'innate'].includes(entity.kind))) {
-    const className = entity.fields.Class?.state === 'known' ? entity.fields.Class.value : undefined
-    const jobBinding = Object.entries(crosswalk.mappings).find(([, mapping]) => mapping.database === 'job' && mapping.name === className)?.[1]
-    if (!jobBinding) continue
-    const job = data.job[jobBinding.databaseId]
-    const candidates = job.PassiveIDs.map(id => data.passive[id]).filter(record => record && normalize(record.Name) === normalize(entity.name) && record.IsInnate === (entity.kind === 'innate'))
-    if (candidates.length !== 1) continue
-    bindings[entity.id] = { family: 'passive', id: candidates[0].ID, evidence: `Explicit ${className} wiki membership; native job ${job.ID} PassiveIDs; normalized passive label and exact innate flag` }
-    for (const starter of starterRecords.filter(record => record.kind === entity.kind && normalize(record.name) === normalize(entity.name))) {
-      bindings[starter.id] = { ...bindings[entity.id], evidence: `${bindings[entity.id].evidence}; starter catalog merges this wiki kind and normalized label` }
-    }
-  }
   const records = Object.fromEntries(Object.keys(FIELDS).map(family => [family, project(family, data[family])]))
   const patches = data.patch.map(patch => ({ name: patch.Name, records: Object.fromEntries(Object.keys(FIELDS).map(family => [family, project(family, patch[{ job: 'Jobs', equipment: 'Equipment', passive: 'Passives', gender: 'Genders', ability: 'Abilities', status: 'Statuses' }[family]])])) }))
-  const content = { schemaVersion: 1, engine: 'pc-1.6.9-v1', gameVersion: '1.6.9.0', executableSha256, nativeDataDigest: native.contentDigest, inputs, crosswalkDigest: crosswalk.source.contentDigest, wikiDigest: wiki.contentDigest, starterDigest: hash(starterSource), catalogId: 'crystal-project-public-starter', battleConfig: data.system.BattleConfig, records, patches, bindings }
+  const content = { schemaVersion: 1, engine: 'pc-1.6.9-v1', gameVersion: '1.6.9.0', executableSha256, nativeDataDigest: native.contentDigest, inputs, battleConfig: data.system.BattleConfig, records, patches }
   const snapshot = { ...content, checksum: hash(JSON.stringify(content)) }
   validate(snapshot)
   if (values.check) {
@@ -100,6 +76,6 @@ try {
     const temporary = `${OUTPUT}.tmp`
     await writeFile(temporary, `${JSON.stringify(snapshot, null, 2)}\n`)
     await rename(temporary, OUTPUT)
-    console.log(`Saved native character-stat snapshot with ${Object.keys(bindings).length} explicit identity bindings`)
+    console.log('Saved native character-stat snapshot with exact numeric identities and mode patches')
   }
 } catch (error) { console.error(error.message); process.exitCode = 1 }

@@ -8,7 +8,7 @@ import { TEST_NOW } from '../domain/test-helpers'
 import { SUGGESTED_BUILD_SLOTS } from '../domain/build-planning'
 import { buildEquipmentPermissions } from '../domain/build-mechanics'
 import { CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
-import { LEARNABLE_INNATE_FIELD } from '../catalog/switch'
+const LEARNABLE_INNATE_FIELD = 'Learnable through Learnable Innate Skill'
 import { modModelEntity } from '../domain/mod-layers'
 import { previewImport } from '../interchange/import'
 import type { CatalogSnapshot, EntityRef, PersonalDefinition, PersonalDefinitionId } from '../domain/types'
@@ -16,7 +16,7 @@ import { DefinitionLibraryContext, type DefinitionOption } from './definitions'
 import { BuildDefinitionField } from './BuildDefinitionField'
 
 vi.mock('./Dropdown', () => ({ Dropdown: ({ open, children }: PropsWithChildren<{ open: boolean }>) => open ? <div>{children}</div> : null }))
-vi.mock('./GameIcon', async importOriginal => ({ ...await importOriginal<typeof import('./GameIcon')>(), DefinitionArtwork: () => null, FieldIconSources: () => null, GameIcon: () => null }))
+vi.mock('./GameIcon', async importOriginal => ({ ...await importOriginal<typeof import('./GameIcon')>(), DefinitionArtwork: () => null, GameIcon: () => null }))
 
 function passive(name: string, pp: number, requiredMod?: string): DefinitionOption {
   const record: PersonalDefinition = { id: name as PersonalDefinitionId, kind: 'passive', name, aliases: [], revision: 1, createdAt: TEST_NOW, updatedAt: TEST_NOW, fields: { Description: { state: 'known', value: `${name} effect summary` }, ...(requiredMod ? { 'Source mod': { state: 'known' as const, value: requiredMod } } : {}) }, sources: [], ppCost: { state: 'known', value: pp } }

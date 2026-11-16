@@ -87,8 +87,8 @@ describe('native gameplay definitions', () => {
     expect(nativeIdentity(sword)?.database).toBe('equipment')
     expect(sword.sources[0]!.sourceId).toBe('native-game:windows:1.6.9')
     const goldBow = DEFAULT_CATALOG.entities['base:equipment:149']!
-    expect(goldBow.rawDescription).toContain('Silver Bow')
-    expect(goldBow.legacy).toMatchObject({ nativeDescriptionSupplemental: true })
+    expect(goldBow.rawDescription).not.toContain('Silver Bow')
+    expect(goldBow.legacy).not.toHaveProperty('nativeDescriptionSupplemental')
     expect(equipmentFacts(sword)).toMatchObject({ type: 'Sword', twoHanded: false })
     const equipSword = DEFAULT_CATALOG.entities['base:passive:6']!
     expect(definitionPermissionEffects(equipSword)).toEqual({ equipment: ['Sword'], dualWield: false, twoHanded: false, complete: true })

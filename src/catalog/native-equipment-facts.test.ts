@@ -2,15 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from './bundled'
 import { nativeEquipmentFacts } from './native-equipment-facts'
 import { nativeDescription } from './native-description'
-import { corroboratedFact } from './source-corroboration'
-import { projectSourceSemantics } from './source-semantics'
-import { nativeIdentity, nativeRecord, nativeSourceRecord, NATIVE_RECORD_FIELD, NATIVE_SOURCE_PREFIX } from '../domain/native-game'
+import { nativeRecord, nativeSourceRecord, NATIVE_RECORD_FIELD, NATIVE_SOURCE_PREFIX } from '../domain/native-game'
 import type { CatalogEntity, JsonValue } from '../domain/types'
 
 const equipment = (id: number) => DEFAULT_CATALOG.entities[`base:equipment:${id}`]!
 
 describe('native equipment presentation', () => {
-  it('derives Dress MP directly from Flat_MP without needing a corresponding wiki field', () => {
+  it('derives Dress MP directly from the fingerprinted Flat_MP modifier', () => {
     const dress = equipment(134)
     const before = JSON.stringify(dress)
     expect(dress.fields['Max mp']).toBeUndefined()
@@ -30,40 +28,19 @@ describe('native equipment presentation', () => {
     expect(nativeEquipmentFacts(DEFAULT_CATALOG, sword)?.facts.find(fact => fact.field === 'Max mp')).toMatchObject({ value: { state: 'known', value: 20 }, evidence: expect.stringContaining('StatMods; Flat_MP') })
     const shoes = equipment(320)
     expect(nativeEquipmentFacts(DEFAULT_CATALOG, shoes)?.facts.find(fact => fact.field === 'Dexterity')).toMatchObject({ value: { state: 'known', value: 14 } })
-    expect(shoes.fields.Stat).toMatchObject({ value: 'Dexterity +6\nAgility +16' })
+    expect(shoes.fields.Stat).toBeUndefined()
+    expect(nativeEquipmentFacts(DEFAULT_CATALOG, shoes)?.facts.find(fact => fact.field === 'Agility')).toMatchObject({ value: { state: 'known', value: 16 } })
   })
 
-  it('archives complete legacy stat and effect summaries without claiming their prose is equivalent', () => {
-    for (const [id, field] of [[134, 'Stat'], [134, 'Effect'], [134, 'Other effects'], [274, 'Other effects'], [286, 'Stat'], [336, 'Effect']] as const) {
-      const entity = equipment(id)
-      const original = entity.fields[field]!
-      expect(nativeDescription(entity)?.complete).toBe(true)
-      expect(corroboratedFact({ catalog: DEFAULT_CATALOG, entity }, field, original)).toBe(false)
-      const archived = nativeEquipmentFacts(DEFAULT_CATALOG, entity)?.archivedFields.find(([name]) => name === field)
-      expect(archived?.[1]).toBe(original)
-      expect(corroboratedFact({ catalog: DEFAULT_CATALOG, entity }, field, original)).toBe(false)
-    }
-  })
-
-  it('archives only slash summaries whose component field names are supported stats', () => {
-    const entity = Object.values(DEFAULT_CATALOG.entities).find(entity => nativeIdentity(entity)?.database === 'equipment' && entity.fields['Attack/Max. MP'] && nativeDescription(entity)?.complete)!
-    expect(entity).toBeDefined()
-    const archived = nativeEquipmentFacts(DEFAULT_CATALOG, entity)?.archivedFields
-    expect(archived?.find(([field]) => field === 'Attack/Max. MP')?.[1]).toBe(entity.fields['Attack/Max. MP'])
-    const sword = equipment(0)
-    expect(sword.fields['Attack/Pierce/Hands']).toBeDefined()
-    expect(nativeEquipmentFacts(DEFAULT_CATALOG, sword)?.archivedFields.some(([field]) => field === 'Attack/Pierce/Hands')).toBe(false)
-    expect(archived?.some(([field]) => field === 'Description' || field === 'Location')).toBe(false)
-  })
-
-  it('keeps original summaries available when native rendering is incomplete', () => {
+  it('preserves native source evidence when description rendering is incomplete', () => {
     const cutter = equipment(198)
     const before = JSON.stringify(cutter)
     expect(nativeDescription(cutter)).toMatchObject({ complete: false, unresolved: ['Stat modifier: ReplaceAttackWith'] })
     const projection = nativeEquipmentFacts(DEFAULT_CATALOG, cutter)!
     expect(projection.facts.find(fact => fact.field === 'Attack')).toMatchObject({ value: { state: 'known', value: 165 } })
     expect(projection.archivedFields).toEqual([])
-    expect(cutter.fields['Other effects']).toMatchObject({ state: 'known', value: 'Replace basic attack with: Mug\nTargets are always left with at least 1 HP' })
+    expect(cutter.fields['Other effects']).toBeUndefined()
+    expect(nativeSourceRecord(cutter)?.StatMods).toBeDefined()
     expect(JSON.stringify(cutter)).toBe(before)
   })
 
@@ -78,13 +55,12 @@ describe('native equipment presentation', () => {
     expect(nativeEquipmentFacts(DEFAULT_CATALOG, equipment(303))?.facts.find(fact => fact.field === 'Max mp')).toMatchObject({ value: { state: 'known', value: -100 } })
   })
 
-  it('accepts exact immutable copies and reviewed source-semantic projections only', () => {
+  it('accepts exact source copies and rejects changed native modifiers', () => {
     const dress = equipment(134)
     const expected = nativeEquipmentFacts(DEFAULT_CATALOG, dress)
     const clonedCatalog = { ...DEFAULT_CATALOG, legacy: structuredClone(DEFAULT_CATALOG.legacy) }
     const clone = structuredClone(dress)
     expect(nativeEquipmentFacts(clonedCatalog, clone)).toEqual(expected)
-    expect(nativeEquipmentFacts(DEFAULT_CATALOG, projectSourceSemantics(dress))).toEqual(expected)
     const record = nativeSourceRecord(clone)!
     if (!Array.isArray(record.StatMods) || !nativeRecord(record.StatMods[0])) throw new Error('Dress must have a native modifier')
     const changed = { ...clone, fields: { ...clone.fields, [NATIVE_RECORD_FIELD]: { state: 'known' as const, value: { ...record, StatMods: [{ ...record.StatMods[0], Value1: 999 }, ...record.StatMods.slice(1)] } } } }

@@ -33,7 +33,7 @@ try {
   const read = async (path) => JSON.parse(await readFile(join(ROOT, path), 'utf8'))
   const [rules, combat, combatData, example, modifiers] = await Promise.all(
     [
-      'src/calculations/pc-1.6.9-v1.json',
+      'src/calculations/character-rules-v1.json',
       'src/calculations/combat-v1.json',
       'src/catalog/native-combat-v1.json',
       'src/calculations/combat-example-v1.json',
