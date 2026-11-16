@@ -80,3 +80,11 @@ it('distinguishes unsupported timing, absent matching entry, and untrusted input
   expect(assessSigninMergeResponsiveness({ paints: [{ ...receipt, keydownStartTime: undefined }], events: [], eventTimingAvailable: true })).toMatchObject({ receiptStatus: 'unassociated', sampledInputToPaint: null, eventTiming: { reason: 'receipt-unassociated' } })
   expect(assessSigninMergeResponsiveness(null)).toMatchObject({ receiptStatus: 'missing', sampledInputToPaint: null, eventTiming: { reason: 'probe-unavailable' } })
 })
+
+it('records confirmed merge preparation separately from review computation', () => {
+  const diagnostics = createSigninMergeDiagnostics()
+  diagnostics.record({ stage: 'review', outcome: 'complete', elapsedMs: 1 })
+  diagnostics.record({ stage: 'confirm', outcome: 'started', elapsedMs: 2 })
+  diagnostics.record({ stage: 'preparing-merge', outcome: 'started', elapsedMs: 3 })
+  expect(diagnostics.snapshot().map(event => event.stage)).toEqual(['review', 'confirm', 'preparing-merge'])
+})
