@@ -14,10 +14,11 @@ import { startStartupResources } from './startup-resources'
 import { errors } from '@playwright/test'
 
 // Reset only between independent synthetic journeys; every case keeps the real limiter
+const CROSS_ACCOUNT_FOREIGN_COOKIE = 'captures distinct principals and retains the saved private backup under a foreign cookie'
 const CROSS_ACCOUNT_CONTINUATION = 'continues captured account switch through logout and queued rejection'
 const CROSS_ACCOUNT_RECOVERY = 'recovers the same switched account after a crash without changing guest data'
 test.beforeEach(async ({ request }, testInfo) => {
-  if ([CROSS_ACCOUNT_CONTINUATION, CROSS_ACCOUNT_RECOVERY].includes(testInfo.title)) return
+  if ([CROSS_ACCOUNT_FOREIGN_COOKIE, CROSS_ACCOUNT_CONTINUATION, CROSS_ACCOUNT_RECOVERY].includes(testInfo.title)) return
   expect((await request.post('/__accounts/control/reset-rate-counters', { data: {} })).ok()).toBe(true)
 })
 
@@ -584,7 +585,7 @@ test.describe('actualWorkspaceSwitchesDistinctAccountsAndRecoveryWithoutCrossing
     other = await context.newPage()
   })
   test.afterAll(async () => { await context.close() })
-  test('captures distinct principals and retains the saved private backup under a foreign cookie', async () => {
+  test('opens the first principal and retains its saved private backup with queued work', async () => {
     started = Date.now()
     // Register through the real App without reloading a second harness before opening its workspace
     // No account is unlocked by registration, and the two pages must retain their distinct live owners below
@@ -605,6 +606,9 @@ test.describe('actualWorkspaceSwitchesDistinctAccountsAndRecoveryWithoutCrossing
     expect(firstSaved.titles).toEqual(['Synthetic private account A Build'])
     expect(firstSaved.backupTitles).toEqual(firstSaved.titles)
     await page.evaluate(() => (window as unknown as { workspaceProof: WorkspaceProof }).workspaceProof.queueDefinition('Obsolete account A draft'))
+  })
+  test(CROSS_ACCOUNT_FOREIGN_COOKIE, async () => {
+    // The next real sign-in keeps the first page's captured repository and queued command alive
     await openWorkspaceAccount(other, second)
     otherOpened = await workspaceProof(other, false)
     expect(otherOpened.token?.accountId).toBe(otherOpened.principal)
