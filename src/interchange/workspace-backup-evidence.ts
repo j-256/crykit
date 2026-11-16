@@ -5,7 +5,7 @@ import { getSodium } from '../account/crypto/sodium'
 import { withImmutableWorkspaceBodyValidation, type WorkspaceBodyValidation } from '../workspace/closure'
 import { blobIdentity, hashBlob } from '../workspace/blobs'
 import type { BlobSource, WorkspaceBlobRef, WorkspaceState } from '../workspace/documents'
-import { assertOwnedWorkspaceSnapshot, assertWorkspaceSnapshotCurrent, disposeWorkspaceSnapshot, ownWorkspaceSnapshot, projectWorkspaceSnapshotV1, registerHistoricalSnapshotReader, snapshotMetadata, validateWorkspaceSnapshotV1, vectorDigest, type WorkspaceSnapshot, type WorkspaceSnapshotV1, type WorkspaceSnapshotV2, type SnapshotOwner } from '../workspace/snapshot'
+import { assertOwnedWorkspaceSnapshot, assertWorkspaceSnapshotCurrent, disposeWorkspaceSnapshot, ownWorkspaceSnapshot, projectWorkspaceSnapshotV1, registerHistoricalSnapshotReader, snapshotMetadata, validateWorkspaceSnapshotV1, vectorDigest, type WorkspaceSnapshot, type WorkspaceSnapshotV1, type WorkspaceSnapshotV2, type WorkspaceSnapshotV3, type SnapshotOwner } from '../workspace/snapshot'
 
 type MetadataState = Omit<WorkspaceState, 'blobs'> & { blobs: WorkspaceBlobRef[] }
 export type SnapshotMetadataV1 = Omit<WorkspaceSnapshotV1, 'state'> & { state: MetadataState }
@@ -13,7 +13,7 @@ export type SnapshotMetadataV2 = Omit<WorkspaceSnapshotV2, 'state'> & { state: M
 export interface BackupDocument { readonly key: string; readonly encoding: 'bytes' | 'deflate-json-tokens-v1'; readonly content: BlobSource }
 type Staging = Awaited<ReturnType<typeof createBackupStaging>>
 type BlobEntry = WorkspaceState['blobs'][number]
-interface CapturedEvidence { readonly current: BlobSource; readonly historical: ReadonlyMap<string, BlobSource>; readonly blobs: readonly BlobEntry[] }
+interface CapturedEvidence { readonly current: BlobSource; readonly historical: ReadonlyMap<string, BlobSource>; readonly blobs: readonly BlobEntry[]; readonly catalogBodies?: readonly BlobEntry[] }
 const captured = new WeakMap<WorkspaceSnapshot, CapturedEvidence>()
 const ID_DOMAIN = new TextEncoder().encode('crykit/historical-snapshot/v1\0')
 const CAPTURE_METADATA_PAGE_BYTES = WORKSPACE_BACKUP_LIMITS.payload
@@ -130,10 +130,15 @@ export function attachBackupBodies(raw: SnapshotMetadataV1 | SnapshotMetadataV2,
 export function registerBackupMetadata(snapshot: WorkspaceSnapshotV1, current: BlobSource): void {
   captured.set(snapshot, { current, historical: new Map(), blobs: snapshot.state.blobs })
 }
+// Compact admission owns its exact token stream separately from the hydrated domain view
+export function registerCatalogBackupEvidence(snapshot: WorkspaceSnapshotV3, evidence: CapturedEvidence): void {
+  snapshotMetadata(snapshot)
+  captured.set(snapshot, evidence)
+}
 export function capturedBackupEvidence(snapshot: WorkspaceSnapshot): CapturedEvidence {
   const value = captured.get(snapshot)
   if (!value) {
-    if (snapshot.version === 2) throw new Error('Historical evidence requires an owned captured reader')
+    if (snapshot.version !== 1) throw new Error('Historical evidence requires an owned captured reader')
     return { current: metadataSource(snapshotMetadata(snapshot)), historical: new Map(), blobs: snapshot.state.blobs }
   }
   return value
@@ -241,6 +246,7 @@ async function constructEvidenceSnapshot(raw: SnapshotMetadataV2, current: BlobS
 // This portable capture owns fresh encrypted staging and survives release of every input snapshot
 // Ordinary edits never call this producer: only an explicit inheritance operation adds a capture
 export async function inheritWorkspaceSnapshot(current: WorkspaceSnapshot, sources: readonly WorkspaceSnapshot[], options: { readonly signal?: AbortSignal } = {}): Promise<WorkspaceSnapshotV2> {
+  if ([current, ...sources].some(snapshot => snapshot.version === 3)) throw new Error('Compact snapshot inheritance writers are not enabled')
   const staging = await createBackupStaging(options.signal)
   let document = 1
   const stage = (source: BlobSource) => staging.stage(document++, source)
@@ -278,13 +284,16 @@ export async function inheritWorkspaceSnapshot(current: WorkspaceSnapshot, sourc
 }
 
 export interface InheritedSnapshotSources {
-  readonly members: readonly { readonly id: string; readonly metadata: BlobSource; readonly subset: readonly WorkspaceBlobRef[] }[]
+  readonly version?: 2
+  readonly catalogBodies?: readonly WorkspaceState['blobs'][number][]
+  readonly members: readonly { readonly format?: 'legacy-v1' | 'compact-v2'; readonly catalogSubset?: readonly WorkspaceBlobRef[]; readonly id: string; readonly metadata: BlobSource; readonly subset: readonly WorkspaceBlobRef[] }[]
   readonly bodies: readonly WorkspaceState['blobs'][number][]
 }
 
 // Success adopts the current owner so frozen guest freshness survives terminal export
 // Failure leaves that owner with the caller; only this operation's new staging is deleted
 export async function joinWorkspaceSnapshotEvidence(current: WorkspaceSnapshotV1, inherited: InheritedSnapshotSources, options: { readonly signal?: AbortSignal } = {}): Promise<WorkspaceSnapshotV2> {
+  if (inherited.version === 2) throw new Error('Compact evidence join writers are not enabled')
   // Borrow byte sources, but detach constraint identities before any await can expose caller mutations
   const sourceMembers = inherited.members.map(member => ({ ...member, subset: structuredClone([...member.subset]) }))
   const sourceBodies = inherited.bodies.map(body => ({ ...body, ref: structuredClone(body.ref) }))

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { catalogEvidenceSchemas, validateCatalogEvidenceSources, type CatalogInheritedSnapshotSources } from './catalog-evidence'
 import Dexie from 'dexie'
 import type { BlobSource, WorkspaceBlobRef, WorkspaceState } from './documents'
 import { WorkspaceBlobRefSchema } from './file-schemas'
@@ -105,7 +106,9 @@ export async function readGuestEvidence(rows: GuestEvidenceRows, check: () => Pr
   const sentinel = envelope.parse(await rows.get('documents', GUEST_EXTENSION_KEY))
   if (sentinel.key !== GUEST_EXTENSION_KEY) throw new Error('Missing workspace extension sentinel')
   const extension = GuestExtensionsSchema.parse(sentinel.value)
-  const root = rootSchema.parse(await take('evidenceRoots', extension.inheritedEvidence))
+  const rootValue = await take('evidenceRoots', extension.inheritedEvidence)
+  if (rootValue && typeof rootValue === 'object' && 'version' in rootValue && rootValue.version === 2) return readCatalogGuestEvidence(rows, check)
+  const root = rootSchema.parse(rootValue)
   const members = await page(root.members, 'evidence-member-page', memberSchema)
   if (await inheritedSnapshotSetDigest(members.map(member => member.id)) !== root.setDigest) throw new Error('Inherited membership digest mismatch')
   const shared = await page(root.blobs, 'evidence-blob-page', bodySchema)
@@ -165,6 +168,7 @@ export async function readGuestEvidence(rows: GuestEvidenceRows, check: () => Pr
 
 interface Writer { put(table: string, row: unknown): Promise<unknown> }
 async function writeGraph(writer: Writer, sources: InheritedSnapshotSources, plannerStream: BlobSource): Promise<void> {
+  if (sources.version === 2) throw new Error('Compact guest evidence writers are not enabled')
   const ref = (): Locator => ({ version: 1, key: crypto.randomUUID() })
   const put = async (table: string, value: unknown) => { const key = ref(); await writer.put(table, { key: key.key, value }); return key }
   const page = async (kind: PageKind, entries: readonly unknown[]): Promise<Locator> => {
@@ -298,6 +302,7 @@ export async function guestEvidenceFromSnapshot(snapshot: WorkspaceSnapshotV2, p
 
 export async function mergeGuestEvidence(destination: CapturedGuestEvidence, source: CapturedGuestEvidence, planner: GuestPlannerEvidence): Promise<CapturedGuestEvidence> {
   await destination.check(); await source.check()
+  if ([destination, source].some(value => guestEvidenceSources(value).version === 2)) throw new Error('Compact guest evidence writers are not enabled')
   GuestPlannerEvidenceSchema.parse(planner)
   const members = new Map<string, InheritedSnapshotSources['members'][number]>(), bodies = new Map<string, WorkspaceState['blobs'][number]>()
   for (const evidence of [destination, source]) {
@@ -373,4 +378,122 @@ export async function guestEvidenceForCopy(selected: WorkspaceSnapshot, source?:
     if (snapshot.version === 2) result = await mergeGuestEvidence(result, await guestEvidenceFromSnapshot(snapshot, planner), planner)
   }
   return result
+}
+
+// V2 keeps its own strict root/member/stream route; v1 token bytes never acquire compact semantics
+async function readCatalogGuestEvidence(rows: GuestEvidenceRows, check: () => Promise<void>): Promise<CapturedGuestEvidence> {
+  const schemas = catalogEvidenceSchemas(locator)
+  let visits = 0, declaredBytes = 0
+  const reserve = (count: number, bytes = 0) => {
+    if (!Number.isSafeInteger(count) || count < 0 || count > WORKSPACE_BACKUP_LIMITS.frames - visits || !Number.isSafeInteger(bytes) || bytes < 0 || bytes > WORKSPACE_BACKUP_LIMITS.bytes - declaredBytes) throw new Error('Guest catalog evidence resource limit')
+    visits += count; declaredBytes += bytes
+  }
+  const visited = new Map<string, Set<string>>(Object.keys(GUEST_EVIDENCE_STORES).map(table => [table, new Set()]))
+  const take = async (table: string, ref: Locator): Promise<unknown> => {
+    await check()
+    const used = visited.get(table)!
+    if (used.has(ref.key)) throw new Error('Repeated or cyclic guest catalog locator')
+    reserve(1); used.add(ref.key)
+    const row = envelope.parse(await rows.get(table, ref.key))
+    await check()
+    if (row.key !== ref.key) throw new Error('Guest catalog locator mismatch')
+    return row.value
+  }
+  const page = async <T>(ref: Locator, kind: string, schema: z.ZodType<T>): Promise<T[]> => {
+    const entries: T[] = [], pending = [{ ref, depth: 1 }]
+    while (pending.length) {
+      const next = pending.pop()!
+      if (next.depth > WORKSPACE_BACKUP_LIMITS.depth) throw new Error('Guest catalog page depth exceeded')
+      const raw = await take('evidencePages', next.ref)
+      const value = z.strictObject({ version: z.literal(1), kind: z.literal(kind), entries: z.array(schema), children: z.array(locator) }).parse(raw)
+      if (size(raw) > INDEX_PAGE_BYTES || value.entries.length + value.children.length > INDEX_PAGE_ENTRIES || value.entries.length && value.children.length || visited.get('evidencePages')!.size > WORKSPACE_BACKUP_LIMITS.frames) throw new Error('Guest catalog page bound exceeded')
+      entries.push(...value.entries); pending.push(...value.children.toReversed().map(ref => ({ ref, depth: next.depth + 1 })))
+    }
+    return entries
+  }
+  const stream = async (ref: Locator, compact: boolean): Promise<BlobSource> => {
+    const raw = await take('evidenceRoots', ref), root = compact ? schemas.stream.parse(raw) : streamSchema.parse(raw)
+    if (root.byteLength > WORKSPACE_BACKUP_LIMITS.bytes) throw new Error('Guest catalog metadata bound exceeded')
+    reserve(0, root.byteLength)
+    const segments = await page(root.pages, 'evidence-metadata-page', segmentSchema)
+    let length = 0
+    for (const [index, segment] of segments.entries()) {
+      if (segment.ordinal !== index || segment.byteLength > WORKSPACE_BACKUP_LIMITS.payload || visited.get('evidenceSegments')!.has(segment.content.key)) throw new Error('Guest catalog segment mismatch')
+      reserve(1); visited.get('evidenceSegments')!.add(segment.content.key); length += segment.byteLength
+    }
+    if (length !== root.byteLength) throw new Error('Guest catalog metadata length mismatch')
+    const content: BlobSource = { byteLength: length, async *open() {
+      await check()
+      for (const segment of segments) {
+        const row = z.strictObject({ key: z.string(), bytes: z.instanceof(Uint8Array) }).parse(await rows.get('evidenceSegments', segment.content.key))
+        if (row.key !== segment.content.key || row.bytes.length !== segment.byteLength || await hashBlob(memoryBlob(row.bytes)) !== segment.sha256) throw new Error('Guest catalog metadata segment changed')
+        await check(); yield row.bytes; await check()
+      }
+    } }
+    const { verifiedBlob } = await import('./blobs')
+    return verifiedBlob(content, root.digest)
+  }
+  const extension = GuestExtensionsSchema.parse(envelope.parse(await rows.get('documents', GUEST_EXTENSION_KEY)).value)
+  const root = schemas.root.parse(await take('evidenceRoots', extension.inheritedEvidence))
+  const members = await page(root.members, 'evidence-catalog-member-page', schemas.member)
+  const loadBodies = async (ref: Locator, catalog: boolean) => {
+    const entries = await page(ref, catalog ? 'evidence-catalog-body-page' : 'evidence-blob-page', bodySchema)
+    const bodies: WorkspaceState['blobs'][number][] = []
+    for (const [ordinal, entry] of entries.entries()) {
+      const key = `${catalog ? 'catalog-body:' : ''}${blobIdentity(entry.source)}`
+      if (entry.content.key !== key || ordinal && compareBackupRefs(entries[ordinal - 1].source, entry.source) >= 0 || visited.get('evidenceBlobs')!.has(key)) throw new Error('Guest catalog body association mismatch')
+      const row = strictBody.parse(await rows.get('evidenceBlobs', key))
+      if (row.key !== key || !sameRef(row.ref, entry.source)) throw new Error('Guest catalog body ref mismatch')
+      reserve(1, row.ref.byteLength); visited.get('evidenceBlobs')!.add(key)
+      const lengths: number[] = []
+      let length = 0
+      // Native rows keep their original variable chunk boundaries across a root-version upgrade
+      while (length < row.ref.byteLength) {
+        const index = lengths.length
+        if (index >= WORKSPACE_BACKUP_LIMITS.frames) throw new Error('Guest catalog body bound exceeded')
+        const chunk = strictChunk.parse(await rows.get('evidenceChunks', [key, index]))
+        if (chunk.key !== key || chunk.index !== index || !chunk.bytes.length || chunk.bytes.length > BLOB_CHUNK_BYTES || chunk.bytes.length > row.ref.byteLength - length) throw new Error('Guest catalog body chunk mismatch')
+        reserve(1); visited.get('evidenceChunks')!.add(JSON.stringify([key, index])); lengths.push(chunk.bytes.length); length += chunk.bytes.length
+        await check()
+      }
+      const content: BlobSource = { byteLength: row.ref.byteLength, async *open() {
+        await check()
+        for (const [index, length] of lengths.entries()) {
+          const chunk = strictChunk.parse(await rows.get('evidenceChunks', [key, index]))
+          if (chunk.key !== key || chunk.index !== index || chunk.bytes.length !== length) throw new Error('Guest catalog body chunk mismatch')
+          await check(); yield chunk.bytes; await check()
+        }
+      } }
+      bodies.push({ ref: row.ref, content })
+    }
+    return bodies
+  }
+  const bodies = await loadBodies(root.blobs, false), catalogBodies = await loadBodies(root.catalogBodies, true)
+  const registry = new Map(bodies.map(body => [blobIdentity(body.ref), body])), catalogRegistry = new Map(catalogBodies.map(body => [blobIdentity(body.ref), body]))
+  const inherited: CatalogInheritedSnapshotSources['members'][number][] = []
+  for (const member of members) {
+    const subset = await page(member.blobSubset, 'evidence-subset-page', bodySchema)
+    const catalogSubset = await page(member.catalogSubset, 'evidence-catalog-subset-page', bodySchema)
+    for (const [entries, lookup, prefix] of [[subset, registry, ''], [catalogSubset, catalogRegistry, 'catalog-body:']] as const) for (const entry of entries) {
+      const body = lookup.get(blobIdentity(entry.source))
+      if (!body || !sameRef(body.ref, entry.source) || entry.content.key !== `${prefix}${blobIdentity(entry.source)}`) throw new Error('Guest catalog subset association mismatch')
+    }
+    inherited.push({ format: member.format, id: member.id, metadata: await stream(member.metadata, member.format === 'compact-v2'), subset: subset.map(entry => entry.source), catalogSubset: catalogSubset.map(entry => entry.source) })
+  }
+  const sources: CatalogInheritedSnapshotSources = { version: 2, members: inherited, bodies, catalogBodies }
+  if (await validateCatalogEvidenceSources(sources, check) !== root.setDigest) throw new Error('Guest catalog membership digest mismatch')
+  const plannerRow = z.strictObject({ key: z.string(), stream: locator }).parse(await rows.get('plannerEvidence', extension.plannerEvidence.key))
+  if (plannerRow.key !== extension.plannerEvidence.key) throw new Error('Planner evidence locator mismatch')
+  reserve(1); visited.get('plannerEvidence')!.add(plannerRow.key)
+  const plannerStream = await stream(plannerRow.stream, false), plannerRaw = await readBackupMetadata(plannerStream)
+  GuestPlannerEvidenceSchema.parse(plannerRaw)
+  for (const [table, used] of visited) {
+    const keys = await rows.keys(table)
+    if (keys.length !== used.size || keys.some(key => !used.has(typeof key === 'string' ? key : JSON.stringify(key)))) throw new Error('Orphan guest catalog evidence rows')
+  }
+  await check()
+  const planner = freezeEvidence(plannerRaw as GuestPlannerEvidence)
+  const evidence = Object.freeze({ setDigest: root.setDigest, planner, check })
+  captured.set(evidence, { sources: freezeEvidence(sources), plannerStream })
+  return evidence
 }

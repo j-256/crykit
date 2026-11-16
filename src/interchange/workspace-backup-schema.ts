@@ -1,10 +1,12 @@
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { z } from 'zod'
+import { CatalogBodyRefSchema, WORKSPACE_SNAPSHOT_CATALOG_VERSION, INHERITED_CATALOG_EVIDENCE_VERSION } from '../workspace/catalog-reference-schema'
 import { WorkspaceBlobRefSchema, ClosureSchema } from '../workspace/file-schemas'
 
 export const WORKSPACE_BACKUP_MAGIC = new TextEncoder().encode('CRYKIT-WORKSPACE/2\n')
 export const WORKSPACE_BACKUP_VERSION = '2.0.0'
 export const WORKSPACE_BACKUP_EVIDENCE_VERSION = '2.1.0'
+export const WORKSPACE_BACKUP_CATALOG_VERSION = '2.2.0'
 export const WORKSPACE_BACKUP_LIMITS = Object.freeze({ payload: 4 * 1024 * 1024, metadata: 64 * 1024, depth: 64, frames: 1_000_000, bytes: 32 * 1024 ** 3 })
 const integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 const digest = z.string().regex(/^[a-f0-9]{64}$/)
@@ -12,11 +14,15 @@ export const SourceEvidenceSchema = z.object({ version: z.literal(1), units: z.a
 export const SnapshotHeaderSchema = z.object({ dataGeneration: z.literal(LAUNCH_DATA_GENERATION), version: z.literal(1), snapshotId: z.string().min(1), capturedAt: z.string().min(1), revisionVector: z.record(z.string(), z.string()), sourceEvidence: SourceEvidenceSchema.optional() }).strict()
 export const HistoricalEvidenceSchema = z.object({ version: z.literal(1), snapshots: z.array(z.object({ id: digest }).strict()), blobs: z.array(WorkspaceBlobRefSchema) }).strict()
 export const SnapshotHeaderV2Schema = SnapshotHeaderSchema.extend({ version: z.literal(2), historicalEvidence: HistoricalEvidenceSchema })
+export const HistoricalMemberFormatSchema = z.enum(['legacy-v1', 'compact-v2'])
+export const HistoricalCatalogEvidenceSchema = z.strictObject({ version: z.literal(INHERITED_CATALOG_EVIDENCE_VERSION), snapshots: z.array(z.strictObject({ format: HistoricalMemberFormatSchema, id: digest })), blobs: z.array(WorkspaceBlobRefSchema), catalogBodies: z.array(CatalogBodyRefSchema) })
+export const SnapshotHeaderV3Schema = SnapshotHeaderSchema.extend({ version: z.literal(WORKSPACE_SNAPSHOT_CATALOG_VERSION), catalogBodies: z.array(CatalogBodyRefSchema), historicalEvidence: HistoricalCatalogEvidenceSchema.optional() })
 export const BackupFrameSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('content'), document: integer, key: z.string().min(1), encoding: z.enum(['deflate-json-tokens-v1', 'bytes']), schema: z.literal(1), chunk: integer, final: z.boolean(), length: integer.max(WORKSPACE_BACKUP_LIMITS.payload), digest }).strict(),
   z.object({ kind: z.literal('manifest'), dataGeneration: z.literal(LAUNCH_DATA_GENERATION), format: z.literal('crykit-workspace-backup'), version: z.literal(WORKSPACE_BACKUP_VERSION), frames: integer.max(WORKSPACE_BACKUP_LIMITS.frames), bytes: integer.max(WORKSPACE_BACKUP_LIMITS.bytes), documents: integer, chain: digest, vector: digest }).strict(),
 ])
 export const BackupManifestV2Schema = BackupFrameSchema.options[1].extend({ version: z.literal(WORKSPACE_BACKUP_EVIDENCE_VERSION) })
+export const BackupManifestV3Schema = BackupFrameSchema.options[1].extend({ version: z.literal(WORKSPACE_BACKUP_CATALOG_VERSION) })
 export type BackupManifestV2 = z.infer<typeof BackupManifestV2Schema>
 export type BackupFrame = z.infer<typeof BackupFrameSchema>
 export class WorkspaceBackupError extends Error {
