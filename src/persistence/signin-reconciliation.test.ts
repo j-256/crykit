@@ -293,6 +293,73 @@ it('paused replacement survives reload and exposes exact private backup and revi
   expect((await (await resumed.open()).readWorkspace()).planner.localData.modSetup?.state).toBe('completed')
   expect(await resumed.db.outbox.count()).toBe(0)
 })
+it.each([
+  ['latest', false], ['device', false], ['latest', true], ['device', true],
+] as const)('paused replacement %s after two pre-review groups checks post-review movement=%s', async (action, changed) => {
+  const fixture = await setup(), first = fixture.create()
+  await first.begin(fixture.device.token); await first.choose('device'); await first.confirm(); await first.dispose()
+  const other = await service!.device(1, workspace(createBlankLocalData({ now })))
+  await other.settle()
+  async function updateRemote(completed: boolean) {
+    const repo = await other.open(), remote = await repo.readWorkspace()
+    const localData = { ...remote.planner.localData }
+    if (completed) localData.modSetup = { version: 1, state: 'completed' }
+    else delete localData.modSetup
+    await repo.commitWorkspace({ ...remote, planner: { ...remote.planner, localData } }, remote.planner.localData.revision)
+  }
+  await updateRemote(true); await other.settle()
+  await updateRemote(false); await other.settle()
+  let publishAfterReview: (() => Promise<Response>) | undefined
+  if (changed) {
+    await updateRemote(true)
+    const fetch = globalThis.fetch
+    // Upload the real remote revision now, but admit its commit only after the paused review
+    // Replaying its request avoids switching the installed profile away from the live review owner
+    vi.stubGlobal('fetch', async (path: string, init: RequestInit) => {
+      if (path.endsWith('/commits') && JSON.parse(init.body as string).heads.length > 0) {
+        publishAfterReview = () => fetch(path, { ...init, signal: undefined })
+        throw new Error('deferred remote commit')
+      }
+      return fetch(path, init)
+    })
+    try { await expect(other.settle()).rejects.toThrow('deferred remote commit') }
+    finally { vi.stubGlobal('fetch', fetch) }
+  }
+  const resumed = await service!.device(0)
+  expect((await resumed.settle()).state).toBe('paused')
+  const controller = fixture.create(); await controller.begin(resumed.token)
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'choosing', replacement: { state: 'paused' } })
+  await controller.reviewReplacement(action)
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'confirming', action })
+  const before = await resumed.db.profileMeta.get('active'), outbox = await resumed.db.outbox.toArray()
+  const decision = await resumed.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)
+  if (changed) {
+    expect(publishAfterReview).toBeDefined()
+    const maxPublicationTurns = 240
+    let response = await publishAfterReview!()
+    // Publication closure may span service continuations; only its head receipt establishes movement
+    for (let turn = 1; response.status === 503 && turn < maxPublicationTurns; turn++) {
+      expect(await response.json()).toMatchObject({ error: { code: 'SERVICE_UNAVAILABLE', continuation: expect.any(Object) } })
+      response = await publishAfterReview!()
+    }
+    expect(response.status).toBe(200)
+    expect((await response.json()).heads.length).toBeGreaterThan(0)
+  }
+  await controller.confirm()
+  if (changed) {
+    expect(controller.getSnapshot()).toMatchObject({ phase: 'failed', reason: 'review-stale' })
+    expect(await resumed.db.profileMeta.get('active')).toEqual(before)
+    expect(await resumed.db.outbox.toArray()).toEqual(outbox)
+    expect(await resumed.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toEqual(decision)
+    expect(fixture.opens).toBe(1)
+  } else {
+    expect(controller.getSnapshot().phase).toBe('complete')
+    expect((await (await resumed.open()).readWorkspace()).planner.localData.playthroughs).toEqual(action === 'device' ? fixture.guest.planner.localData.playthroughs : {})
+    expect((await createReviewedReplacementService(resumed.db, resumed.token).status())?.state).toBe(action === 'device' ? 'active' : 'selected-latest')
+    expect(await resumed.db.outbox.count()).toBe(action === 'device' ? 1 : 0)
+    expect(fixture.opens).toBe(2)
+  }
+})
 it('cancelled prepared choices do not silently reopen as confirmation after reload', async () => {
   const fixture = await setup(), first = fixture.create()
   await first.begin(fixture.device.token); await first.choose('device'); await first.cancel(); await first.dispose()

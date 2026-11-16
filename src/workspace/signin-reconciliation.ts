@@ -284,10 +284,20 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   }
   async function freshReview() {
     if (!state.fresh || !review) throw new Error('ACCOUNT_PROJECTION_UNAVAILABLE')
+    if (state.replacement?.state === 'paused') {
+      // Paused branches retain an older selected cursor, so discovery replays pre-review groups
+      // Authenticate the full successor chain before comparing its final authority to the review
+      const latest = await service().refresh()
+      try {
+        check()
+        if (review.epoch !== latest.epoch || !jsonEqual(review.heads, latest.heads)) throw new Error('HEAD_CONFLICT')
+      } finally { await latest.dispose() }
+      return
+    }
     try { await service().assertUnchangedReview(review) }
     catch (error) { if (error instanceof Error && error.message === 'REPLACEMENT_REVIEW_REQUIRED') throw new Error('HEAD_CONFLICT'); throw error }
     check()
-    if (state.replacement?.state !== 'paused') await requireSelectedReview(review)
+    await requireSelectedReview(review)
   }
   async function verifyCompletedDecision() {
     if (!await database!.profileMeta.get('active')) throw new Error('ACCOUNT_PROJECTION_UNAVAILABLE')
