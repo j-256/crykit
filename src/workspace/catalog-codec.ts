@@ -7,6 +7,7 @@ import type { CatalogSnapshot } from '../domain/types'
 import { immutableCatalogSnapshot, isImmutableCatalogSnapshot } from '../interchange/native'
 
 const SOURCE_PAGE_BYTES = 1024 * 1024
+const CATALOG_COMPRESSION_SLICE_MS = 16
 const BASE64_SLICE_BYTES = 32 * 1024
 const BASE64_GROUP_CHARACTERS = 4
 const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
@@ -48,23 +49,57 @@ function sameCatalogJson(left: unknown, right: unknown): boolean {
   const other = Object.entries(right).filter(([, value]) => value !== undefined)
   return entries.length === other.length && entries.every(([key, value]) => Object.hasOwn(right, key) && sameCatalogJson(value, (right as Record<string, unknown>)[key]))
 }
-export function encodeCatalogPayload(snapshot: CatalogSnapshot): CompressedCatalog {
+function cachedCatalogPayload(snapshot: CatalogSnapshot): CompressedCatalog | undefined {
   const exact = BUNDLED_CATALOGS.find(value => value.id === snapshot.id && value.revisionId === snapshot.revisionId && value.checksum === snapshot.checksum)
   if (exact && snapshot !== exact && !corroborated.has(snapshot)) {
     if (!sameCatalogJson(snapshot, exact)) throw new Error('Packaged catalog identity has conflicting contents')
     immutableCatalogSnapshot(snapshot); corroborated.add(snapshot)
   }
-  const cached = isImmutableCatalogSnapshot(snapshot) && encodedCatalogs.get(snapshot)
-  if (cached) return cached
+  return isImmutableCatalogSnapshot(snapshot) ? encodedCatalogs.get(snapshot) : undefined
+}
+function catalogPayloadBytes(snapshot: CatalogSnapshot): Uint8Array {
   // Every page contains actual source bytes; package removal cannot remove saved definitions
   // The existing bounded canonical compression codec fixes both its interpretation and inflation limits
   const bytes = new TextEncoder().encode(JSON.stringify(snapshot))
   if (bytes.length > maxDocumentBytes) throw new Error('Catalog snapshot exceeds its expanded bound')
-  const pages: string[] = []
-  for (let at = 0; at < bytes.length; at += SOURCE_PAGE_BYTES) pages.push(base64(encodeBackupPage(bytes.subarray(at, at + SOURCE_PAGE_BYTES))))
+  return bytes
+}
+function finishCatalogPayload(bytes: Uint8Array, pages: string[]): CompressedCatalog {
   const encoded = CompressedCatalogSchema.parse({ version: 1, kind: 'compressed-catalog-snapshot', encoding: 'deflate-json-pages-v1', byteLength: bytes.length, pages })
   Object.freeze(encoded.pages); Object.freeze(encoded)
+  return encoded
+}
+export function encodeCatalogPayload(snapshot: CatalogSnapshot): CompressedCatalog {
+  const cached = cachedCatalogPayload(snapshot)
+  if (cached) return cached
+  const bytes = catalogPayloadBytes(snapshot), pages: string[] = []
+  for (let at = 0; at < bytes.length; at += SOURCE_PAGE_BYTES) pages.push(base64(encodeBackupPage(bytes.subarray(at, at + SOURCE_PAGE_BYTES))))
+  const encoded = finishCatalogPayload(bytes, pages)
   if (isImmutableCatalogSnapshot(snapshot)) encodedCatalogs.set(snapshot, encoded)
+  return encoded
+}
+
+// Fresh account opening prepares the identical self-contained frame before entering durable initialization
+// The initial private brand fixes every source value across yields; partial pages never enter the cache
+export async function prepareCatalogPayload(snapshot: CatalogSnapshot, check: () => void): Promise<CompressedCatalog> {
+  check()
+  if (!isImmutableCatalogSnapshot(snapshot)) throw new Error('Catalog preparation requires an immutable catalog')
+  await new Promise<void>(resolve => setTimeout(resolve, 0)); check()
+  const cached = cachedCatalogPayload(snapshot)
+  if (cached) return cached
+  const bytes = catalogPayloadBytes(snapshot), pages: string[] = []
+  await new Promise<void>(resolve => setTimeout(resolve, 0)); check()
+  let lastYield = -Infinity
+  for (let at = 0; at < bytes.length; at += SOURCE_PAGE_BYTES) {
+    pages.push(base64(encodeBackupPage(bytes.subarray(at, at + SOURCE_PAGE_BYTES))))
+    if (performance.now() - lastYield >= CATALOG_COMPRESSION_SLICE_MS) {
+      check(); await new Promise<void>(resolve => setTimeout(resolve, 0)); check()
+      lastYield = performance.now()
+    }
+  }
+  const encoded = finishCatalogPayload(bytes, pages)
+  check()
+  encodedCatalogs.set(snapshot, encoded)
   return encoded
 }
 export function decodeCatalogPayload(value: unknown, reserveExpanded?: (bytes: number) => void): unknown {

@@ -1274,3 +1274,23 @@ it('cancels real account capture between catalog digest slices without changing 
   expect(await f.device.db.syncState.get('signin-receipt:decision')).toBeUndefined()
   expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
 })
+
+it('cancels fresh account preflight through the real coordinator without selecting an account head', async () => {
+  const fixture = await setup(), database = fixture.device.db
+  await database.transaction('rw', database.tables, async () => { for (const table of database.tables) await table.clear() })
+  const payload = await import('../domain/source-fulfillment'), prepare = payload.prepareSourcePayloadValidation
+  let entered!: () => void, release!: () => void
+  const waiting = new Promise<void>(resolve => { entered = resolve }), held = new Promise<void>(resolve => { release = resolve })
+  vi.spyOn(payload, 'prepareSourcePayloadValidation').mockImplementation(async (catalog, check) => { entered(); await held; return prepare(catalog, check) })
+  const controller = fixture.create(), beginning = controller.begin(fixture.device.token)
+  await waiting
+  const cancelling = controller.cancel()
+  release()
+  await Promise.all([beginning, cancelling])
+  expect(fixture.locals).toBe(1)
+  expect(await database.profileMeta.get('active')).toBeUndefined()
+  expect(await database.outbox.count()).toBe(0)
+  expect(await database.migrationJournal.count()).toBe(0)
+  expect(await database.encryptedRevisions.count()).toBe(0)
+  expect(await database.syncState.get('guest-copy:pending')).toBeUndefined()
+})

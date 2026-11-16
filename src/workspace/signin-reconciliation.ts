@@ -249,7 +249,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     preparationStage('opening-account')
     if (!await database!.profileMeta.get('active')) {
       const { openAccountRepository } = await import('./account-repository')
-      await openAccountRepository(token)
+      await openAccountRepository(token, lifetime.signal)
     }
     check()
     await selectedProjection()

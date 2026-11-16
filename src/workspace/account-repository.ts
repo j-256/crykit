@@ -12,8 +12,9 @@ import { admitLocalRoot } from './local-root'
 
 // New accounts retain the complete starting collection; saved graphs keep their exact source bodies
 const INITIAL_ACCOUNT_CATALOGS = BUNDLED_CATALOGS
-export async function openAccountRepository(token: ProfileToken): Promise<WorkspaceRepository> {
-  assertActiveProfile(token)
+export async function openAccountRepository(token: ProfileToken, signal?: AbortSignal): Promise<WorkspaceRepository> {
+  const check = () => { assertActiveProfile(token); signal?.throwIfAborted() }
+  check()
   const database = new AccountDatabase(token.accountId)
   try {
     const { isManagedAccountHead } = await import('./account-sync-capture')
@@ -24,11 +25,21 @@ export async function openAccountRepository(token: ProfileToken): Promise<Worksp
       const { initializeAccountWorkspace } = await import('./account-initialization')
       const localData = createBlankLocalData()
       const state: WorkspaceState = { planner: { localData, lineage: { rootLocalDataId: localData.id }, catalogs: INITIAL_ACCOUNT_CATALOGS, evidence: [], sources: [], history: [] }, editorDocuments: [], saveDocuments: [], assets: [], libraryDefaults: { version: 1, layers: [] }, conflicts: [], retainedContent: [], blobs: [] }
-      selected = await initializeAccountWorkspace(database, token, state)
+      // Prepare exact source checksums and frame pages outside initialization's durable staging
+      // The frozen bundled collection owns these values across yields; IDs alone grant no reuse
+      const { prepareSourcePayloadValidation } = await import('../domain/source-fulfillment')
+      const { prepareCatalogPayload } = await import('./catalog-codec')
+      check()
+      for (const catalog of INITIAL_ACCOUNT_CATALOGS) {
+        if (!await prepareSourcePayloadValidation(catalog, check)) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'An initial catalog has invalid source contents.')
+        await prepareCatalogPayload(catalog, check)
+      }
+      check()
+      selected = await initializeAccountWorkspace(database, token, state, check)
     }
     if (!selected) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'No active encrypted workspace is available.')
     if (!await isManagedAccountHead(database, token, selected)) throw new WorkspaceError('LOCAL_INTEGRITY_FAILED', 'This encrypted workspace uses an unsupported prelaunch format.')
-    assertActiveProfile(token)
+    check()
     return await openAccountManagedRepository(database, token, selected)
   } catch (error) { database.close(); throw error }
 }

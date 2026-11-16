@@ -43,3 +43,15 @@ export function checkpointContentDigest(value: unknown): string {
   }
   return Array.from(hash, word => word.toString(16).padStart(8, '0')).join('')
 }
+
+// Capture the same canonical bytes before yielding; native transaction callers keep the synchronous path
+export async function checkpointContentDigestAsync(value: unknown, check: () => void): Promise<string> {
+  check()
+  const input = new TextEncoder().encode(JSON.stringify(canonical(value)))
+  check()
+  await new Promise<void>(resolve => setTimeout(resolve, 0))
+  check()
+  const digest = await crypto.subtle.digest('SHA-256', input)
+  check()
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+}
