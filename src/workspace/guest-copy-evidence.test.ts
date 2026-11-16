@@ -41,3 +41,23 @@ it('rejects damaged stored current metadata even when the source owner remains l
     await expect(evidence.guestEvidenceForCopy(source)).rejects.toThrow()
   } finally { await disposeWorkspaceSnapshot(source) }
 })
+
+it('still checks registered original token pages after live metadata admission', async () => {
+  const { installProfile, invalidateProfile, profileSignal } = await import('../account/profile')
+  const { admitWorkspaceMetadata, createMergeOperationScope, validateSnapshotBodies } = await import('./snapshot-admission')
+  const token = installProfile('copy-evidence-admission', crypto.getRandomValues(new Uint8Array(32)))
+  const fixture = await editorClosureFixture()
+  const source = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'live-token-pages', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: fixture.state }, { async check() {}, async dispose() {} })
+  const scope = createMergeOperationScope(token, profileSignal(token), async () => {})
+  const pages = [...encodeBackupJson(snapshotMetadata(source), LEGACY_METADATA_PAGE_BYTES)]
+  let damaged = false
+  registerBackupMetadata(source, { byteLength: pages.reduce((sum, page) => sum + page.length, 0), async *open() { for (const page of pages) { const bytes = page.slice(); if (damaged) bytes[0] ^= 1; yield bytes } } })
+  try {
+    const admitted = await admitWorkspaceMetadata(source, scope)
+    await evidence.guestEvidenceForCopy(source)
+    damaged = true
+    // Frozen current metadata and healthy body streams do not certify stored original token pages
+    await validateSnapshotBodies(admitted)
+    await expect(evidence.guestEvidenceForCopy(source)).rejects.toThrow()
+  } finally { scope.dispose(); await disposeWorkspaceSnapshot(source); invalidateProfile() }
+})

@@ -564,7 +564,7 @@ it.each(['choose', 'confirm'] as const)('shows preparation while %s refreshes it
   const held = new Promise<void>(resolve => { release = resolve })
   const spy = vi.spyOn(replacements, 'createReviewedReplacementService').mockImplementation((...args) => {
     const service = create(...args)
-    return { ...service, async refresh() { entered(); await held; return service.refresh() } }
+    return { ...service, async assertUnchangedReview(handle) { entered(); await held; return service.assertUnchangedReview(handle) } }
   })
   const running = action === 'choose' ? controller.choose('device') : controller.confirm()
   try {
@@ -974,4 +974,86 @@ it('Confirm refuses a preparing receipt changed after staging even when operatio
   expect(await fixture.device.db.profileMeta.get('active')).toEqual(before)
   expect(await fixture.device.db.migrationJournal.get(copyId)).toBeUndefined()
   expect(await fixture.device.db.outbox.count()).toBe(0)
+})
+
+it('unchanged Merge review reuses the admitted account snapshot through Confirm', async () => {
+  const managed = await import('../workspace/managed-guest-copy')
+  const stage = vi.spyOn(managed, 'stageManagedGuestCopy'), reopen = vi.spyOn(managed, 'activateManagedGuestCopy')
+  const snapshots = await import('../workspace/account-snapshot')
+  const capture = vi.spyOn(snapshots, 'captureAccountSnapshot')
+  const fixture = await setup(), controller = fixture.create()
+  await controller.begin(fixture.device.token)
+  expect(controller.getSnapshot().phase).toBe('choosing')
+  const captures = capture.mock.calls.length
+  await controller.choose('merge')
+  expect(controller.getSnapshot().phase).toBe('confirming')
+  expect(capture.mock.calls.length).toBe(captures)
+  await controller.confirm()
+  expect(controller.getSnapshot().phase).toBe('complete')
+  expect(capture.mock.calls.length).toBe(captures)
+  expect(stage).toHaveBeenCalledTimes(1)
+  expect(reopen).not.toHaveBeenCalled()
+})
+
+it('reuses one selected source across live reviews while rechecking bodies before preparation', async () => {
+  const fixture = await setup(), controller = fixture.create()
+  await controller.begin(fixture.device.token)
+  const token = fixture.device.token, account = await createReviewedReplacementService(fixture.device.db, token).refresh()
+  const { createGuestCopyService } = await import('../workspace/guest-copy')
+  const snapshots = await import('../workspace/snapshot'), owned = vi.spyOn(snapshots, 'ownWorkspaceSnapshot')
+  const copy = createGuestCopyService(async () => (await fixture.options.captureGuest!())!)
+  try {
+    const first = await copy.previewSigninMergeReview(token, account)
+    const second = await copy.previewSigninMergeReview(token, account)
+    expect(second.preview.selectedKeys).toEqual(first.preview.selectedKeys)
+    expect(owned.mock.calls.filter(([snapshot]) => snapshot.snapshotId.endsWith(':selection'))).toHaveLength(1)
+    await first.dispose(); await second.dispose()
+  } finally { await copy.dispose(); await account.dispose() }
+})
+
+it.each(['foreign', 'disposed', 'fence', 'body', 'epoch', 'high-water', 'intermediate'] as const)('unchanged account review rejects %s without selecting or preparing anything', async mode => {
+  const fixture = await setup(), controller = fixture.create()
+  await controller.begin(fixture.device.token)
+  const database = fixture.device.db, token = fixture.device.token
+  const replacements = createReviewedReplacementService(database, token), review = await replacements.refresh()
+  const before = await database.profileMeta.get('active'), outbox = await database.outbox.toArray()
+  try {
+    let handle = review
+    if (mode === 'foreign') handle = { ...review }
+    if (mode === 'disposed') await review.dispose()
+    if (mode === 'fence') await database.profileMeta.put({ ...before!, headRevision: before!.headRevision + 1 })
+    if (mode === 'body') {
+      const unit = review.snapshot.sourceEvidence!.units[0]
+      const record = (await database.encryptedRevisions.get(unit.source.revisionId))!
+      const chunk = (await database.stagedCipherChunks.get([record.payloadId, 0]))!
+      const bytes = chunk.bytes.slice(); bytes[0] ^= 1
+      await database.stagedCipherChunks.put({ ...chunk, bytes })
+    }
+    if (mode === 'epoch' || mode === 'high-water') {
+      const { SyncClient } = await import('../account/sync/client'), changes = SyncClient.prototype.changes
+      vi.spyOn(SyncClient.prototype, 'changes').mockImplementation(async function(this: InstanceType<typeof SyncClient>, cursor) {
+        const page = await changes.call(this, cursor)
+        return { ...page, ...(mode === 'epoch' ? { publicationEpoch: page.publicationEpoch + 1 } : { watermark: 0, publicationEpoch: 0 }) }
+      })
+    }
+    if (mode === 'intermediate') {
+      const pull = await import('../account/sync/pull'), stage = pull.stagePull
+      vi.spyOn(pull, 'stagePull').mockImplementation(async (db, profile, client, validate, budget) => stage(db, profile, client, async heads => {
+        // Exercise the guarded complete-group consumer with a transient extra head followed by the original map
+        // If the first callback were skipped, the final heads and epoch would still appear unchanged
+        const changed = new Map(heads); changed.set('transient-head', 'transient-revision')
+        await validate(changed)
+        await validate(heads)
+      }, budget))
+    }
+    await expect(replacements.assertUnchangedReview(handle)).rejects.toThrow()
+    if (mode === 'epoch' || mode === 'intermediate') {
+      vi.restoreAllMocks()
+      await expect(replacements.assertUnchangedReview(review)).rejects.toThrow('REPLACEMENT_REVIEW_REQUIRED')
+    }
+    expect(await database.profileMeta.get('active')).toEqual(mode === 'fence' ? { ...before!, headRevision: before!.headRevision + 1 } : before)
+    expect(await database.outbox.toArray()).toEqual(outbox)
+    expect(await database.syncState.get('guest-copy:pending')).toBeUndefined()
+    expect(await database.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toBeUndefined()
+  } finally { await review.dispose() }
 })

@@ -1,3 +1,4 @@
+import { createMergeOperationScope, type MergeOperationScope } from './snapshot-admission'
 import { beginSigninMergeDiagnostics, type SigninMergeStage } from './signin-merge-diagnostics'
 import { z } from 'zod'
 import { assertActiveProfile, onProfileSessionChange, profileSignal, type ProfileToken } from '../account/profile'
@@ -142,6 +143,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   const listeners = new Set<() => void>()
   let token: ProfileToken, database: AccountDatabase | undefined
   let source: GuestCopySource | undefined, identity: StableWorkspaceSnapshotIdentity | null = null
+  let sourceScope: MergeOperationScope | undefined
   let review: ReviewedAccountData | undefined, copy: ReturnType<typeof createGuestCopyService> | undefined
   // This owner is deliberately absent from storage until Confirm; reload must ask again
   let pendingMerge: { readonly review: SigninMergeReview; readonly decision: SigninDecision; readonly expected?: EncryptedSyncState } | undefined
@@ -179,6 +181,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   }
   async function releaseReview() { const old = review; review = undefined; await old?.dispose() }
   async function releaseSource() {
+    sourceScope?.dispose(); sourceScope = undefined
     await preparedMerge?.dispose(); preparedMerge = undefined
     await pendingMerge?.review.dispose(); pendingMerge = undefined
     await copy?.dispose(); copy = undefined
@@ -277,16 +280,14 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     publish({ fresh: true, account: summarize(review.snapshot.state), replacement })
   }
   async function currentSource() {
-    if (!source || !identity || !jsonEqual(await stableWorkspaceSnapshotIdentity(source.snapshot), identity)) throw new Error('SIGNIN_SOURCE_CHANGED')
+    if (!source || !identity || !jsonEqual(await stableWorkspaceSnapshotIdentity(source.snapshot, sourceScope), identity)) throw new Error('SIGNIN_SOURCE_CHANGED')
   }
   async function freshReview() {
     if (!state.fresh || !review) throw new Error('ACCOUNT_PROJECTION_UNAVAILABLE')
-    const latest = await service().refresh()
-    try {
-      check()
-      if (state.replacement?.state !== 'paused') await requireSelectedReview(latest)
-      if (review.epoch !== latest.epoch || !jsonEqual(review.heads, latest.heads)) throw new Error('HEAD_CONFLICT')
-    } finally { await latest.dispose() }
+    try { await service().assertUnchangedReview(review) }
+    catch (error) { if (error instanceof Error && error.message === 'REPLACEMENT_REVIEW_REQUIRED') throw new Error('HEAD_CONFLICT'); throw error }
+    check()
+    if (state.replacement?.state !== 'paused') await requireSelectedReview(review)
   }
   async function verifyCompletedDecision() {
     if (!await database!.profileMeta.get('active')) throw new Error('ACCOUNT_PROJECTION_UNAVAILABLE')
@@ -309,9 +310,10 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     try {
       preparationStage('reading-source')
       source = await (options.captureGuest ?? captureExistingGuestWorkspaceForSignin)(); check()
-      identity = source ? await stableWorkspaceSnapshotIdentity(source.snapshot) : null
+      sourceScope = source ? createMergeOperationScope(token, lifetime.signal, async () => { check() }) : undefined
+      identity = source ? await stableWorkspaceSnapshotIdentity(source.snapshot, sourceScope) : null
       check(); publish({ source: source ? 'available' : 'absent', local: source ? summarize(source.snapshot.state) : undefined })
-    } catch (error) { check(); if (source) await disposeWorkspaceSnapshot(source.snapshot); source = undefined; identity = null; publish({ source: 'unavailable', local: undefined }); if (error instanceof Error && error.message === 'PROFILE_CHANGED') throw error }
+    } catch (error) { check(); sourceScope?.dispose(); sourceScope = undefined; if (source) await disposeWorkspaceSnapshot(source.snapshot); source = undefined; identity = null; publish({ source: 'unavailable', local: undefined }); if (error instanceof Error && error.message === 'PROFILE_CHANGED') throw error }
     check()
     void cleanupRecoveries()
     const matches = state.source !== 'unavailable' && saved && jsonEqual(saved.value.source, identity)
@@ -337,7 +339,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       if (preparation && saved!.value.action === 'device' && state.replacement?.state !== 'paused'
         && (!jsonEqual(preparation.sourceVector, identity?.revisionVector) || preparation.sourceIdentity !== identity?.metadataDigest)) throw new Error('SIGNIN_SOURCE_CHANGED')
       if (saved!.value.action === 'merge') {
-        copy = createGuestCopyService(async () => { await currentSource(); return source! }, check)
+        copy = createGuestCopyService(async () => { await currentSource(); return source! }, check, sourceScope)
         publish({ phase: 'preparing' }); preparationStage('comparing-records')
         const preview = await copy.previewSigninMerge(token, saved!.value.copyId)
         check(); publish({ phase: 'confirming', action: 'merge', preview })
@@ -374,7 +376,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       await pendingMerge?.review.dispose(); pendingMerge = undefined
       const value: SigninDecision = { version: 1, kind: 'signin-decision', accountId: token.accountId, source: identity, action, operationId: accountLocalId(), status: 'preparing' }
       if (action === 'merge') {
-        copy ??= createGuestCopyService(async () => { await currentSource(); return source! }, check)
+        copy ??= createGuestCopyService(async () => { await currentSource(); return source! }, check, sourceScope)
         preparationStage('comparing-records')
         const mergeReview = await copy.previewSigninMergeReview(token, review!)
         value.copyId = mergeReview.preview.copyId

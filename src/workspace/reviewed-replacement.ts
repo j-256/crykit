@@ -1,3 +1,4 @@
+import { admitWorkspaceMetadata, createMergeOperationScope, metadataAdmissionFacts, validateSnapshotBodies, type MergeOperationScope, type WorkspaceMetadataAdmission } from './snapshot-admission'
 import { z } from 'zod'
 import { assertActiveProfile, profileSignal, type ProfileToken } from '../account/profile'
 import { CommitRequestSchema, OpaqueIdSchema, type CommitRequest } from '../account/protocol'
@@ -41,7 +42,12 @@ export const ReviewedReplacementSchema = z.strictObject({
   pauseReason: z.enum(['remote-advanced', 'head-conflict']).optional(),
 })
 export interface StableWorkspaceSnapshotIdentity { readonly revisionVector: Readonly<Record<string, string>>; readonly metadataDigest: string }
-export async function stableWorkspaceSnapshotIdentity(snapshot: WorkspaceSnapshot): Promise<StableWorkspaceSnapshotIdentity> {
+export async function stableWorkspaceSnapshotIdentity(snapshot: WorkspaceSnapshot, scope?: MergeOperationScope): Promise<StableWorkspaceSnapshotIdentity> {
+  if (scope) {
+    const admission = await admitWorkspaceMetadata(snapshot, scope)
+    await validateSnapshotBodies(admission)
+    return (await metadataAdmissionFacts(admission, snapshot, scope)).identity
+  }
   await assertOwnedWorkspaceSnapshot(snapshot)
   await validateWorkspaceSnapshot(snapshot)
   await assertWorkspaceSnapshotCurrent(snapshot)
@@ -153,8 +159,10 @@ interface Review {
   readonly database: AccountDatabase; readonly token: ProfileToken; readonly fence: AccountFence
   readonly candidate: PullCandidate; readonly projection: RemoteProjection; readonly captured: Awaited<ReturnType<typeof captureAccountReviewWorkspace>>
   readonly previous?: StoredReviewedReplacement; readonly snapshot: WorkspaceSnapshot
+  readonly scope: MergeOperationScope; readonly admission: WorkspaceMetadataAdmission
   readonly pendingSources: Set<() => Promise<void>>
   disposed: boolean
+  stale: boolean
 }
 const reviews = new WeakMap<ReviewedAccountData, Review>()
 // Merge review borrows this exact live account capture, never an equivalent public descriptor
@@ -162,7 +170,7 @@ const reviews = new WeakMap<ReviewedAccountData, Review>()
 export async function assertReviewedAccountData(token: ProfileToken, handle: ReviewedAccountData, expected?: AccountFence): Promise<void> {
   assertActiveProfile(token)
   const review = reviews.get(handle)
-  if (!review || review.disposed || review.token !== token) throw new Error('SIGNIN_REVIEW_REQUIRED')
+  if (!review || review.disposed || review.stale || review.token !== token) throw new Error('SIGNIN_REVIEW_REQUIRED')
   await assertOwnedWorkspaceSnapshot(review.snapshot)
   await assertWorkspaceSnapshotCurrent(review.snapshot)
   if (!same(await review.database.profileMeta.get('active'), review.fence) || expected && !same(expected, review.fence)) throw new Error('LOCAL_REVISION_CONFLICT')
@@ -228,6 +236,7 @@ export function createReviewedReplacementService(database: AccountDatabase, toke
   const ownedReview = (handle: ReviewedAccountData): Review => {
     const review = reviews.get(handle)
     if (!review || review.disposed || review.database !== database || review.token !== token) throw new SyncError('LOCAL_INTEGRITY_FAILED')
+    if (review.stale) throw new SyncError('REPLACEMENT_REVIEW_REQUIRED')
     return review
   }
   async function refresh(): Promise<ReviewedAccountData> {
@@ -235,6 +244,7 @@ export function createReviewedReplacementService(database: AccountDatabase, toke
     if (!fence) throw new SyncError('LOCAL_INTEGRITY_FAILED')
     const captured = await captureAccountReviewWorkspace(database, token, fence, signal)
     let snapshot: WorkspaceSnapshot | undefined
+    let scope: MergeOperationScope | undefined
     try {
       // A completed unactivated scan is a snapshot, not evidence that the account stayed unchanged
       // Restart discovery from the last selected remote floor and validate every complete group again
@@ -260,7 +270,9 @@ export function createReviewedReplacementService(database: AccountDatabase, toke
       if (!validated) throw new SyncError('ACCOUNT_PROJECTION_UNAVAILABLE')
       const previous = await readReviewedReplacement(database, token)
       snapshot = await captureAccountSnapshot(validated.workspace, { ...fence, head: validated.workspace.head }, () => check(fence), { database, token, validatedEvidence: captured.validatedEvidence })
-      const review: Review = { database, token, fence, captured, candidate, projection: validated, snapshot, previous, pendingSources: new Set(), disposed: false }
+      scope = createMergeOperationScope(token, signal, () => check(fence))
+      const admission = await admitWorkspaceMetadata(snapshot, scope)
+      const review: Review = { database, token, fence, captured, candidate, projection: validated, snapshot, previous, scope, admission, pendingSources: new Set(), disposed: false, stale: false }
       const releaseSnapshot = retryableRelease(() => disposeWorkspaceSnapshot(review.snapshot))
       const releaseCapture = retryableRelease(() => captured.dispose())
       const release = retryableRelease(async () => {
@@ -271,12 +283,48 @@ export function createReviewedReplacementService(database: AccountDatabase, toke
         } finally { try { await releaseSnapshot() } finally { await releaseCapture() } }
       })
       const handle: ReviewedAccountData = Object.freeze({ epoch: candidate.state.publicationEpoch, heads: Object.freeze(refs(candidate.heads)), snapshot, dispose() {
-        review.disposed = true
+        review.disposed = true; review.scope.dispose()
         return release()
       } })
       reviews.set(handle, review)
       return handle
-    } catch (error) { if (snapshot) await disposeWorkspaceSnapshot(snapshot); await captured.dispose(); throw error }
+    } catch (error) { scope?.dispose(); if (snapshot) await disposeWorkspaceSnapshot(snapshot); await captured.dispose(); throw error }
+  }
+  async function assertUnchangedReview(handle: ReviewedAccountData): Promise<void> {
+    const review = ownedReview(handle)
+    const stale = (): never => { review.stale = true; throw new SyncError('REPLACEMENT_REVIEW_REQUIRED') }
+    const current = async () => {
+      ownedReview(handle)
+      await assertReviewedAccountData(token, handle, review.fence)
+      if (!same(await database.syncState.get(REVIEWED_REPLACEMENT_KEY), review.previous?.row)) throw new SyncError('LOCAL_REVISION_CONFLICT')
+      ownedReview(handle)
+    }
+    await current()
+    // A completed scan can describe an old remote snapshot, so retire it under CAS
+    // Discovery still owns high-water, cursor and complete-group validation through stagePull
+    const scan = await database.syncState.get('scan')
+    await database.transaction('rw', database.syncState, async () => {
+      assertActiveProfile(token)
+      if (!same(await database.syncState.get('scan'), scan)) throw new SyncError('LOCAL_REVISION_CONFLICT')
+      await database.syncState.delete('scan')
+    })
+    let candidate: PullCandidate | null = null
+    while (!candidate) {
+      await current()
+      candidate = await stagePull(database, token, new SyncClient(token, signal), async heads => {
+        // Even a transient complete group invalidates this approval; later reversion cannot renew it
+        if (!same(refs(heads), refs(review.candidate.heads))) stale()
+        await current()
+        // Captured backup frames can be materialized memory views, not live ciphertext readers
+        // Reopen native evidence too: a retained evidence owner checks lifetime, not stored token pages
+        const physical = await openRemoteProjection(database, token, heads, review.captured.workspace.head, review.captured.operativePlanner.localData.revision)
+        if (!physical) throw new SyncError('ACCOUNT_PROJECTION_UNAVAILABLE')
+        await validateSnapshotBodies(review.admission)
+        await current()
+      }, transferBudget())
+    }
+    if (candidate.state.publicationEpoch !== review.candidate.state.publicationEpoch || !same(refs(candidate.heads), refs(review.candidate.heads)) || !same(candidate.previous, review.candidate.previous)) stale()
+    await current()
   }
   async function assertFresh(review: Review) {
     await check(review.fence)
@@ -467,5 +515,5 @@ export function createReviewedReplacementService(database: AccountDatabase, toke
     }
     return values
   }
-  return { refresh, prepare, activate, approve, prepareLatest, useLatest, preparations, status: async () => (await readReviewedReplacement(database, token))?.value }
+  return { refresh, assertUnchangedReview, prepare, activate, approve, prepareLatest, useLatest, preparations, status: async () => (await readReviewedReplacement(database, token))?.value }
 }
