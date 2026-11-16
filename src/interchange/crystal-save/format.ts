@@ -1,4 +1,4 @@
-export const CRYSTAL_SAVE_VERSION = 28
+export const CRYSTAL_SAVE_VERSION = 29
 
 export const CRYSTAL_SAVE_MIN_VERSION = 0
 
@@ -25,7 +25,7 @@ export const CRYSTAL_SAVE_LIMITS = Object.freeze({
 
 export const MEMBER_COUNT = 4
 
-export const FORMAT = Object.freeze({ demo: 4, difficulty: 12, flags: 14, newGamePlus: 16, patchMode: 17, hardcore: 21, mods: 24, modIds: 25, animationIds: 27, savedDate: 28 })
+export const FORMAT = Object.freeze({ demo: 4, difficulty: 12, flags: 14, newGamePlus: 16, patchMode: 17, hardcore: 21, mods: 24, modIds: 25, animationIds: 27, savedDate: 28, homePointId: 29 })
 
 // Version and the version-gated booleans stay outside the XOR-obfuscated payload
 export function prefixBytes(version: number): number { return 1 + Number(version >= FORMAT.demo) + Number(version >= FORMAT.hardcore) }

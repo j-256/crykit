@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BATTLE_RESOURCES, PERMANENT_STATUS_COUNT } from '../domain/battle-plan'
+import { BATTLE_RESOURCES, PERMANENT_STATUS_COUNT, unknownBattleResources } from '../domain/battle-plan'
 import { logicalEntityKey } from '../domain/definitions'
 import { entityDefinitionKey } from '../domain/core'
 import { MAX_NATIVE_INTEGER } from '../domain/native-number'
@@ -137,31 +137,33 @@ function ResourceMaximums({ label, value }: { readonly label: string; readonly v
   </dl>
 }
 
-function ResourceInputs({ label, value, maximum, onChange }: {
+function ResourceInputs({ label, value, maximum, onChange, turnStart = false }: {
   readonly label: 'Actor' | 'Target'
+  readonly turnStart?: boolean
   readonly value: BattleResourceInputs
   readonly maximum: BattleResourceInputs | null
   readonly onChange?: (value: BattleResourceInputs) => void
 }) {
+  const resourceLabel = turnStart ? `${label} turn-start` : `${label} current`
   const useFullResources = () => {
     if (!maximum || !onChange) return
     const next = { ...value }
     for (const resource of BATTLE_RESOURCES) next[resource] = maximum[resource] ?? value[resource]
     onChange(next)
   }
-  return <details className="battle-resources" aria-label={`${label} resources`}>
+  return <details className="battle-resources" aria-label={`${label}${turnStart ? ' turn-start' : ''} resources`}>
     <summary>
-      <span>Resources</span>
+      <span>{turnStart ? 'Turn-start resources' : 'Resources'}</span>
       {BATTLE_RESOURCES.some(resource => value[resource] !== null) && <small className="battle-resources__values">{BATTLE_RESOURCES.map(resource => `${resource.toUpperCase()} ${numberText(value[resource])}`).join(' · ')}</small>}
     </summary>
     <div className="stack">
-      <p className="field__hint">{onChange ? 'Optional. Enter current resources when an ability needs them; leave blank if unknown.' : 'Current resources are assumptions for this scenario.'}</p>
-      {onChange && <Button tone="quiet" type="button" disabled={!maximum || Object.values(maximum).every(value => value === null)} onClick={useFullResources}>Use full {label.toLowerCase()} resources</Button>}
+      <p className="field__hint">{turnStart ? 'Resources captured at action start. Leave blank if unknown.' : onChange ? 'Optional. Enter current resources when an ability needs them; leave blank if unknown.' : 'Current resources are assumptions for this scenario.'}</p>
+      {onChange && !turnStart && <Button tone="quiet" type="button" disabled={!maximum || Object.values(maximum).every(value => value === null)} onClick={useFullResources}>Use full {label.toLowerCase()} resources</Button>}
       <div className="battle-input-grid">
-        {BATTLE_RESOURCES.map(resource => <Field key={resource} label={`${label} current ${resource.toUpperCase()}`}>
+        {BATTLE_RESOURCES.map(resource => <Field key={resource} label={`${resourceLabel} ${resource.toUpperCase()}`}>
           {onChange ? <input
-            aria-label={`${label} current ${resource.toUpperCase()}`}
-            data-battle-field={`${label.toLowerCase()}.${resource}`}
+            aria-label={`${resourceLabel} ${resource.toUpperCase()}`}
+            data-battle-field={`${label.toLowerCase()}${turnStart ? '-turn-start' : ''}.${resource}`}
             min="0"
             max={maximum?.[resource] ?? MAX_NATIVE_INTEGER}
             type="number"
@@ -192,6 +194,7 @@ export function BattleCalculationControls({ battle, maxima, onChange, ...context
         </div>
         <ResourceMaximums label="Actor" value={maxima.user}/>
         <ResourceInputs label="Actor" value={battle.user} maximum={maxima.user} onChange={onChange ? user => update({ user }) : undefined}/>
+        <ResourceInputs label="Actor" turnStart value={battle.userTurnStart ?? unknownBattleResources()} maximum={null} onChange={onChange ? userTurnStart => update({ userTurnStart }) : undefined}/>
         <details>
           <summary data-battle-field="actor-statuses">Actor statuses · {battle.statuses.length}</summary>
           <StatusInputs {...context} label="Actor statuses" rows={battle.statuses} onChange={onChange ? statuses => update({ statuses }) : undefined}/>

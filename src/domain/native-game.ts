@@ -1,6 +1,7 @@
 import type { CatalogEntity, CatalogEntityKind, CatalogId, CatalogRevisionId, CatalogSnapshot, EntityId, GameSetupRevision, JsonValue, Knowledge, SourceRef, Timestamp } from './types'
 import { CLASS_FIELDS, classFields } from './crystal-edit.ts'
 import { baseGameEntityId } from './entity-identities.ts'
+import { isPCPlatform, supportsNativeGameplayScope } from './gameplay-compatibility.ts'
 
 export const NATIVE_GAME_CATALOG_ID = 'crystal-project-windows' as CatalogId
 export const NATIVE_RECORD_FIELD = 'Native source record'
@@ -10,9 +11,6 @@ export const NATIVE_SNAPSHOT_SCHEMA = 1
 const MAX_NATIVE_JSON_NODES = 2_000_000
 const MAX_NATIVE_JSON_DEPTH = 64
 const MAX_NATIVE_RECORDS = 20_000
-const VERIFIED_PC_GAME_VERSION = '1.6.9.0'
-const VERIFIED_PC_SOURCE_VERSIONS = new Set(['1.6.9', VERIFIED_PC_GAME_VERSION])
-const VERIFIED_PC_SOURCE_PLATFORMS = new Set(['Windows', 'macOS'])
 export const NATIVE_ENUM_TYPES = ['ActionConditionEval', 'ActionConditionGroup', 'ActionConditionVar', 'ElementType', 'EquipmentType', 'ItemSpecialBonus', 'SangAbilityAttribute', 'SangAbilityModTag', 'SangAbilityScope', 'SangAbilityTarget', 'SangJobLearnNodeType', 'SangMonsterCategory', 'SangSparkAreaShape', 'SangStatModTag', 'SangStatusCategory', 'SwimType'] as const
 export const NATIVE_FAMILIES = Object.freeze({ ability: 'ability', actor: 'other', biome: 'location', difficulty: 'other', equipment: 'item', gender: 'other', item: 'item', job: 'class', monster: 'monster', passive: 'passive', recipe: 'recipe', spark: 'other', status: 'status', troop: 'other' } satisfies Record<string, CatalogEntityKind>)
 export type NativeFamily = keyof typeof NATIVE_FAMILIES
@@ -75,9 +73,8 @@ export function nativeIdentity(entity: Pick<CatalogEntity, 'fields'> & Partial<P
 }
 
 export function nativeGameplayScopeLabel(platform: string | undefined, version: string | undefined): string {
-  // The compared 1.6.9.0 Windows/macOS gameplay baseline shares this display scope
-  // Keep extraction identities and applicability checks separate from presentation
-  if (platform && version && VERIFIED_PC_SOURCE_PLATFORMS.has(platform) && VERIFIED_PC_SOURCE_VERSIONS.has(version)) return `PC ${VERIFIED_PC_GAME_VERSION}`
+  // PC includes the approved Linux assumption; stored extraction identities remain unchanged
+  if (platform && version && isPCPlatform(platform) && supportsNativeGameplayScope(platform, version)) return `PC ${version === '1.6.9' ? '1.6.9.0' : version}`
   return `${platform ?? 'Platform unresolved'} ${version ?? '(version unresolved)'}`
 }
 
@@ -121,6 +118,9 @@ export function nativeSourceRecord(entity: Pick<CatalogEntity, 'fields'>): Nativ
 export function nativeScopeUncertainty(catalog: Pick<CatalogSnapshot, 'legacy'>, setup: Pick<GameSetupRevision, 'platform' | 'gameVersion'>): string | undefined {
   const source = nativeRecord(catalog.legacy) ? catalog.legacy.nativeSource : undefined
   if (!nativeRecord(source) || typeof source.platform !== 'string' || typeof source.gameVersion !== 'string') return undefined
+  // Shared data coverage admits the console proxy without rewriting source or saved setup identities
+  // Version-dependent calculations select their own behavior in resolveGameRules
+  if (setup.platform.state === 'known' && setup.gameVersion.state === 'known' && supportsNativeGameplayScope(source.platform, source.gameVersion) && supportsNativeGameplayScope(setup.platform.value, setup.gameVersion.value)) return undefined
   const platformDiffers = setup.platform.state === 'known' && setup.platform.value !== source.platform
   const versionDiffers = setup.gameVersion.state === 'known' && setup.gameVersion.value !== source.gameVersion
   if (!platformDiffers && !versionDiffers) return undefined

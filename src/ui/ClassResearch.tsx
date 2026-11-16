@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS, growthRatings, STAT_KEYS } from '../domain/crystal-edit'
 import { calculateGrowth } from '../domain/growth'
-import { PC_LEVEL_CAP } from '../domain/calculation-rules'
+import { PC_CALCULATION_SCOPE, PC_LEVEL_CAP } from '../domain/calculation-rules'
 import { nativeStatRecord } from '../domain/pc-stats'
 import { resolveGameRules } from '../domain/game-rules'
 import { modCatalogRevision } from '../domain/mod-layers'
@@ -38,7 +38,7 @@ function GrowthCalculator({ entity, definitionRef }: { entity: CatalogEntity | P
     <CalculationGenderField label="Growth calculation gender" genders={rules.genders} plan={gender} onChange={setGender}/>
     {result.issues.length > 0 && <InlineNotice title="Complete the calculation inputs"><ul>{result.issues.map(issue => <li key={issue}>{issue}</li>)}</ul></InlineNotice>}
     <div className="structured-value__table"><table aria-label="Native base stats"><thead><tr><th>Stat</th><th>Class rating</th><th>Native total</th></tr></thead><tbody>{STAT_KEYS.map(stat => <tr key={stat}><th scope="row">{stat}</th><td>{growthRatings(entity)[stat] ?? 'Unknown'}</td><td>{display(result.stats[stat])}</td></tr>)}</tbody></table></div>
-    <p className="field__hint">PC 1.6.9.0 base growth with native integer steps and gender rounding. {setup ? `Gender bonuses and balance mode follow ${setup.label}.` : 'Native gender bonuses and Standard balance records are used for this source preview.'} Unspecified gender shows values without a gender bonus. Excludes gear, innates, passives, and battle effects. Switch and unverified mods are unsupported. These results do not change recorded stats.</p>
+    <p className="field__hint">{PC_CALCULATION_SCOPE} base growth with native integer steps and gender rounding. {setup ? `Gender bonuses and balance mode follow ${setup.label}.` : 'Native gender bonuses and Standard balance records are used for this source preview.'} Unspecified gender shows values without a gender bonus. Excludes gear, innates, passives, and battle effects. Switch and unverified mods are unsupported. These results do not change recorded stats.</p>
   </div>
 }
 

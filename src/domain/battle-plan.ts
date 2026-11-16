@@ -42,6 +42,7 @@ export function validateBattleCalculation(battle: BattleCalculationPlan, assertR
   if (typeof battle.automaticStatuses !== 'boolean') throw new DomainError('INVALID_INPUT', 'Choose whether to include automatic statuses')
   for (const key of BATTLE_CONDITIONS) if (battle[key] !== null && typeof battle[key] !== 'boolean') throw new DomainError('INVALID_INPUT', 'Battle conditions must be known or explicitly unknown')
   for (const resources of [battle.user, battle.targetResources]) for (const key of BATTLE_RESOURCES) quantity(resources[key], `Current ${key.toUpperCase()}`)
+  if (battle.userTurnStart) for (const key of BATTLE_RESOURCES) quantity(battle.userTurnStart[key], `Turn-start ${key.toUpperCase()}`)
   for (const rows of [battle.statuses, battle.targetStatuses]) {
     if (rows.length > MAX_COLLECTION_LENGTH || new Set(rows.map(row => entityDefinitionKey(row.ref))).size !== rows.length) throw new DomainError('INVALID_INPUT', 'Battle statuses require unique definitions')
     for (const row of rows) quantity(row.count, 'Status duration', 1)

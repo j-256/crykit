@@ -1,6 +1,6 @@
-import { type CrystalSave, CRYSTAL_SAVE_VERSION } from '../../interchange/crystal-save.ts'
+import { type CrystalSave } from '../../interchange/crystal-save.ts'
 import { type SaveEditorCatalog } from '../save-editor-mods'
-import { type SaveInventoryKind, EMPTY_DATE, ATLAS } from './model.ts'
+import { type SaveInventoryKind, EMPTY_DATE, ATLAS, SAVE_EDITOR_STRICT_FIELDS_VERSION } from './model.ts'
 import { stock, stockId, object, int, document, stockCount, list, array, number } from './values.ts'
 
 const TREASURE_FINDER_BONUS = 4
@@ -19,7 +19,7 @@ export function updateTreasureFinder(save: CrystalSave, catalog: SaveEditorCatal
 }
 
 export function atlas(save: CrystalSave, family: 'Jobs' | 'Abilities' | 'Passives' | 'Items' | 'Equipment', id: number, state: number, now: Date): void {
-  if (save.header.version < CRYSTAL_SAVE_VERSION) {
+  if (save.header.version < SAVE_EDITOR_STRICT_FIELDS_VERSION) {
     save.party.value.Atlas ??= document({})
     object(save.party.value.Atlas, 'Atlas').value[family] ??= document({ Entries: list([]) })
   }

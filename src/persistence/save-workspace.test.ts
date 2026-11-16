@@ -8,7 +8,7 @@ import { resolveOwnedFileReceipt, type OwnedFileOutcome } from '../workspace/own
 import type { WorkspaceRepository } from '../workspace/repository'
 import { inspectWorkspaceClosure } from '../workspace/closure'
 import { createSaveEditorFixture, createModdedSaveEditorFixture } from '../domain/save-editor.fixture'
-import { encodeCrystalSave, CRYSTAL_SAVE_LIMITS } from '../interchange/crystal-save'
+import { decodeCrystalSave, encodeCrystalSave, CRYSTAL_SAVE_LIMITS } from '../interchange/crystal-save'
 
 const databases: CryKitDatabase[] = []
 afterEach(() => { for (const database of databases.splice(0)) database.close() })
@@ -38,6 +38,27 @@ it('openingSecondSaveKeepsFirstOriginalAndDraft', async () => {
   const state = await f.repository().readWorkspace(), history = state.retainedContent.find(row => row.kind === 'file-history')!
   expect((await inspectWorkspaceClosure(state, history.content)).value).toEqual(first)
 })
+it('persists format-29 originals and edits independently and rolls back an invalid working copy', async () => {
+  const { editSave } = await import('../domain/save-editor')
+  const { SAVE_EDITOR_CATALOG } = await import('../catalog/save-editor')
+  const save = createSaveEditorFixture(29)
+  save.header.members[0]!.jobId = 5
+  const bytes = encodeCrystalSave(save)
+  const f = await fixture(), imported = await f.saves().importFile('format-29.sav', bytes)
+  await f.advance()
+  expect(imported.coverage.status).toBe('supported')
+  const changed = encodeCrystalSave(editSave(save, SAVE_EDITOR_CATALOG, { type: 'member', index: 0, jobId: 4 }, new Date(0)))
+  const applied = await f.saves({ intent: 'saveApply' }).saveWorking(imported.id, changed, null, imported.revision)
+  await f.advance()
+  const state = await f.repository().readWorkspace()
+  const content = await readSaveContent(state, applied)
+  expect(content).toEqual({ originalBytes: bytes, workingBytes: changed })
+  expect(decodeCrystalSave(content.workingBytes).header).toMatchObject({ version: 29, homePointId: 0x12345678, members: [{ jobId: 5 }, {}, {}, {}] })
+  await expect(f.saves({ intent: 'saveApply' }).saveWorking(imported.id, changed.slice(0, -1), null, applied.revision)).rejects.toThrow()
+  expect(await f.saves().get(imported.id)).toEqual(applied)
+  expect(await f.repository().readWorkspace()).toEqual(state)
+})
+
 it('unsupportedSaveRoundTripsWithoutEditing', async () => {
   const f = await fixture(), bytes = new Uint8Array([99, 0, 255, 8, 9])
   const row = await f.saves().importFile('future.sav', bytes)

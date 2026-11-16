@@ -62,7 +62,7 @@ export function buildCalculationSchema(characterSchema) {
     ),
     combatRules: object({
       schemaVersion: { const: 1 },
-      id: { const: 'pc-1.6.9-combat-v1' },
+      id: { const: 'native-combat-v1' },
       source: { type: 'object' },
       limits: object({ depth: integer, nodes: integer, collection: integer }),
       semantics: { type: 'object', additionalProperties: text },
@@ -82,7 +82,7 @@ export function buildCalculationSchema(characterSchema) {
     }),
     combatVerification: object({
       schemaVersion: { const: 1 },
-      engine: { const: 'pc-1.6.9-combat-v1' },
+      engine: { const: 'native-combat-v1' },
       evidence: { type: 'object' },
       values: list(value),
       cases: list(
@@ -114,7 +114,7 @@ export function buildCalculationSchema(characterSchema) {
       combat: ref('combatRules'),
       combatData: object({
         schemaVersion: { const: 1 },
-        engine: { const: 'pc-1.6.9-combat-v1' },
+        engine: { const: 'native-combat-v1' },
         source: { type: 'object' },
         nativeDataDigest: text,
         enums: { type: 'object' },

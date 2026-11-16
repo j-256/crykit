@@ -60,7 +60,7 @@ function automaticStatusAfterRemoval(content: BuildRevisionContent, slots: reado
   let modifiers
   if (recipient === 'user') {
     if (unknownInputs.length || unknownSecondaryClass) return 'unknown'
-    modifiers = collectEffectiveModifiers(content, slots, resolve, { mode, turnCount: battle.turnCount, statuses: battle.statuses.map(status => status.ref), includeAutomaticStatuses: true, previouslyAppliedStatuses: battle.userPreviouslyAppliedStatuses, currentHP: battle.user.hp })
+    modifiers = collectEffectiveModifiers(content, slots, resolve, { mode, pairedWeaponBonuses: rules?.pairedWeaponBonuses, turnCount: battle.turnCount, statuses: battle.statuses.map(status => status.ref), includeAutomaticStatuses: true, previouslyAppliedStatuses: battle.userPreviouslyAppliedStatuses, currentHP: battle.user.hp })
   } else {
     if (!battle.target || battle.target === 'self') return 'unknown'
     const definition = resolve(battle.target)

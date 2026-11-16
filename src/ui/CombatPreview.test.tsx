@@ -74,3 +74,18 @@ it('fills known resource maxima without clearing entered resources whose maxima 
   expect(battle.user).toEqual({ hp: 1, mp: 2, ap: null })
   expect(battle.targetResources).toEqual({ hp: 7, mp: 8, ap: 9 })
 })
+
+it('edits actor turn-start resources separately from current resources', async () => {
+  const battle: BattleCalculationPlan = { ...defaultBattleCalculation(), user: { hp: 10, mp: 4, ap: 2 } }
+  const onChange = vi.fn<(value: BattleCalculationPlan) => void>()
+  await act(async () => root.render(<BattleCalculationControls battle={battle} maxima={{ user: { hp: 100, mp: 30, ap: 30 }, target: null }} localData={createTestLocalData()} catalogs={[DEFAULT_CATALOG]} onChange={onChange}/>))
+  const field = container.querySelector<HTMLInputElement>('[aria-label="Actor turn-start HP"]')!
+  expect(field).not.toBeNull()
+  expect(field.value).toBe('')
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(field, '50')
+    field.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ user: battle.user, userTurnStart: { hp: 50, mp: null, ap: null } }))
+  expect(battle).not.toHaveProperty('userTurnStart')
+})

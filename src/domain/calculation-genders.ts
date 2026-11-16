@@ -1,4 +1,4 @@
-import { NATIVE_DATA, PC_RULES } from './calculation-rules'
+import { NATIVE_DATA, PC_RULES, PC_CALCULATION_SCOPE } from './calculation-rules'
 import { STAT_KEYS, type GrowthStat } from './crystal-edit'
 import type { BuildCalculationPlan } from './types'
 
@@ -29,7 +29,7 @@ export function genderDefinition(record: Readonly<Record<string, unknown>>, sour
 
 export function nativeGenderDefinitions(mode = 'standard'): readonly GenderDefinition[] {
   const patch = NATIVE_DATA.patches.find(patch => patch.name.toLowerCase() === mode)?.records.gender as readonly Readonly<Record<string, unknown>>[] | undefined
-  return NATIVE_DATA.records.gender.map(record => genderDefinition({ ...record, ...patch?.find(value => value.ID === record.ID) }, `PC 1.6.9 ${mode} game data`, 'native'))
+  return NATIVE_DATA.records.gender.map(record => genderDefinition({ ...record, ...patch?.find(value => value.ID === record.ID) }, `${PC_CALCULATION_SCOPE} ${mode} game data`, 'native'))
 }
 
 export function calculationGenderId(plan: Pick<BuildCalculationPlan, 'gender' | 'genderSelection'> | undefined): number | undefined {

@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 1,
+  "consoleBaseline": {
+    "platform": "Nintendo Switch",
+    "gameVersions": [
+      "1.6.6",
+      "1.6.6.0"
+    ],
+    "evidenceKind": "Maintainer-approved Steam console-branch proxy; no native console executable inspected"
+  },
+  "inputs": {
+    "consoleBranch": {
+      "platform": "macOS",
+      "gameVersion": "1.6.6.0",
+      "steamBranch": "console",
+      "steamBuild": "18375824",
+      "executableSha256": "21cc7e6de22ae8b348c5ce63d2bed06487475b3cd7cecd85b17b3147e7ed4707",
+      "systemDataSha256": "7536423cd9345075e2e453c48ee4220168b25b2cdd2c63e0ba437e8574a89514"
+    },
+    "reference": {
+      "platform": "Windows",
+      "gameVersion": "1.7.0.1",
+      "executableSha256": "bd1ad18037edaa96250c52446e83c4cbc44cff0e833edbeaf570ed328748cff4",
+      "systemDataSha256": "8ade3dee6bb3f23ea8ca6424677368c998b26b2afdf0c549805665695f19f7bb"
+    }
+  },
+  "databaseComparison": {
+    "ability.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": false,
+      "differenceCount": 508
+    },
+    "actor.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": true,
+      "differenceCount": 0
+    },
+    "animation.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": true,
+      "differenceCount": 0
+    },
+    "biome.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": true,
+      "differenceCount": 0
+    },
+    "difficulty.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": true,
+      "differenceCount": 0
+    },
+    "equipment.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": true,
+      "differenceCount": 0
+    },
+    "gender.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": true,
+      "differenceCount": 0
+    },
+    "item.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": true,
+      "differenceCount": 0
+    },
+    "job.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": false,
+      "differenceCount": 24
+    },
+    "monster.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": true,
+      "differenceCount": 0
+    },
+    "passive.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": true,
+      "differenceCount": 0
+    },
+    "patch.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": false,
+      "differenceCount": 66
+    },
+    "recipe.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": true,
+      "differenceCount": 0
+    },
+    "spark.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": true,
+      "differenceCount": 0
+    },
+    "status.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": true,
+      "differenceCount": 0
+    },
+    "system.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": false,
+      "differenceCount": 118
+    },
+    "troop.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": true,
+      "differenceCount": 0
+    },
+    "voxel.dat": {
+      "oldVersion": 9,
+      "newVersion": 11,
+      "equalIgnoringComments": true,
+      "differenceCount": 0
+    }
+  },
+  "codeComparison": {
+    "Sang.Battle.Calculator": {
+      "consoleSourceSha256": "eec96d64039169f594aea6158be3b25f740c47d19fb7bcf856451c814c8df5c6",
+      "referenceSourceSha256": "be0a4745b337655d45b64cd84c301b17bc5408bfe058b3ed8a7521d638916643"
+    },
+    "Sang.Battle.BattlerStats": {
+      "consoleSourceSha256": "6bc6cbe79ace5bc32f9a37aceab0516f113e3297ad3c59fa2d3d47b9e6974ff3",
+      "referenceSourceSha256": "96bc8e69894c36e6a83c878c35405f8fa68e78b0764140edc702625958b0e6a2"
+    },
+    "Sang.Battle.BattlerMember": {
+      "consoleSourceSha256": "3d846b4b9e961f0ada8575ae7f02718832a102cbf82c5553e3e5f086db75888b",
+      "referenceSourceSha256": "ace2fca9503d067497b1e57cfff474f221c56bf34a313f0310acb3a730c72ec4"
+    },
+    "Sang.Battle.BattlerMonster": {
+      "consoleSourceSha256": "5ea5b7f6d151e48f3314dbeca4647b95cb857698979a26f54657acb6e6dbc710",
+      "referenceSourceSha256": "212a5980b93e409ce67f6c9770dcd287294cf0d2020b3d796d7f622c416f8ba9"
+    },
+    "Sang.PartyData.CQuest": {
+      "consoleSourceSha256": "5885a97e9bf0372cbe5a9cd09c6e4bd5fe8b90fc69a1457b397141b2e0744668",
+      "referenceSourceSha256": "5885a97e9bf0372cbe5a9cd09c6e4bd5fe8b90fc69a1457b397141b2e0744668"
+    },
+    "Sang.PartyData.SaveDataManager": {
+      "consoleSourceSha256": "1583b538147a1acb979ae9ff841ebf8f12877117f6d2b7d8f56791757276296b",
+      "referenceSourceSha256": "b71570538fac9ed84b310fd347757f6a5782802b53c3f18b55b0706ab8de89bc"
+    },
+    "Sang.PartyData.Randomizer": {
+      "consoleSourceSha256": "b54d778b5549b3ab44d8767c85ba33f32d0de256ca1f38451e95385e26004e5d",
+      "referenceSourceSha256": "f7e4e48f8a1673f04cb5ecba0ffcbea08cfa39a9e1a986589d7631405a7810e9"
+    }
+  },
+  "worldComparison": {
+    "title": {
+      "entries": 26,
+      "changed": []
+    },
+    "arena": {
+      "entries": 248,
+      "changed": []
+    },
+    "field": {
+      "entries": 2097,
+      "changed": [
+        "field.dat"
+      ]
+    }
+  },
+  "worldEntities": {
+    "settingsEqual": true,
+    "ledgerDiff": "--- \n+++ \n@@ -3821,3 +3821,4 @@\n 3822:558,188,-479:34,11,-30;\r\n 3823:403,180,-367:25,11,-23;\r\n 3824:400,250,-478:25,15,-30;\r\n+729:678,207,-460:42,12,-29;\r\n",
+    "changedNestedEntries": [
+      [
+        42,
+        -29,
+        "y12e.dat"
+      ],
+      [
+        20,
+        -7,
+        "y6e.dat"
+      ]
+    ]
+  },
+  "behaviorDifferences": {
+    "actorCurrentMissingResources": {
+      "1.6.6": "current",
+      "1.7.0.1": "turnStart"
+    },
+    "pairedWeapons": {
+      "1.6.6": false,
+      "1.7.0.1": true
+    },
+    "maximumSaveHeader": {
+      "1.6.6": 28,
+      "1.7.0.1": 29
+    },
+    "babelRandomizerRecovery": {
+      "entityId": 729,
+      "addedInPCVersion": "1.6.7",
+      "presentInConsoleBaseline": false
+    }
+  },
+  "limits": [
+    "Static data and bounded source comparison; runtime console behavior was not tested",
+    "Mod features added after 1.6.6 do not acquire console support through this proxy"
+  ],
+  "developerSources": [
+    "https://www.riverrunninggames.com/crystalproject/patchnotes.html",
+    "https://www.riverrunninggames.com/crystalproject/patchnotes-ns.html"
+  ]
+}

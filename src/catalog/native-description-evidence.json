@@ -2,15 +2,15 @@
   "schemaVersion": 1,
   "source": {
     "platform": "Windows",
-    "gameVersion": "1.6.9",
-    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
-    "systemDataSha256": "aeb36700a47795c8bda8ba3cbdb0ab9b131f4b56b1136f3dd5decf5ebb59178f",
-    "contentDigest": "0d23c964921fde7518e30721b0b08da5e62f0ad505fc0a0ef0a389863297894e"
+    "gameVersion": "1.7.0.1",
+    "executableSha256": "bd1ad18037edaa96250c52446e83c4cbc44cff0e833edbeaf570ed328748cff4",
+    "systemDataSha256": "8ade3dee6bb3f23ea8ca6424677368c998b26b2afdf0c549805665695f19f7bb",
+    "contentDigest": "0fb4a4d3399aa1cd5ee236a66a44f2d61dd7f52c97b255ebc8381f27c4ae3433"
   },
   "files": {
-    "Sang/Window/WindowHelper.cs": "18e54ebb4bfa355a813527b6c904bc9e1670dbc84d47e79de8488d179738399a",
-    "Sang/Common/StringInterpreter.cs": "e4af98a896c4ed4cc17147d93016f1c228115c43629cd14895d2f7fdbf1a7b85",
-    "Sang/SangData/CVocab.cs": "280ae55bd84ff2f224864714c45bae17ccb9e6c82e02fe1002a766efd67c60cc",
+    "Sang/Window/WindowHelper.cs": "448d89023ea913f9575e457ae438a40d185252d9678f3f430489919eb2b10fcb",
+    "Sang/Common/StringInterpreter.cs": "72f9ed5f19419fd3dd49cb5b9d4208cec9248344b2815e45c26a2b6f2be7f688",
+    "Sang/SangData/CVocab.cs": "59433f97734e00ba79c3981f2c700183adcc0da996fc62d0b0a4ae290de09777",
     "Sang/SangData/HAbility.cs": "ae0eddc80a88cab3031629f6b2a14ae133e3606d12a0648adae03f57654db3ee",
     "Sang/SangData/HStatus.cs": "cf5dd615c67518cf58340077532976750e778dfe51c6b9e2de5bfb567c94a680",
     "Sang/Battle/StatusCollection.cs": "b25b55b296131b033fedf943ad72e3783471c8c090f11fa8ed823d5db2292a79",
@@ -31,5 +31,5 @@
     "StatusCollection.Apply",
     "StatusCount.StatusCount"
   ],
-  "scope": "Static Windows definition descriptions and reviewed vocabulary expansion; unsupported display branches remain incomplete. Player-specific calculations, inventory capacity, and mod definitions are outside this projection."
+  "scope": "Static Windows definition descriptions and reviewed English vocabulary with default word order; unsupported display branches remain incomplete. Other localization grammar, player-specific calculations, inventory capacity, and mod definitions are outside this projection."
 }

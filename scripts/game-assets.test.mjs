@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
@@ -32,6 +35,25 @@ test('native database decoding preserves its version and rejects malformed JSON'
   const records = [{ ID: 7, Name: 'Synthetic Potion', TexturePath: 'Icon/Test', TextureIndex: 2 }]
   assert.deepEqual(parseGameDatabase(encodedDatabase(records)), { version: 10, records })
   assert.throws(() => parseGameDatabase(Buffer.from([10, 0, 0])), /valid inverted JSON/)
+})
+
+test('artwork inventory accepts binary locale data before enforcing snapshot fingerprints', async () => {
+  const temporary = await mkdtemp(join(tmpdir(), 'crykit-opaque-locale-'))
+  try {
+    const content = join(temporary, 'Content')
+    await mkdir(join(content, 'Database'), { recursive: true })
+    await mkdir(join(content, 'Textures'))
+    const png = await sharp({ create: { width: 1, height: 1, channels: 4, background: '#ffffffff' } }).png().toBuffer()
+    await writeFile(join(content, 'Textures/Icon.dat'), texturePack([{ name: 'Synthetic', bytes: png }]))
+    await writeFile(join(content, 'Database/locale.dat'), Buffer.from([0, 1, 2, 3]))
+    await writeFile(join(temporary, 'Crystal Project.exe'), 'Synthetic executable')
+    const result = spawnSync(process.execPath, ['--experimental-strip-types', fileURLToPath(new URL('./update-game-assets.mjs', import.meta.url)), '--input', content], { encoding: 'utf8' })
+    assert.equal(result.status, 1)
+    assert.match(result.stderr, /Native artwork input differs from the gameplay snapshot: Crystal Project\.exe/)
+    assert.doesNotMatch(result.stderr, /valid inverted JSON/)
+  } finally {
+    await rm(temporary, { recursive: true, force: true })
+  }
 })
 
 test('texture pack parsing validates framing, PNG bytes, names, and trailing data', async () => {

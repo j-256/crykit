@@ -5,6 +5,8 @@ import { PC_RULES } from './calculation-rules'
 import { aggregateStatModifiers, collectEffectiveModifiers, NATIVE_MODIFIER_DEFAULTS, type EffectiveModifierRecord } from './effective-modifiers'
 import { calculatePCStats } from './pc-stats'
 import { defaultCalculation } from './calculation-plan'
+import { resolveGameRules } from './game-rules'
+import { equipmentRole } from './mechanics-facts'
 import { SUGGESTED_BUILD_SLOTS } from './build-planning'
 import type { BattleCalculationPlan, BuildRevisionContent, CatalogEntity, CatalogRef, EntityId, EntityRef, JsonValue } from './types'
 
@@ -66,6 +68,20 @@ describe('effective native modifiers', () => {
     const result = aggregateStatModifiers([source([tag('Addi_HealingReturn', 6, 25), tag('Addi_PDmgReturn_OnKill', 1, 30), tag('MaxDamageGiven', 100), tag('MaxBuffCount', 2)]), source([tag('MaxDamageGiven', 50), tag('MaxBuffCount', 3)], 'status')], 60)
     expect(result.stats).toMatchObject({ HealingReturnAddi: 25, PDmgMPReturnOnKillAddi: 30, MaxDamageGiven: 50, MaxBuffCount: 5 })
   })
+  it('keeps paired weapon bonuses at their pre-1.6.7 behavior for the console baseline', () => {
+    const weapon = entity('synthetic-console-pair', 'item', { ID: 5000, EquipmentType: 0, StatMods: [tag('Flat_MPCosts', -2), tag('BonusDoubledWhenPaired', 0)] })
+    const selected = { ref: ref(weapon.id) }
+    const build = { ...content(), equipment: { 'plan-main-hand': selected, 'plan-off-hand': selected } }
+    const legacy = resolveGameRules({ platform: { state: 'known', value: 'Nintendo Switch' }, gameVersion: { state: 'known', value: '1.6.6' } }, [])
+    expect(collectEffectiveModifiers(build, SUGGESTED_BUILD_SLOTS, resolver(weapon), legacy).stats.MPCostsFlat).toBe(-4)
+    expect(collectEffectiveModifiers(build, SUGGESTED_BUILD_SLOTS, resolver(weapon)).stats.MPCostsFlat).toBe(-8)
+    const accessory = entity('synthetic-console-accessory', 'item', { ID: 5001, EquipmentType: 15, StatMods: [tag('Flat_MPCosts', -2), tag('BonusDoubledWhenPaired', 0)] })
+    const accessorySlots = SUGGESTED_BUILD_SLOTS.filter(slot => equipmentRole(slot) === 'accessory')
+    const pair = { ...content(), equipment: Object.fromEntries(accessorySlots.map(slot => [slot.id, { ref: ref(accessory.id) }])) }
+    expect(accessorySlots).toHaveLength(2)
+    expect(collectEffectiveModifiers(pair, SUGGESTED_BUILD_SLOTS, resolver(accessory), legacy).stats.MPCostsFlat).toBe(-8)
+  })
+
   it('counts shared copies once and doubles both matching paired equipment effects', () => {
     const weapon = entity('synthetic-paired', 'item', { ID: 5000, EquipmentType: 0, StatMods: [tag('Flat_MPCosts', -2), tag('BonusDoubledWhenPaired', 0)] })
     const selected = { ref: ref(weapon.id) }

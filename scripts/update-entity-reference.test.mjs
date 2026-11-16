@@ -74,5 +74,5 @@ test('CLI help and usage forms separate results from diagnostics', () => {
     assert.equal(result.stdout, '')
     assert.ok(result.stderr.length > 0)
   }
-  assert.match(execFileSync(process.execPath, [script, '--check'], { encoding: 'utf8', env: { ...process.env, PATH: '' } }), /Verified Windows 1\.6\.9/)
+  assert.match(execFileSync(process.execPath, [script, '--check'], { encoding: 'utf8', env: { ...process.env, PATH: '' } }), /Verified Windows 1\.7\.0\.1/)
 })

@@ -1,7 +1,11 @@
 import { childAt, childCount, nodeAtPath, objectProperty, parseDocument } from './document'
 import type { JsonNode, ParsedDocument } from './types'
 
-export const MAP_EDITOR_FORMAT = 34
+export const MAP_EDITOR_FORMAT = 35
+const LEGACY_MAP_EDITOR_FORMAT = 34
+// The reviewed format-35 conversion changes vocabulary, not entity placement records
+// Keep both layouts editable without converting an imported project's marker
+const SUPPORTED_MAP_EDITOR_FORMATS = new Set([LEGACY_MAP_EDITOR_FORMAT, MAP_EDITOR_FORMAT])
 export const INVALID_VOXEL_ID = 255
 export const MAP_EDITOR_LIMITS = Object.freeze({ entities: 20_000, brushSide: 8, strokeCells: 256, historyEntries: 100, historyCodeUnits: 4 * 1024 * 1024, intMin: -2_147_483_648, intMax: 2_147_483_647, byteMax: 255 })
 export const MAP_ENTITY_TYPES = Object.freeze(['Npc', 'Sign', 'Spark', 'Door', 'HomePoint', 'Treasure', 'Crystal', 'Marker'] as const)
@@ -32,7 +36,8 @@ export function inspectMapProject(document: ParsedDocument): MapProject {
   const root = document.root
   if (root.kind !== 'object') return { placements, issues: ['Map editing requires a Crystal Edit project object.'], editable: false }
   if (!string(objectProperty(root, 'ID'))?.trim()) issues.push('A project ID is required; create a new map mod or open a complete Crystal Edit export.')
-  if (integer(objectProperty(root, 'EditorVersion')) !== MAP_EDITOR_FORMAT) issues.push('Map editing supports Crystal Edit format 34. Other formats stay available in the JSON editor without conversion.')
+  const format = integer(objectProperty(root, 'EditorVersion'))
+  if (format === undefined || !SUPPORTED_MAP_EDITOR_FORMATS.has(format)) issues.push(`Map editing supports Crystal Edit formats ${LEGACY_MAP_EDITOR_FORMAT} and ${MAP_EDITOR_FORMAT}. Other formats stay available in the JSON editor without conversion.`)
   const localization = objectProperty(root, 'IsLocalization')
   if (localization && localization.raw !== 'false') issues.push('Localization projects cannot author map placements.')
   // The non-localization runtime iterates these arrays without supplying missing families

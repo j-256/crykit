@@ -444,7 +444,7 @@ test.describe('saves editor revisions into Mods, derives rules, and preserves pi
     await expect(page.locator('.game-setup-derived')).toContainText('TwoHandedPAtkFlat')
     await expect(page.locator('.game-setup-derived')).toContainText('80')
     await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
-    await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
+    await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
     await expect(page.getByText('Balance mode: vanilla · from Game Setup', { exact: true })).toBeVisible()
     await expect(page.getByRole('combobox', { name: 'PC balance mode', exact: true })).toHaveCount(0)
     await page.getByRole('combobox', { name: 'Equipped passive 1', exact: true }).fill('Synthetic unarmed')

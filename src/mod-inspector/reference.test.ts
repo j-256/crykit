@@ -7,10 +7,18 @@ import { NATIVE_GAME_DATA } from '../catalog/native-game'
 import { parseDocument } from './document'
 import { createResolver, getEnumCatalog } from './reference'
 
-const resolver = (data: unknown) => createResolver(parseDocument(JSON.stringify({ EditorVersion: 34, ...data as object })))
+const resolver = (data: unknown) => createResolver(parseDocument(JSON.stringify({ EditorVersion: 35, ...data as object })))
 const effectCode = (table: string, name: string) => Number(Object.entries(NATIVE_GAME_DATA.enums[table]!).find(([, label]) => label === name)![0])
 
 describe('versioned Mod Inspector lookups', () => {
+  it('recognizes editor 35 fields, home point labels, and removal immunity parameters', () => {
+    const lookup = createResolver(parseDocument(JSON.stringify({ EditorVersion: 35, SaveModdedSortOrder: true, Entities: [{ ID: 90000, EntityType: 4, HomePointData: { Name: 'Synthetic camp' } }], System: { Vocab: { HomePoints: [{ ID: 90000, Name: 'Synthetic localized camp' }] } }, Passives: [{ ID: 90001, StatMods: [{ Tag: 460, Value1: 7 }] }] })))
+    expect(lookup.editorVersion.state).toBe('matched')
+    expect(lookup.annotate(['System', 'Vocab', 'HomePoints', 0, 'ID'])).toMatchObject({ kind: 'reference', status: 'resolved', targetPath: ['Entities', 0] })
+    expect(lookup.annotate(['Passives', 0, 'StatMods', 0, 'Tag'])?.label).toBe('ImmuneToRemoveFromBattle')
+    expect(lookup.annotate(['Passives', 0, 'StatMods', 0, 'Value1'])?.status).toBe('unused')
+    expect(lookup.sourceLabel).toContain('PC 1.7.0.1')
+  })
   it('resolves field-world entity IDs, pins source evidence, and keeps unknown IDs explicit', () => {
     const lookup = resolver({ Tree: [{ ModelTypeID: 18, ModelID: 4 }, { ModelTypeID: 18, ModelID: 1 }, { ModelTypeID: 18, ModelID: 999999 }] })
     expect(lookup.annotate(['Tree', 0, 'ModelID'])).toMatchObject({ label: 'Npc: Z1_IntroNan', status: 'resolved' })
@@ -232,18 +240,18 @@ describe('versioned Mod Inspector lookups', () => {
     expect(lookup.annotate(['Passives', 0, 'StatMods', 1, 'Value1'])?.restrictions?.[0]).toContain('runtime acceptance is unverified')
     expect(lookup.issues.map(issue => issue.message).join(' ')).not.toContain('Base entity records are not bundled')
     expect(lookup.issues.some(issue => issue.path[0] === 'EditorVersion')).toBe(true)
-    expect(lookup.sourceLabel).toContain('PC 1.6.9.0')
+    expect(lookup.sourceLabel).toContain('PC 1.7.0.1')
     expect(lookup.referenceId).toContain(NATIVE_GAME_DATA.contentDigest)
   })
 })
 
 describe('editor format and navigation metadata', () => {
   it('describes format markers without modifying imported text or applying conversions', () => {
-    for (const [marker, state] of [['4', 'older'], ['31', 'older'], ['34', 'matched'], ['35', 'newer'], ['"34"', 'invalid'], ['34.0', 'invalid'], ['null', 'invalid'], ['-1', 'invalid'], ['2147483648', 'invalid'], ['9007199254740993', 'invalid']] as const) {
+    for (const [marker, state] of [['4', 'older'], ['31', 'older'], ['34', 'older'], ['35', 'matched'], ['36', 'newer'], ['"34"', 'invalid'], ['34.0', 'invalid'], ['null', 'invalid'], ['-1', 'invalid'], ['2147483648', 'invalid'], ['9007199254740993', 'invalid']] as const) {
       const text = `{ "EditorVersion": ${marker}, "Abilities": [{"ID": 90000,"HideIfUnusable":true}] }`
       const document = parseDocument(text)
       const lookup = createResolver(document)
-      expect(lookup.editorVersion).toMatchObject({ state, value: marker, referenceVersion: 34 })
+      expect(lookup.editorVersion).toMatchObject({ state, value: marker, referenceVersion: 35 })
       expect(lookup.annotate(['EditorVersion'])).toMatchObject({ kind: 'metadata', detail: expect.stringContaining('does not convert data') })
       expect(document.text).toBe(text)
       expect(document.root.raw).toBe(text)
@@ -291,7 +299,7 @@ describe('editor format and navigation metadata', () => {
   })
   it('bounds malformed navigation identifier summaries without changing imported data', () => {
     const oversized = 'x'.repeat(20000)
-    const text = JSON.stringify({ EditorVersion: 34, Tree: [
+    const text = JSON.stringify({ EditorVersion: 35, Tree: [
       { ModelTypeID: oversized, ModelID: { value: oversized } },
       { ModelTypeID: 7, ModelID: oversized },
     ] })

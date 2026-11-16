@@ -30,6 +30,14 @@ describe('versioned battle assumptions', () => {
     expect(mapped.targetStatuses[0]!.count).toBe(255)
   })
 
+  it('validates optional turn-start resources without changing historical current inputs', () => {
+    const original = defaultBattleCalculation()
+    expect(original).not.toHaveProperty('userTurnStart')
+    expect(() => validateBattleCalculation(original, () => undefined)).not.toThrow()
+    expect(() => validateBattleCalculation({ ...original, userTurnStart: { hp: 0, mp: null, ap: 3 } }, () => undefined)).not.toThrow()
+    expect(() => validateBattleCalculation({ ...original, userTurnStart: { hp: -1, mp: null, ap: null } }, () => undefined)).toThrow('Turn-start HP')
+  })
+
   it('rejects invalid arithmetic inputs and duplicate statuses before saving', () => {
     for (const value of [-1, 0.5, MAX_NATIVE_INTEGER + 1, Infinity, NaN]) {
       expect(() => validateBattleCalculation({ ...defaultBattleCalculation(), turnCount: value }, () => undefined)).toThrow('whole number')

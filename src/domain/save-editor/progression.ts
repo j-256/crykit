@@ -1,8 +1,8 @@
-import { type CrystalSave, type BsonDocument, CRYSTAL_SAVE_VERSION } from '../../interchange/crystal-save.ts'
+import { type CrystalSave, type BsonDocument } from '../../interchange/crystal-save.ts'
 import { type NativeRecord } from '../native-game'
 import { type SaveEditorCatalog } from '../save-editor-mods'
 import { array, int, number, known, object, document, bound, flags, levelCap, flag, numbers, growthJob, growthHistory, list } from './values.ts'
-import { LEARNED, ATLAS, MAX_JP, SAVE_EDITOR_MAX_LEVEL, LEGACY_HEADER, LEVEL_ASSIST_FLAG } from './model.ts'
+import { LEARNED, ATLAS, MAX_JP, SAVE_EDITOR_MAX_LEVEL, LEGACY_HEADER, LEVEL_ASSIST_FLAG, SAVE_EDITOR_STRICT_FIELDS_VERSION } from './model.ts'
 import { atlas } from './inventory.ts'
 import { type SaveEditorRandomizerState, randomizedId } from './randomizer.ts'
 
@@ -61,7 +61,7 @@ export function learnJobs(save: CrystalSave, catalog: SaveEditorCatalog, randomi
         if (entry) { const value = object(entry, 'JP entry').value; value.Current = int(MAX_JP); value.Total = int(MAX_JP) }
         else entries.push(document({ Job: int(id), Current: int(MAX_JP), Total: int(MAX_JP) }))
       }
-      jp.value.TotalJP = int(Math.max(number(jp.value.TotalJP ?? (save.header.version < CRYSTAL_SAVE_VERSION ? int(0) : undefined), 'Lifetime JP'), catalog.records.job.size * MAX_JP))
+      jp.value.TotalJP = int(Math.max(number(jp.value.TotalJP ?? (save.header.version < SAVE_EDITOR_STRICT_FIELDS_VERSION ? int(0) : undefined), 'Lifetime JP'), catalog.records.job.size * MAX_JP))
     }
   }
 }
@@ -113,6 +113,6 @@ export function setLevel(save: CrystalSave, catalog: SaveEditorCatalog, index: n
   levels.value.Level = int(level)
   levels.value.MaxLevel = int(Math.max(levelCap(save), level))
   levels.value.Exp = int(0)
-  levels.value.TotExp = int(Math.max(number(levels.value.TotExp ?? (save.header.version < CRYSTAL_SAVE_VERSION ? int(0) : undefined), 'Lifetime experience'), totalExperience(level)))
+  levels.value.TotExp = int(Math.max(number(levels.value.TotExp ?? (save.header.version < SAVE_EDITOR_STRICT_FIELDS_VERSION ? int(0) : undefined), 'Lifetime experience'), totalExperience(level)))
   save.header.members[index]!.level = level
 }

@@ -92,7 +92,7 @@ Every check receives explicit inputs rather than reading React state or storage.
 
 A proved violation dominates uncertainty within its check. Missing unrelated coordinates must not block equipment legality. Unknown PP costs cannot produce an exact remaining budget. A known subtotal over a known Game Setup limit proves failure only when costs are constrained to be nonnegative. Missing equipment permissions do not mean unrestricted use. Unsupported dependency cycles cannot validate themselves.
 
-No calculation interprets imported prose as executable code. Full displayed-stat prediction requires verified base inputs, mod applicability, stacking, caps, order, and rounding. A growth rating or syntactically parsed stat token is insufficient. The class growth calculator uses verified PC 1.6.9.0 rules, explicit level allocations, and native numeric class records to calculate unequipped base stats. It retains missing or unsupported inputs as unknown and never writes a calculated value into an observed character record; see [Class data, Crystal Edit imports, and growth estimates](crystal-edit.md).
+No calculation interprets imported prose as executable code. Full displayed-stat prediction requires verified base inputs, mod applicability, stacking, caps, order, and rounding. A growth rating or syntactically parsed stat token is insufficient. The class growth calculator uses verified PC 1.7.0.1 rules, explicit level allocations, and native numeric class records to calculate unequipped base stats. It retains missing or unsupported inputs as unknown and never writes a calculated value into an observed character record; see [Class data, Crystal Edit imports, and growth estimates](crystal-edit.md).
 
 ## Interchange and durability
 

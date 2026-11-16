@@ -23,6 +23,7 @@ export function readHeader(reader: Reader): CrystalSaveHeader {
   const playTime = { days: reader.int32(), hours: reader.int32(), minutes: reader.int32(), seconds: reader.int32(), milliseconds: reader.int32() }
   const lastUpdated = version >= FORMAT.savedDate ? { year: reader.int32(), month: reader.int32(), day: reader.int32(), hour: reader.int32(), minute: reader.int32(), second: reader.int32() } : null
   if (lastUpdated && !validDate(lastUpdated)) reader.fail('Invalid save header date')
+  const homePointId = version >= FORMAT.homePointId ? reader.int32() : -2
   const homePointName = reader.string()
   const currencyAmount = reader.int32()
   if (reader.int32() !== MEMBER_COUNT) reader.fail(`Save format requires ${MEMBER_COUNT} party member slots`)
@@ -49,7 +50,7 @@ export function readHeader(reader: Reader): CrystalSaveHeader {
     }
     return { modId, groups }
   }) : []
-  return { version, invertedVersion, isDemo, isHardcoreDefeat, playTime, lastUpdated, homePointName, currencyAmount, members, difficultyId, patchMode, assistFlags, challengeFlags, randomizerFlags, newGamePlusCount, isModded, mods, modIdMaps }
+  return { version, invertedVersion, isDemo, isHardcoreDefeat, playTime, lastUpdated, homePointId, homePointName, currencyAmount, members, difficultyId, patchMode, assistFlags, challengeFlags, randomizerFlags, newGamePlusCount, isModded, mods, modIdMaps }
 }
 
 export function writeHeader(writer: Writer, header: CrystalSaveHeader): void {
@@ -57,6 +58,7 @@ export function writeHeader(writer: Writer, header: CrystalSaveHeader): void {
   if (!isSupportedCrystalSaveVersion(version) || header.members.length !== MEMBER_COUNT || (version >= FORMAT.savedDate && !validDate(header.lastUpdated)) || (header.invertedVersion && (version < 1 || version > 3))) throw new CrystalSaveError('Invalid save header')
   // Refuse lossy exports instead of silently upgrading or dropping fields from an older layout
   const unsupportedValues = [
+    version < FORMAT.homePointId && header.homePointId !== -2,
     version < FORMAT.demo && header.isDemo,
     version < FORMAT.hardcore && header.isHardcoreDefeat,
     version < FORMAT.difficulty && header.difficultyId !== -1,
@@ -74,6 +76,7 @@ export function writeHeader(writer: Writer, header: CrystalSaveHeader): void {
   if (version >= FORMAT.hardcore) writer.boolean(header.isHardcoreDefeat)
   for (const field of ['days', 'hours', 'minutes', 'seconds', 'milliseconds'] as const) writer.int32(header.playTime[field])
   if (version >= FORMAT.savedDate) for (const field of ['year', 'month', 'day', 'hour', 'minute', 'second'] as const) writer.int32(header.lastUpdated![field])
+  if (version >= FORMAT.homePointId) writer.int32(header.homePointId)
   writer.string(header.homePointName)
   writer.int32(header.currencyAmount)
   writer.int32(header.members.length)
@@ -82,6 +85,7 @@ export function writeHeader(writer: Writer, header: CrystalSaveHeader): void {
     writer.string(member.name)
     writer.int32(member.level)
     writer.int32(member.genderId)
+    // Preserve format-29 appearance metadata independently from any edited BSON gameplay class
     writer.int32(member.jobId)
   }
   if (version >= FORMAT.difficulty) writer.int32(header.difficultyId)

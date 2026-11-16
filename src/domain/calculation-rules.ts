@@ -24,7 +24,9 @@ export interface CalculationRules {
   readonly benchmarks: readonly { readonly id: string; readonly label: string; readonly attack: string; readonly main: string; readonly pierce: string; readonly basePower: number; readonly attackRate: number; readonly statRate: number; readonly targetMain: number; readonly defense: number }[]
 }
 export const PC_RULES = rulesData as unknown as CalculationRules
+// The saved model ID identifies character arithmetic, independently of the inspected source build
 export const PC_MODEL = PC_RULES.id
+export const PC_CALCULATION_SCOPE = `PC ${rulesData.source.gameVersion}`
 export const PC_LEVEL_CAP = PC_RULES.limits.levelCap
 export const NATIVE_DATA = nativeData
 type ArithmeticRules = { readonly limits: Pick<CalculationRules['limits'], 'expressionDepth' | 'expressionNodes'>; readonly formulas: CalculationRules['formulas'] }

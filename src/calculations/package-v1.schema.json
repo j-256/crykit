@@ -181,7 +181,7 @@
           "const": 1
         },
         "engine": {
-          "const": "pc-1.6.9-combat-v1"
+          "const": "native-combat-v1"
         },
         "source": {
           "type": "object"
@@ -969,7 +969,7 @@
           "const": 1
         },
         "id": {
-          "const": "pc-1.6.9-combat-v1"
+          "const": "native-combat-v1"
         },
         "source": {
           "type": "object"
@@ -1057,7 +1057,7 @@
           "const": 1
         },
         "engine": {
-          "const": "pc-1.6.9-combat-v1"
+          "const": "native-combat-v1"
         },
         "evidence": {
           "type": "object"

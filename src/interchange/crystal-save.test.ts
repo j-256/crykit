@@ -21,6 +21,7 @@ function fixture(party = bson(element(16, 'Currency', int(17))), version = 28, i
   const header = concat(
     byte(inverted ? 255 - version : version), version >= 4 ? byte(0) : byte(), version >= 21 ? byte(0) : byte(), int(0), int(1), int(2), int(3), int(4),
     version >= 28 ? concat(int(2024), int(2), int(29), int(12), int(34), int(56)) : byte(),
+    version >= 29 ? int(0x12345678) : byte(),
     dotnetString('Synthetic shrine'), int(17), int(4),
     ...Array.from({ length: 4 }, (_, index) => concat(byte(index === 3 ? 0 : 1), dotnetString(`Example ${index}`), int(5), int(0), int(0))),
     version >= 12 ? int(2) : byte(), version >= 17 ? byte(0) : byte(),
@@ -44,7 +45,7 @@ function decodedMutation(bytes: Uint8Array, offset: number, replacement: Uint8Ar
 }
 
 describe('Crystal Project versioned save codec', () => {
-  it.each(Array.from({ length: 29 }, (_, version) => version))('reads independent format %i framing and preserves the layout after editing', version => {
+  it.each(Array.from({ length: 30 }, (_, version) => version))('reads independent format %i framing and preserves the layout after editing', version => {
     const { bytes } = fixture(undefined, version)
     const save = decodeCrystalSave(bytes)
     expect(save.header.version).toBe(version)
@@ -76,7 +77,7 @@ describe('Crystal Project versioned save codec', () => {
     expect(decodeCrystalSave(output).header.members[0].name).toBe('Changed')
   })
 
-  it.each([24, 25, 26, 27, 28])('retains format %i mod metadata and version-specific mapping groups', version => {
+  it.each([24, 25, 26, 27, 28, 29])('retains format %i mod metadata and version-specific mapping groups', version => {
     const { bytes } = fixture(undefined, version, false, true)
     const save = decodeCrystalSave(bytes)
     expect(save.header.mods[0]).toEqual({ id: 'sample', title: 'Sample mod', version: '1.0', steamWorkshopFileId: version >= 25 ? (1n << 64n) - 1n : 0n })
@@ -86,6 +87,26 @@ describe('Crystal Project versioned save codec', () => {
       expect(save.header.modIdMaps[0].groups.entities).toEqual([{ originalId: version >= 27 ? 14 : 13, newId: version >= 27 ? 114 : 113 }])
     }
     expect(encodeCrystalSave(save)).toEqual(bytes)
+  })
+
+  it('preserves the format-29 home-point ID without shifting strings or subsequent sections', () => {
+    const { bytes } = fixture(undefined, 29)
+    const save = decodeCrystalSave(bytes)
+    expect(save.header.homePointId).toBe(0x12345678)
+    expect(save.header.homePointName).toBe('Synthetic shrine')
+    expect(save.header.currencyAmount).toBe(17)
+    expect(save.members[0].value.Name).toEqual({ type: 'string', value: 'Example 0' })
+    expect(encodeCrystalSave(save)).toEqual(bytes)
+    save.header.currencyAmount = 555
+    save.party.value.Currency = { type: 'int32', value: 555 }
+    const edited = decodeCrystalSave(encodeCrystalSave(save))
+    expect(edited.header.homePointId).toBe(0x12345678)
+    expect(edited.maps).toEqual(save.maps)
+    expect(edited.combatBytes).toEqual(save.combatBytes)
+    const legacy = decodeCrystalSave(fixture(undefined, 28).bytes)
+    expect(legacy.header.homePointId).toBe(-2)
+    legacy.header.homePointId = 7
+    expect(() => encodeCrystalSave(legacy)).toThrow('cannot be represented')
   })
 
   it('decodes independently constructed sections and exports an identical unopened save', () => {
@@ -173,7 +194,7 @@ describe('Crystal Project versioned save codec', () => {
 
   it('rejects unsupported versions, malformed UTF-8, duplicate keys, and nonsequential arrays', () => {
     const { bytes } = fixture()
-    expect(() => decodeCrystalSave(decodedMutation(bytes, 0, byte(29)))).toThrow('Unsupported save format 29')
+    expect(() => decodeCrystalSave(decodedMutation(bytes, 0, byte(30)))).toThrow('Unsupported save format 30')
     expect(() => decodeCrystalSave(decodedMutation(bytes, 1, byte(2)))).toThrow('boolean')
     expect(() => decodeCrystalSave(fixture(bson(element(2, 'bad', concat(int(2), byte(0xff, 0))))).bytes)).toThrow('UTF-8')
     expect(() => decodeCrystalSave(fixture(bson(element(16, 'x', int(1)), element(16, 'x', int(2)))).bytes)).toThrow('Duplicate')

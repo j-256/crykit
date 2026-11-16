@@ -43,7 +43,7 @@ it('requires a trusted bundled receipt, exact interpretation, and verified compl
   const bundled = { ...original, ...pin }
   const requested = { catalogId: original.id, catalogRevisionId: original.revisionId }
   expect(fulfillSource(requested, [bundled], [])).toBeUndefined()
-  expect(fulfillSource(requested, [{ ...bundled, payloadSource: { ...pin.payloadSource, catalogRevisionId: original.revisionId.replace(/p1$/, 'p2') as CatalogRevisionId } }], [pin])).toBeUndefined()
+  expect(fulfillSource(requested, [{ ...bundled, payloadSource: { ...pin.payloadSource, catalogRevisionId: original.revisionId.replace(/p[0-9]+$/, 'p999') as CatalogRevisionId } }], [pin])).toBeUndefined()
   const entity = Object.values(original.entities)[0]!
   const forged = { ...bundled, entities: { [entity.id]: { ...entity, name: 'Forged record' } } }
   expect(sourcePayloadValid(forged, [pin])).toBe(false)

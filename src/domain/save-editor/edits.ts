@@ -1,6 +1,6 @@
 import { type CrystalSave } from '../../interchange/crystal-save.ts'
 import { type SaveEditorCatalog, type SaveEditorModSource } from '../save-editor-mods'
-import { type SaveEditCommand, SAVE_EDITOR_MAX_CURRENCY, ATLAS, SAVE_EDITOR_MAX_LEVEL } from './model.ts'
+import { type SaveEditCommand, SAVE_EDITOR_MAX_CURRENCY, ATLAS, SAVE_EDITOR_MAX_LEVEL, LEGACY_HEADER } from './model.ts'
 import { validate } from './validation.ts'
 import { bound, object, int, text, number, subJob, flag, flags, known, capacity, quantity, equippedCount } from './values.ts'
 import { setLevel, learnJobs, unlockSelectedJob } from './progression.ts'
@@ -53,7 +53,8 @@ export function editSave(input: CrystalSave, nativeCatalog: SaveEditorCatalog, c
         mainChanged = true
         member.value.Growth = int(id!)
         if (subJob(member, save) === id) member.value.SubJob = { type: 'null' }
-        save.header.members[command.index]!.jobId = id!
+        // Newer headers retain saved appearance; the game derives its portrait again on its next save
+        if (save.header.version < LEGACY_HEADER.appearance) save.header.members[command.index]!.jobId = id!
       }
       member.value[field] = id === null ? { type: 'null' } : int(id)
       classChanged = true

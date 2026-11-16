@@ -22,6 +22,7 @@ const changes: readonly { readonly label: string; readonly patch: Partial<Battle
   { label: 'Elapsed target turns', patch: { targetTurnCount: 4 }, expected: '4' },
   { label: 'Automatic statuses', patch: { automaticStatuses: false }, expected: 'Excluded' },
   { label: 'Actor resources', patch: { user: { hp: 0, mp: 12, ap: 7 } }, expected: 'HP 0, MP 12, AP 7' },
+  { label: 'Actor turn-start resources', patch: { userTurnStart: { hp: 100, mp: 15, ap: null } }, expected: 'HP 100, MP 15, AP Unknown' },
   { label: 'Actor active statuses', patch: { statuses: [{ ref: first!, count: 2 }] }, expected: `${name(first!)} (2 remaining)` },
   { label: 'Actor active statuses', patch: { statuses: [{ ref: second!, count: 1 }] }, expected: `${name(second!)} (1 remaining)` },
   { label: 'Statuses previously applied to actor', patch: { userPreviouslyAppliedStatuses: [first!] }, expected: name(first!) },

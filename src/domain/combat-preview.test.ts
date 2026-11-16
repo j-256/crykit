@@ -35,6 +35,47 @@ function setup(values: { ability?: Record<string, unknown>; equipment?: Record<s
 }
 
 describe('effective build combat previews', () => {
+  it.each(['1.6.9', '1.6.9.0', '1.6.6', '1.6.6.0'])('retains actor current-resource terms for an explicitly selected %s Game Setup', gameVersion => {
+    const { resolve } = setup({ ability: { BasePower: 0, BasePAtkRate: 0, PDefRate: 0, MDefRate: 0, IsPAbil: false, IsMAbil: false, AbilityMods: [{ Tag: abilityTag('DamageRateUserCurrent_100'), Value1: 100, Value2: 1 }] } })
+    const selected = content(battle({ user: { hp: 100, mp: 10, ap: 0 }, userTurnStart: { hp: 90, mp: 7, ap: 0 } }))
+    const versionRules = (version: string) => resolveGameRules({ mode: { state: 'known', value: 'Standard' }, difficulty: { version: 1, selection: { state: 'known', value: 0 } }, gameVersion: { state: 'known', value: version } }, [])
+    const preview = (version: string) => calculateBuildCombatPreview(selected, SUGGESTED_BUILD_SLOTS, resolve, versionRules(version))
+    expect(preview(gameVersion).damage).toBe(10)
+    expect(preview('1.7.0.1').damage).toBe(7)
+    const historical = { ...selected, calculation: { ...selected.calculation!, battle: { ...selected.calculation!.battle!, userTurnStart: undefined } } }
+    expect(calculateBuildCombatPreview(historical, SUGGESTED_BUILD_SLOTS, resolve, versionRules(gameVersion)).damage).toBe(10)
+    expect(calculateBuildCombatPreview(historical, SUGGESTED_BUILD_SLOTS, resolve, versionRules('1.7.0.1')).damage).toBeNull()
+    expect(selected.calculation!.battle!.userTurnStart).toEqual({ hp: 90, mp: 7, ap: 0 })
+  })
+
+  it('uses current resources for Switch 1.6.6 even when turn-start resources differ', () => {
+    const { resolve } = setup({ ability: { BasePower: 0, BasePAtkRate: 0, PDefRate: 0, MDefRate: 0, IsPAbil: false, IsMAbil: false, AbilityMods: [{ Tag: abilityTag('DamageRateUserCurrent_100'), Value1: 100, Value2: 1 }] } })
+    const selected = content(battle({ user: { hp: 100, mp: 10, ap: 0 }, userTurnStart: { hp: 90, mp: 7, ap: 0 } }))
+    const switchRules = resolveGameRules({ platform: { state: 'known', value: 'Nintendo Switch' }, gameVersion: { state: 'known', value: '1.6.6' }, mode: { state: 'known', value: 'Standard' }, difficulty: { version: 1, selection: { state: 'known', value: 0 } } }, [])
+    expect(calculateBuildCombatPreview(selected, SUGGESTED_BUILD_SLOTS, resolve, switchRules).damage).toBe(10)
+    const noSnapshot = { ...selected, calculation: { ...selected.calculation!, battle: { ...selected.calculation!.battle!, userTurnStart: undefined } } }
+    expect(calculateBuildCombatPreview(noSnapshot, SUGGESTED_BUILD_SLOTS, resolve, switchRules).damage).toBe(10)
+  })
+
+  it.each(['HP', 'MP', 'AP'] as const)('uses explicit turn-start %s for actor resource damage without adopting current values', resource => {
+    const attr = ['HP', 'MP', 'AP'].indexOf(resource)
+    const { preview } = setup({ ability: { BasePower: 0, BasePAtkRate: 0, PDefRate: 0, MDefRate: 0, IsPAbil: false, IsMAbil: false, AbilityMods: [{ Tag: abilityTag('DamageRateUserCurrent_100'), Value1: 100, Value2: attr }] } })
+    const resources = { hp: 7, mp: 8, ap: 9 }
+    const known = preview(content(battle({ userTurnStart: resources })))
+    expect(known.damage).toBe(resources[resource.toLowerCase() as keyof typeof resources])
+    expect(known.costs.MP).toBe(16)
+    const unknown = preview(content(battle()))
+    expect(unknown.damage).toBeNull()
+    expect(unknown.unavailable.Damage?.join(' ')).toContain(`turn-start ${resource}`)
+    expect(unknown.criticalChance).not.toBeNull()
+    expect(unknown.costs.MP).toBe(16)
+  })
+
+  it('preserves current target resources when actor snapshots are absent', () => {
+    const { preview } = setup({ ability: { BasePower: 0, BasePAtkRate: 0, PDefRate: 0, MDefRate: 0, IsPAbil: false, IsMAbil: false, AbilityMods: [{ Tag: abilityTag('DamageRateCurrent_100'), Value1: 100, Value2: 1 }] } })
+    expect(preview(content(battle({ targetResources: { hp: 10, mp: 13, ap: 0 } }))).damage).toBe(13)
+  })
+
   it('applies per-ability and global costs without requiring a target or complete core stats', () => {
     const { preview } = setup({ equipment: { StatMods: [modifier('Flat_AbilityMPCost', ability.ID, -5), modifier('Mult_MPCosts', -50)] } })
     const selected = { ...content(undefined), equipment: { 'plan-main-hand': { ref: gear } }, calculation: { ...content(undefined).calculation!, level: null, growth: [] } }

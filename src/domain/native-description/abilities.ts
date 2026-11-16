@@ -85,7 +85,8 @@ export function describeAbility(context: NativeDescriptionContext, record: Nativ
       const value = record[key]
       if (typeof value === 'number' && value !== 0) add(join(vocab(label), vocab('Colon_Sep'), record.IsPAbil && (key === 'BaseCritChance' || key === 'BaseCritDmg') && value >= 0 ? vocab('Plus') : '', value + offset, vocab('Percent')), `Ability ${key}`)
     }
-    if (typeof record.Element === 'number') add(join(listName('ElementNames', record.Element), ' ', vocab('WinAbilityMod_Elemental')), 'Ability element')
+    // The 1.7 vocabulary includes the leading separator; retained older snapshots omit it
+    if (typeof record.Element === 'number') add(join(listName('ElementNames', record.Element), ' ', vocab('WinAbilityMod_Elemental')?.trimStart()), 'Ability element')
     if (record.IsPAbil === true || record.IsMAbil === true) unresolved.push('Ability combat details')
     if (record.HideStatusesFromDescription !== true) for (const key of ['TargetStatuses', 'UserStatuses']) {
       const statuses = record[key]

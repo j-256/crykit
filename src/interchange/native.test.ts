@@ -2,15 +2,31 @@ import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { requirePlaythrough } from '../domain'
-import { addTestCharacter, createTestLocalData } from '../domain/test-helpers'
+import { addTestBuild, addTestCharacter, createTestLocalData } from '../domain/test-helpers'
 import { isImmutableCatalogSnapshot, previewNativeBackup } from './native'
 import { CURRENT_CATALOG } from '../catalog/bundled'
 import { catalogSnapshotKey } from './identity'
+import { defaultBattleCalculation } from '../domain/battle-plan'
+import { defaultCalculation } from '../domain/calculation-plan'
 import { NativeLocalDataSchema, StoredNativeLocalDataSchema } from './native-schema'
 
 const encode = (value: unknown): Uint8Array => new TextEncoder().encode(JSON.stringify(value))
 
 describe('complete source backup payloads', () => {
+  it('round-trips optional turn snapshots without reinterpreting historical current resources', async () => {
+    for (const userTurnStart of [undefined, { hp: 9, mp: null, ap: 0 }]) {
+      const localData = addTestBuild(createTestLocalData(), 'snapshot-build', '', {})
+      const revision = localData.buildRevisions['snapshot-build-revision']!
+      const battle = { ...defaultBattleCalculation(), user: { hp: 3, mp: 2, ap: 1 }, ...(userTurnStart ? { userTurnStart } : {}) }
+      const content = { ...revision.content, calculation: { ...defaultCalculation(null), battle } }
+      const bytes = nativeFixture({ mutateLocalData: target => Object.assign(target, { ...localData, changes: [], buildRevisions: { ...localData.buildRevisions, [revision.id]: { ...revision, content } } }) })
+      const preview = await previewNativeBackup(bytes, 'synthetic-snapshots.zip')
+      const restored = preview.proposed.localData.buildRevisions[revision.id]!.content.calculation!.battle!
+      expect(restored.user).toEqual(battle.user)
+      expect(restored.userTurnStart).toEqual(userTurnStart)
+      expect(Object.hasOwn(restored, 'userTurnStart')).toBe(userTurnStart !== undefined)
+    }
+  })
   it('retains deeply immutable admitted catalogs without trusting altered archive contents', async () => {
     const bytes = nativeFixture({ mutatePayload: payload => { payload.catalogs = [CURRENT_CATALOG] } })
     const preview = await previewNativeBackup(bytes, 'complete.zip')

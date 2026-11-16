@@ -3,7 +3,7 @@ import combatData from '../catalog/native-combat-v1.json'
 import { ABILITY_COSTS, type AbilityEstimate } from './ability-estimates'
 import { calculateBuildStats, type CalculatedStat } from './build-stats'
 import type { DefinitionResolver } from './build-mechanics'
-import { calculateCombat } from './combat-calculations'
+import { calculateCombat, USER_RESOURCE_TIMING } from './combat-calculations'
 import type { CombatValue } from './combat-expression'
 import { calculateFormula, NATIVE_DATA } from './calculation-rules'
 import { calculationModResolver } from './calculation-mods'
@@ -126,7 +126,7 @@ function appendAutomaticStatuses(statuses: ActiveStatus[], modifiers: EffectiveM
   for (const status of modifiers.automaticStatuses) if ((status.applied || status.uncertain) && !result.some(item => item.record.ID === status.id)) result.push({ ref: status.ref, record: status.record ?? { ID: status.id }, count: status.uncertain || status.countUncertain ? null : status.count, uncertain: status.uncertain })
   return result
 }
-function battler(stats: CombatObject, resources: BattleCalculationPlan['user'] | undefined, statuses: readonly ActiveStatus[], isMember: boolean, label: string): CombatObject {
+function battler(stats: CombatObject, resources: BattleCalculationPlan['user'] | undefined, statuses: readonly ActiveStatus[], isMember: boolean, label: string, turnStart?: BattleCalculationPlan['userTurnStart']): CombatObject {
   const result: CombatObject = { Stats: stats, IsMember: isMember, IsMonster: !isMember }
   for (const [input, native] of Object.entries(RESOURCE_FIELDS)) Object.defineProperty(result, `${native}Current`, { enumerable: true, get: () => {
     const current = requireNumber(resources?.[input as keyof typeof RESOURCE_FIELDS], `${label} current ${native}`)
@@ -134,6 +134,11 @@ function battler(stats: CombatObject, resources: BattleCalculationPlan['user'] |
     if (typeof maximum === 'number' && current > maximum) throw new Error(`${label} current ${native} exceeds its calculated maximum`)
     return current
   } })
+  // Saved current resources predate turn snapshots and cannot establish captured values
+  // Snapshot values can exceed a later maximum after stat-changing effects
+  const turnFlags: CombatObject = {}
+  for (const [input, native] of Object.entries(RESOURCE_FIELDS)) guarded(turnFlags, `${native}TurnStart`, turnStart?.[input as keyof typeof RESOURCE_FIELDS], `${label} turn-start ${native}`, turnStart?.[input as keyof typeof RESOURCE_FIELDS] != null)
+  result.TurnFlags = turnFlags
   Object.defineProperty(result, 'HPCriticalValue', { enumerable: true, get: () => Math.trunc(requireNumber(stats.HP, `${label} maximum HP`) / 4) })
   result.Statuses = statuses.map(status => {
     const entry: CombatObject = {}
@@ -223,7 +228,7 @@ export function calculateBuildCombatPreview(content: BuildRevisionContent, slots
   }
   const selectedStatuses = battle?.statuses ?? []
   const explicit = explicitStatuses(selectedStatuses, resolve, mode, issues)
-  const collected = collectEffectiveModifiers(content, slots, resolve, { mode, turnCount: battle ? battle.turnCount : 0, statuses: selectedStatuses.map(status => status.ref), includeAutomaticStatuses: battle?.automaticStatuses ?? false, previouslyAppliedStatuses: battle?.userPreviouslyAppliedStatuses, currentHP: battle?.user.hp })
+  const collected = collectEffectiveModifiers(content, slots, resolve, { mode, pairedWeaponBonuses: rules?.pairedWeaponBonuses, turnCount: battle ? battle.turnCount : 0, statuses: selectedStatuses.map(status => status.ref), includeAutomaticStatuses: battle?.automaticStatuses ?? false, previouslyAppliedStatuses: battle?.userPreviouslyAppliedStatuses, currentHP: battle?.user.hp })
   const unknownInnates = unknownSecondaryClass && collected.records.some(source => source.group === 'passive' && Array.isArray(source.record.StatMods) && source.record.StatMods.some((mod: NativeRecord) => mod.Tag === TAG_IDS.SubJobInnatePassives))
   if (unknownInnates) issues.push('Secondary class innate modifiers are unknown')
   const modifiers = unknownInputs.length || unknownInnates || rules?.issues.length ? { ...collected, unknownFields: new Set([...collected.unknownFields, '*']) } : collected
@@ -237,7 +242,7 @@ export function calculateBuildCombatPreview(content: BuildRevisionContent, slots
   }
   const ap = attempt('Maximum AP', () => { if (modifiers.unknownFields.has('*')) throw new Error('User modifiers are unknown'); const flat = requireNumber(modifiers.stats.AP, 'User AP modifier'); const rate = requireNumber(modifiers.stats.BonusAPAddi, 'User AP percentage modifier'); const subtotal = add(BASE_AP_CAPACITY, flat); return Math.max(0, Math.min(MEMBER_AP_CAPACITY_LIMIT, add(subtotal, percent(subtotal, rate)))) })
   guarded(stats, 'AP', ap, 'User maximum AP', ap !== null)
-  const user = battler(stats, battle?.user, active, true, 'User')
+  const user = battler(stats, battle?.user, active, true, 'User', battle?.userTurnStart)
   const ability = plan?.ability ? nativeStatRecord(plan.ability, 'ability', resolve, mode) : undefined
   const costs = Object.fromEntries(ABILITY_COSTS.map(cost => [cost, attempt(`${cost} cost`, () => {
     if (!ability) throw new Error('Choose an ability with supported numeric data')
@@ -251,7 +256,7 @@ export function calculateBuildCombatPreview(content: BuildRevisionContent, slots
   const target = battle?.target === 'self' ? user : monster ? battler(monster.stats, battle?.targetResources, monster.statuses, false, 'Target') : undefined
   const targetMods = battle?.target === 'self' ? modifiers : monster?.modifiers
   const targetActive = battle?.target === 'self' ? active : monster?.statuses ?? []
-  const context: CombatObject = { config: (rules?.battleConfig ?? NATIVE_DATA.battleConfig) as CombatValue, sameBattler: battle?.target === 'self', calcTestMode: false }
+  const context: CombatObject = { userResourceTiming: USER_RESOURCE_TIMING[rules?.userResourceTiming ?? 'turnStart'], config: (rules?.battleConfig ?? NATIVE_DATA.battleConfig) as CombatValue, sameBattler: battle?.target === 'self', calcTestMode: false }
   for (const key of ['bottomThreat', 'topThreat', 'targetIsThreatTarget', 'targetCharging', 'repeatCount'] as const) guarded(context, key, battle?.[key], key, battle?.[key] != null)
   guarded(context, 'userBuffCount', new Set(active.filter(status => status.record.Category === BUFF_CATEGORY).map(status => status.record.ID)).size, 'Actor active buff count', !active.some(status => status.uncertain && (status.record.Category === undefined || status.record.Category === BUFF_CATEGORY)))
   guarded(context, 'targetDebuffCount', new Set(targetActive.filter(status => status.record.Category === DEBUFF_CATEGORY).map(status => status.record.ID)).size, 'Target active debuff count', !targetActive.some(status => status.uncertain && (status.record.Category === undefined || status.record.Category === DEBUFF_CATEGORY)))
@@ -348,5 +353,5 @@ export function calculateBuildCombatPreview(content: BuildRevisionContent, slots
   }
   const maximaOf = (value: CombatObject): BattleCalculationPlan['user'] => Object.fromEntries(Object.entries(RESOURCE_FIELDS).map(([key, field]) => { try { return [key, requireNumber(value[field], field)] } catch { return [key, null] } })) as unknown as BattleCalculationPlan['user']
   const maxima = { user: maximaOf(stats), target: battle?.target === 'self' ? maximaOf(stats) : monster ? maximaOf(monster.stats) : null }
-  return { costs, baseCosts, maxima, damage, criticalDamage, hitChance, criticalChance, variance, criticalVariance, periodic, statuses, issues: [...new Set([...issues, ...scope.issues])], unavailable, notes: ['Damage and healing are calculated before variance, random rolls, survival effects, and resource limits.', 'Hit, critical, and status chances are shown before Luck and failure-counter adjustments.', ...(battle?.automaticStatuses ? ['Includes guaranteed automatic statuses. Select chance-based or possibly expired statuses only if they are active.'] : [])] }
+  return { costs, baseCosts, maxima, damage, criticalDamage, hitChance, criticalChance, variance, criticalVariance, periodic, statuses, issues: [...new Set([...issues, ...scope.issues])], unavailable, notes: [rules?.userResourceTiming === 'current' ? 'Actor resource-based damage uses current resources for this Game Setup version; turn-start inputs remain recorded.' : 'Actor current and missing resource damage uses turn-start captures; current resources do not fill unknown captures.', 'Damage and healing are calculated before variance, random rolls, survival effects, and resource limits.', 'Hit, critical, and status chances are shown before Luck and failure-counter adjustments.', ...(battle?.automaticStatuses ? ['Includes guaranteed automatic statuses. Select chance-based or possibly expired statuses only if they are active.'] : [])] }
 }

@@ -17,7 +17,8 @@ const CACHE = join(ROOT, '.game-cache')
 const EXECUTABLE_NAME = 'Crystal Project.exe'
 const TEXTURE_DIRECTORY = 'Textures'
 const DATABASE_DIRECTORY = 'Database'
-const OPAQUE_DATABASE_FILES = new Set(['loading.dat'])
+// Loading and locale files are not inverted JSON; retain their fingerprints without interpreting their contents
+const OPAQUE_DATABASE_FILES = new Set(['loading.dat', 'locale.dat'])
 const FORMAT_SOURCE_COMMIT = '79320b343d603aa069aa023fd54020d36419e082'
 const FORMAT_SOURCES = Object.freeze({
   texturePack: `https://github.com/iconmaster5326/CrystalProjector/blob/${FORMAT_SOURCE_COMMIT}/schema/ksy/texture_pack.ksy`,
@@ -466,7 +467,7 @@ async function update(flags) {
     console.error(`Writing all embedded textures to ${flags.unpack}`)
     await unpackTextures(flags.unpack, game.texturePacks, textureData.packs, game.inputDigest)
   }
-  console.log(`Saved ${built.outputs.size} native artwork files (${total} bytes) for ${Object.keys(built.entities).length} catalog definitions; inventoried ${textureData.paths.size} embedded textures and ${visuals.references.length} database references; ${built.unmapped.length} mapped identities retain explicit artwork gaps`)
+  console.log(`Saved ${built.outputs.size} native artwork files (${total} bytes) for ${Object.keys(built.entities).length} catalog definitions; inventoried ${textureData.paths.size} embedded textures and ${visuals.references.length} database references; ${nativeDefinitionGaps.length} mapped identities retain explicit artwork gaps`)
 }
 
 try {

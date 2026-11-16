@@ -1,6 +1,6 @@
 # Native reference facts
 
-The launch definition catalog is built directly from fingerprinted Crystal Project 1.6.9.0 databases and reviewed implementation facts. It does not merge wiki definitions or overlay corrections on community guide records. Native numeric identities, source fingerprints, and exact record contents determine which facts apply.
+The launch definition catalog is built directly from fingerprinted Crystal Project 1.7.0.1 databases and reviewed implementation facts. It does not merge wiki definitions or overlay corrections on community guide records. Native numeric identities, source fingerprints, and exact record contents determine which facts apply.
 
 Verified native facts appear as ordinary content without routine citation markers. Uncertain values and external imported claims retain Sources controls. Suppressing a routine native citation does not discard provenance or broaden version, platform, or mod applicability. See [platform coverage](platform-coverage.md) and [catalog sources](catalog-sources.md).
 

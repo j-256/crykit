@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "gameVersion": "1.7.0.1",
+  "comparedOn": "2026-11-16",
+  "method": "Managed executables decompiled with ILSpy 11.1.0.9782 and identical owned dependency resolution; corresponding Content files SHA-256 compared; world ZIP members and timestamp-normalized archive bytes compared",
+  "executables": {
+    "windows": "bd1ad18037edaa96250c52446e83c4cbc44cff0e833edbeaf570ed328748cff4",
+    "macos": "12c4ec6813d65bac43eca34ad1605a2c6f0241b0d4312feaadbe7d99b9a5d589"
+  },
+  "nativeContentDigest": "0fb4a4d3399aa1cd5ee236a66a44f2d61dd7f52c97b255ebc8381f27c4ae3433",
+  "equalDatabaseAndTextureInventory": {
+    "sha256": "c626b45de85702e6060734c3523de37deea9af1d179e8cd3c7aaee4a6f68ecd8",
+    "files": {
+      "Database/ability.dat": {
+        "size": 792870,
+        "sha256": "8cf03198a2b012f26741b2cf3993944a69ad2eb0d39ae4286903c7517cdffc07"
+      },
+      "Database/actor.dat": {
+        "size": 1909,
+        "sha256": "517a630b38bfa235f2730aeac23083a6d4606d6bfc73ca8f63048aed9f6a45fb"
+      },
+      "Database/animation.dat": {
+        "size": 4856310,
+        "sha256": "85e95c2796dbcb9bd50f3679e09ebb6edb49398aab589df6d8ad81673079ea0a"
+      },
+      "Database/biome.dat": {
+        "size": 240478,
+        "sha256": "96c1ab1be8f05aca5fc775f6f84a2386997c393d63447715c80b22aea922db53"
+      },
+      "Database/difficulty.dat": {
+        "size": 2715,
+        "sha256": "619b76e66daacc0a056c525f54129a046db9ada5075997a2f41aa1ee7d0aa996"
+      },
+      "Database/equipment.dat": {
+        "size": 511487,
+        "sha256": "0cf99dfa1fa6ed08f202e5d471be5ee3121ecb8cf774cc100053abae12d1527f"
+      },
+      "Database/gender.dat": {
+        "size": 611,
+        "sha256": "ec8f1208e42901f44114b2f00546f3d92b5dd02982e3c401388b26491656eb30"
+      },
+      "Database/item.dat": {
+        "size": 139104,
+        "sha256": "017c38b6bde24cdb3410f0985d7dace2170ae9c2c97f26add270860adac11a3d"
+      },
+      "Database/job.dat": {
+        "size": 142460,
+        "sha256": "3d4e29c45b20a01e8eeadadb3159e39b6591e891d3db1207b3c1cfb28dc3b495"
+      },
+      "Database/loading.dat": {
+        "size": 87,
+        "sha256": "3787f8d8686109be4c38514532f8926dc8556808a16ae58b2bfc8634c056449e"
+      },
+      "Database/locale.dat": {
+        "size": 263,
+        "sha256": "db3c8ccc45844758b1af3d84233c4347d8f1499bb2966d9779df04ccf18dfa47"
+      },
+      "Database/monster.dat": {
+        "size": 1228750,
+        "sha256": "b89379266a8ef25761a0e87f76b985020062e96c5bf8009885db1d1b7ec4df07"
+      },
+      "Database/passive.dat": {
+        "size": 41874,
+        "sha256": "651010ac1aecacd4373feff226223e7bd2c844b35436c4d04bdc59c75bf30286"
+      },
+      "Database/patch.dat": {
+        "size": 2053468,
+        "sha256": "e484bea52b62a9c0cd004b8c1f96e9b6065dfd6392f77d65787313dd79e18177"
+      },
+      "Database/recipe.dat": {
+        "size": 36620,
+        "sha256": "439ab0a84cdd6bef2cfdacdc9e5c8e19ec71ecd24e1fd9456463470684d5f48d"
+      },
+      "Database/spark.dat": {
+        "size": 213513,
+        "sha256": "f7c2c98b07a6493ab6919f2ea6dbba70dc520e495356aff05529856b9d6116e8"
+      },
+      "Database/status.dat": {
+        "size": 232396,
+        "sha256": "1a7bf74f6d20ef1d144ecfe617a57b4437ec8af8ccd6be67faef8992d8141649"
+      },
+      "Database/system.dat": {
+        "size": 199814,
+        "sha256": "8ade3dee6bb3f23ea8ca6424677368c998b26b2afdf0c549805665695f19f7bb"
+      },
+      "Database/troop.dat": {
+        "size": 135938,
+        "sha256": "c4f28c554c469a45b00ac76c85a4531054431b812b10aa606ee7d2fcf8f4a0f6"
+      },
+      "Database/voxel.dat": {
+        "size": 190325,
+        "sha256": "f2cb7206843f5ce3ae69d14c61432db85e34437cc5b8e5efadcfb210c1ca4b6e"
+      },
+      "Textures/Actor.dat": {
+        "size": 946535,
+        "sha256": "b5120f43ef66af8c7f186c15c82becaaafc61427168eae4e3a682f7db5181061"
+      },
+      "Textures/Animation.dat": {
+        "size": 56049326,
+        "sha256": "4ea2d08ff0bce4aafe76f1d921e8685b3037c19c15e483ca27d985eb69944644"
+      },
+      "Textures/Editor.dat": {
+        "size": 100559,
+        "sha256": "b96018d5027e3a0e542b0f9731c757b1f903f367441928789a7ee43e7741daa8"
+      },
+      "Textures/Entity.dat": {
+        "size": 24354,
+        "sha256": "5e57e2637201f725818334b44ab2e27ccfd6e48883199a44509cc85c85d47791"
+      },
+      "Textures/Equipment.dat": {
+        "size": 304274,
+        "sha256": "7350e72b2d9a380324d86f9d99d075b89292b1edef3a962d1e7814b60a5d9e0b"
+      },
+      "Textures/GUI.dat": {
+        "size": 340962,
+        "sha256": "bfbfd5d2d07158d7c4f8600d2ed636053ba4884714a92391f49c0b9139dbfcbc"
+      },
+      "Textures/Icon.dat": {
+        "size": 108363,
+        "sha256": "fa47ea27cf0edd6b571f2349e1e0041528f8dd128b626315cb9a6096a6ce09e8"
+      },
+      "Textures/Loading.dat": {
+        "size": 5823,
+        "sha256": "80f57913606406f4da98fbb2e6bb540f82c540764cafd165fe9c0332d9052d37"
+      },
+      "Textures/Member.dat": {
+        "size": 712078,
+        "sha256": "ddcddc114c4bb42ac2d4578894b640c0fdb6fd7f31e79e5923cf25cee111ef86"
+      },
+      "Textures/Monster.dat": {
+        "size": 2248919,
+        "sha256": "d370a45e3e1bf9d4de6616e315a68b94e5c4cefd80fb0bece5f5994c59d985b4"
+      },
+      "Textures/Mouse.bmp": {
+        "size": 4152,
+        "sha256": "e9eea8fd7440bc9bdbf45cfb43bfdad4693527ec06413ffc0f87fb04a54c661c"
+      },
+      "Textures/Shadow.dat": {
+        "size": 8676,
+        "sha256": "b816b509e4af799003c2a60b2d794655e20a821be34248a4ca46a6436e4e6870"
+      },
+      "Textures/System.dat": {
+        "size": 16164,
+        "sha256": "8ac9df5fce294381ed21bee2dcb6adf81c57991d7eaa7da5acdaff9642d841f7"
+      },
+      "Textures/Voxel.dat": {
+        "size": 689562,
+        "sha256": "425990b2dd1732045afda604e422c8e3880d242b14ed8c99ec378b881a0b27c5"
+      },
+      "Textures/Window.dat": {
+        "size": 164967,
+        "sha256": "d306390a8682451aeb27c1c4955e3b91249dc362032fe070965853766ce854ea"
+      }
+    }
+  },
+  "worlds": {
+    "Worlds/arena.dat": {
+      "raw": {
+        "windows": "3e73edcaaeeb8c0843249030eac28f17a87a1d1c8570c8ccdfa2f343f63b1442",
+        "macos": "b56fbe974014d4e6644f3a0e1a97ae21796ededce0688fe7adc2657fbf4d9cde"
+      },
+      "windowsEntries": 248,
+      "macosEntries": 248,
+      "changedEntries": [],
+      "normalized": {
+        "windows": "38a1006ba1ce8c6473fcde981b7c70794ecae43cf5fed0b55faee40368a1a7bf",
+        "macos": "38a1006ba1ce8c6473fcde981b7c70794ecae43cf5fed0b55faee40368a1a7bf"
+      },
+      "onlyZipDateTimeDiffers": true
+    },
+    "Worlds/field.dat": {
+      "raw": {
+        "windows": "1ceb8aa08207046221f5b23db1dfef1d056479281859c88d181bd7dc125bc9bc",
+        "macos": "510c7b464a72714fbafc8a5eeca6348b784368ba41cf83c3e2853f2bb512ba0e"
+      },
+      "windowsEntries": 2097,
+      "macosEntries": 2097,
+      "changedEntries": [],
+      "normalized": {
+        "windows": "29bf8888a85abf9c8459225f1da3196ff0d1ead7ac17374bd7d286a3756a6ace",
+        "macos": "29bf8888a85abf9c8459225f1da3196ff0d1ead7ac17374bd7d286a3756a6ace"
+      },
+      "onlyZipDateTimeDiffers": true
+    },
+    "Worlds/title.dat": {
+      "raw": {
+        "windows": "9c14a1a4918f9767c25d1c12026ad2c208905f9fd24d443deba25c8a5e58064b",
+        "macos": "59d7f4efa09c2dda13cb63c53662ac57d3c0aa029cefcbe067427638ee272a6c"
+      },
+      "windowsEntries": 26,
+      "macosEntries": 26,
+      "changedEntries": [],
+      "normalized": {
+        "windows": "2ca22adc2f9833e42b783a5089ffa158f763927ec9d12724cf2036d12408a1c4",
+        "macos": "2ca22adc2f9833e42b783a5089ffa158f763927ec9d12724cf2036d12408a1c4"
+      },
+      "onlyZipDateTimeDiffers": true
+    }
+  },
+  "sourceComparison": {
+    "windowsCount": 915,
+    "macCount": 914,
+    "identicalCount": 908,
+    "different": [
+      "Sang.Audio/MCache.cs",
+      "Sang.Scene/SceneNarration.cs",
+      "Sang.Utility/InteropHelper.cs",
+      "Sang.Utility/SteamManager.cs",
+      "Sang/GameMain.cs",
+      "Sang/Program.cs"
+    ],
+    "windowsOnly": [
+      "Sang.Utility/WindowsHookActiveCheck.cs"
+    ],
+    "macOnly": []
+  },
+  "unestablished": [
+    "Runtime graphics, audio, input, and performance behavior",
+    "Nintendo Switch, Linux, other game versions, randomized games, and enabled mod configurations"
+  ],
+  "contentMembershipDifference": {
+    "path": "Shaders/EffectClear.fxb",
+    "scope": "Observed in macOS Content only; no complete shader-membership parity claim"
+  }
+}

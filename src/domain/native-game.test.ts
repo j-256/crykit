@@ -9,13 +9,14 @@ import { composeModCatalog, expandModCatalogs } from './mod-layers'
 import { createTestLocalData } from './test-helpers'
 
 describe('native gameplay definitions', () => {
-  it('labels only the reviewed Windows/macOS version as the shared PC gameplay baseline', () => {
+  it('labels supported PC source scopes without labeling Switch as a PC extraction', () => {
     for (const platform of ['Windows', 'macOS']) for (const version of ['1.6.9', '1.6.9.0']) expect(nativeGameplayScopeLabel(platform, version)).toBe('PC 1.6.9.0')
+    for (const platform of ['Windows', 'macOS']) expect(nativeGameplayScopeLabel(platform, '1.7.0.1')).toBe('PC 1.7.0.1')
     for (const [platform, version, expected] of [
-      ['Windows', '1.6.6', 'Windows 1.6.6'],
+      ['Windows', '1.6.6', 'PC 1.6.6'],
       ['Windows', '1.6.9.1', 'Windows 1.6.9.1'],
       ['macOS', '1.7.0', 'macOS 1.7.0'],
-      ['Linux', '1.6.9', 'Linux 1.6.9'],
+      ['Linux', '1.6.9', 'PC 1.6.9.0'],
       ['Nintendo Switch', '1.6.9', 'Nintendo Switch 1.6.9'],
       [undefined, '1.6.9', 'Platform unresolved 1.6.9'],
       ['Windows', undefined, 'Windows (version unresolved)'],
@@ -27,27 +28,27 @@ describe('native gameplay definitions', () => {
     const slime = catalog.entities[nativeEntityId('monster', 2)]!
     const patched = Object.values(catalog.entities).find(entity => nativeIdentity(entity)?.mode === 'Chaos' && nativeIdentity(entity)?.database === 'monster')!
     const before = JSON.stringify([slime, patched])
-    expect(nativeDefinitionLabel(slime)).toBe('PC 1.6.9.0 · base database')
-    expect(nativeDisplayDescription(slime)).toMatch(/^PC 1\.6\.9\.0 base database; level /)
-    expect(nativeDefinitionLabel(patched)).toBe('PC 1.6.9.0 · Chaos mode')
-    expect(nativeDisplayDescription(patched)).toMatch(/^PC 1\.6\.9\.0 Chaos mode; level /)
-    expect(slime.rawDescription).toMatch(/^Windows 1\.6\.9 base database/)
+    expect(nativeDefinitionLabel(slime)).toBe('PC 1.7.0.1 · base database')
+    expect(nativeDisplayDescription(slime)).toMatch(/^PC 1\.7\.0\.1 base database; level /)
+    expect(nativeDefinitionLabel(patched)).toBe('PC 1.7.0.1 · Chaos mode')
+    expect(nativeDisplayDescription(patched)).toMatch(/^PC 1\.7\.0\.1 Chaos mode; level /)
+    expect(slime.rawDescription).toMatch(/^Windows 1\.7\.0\.1 base database/)
     expect(slime.fields['Game platform']).toMatchObject({ state: 'known', value: 'Windows' })
-    expect(slime.fields['Game version']).toMatchObject({ state: 'known', value: '1.6.9' })
-    expect(slime.sources[0]).toMatchObject({ sourceId: 'native-game:windows:1.6.9', snapshot: expect.stringContaining('Windows 1.6.9') })
+    expect(slime.fields['Game version']).toMatchObject({ state: 'known', value: '1.7.0.1' })
+    expect(slime.sources[0]).toMatchObject({ sourceId: 'native-game:windows:1.7.0.1', snapshot: expect.stringContaining('Windows 1.7.0.1') })
     expect(JSON.stringify([slime, patched])).toBe(before)
     expect(nativeDisplayDescription({ ...slime, rawDescription: 'Windows 1.6.9 custom imported claim' })).toBe('Windows 1.6.9 custom imported claim')
-    expect(nativeDefinitionLabel({ ...slime, fields: { ...slime.fields, 'Game platform': { state: 'unknown' } } })).toBe('Platform unresolved 1.6.9 · base database')
+    expect(nativeDefinitionLabel({ ...slime, fields: { ...slime.fields, 'Game platform': { state: 'unknown' } } })).toBe('Platform unresolved 1.7.0.1 · base database')
   })
 
-  it('keeps pinned applicability checks separate from verified gameplay equivalence', () => {
-    const catalog = { legacy: { nativeSource: { platform: 'Windows', gameVersion: '1.6.9' } } }
-    const setup = { platform: { state: 'known' as const, value: 'Windows' }, gameVersion: { state: 'known' as const, value: '1.6.9' } }
+  it('shares the approved gameplay scope while preserving unresolved and unsupported setups', () => {
+    const catalog = { legacy: { nativeSource: { platform: 'Windows', gameVersion: '1.7.0.1' } } }
+    const setup = { platform: { state: 'known' as const, value: 'Nintendo Switch' }, gameVersion: { state: 'known' as const, value: '1.6.6' } }
     expect(nativeScopeUncertainty(catalog, setup)).toBeUndefined()
-    expect(nativeScopeUncertainty(catalog, { ...setup, platform: { state: 'unknown' } })).toBeUndefined()
-    expect(nativeScopeUncertainty(catalog, { ...setup, platform: { state: 'known', value: 'macOS' } })).toBe('Game Setup applicability has not been recorded for macOS 1.6.9. Reference facts retain the pinned PC 1.6.9.0 source scope.')
-    expect(nativeScopeUncertainty(catalog, { ...setup, gameVersion: { state: 'known', value: '1.6.6' } })).toContain('Windows 1.6.6')
-    expect(nativeScopeUncertainty({ legacy: { nativeSource: { platform: 'Linux', gameVersion: '1.6.9' } } }, setup)).toContain('pinned Linux 1.6.9 source scope')
+    for (const platform of ['Windows', 'macOS', 'Linux', 'PC']) expect(nativeScopeUncertainty(catalog, { ...setup, platform: { state: 'known', value: platform } })).toBeUndefined()
+    for (const version of ['1.6.9', '1.7.0.1']) expect(nativeScopeUncertainty(catalog, { ...setup, gameVersion: { state: 'known', value: version } })).toContain(`Nintendo Switch ${version}`)
+    expect(nativeScopeUncertainty(catalog, { ...setup, gameVersion: { state: 'unknown' } })).toContain('Nintendo Switch')
+    expect(nativeScopeUncertainty({ legacy: { nativeSource: { platform: 'Windows', gameVersion: '9.9' } } }, setup)).toContain('pinned Windows 9.9')
     expect(nativeScopeUncertainty({ legacy: { nativeSource: { platform: 'Windows' } } }, setup)).toBeUndefined()
   })
 
@@ -85,7 +86,7 @@ describe('native gameplay definitions', () => {
   it('uses verified identities and native mechanical inputs as the default', () => {
     const sword = DEFAULT_CATALOG.entities['base:equipment:0']!
     expect(nativeIdentity(sword)?.database).toBe('equipment')
-    expect(sword.sources[0]!.sourceId).toBe('native-game:windows:1.6.9')
+    expect(sword.sources[0]!.sourceId).toBe('native-game:windows:1.7.0.1')
     const goldBow = DEFAULT_CATALOG.entities['base:equipment:149']!
     expect(goldBow.rawDescription).not.toContain('Silver Bow')
     expect(goldBow.legacy).not.toHaveProperty('nativeDescriptionSupplemental')

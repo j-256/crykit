@@ -120,10 +120,12 @@ it('requires every ability and status receipt and preserves unknown inputs witho
   const { defaultBattleCalculation } = await import('../domain/battle-plan')
   const state = fixture(), data = state.planner.localData, revision = data.buildRevisions['build-revision']!
   let localData = addTestDefinition(addTestDefinition(data, 'private-ability', { kind: 'ability' }), 'private-status', { kind: 'status' })
-  localData = { ...localData, buildRevisions: { ...localData.buildRevisions, [revision.id]: { ...revision, content: { ...revision.content, calculation: { level: null, growth: [], bonuses: [], statuses: [personalRef('private-status')], ability: personalRef('private-ability'), battle: { ...defaultBattleCalculation(), statuses: [{ ref: personalRef('private-status'), count: null }], user: { hp: null, mp: 7, ap: null } } } } } } }
+  localData = { ...localData, buildRevisions: { ...localData.buildRevisions, [revision.id]: { ...revision, content: { ...revision.content, calculation: { level: null, growth: [], bonuses: [], statuses: [personalRef('private-status')], ability: personalRef('private-ability'), battle: { ...defaultBattleCalculation(), statuses: [{ ref: personalRef('private-status'), count: null }], user: { hp: null, mp: 7, ap: null }, userTurnStart: { hp: 40, mp: null, ap: 0 } } } } } } }
   const value = createPublicSnapshot({ ...state, planner: { ...state.planner, localData } }, target, { includeNotes: false })
   expect(value.receipts.map(receipt => receipt.kind).sort()).toEqual(['ability', 'item', 'status'])
   expect(value.slots[0]!.calculation!.battle!.user).toEqual({ hp: null, mp: 7, ap: null })
+  expect(value.slots[0]!.calculation!.battle!.userTurnStart).toEqual({ hp: 40, mp: null, ap: 0 })
+  expect(validatePublicSnapshot(value).slots[0]!.calculation!.battle!.userTurnStart).toEqual({ hp: 40, mp: null, ap: 0 })
   expect(value.slots[0]!.calculation!.battle!.statuses[0]!.count).toBeNull()
   expect(() => validatePublicSnapshot({ ...value, receipts: value.receipts.slice(1) })).toThrow('receipt')
 })

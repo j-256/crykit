@@ -91,7 +91,7 @@ function calculateNativeStats(content: BuildRevisionContent, slots: readonly Slo
   const isWeapon = (record?: NativeRecord) => record && PC_RULES.equipment.weaponTypes.includes(number(record, 'EquipmentType') ?? -1)
   const unarmed = !main?.selection && !off?.selection
   const battle = plan.battle
-  const modifiers = collectEffectiveModifiers(content, slots, sourceResolve, { mode, turnCount: battle ? battle.turnCount : 0, statuses: battle?.statuses.map(status => status.ref), includeAutomaticStatuses: battle?.automaticStatuses, previouslyAppliedStatuses: battle?.userPreviouslyAppliedStatuses, currentHP: battle?.user.hp })
+  const modifiers = collectEffectiveModifiers(content, slots, sourceResolve, { mode, pairedWeaponBonuses: gameRules?.pairedWeaponBonuses, turnCount: battle ? battle.turnCount : 0, statuses: battle?.statuses.map(status => status.ref), includeAutomaticStatuses: battle?.automaticStatuses, previouslyAppliedStatuses: battle?.userPreviouslyAppliedStatuses, currentHP: battle?.user.hp })
   if (modifiers.tags.has('SubJobInnatePassives') && !content.secondaryClass && unknownSecondaryClass) issues.push('Record the secondary class to calculate its innate effects.')
   if (!battle && plan.statuses.length) issues.push('Add the saved statuses to a battle scenario to calculate their effects.')
   if (plan.bonuses.length) issues.push('Custom stat bonuses are not supported by gender comparisons.')

@@ -1,3 +1,4 @@
+import { PC_CALCULATION_SCOPE } from '../domain/calculation-rules'
 import type { BuildCalculationPlan, CatalogSnapshot, LocalData } from '../domain/types'
 import { calculationGenderLabel, type GenderDefinition } from '../domain/calculation-genders'
 import { entityName } from './model'
@@ -6,7 +7,7 @@ import { battleCalculationSummary } from './battle-calculation-summary'
 export function CalculationInputs({ plan, localData, catalogs, genders }: { plan: BuildCalculationPlan; localData: LocalData; catalogs: readonly CatalogSnapshot[]; genders?: readonly GenderDefinition[] }) {
   const values = [
     ['Calculation level', plan.level ?? 'Unknown'],
-    ['Calculation model', 'PC 1.6.9.0 native rules'],
+    ['Calculation model', `${PC_CALCULATION_SCOPE} native rules`],
     ['Calculation gender', calculationGenderLabel(plan, genders)],
     ...[['PC balance mode', plan.pcMode ?? 'standard'], ['Growth allocation', plan.growthMode === 'primary' ? 'Follows primary class' : 'Manual']],
     ...plan.growth.map((row, index) => [`Growth class ${index + 1}`, `${entityName(localData, catalogs, row.classRef, 'Unknown growth class')}: ${row.levels ?? 'Unknown'} levels`]),

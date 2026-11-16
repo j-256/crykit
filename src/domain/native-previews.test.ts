@@ -60,8 +60,8 @@ describe('native preview stages', () => {
     }
   })
 
-  it.each(['1.6.6', '1.6.6.0'])('treats PC %s as compatible with the native rules under the planning assumption', version => {
-    const rules = resolveGameRules({ platform: { state: 'known', value: 'Windows' }, gameVersion: { state: 'known', value: version } }, [])
+  it.each(['Windows', 'macOS', 'Linux', 'Nintendo Switch'])('shares the native resting stats with %s 1.6.6', platform => {
+    const rules = resolveGameRules({ platform: { state: 'known', value: platform }, gameVersion: { state: 'known', value: '1.6.6' } }, [])
     const result = calculateBuildStats(content, SUGGESTED_BUILD_SLOTS, resolve, undefined, rules)
     const baseline = calculateBuildStats(content, SUGGESTED_BUILD_SLOTS, resolve)
     expect(rules.issues).toEqual([])

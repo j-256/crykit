@@ -125,6 +125,7 @@ export function compareBuildRevisions(left: BuildRevision, right: BuildRevision)
     battle: revision.content.calculation.battle ? {
       ...revision.content.calculation.battle,
       user: { ...revision.content.calculation.battle.user },
+      ...(revision.content.calculation.battle.userTurnStart ? { userTurnStart: { ...revision.content.calculation.battle.userTurnStart } } : { userTurnStart: null }),
       targetResources: { ...revision.content.calculation.battle.targetResources },
       target: revision.content.calculation.battle.target === 'self' ? 'self' : refValue(revision.content.calculation.battle.target),
       statuses: revision.content.calculation.battle.statuses.map(row => ({ ref: refValue(row.ref), count: row.count })),

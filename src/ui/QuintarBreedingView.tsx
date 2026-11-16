@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useState } from 'react'
 import { preferredStarterCatalog } from '../catalog/bundled'
 import { QUINTAR_BREEDING_STEPS, QUINTAR_GUIDE_SOURCE, QUINTAR_NURSERY_CAPACITY, QUINTAR_PHASES, QUINTAR_STEP, quintarParentsAfterStep, quintarRaceRequirements, type QuintarBreedingStep, type QuintarBreedingStepId } from '../catalog/quintar-breeding'
 import { QUINTAR_NATIVE_EVIDENCE } from '../catalog/quintar-native-rules'
+import { BABEL_RANDOMIZER_VERSION_NOTE } from '../catalog/quintar-guide-supplement'
 import { QUINTAR_STEP_REFERENCES, quintarOcarinaPrice } from '../catalog/quintar-references'
 import { quintarGuideArtwork, type QuintarGuideArtworkKey } from '../catalog/sprites'
 import { requirePlaythrough } from '../domain/core'
@@ -75,6 +76,7 @@ const QuintarStepTile = memo(function QuintarStepTile({ step, number, complete, 
       <summary>Step instructions</summary>
       <div className="quintar-tile__guide">
       <p><MoneyText>{step.instruction}</MoneyText>{ocarinaPrice !== undefined && <> Shop price: <Money copper={ocarinaPrice}/>.</>}</p>
+      {step.id === QUINTAR_STEP.babel && <p className="field__hint">{BABEL_RANDOMIZER_VERSION_NOTE}</p>}
       {catalog && references.length > 0 && <nav aria-label={`Reference pages for ${step.title}`} className="quintar-tile__refs"><span>Reference:</span>{references.map(target => <ReferenceLink key={target.entityId} refValue={{ kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: target.entityId as EntityId }}>{target.label ?? catalog.entities[target.entityId].name}</ReferenceLink>)}</nav>}
       </div>
     </details>

@@ -21,6 +21,24 @@ const setup = (catalogs: readonly CatalogSnapshot[], difficulty = 0, mode = 'Sta
 const normal = (NATIVE_GAME_DATA.databases.difficulty as Record<string, JsonValue>[])[0]!
 
 describe('data-backed game setup rules', () => {
+  it.each(['Nintendo Switch', 'Windows', 'macOS', 'Linux', 'PC'])('uses the console resource timing for %s 1.6.6 without changing the saved setup', platform => {
+    for (const gameVersion of ['1.6.6', '1.6.6.0']) {
+      const selected = { ...setup([]), platform: { state: 'known' as const, value: platform }, gameVersion: { state: 'known' as const, value: gameVersion } }
+      const before = JSON.stringify(selected)
+      const rules = resolveGameRules(selected, [])
+      expect(rules.issues).toEqual([])
+      expect(rules.difficultyIssues).toEqual([])
+      expect(rules.userResourceTiming).toBe('current')
+      expect(JSON.stringify(selected)).toBe(before)
+    }
+  })
+
+  it.each([undefined, '1.6.5', '1.6.9', '1.7.0', '1.7.0.1'])('keeps Switch version %s unsupported', gameVersion => {
+    const rules = resolveGameRules({ ...setup([]), platform: { state: 'known', value: 'Nintendo Switch' }, gameVersion: gameVersion ? { state: 'known', value: gameVersion } : { state: 'unknown' } }, [])
+    expect(rules.issues.join(' ')).toContain('Nintendo Switch')
+    expect(rules.difficultyIssues).toEqual(expect.arrayContaining([...rules.issues]))
+  })
+
   it('requires one explicitly pinned project for imported titles, preserving duplicate-title uncertainty', async () => {
     const first = await importMod('synthetic-titled-one', { Title: 'Synthetic shared title' })
     const second = await importMod('synthetic-titled-two', { Title: 'Synthetic shared title' })

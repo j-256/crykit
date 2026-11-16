@@ -7,6 +7,7 @@ const TIMESTAMP = '2026-01-01T00:00:00.000Z'
 const LAST_NATIVE_ENTITY = 3824
 const treasure = '{"ID":1,"Coord":{"X":-12,"Y":99,"Z":4,"Unknown":9007199254740993},"BiomeID":1,"EntityType":5,"TreasureData":{"LootType":2,"LootValue":18,"Amount":1,"Condition":{"Opaque":true}},"Unknown":1.234567890123456789}'
 const imported = newMapProject(PROJECT_ID, TIMESTAMP).replace('"Entities": []', '"Entities": ['+treasure+']').replace('"Jobs": []', '"Jobs": [{"Opaque":true}]').replace('"Description": ""', '"Description": "", "Unknown":12345678901234567890')
+const projectFormat = (version: number) => imported.replace(/"EditorVersion": \d+/, `"EditorVersion": ${version}`)
 const options = { coord: { X: 10, Y: 99, Z: -20 }, width: 2, depth: 2, biomeId: 1, voxelId: 9, lastNativeEntityId: LAST_NATIVE_ENTITY, knownVoxelIds: [1, 9] }
 
 describe('precise map placement authoring', () => {
@@ -15,6 +16,21 @@ describe('precise map placement authoring', () => {
     expect(next).toBe(imported.replace('"X":-12,"Y":99,"Z":4', '"X":-10,"Y":100,"Z":3'))
     expect(inspectMapProject(parseDocument(next)).placements[0]).toMatchObject({ id: 1, coord: { X: -10, Y: 100, Z: 3 } })
     expect(moveMapPlacement(imported, 1, { X: -12, Y: 99, Z: 4 })).toBe(imported)
+  })
+  it.each([34, 35])('edits format %i without rewriting its marker or unknown source fields', version => {
+    const source = projectFormat(version).replace('"Description": ""', '"Description": "", "SaveModdedSortOrder":true, "FutureMetadata":{"exact":1.234567890123456789}')
+    expect(inspectMapProject(parseDocument(source)).editable).toBe(true)
+    const moved = moveMapPlacement(source, 1, { X: -10, Y: 100, Z: 3 })
+    expect(moved).toBe(source.replace('"X":-12,"Y":99,"Z":4', '"X":-10,"Y":100,"Z":3'))
+    const platform = addVoxelPlatform(moved, { ...options, width: 1, depth: 1 })
+    expect(platform).toContain(`"EditorVersion": ${version}`)
+    expect(platform).toContain('"FutureMetadata":{"exact":1.234567890123456789}')
+    expect(platform).toContain('"Unknown":12345678901234567890')
+    const erased = eraseVoxelBlocks(platform, [LAST_NATIVE_ENTITY + 1], LAST_NATIVE_ENTITY)
+    expect(inspectMapProject(parseDocument(erased))).toMatchObject({ editable: true, placements: [{ id: 1 }] })
+    expect(erased).toContain(`"EditorVersion": ${version}`)
+    expect(applyMapTextPatch(moved, mapTextPatch(source, moved), 'undo')).toBe(source)
+    expect(moveMapPlacement(source, 1, { X: -12, Y: 99, Z: 4 })).toBe(source)
   })
   it('appends stationary cubic NPC blocks with IDs above both native and imported entities', () => {
     const next = addVoxelPlatform(imported, options)
@@ -34,11 +50,11 @@ describe('precise map placement authoring', () => {
     const blank = newMapProject(PROJECT_ID, TIMESTAMP)
     const next = addVoxelPlatform(blank, { ...options, width: 1, depth: 1 })
     expect(inspectMapProject(parseDocument(next)).editable).toBe(true)
-    expect(JSON.parse(next)).toMatchObject({ ID: PROJECT_ID, Title: 'Map placements', EditorVersion: 34, IsLocalization: false, Entities: [{ ID: 3825 }], Jobs: [], Tree: [], Folders: [] })
+    expect(JSON.parse(next)).toMatchObject({ ID: PROJECT_ID, Title: 'Map placements', EditorVersion: 35, IsLocalization: false, Entities: [{ ID: 3825 }], Jobs: [], Tree: [], Folders: [] })
     expect(JSON.parse(blank).Entities).toEqual([])
   })
   it('rejects duplicate identities, unsupported formats, localization and malformed source records', () => {
-    for (const text of [imported.replace('['+treasure+']', '['+treasure+','+treasure+']'), imported.replace('"EditorVersion": 34', '"EditorVersion": 27'), imported.replace('"EditorVersion": 34', '"EditorVersion": 35'), imported.replace('"IsLocalization": false', '"IsLocalization": true'), imported.replace('"Y":99', '"Y":null'), imported.replace('"ID":1,', '"ID":9007199254740993,'), imported.replace('"EntityType":5', '"EntityType":100'), imported.replace('"Abilities": []', '"Abilities": null'), imported.replace('"Biomes": []', '"Biomes": [{"ID":1},{"ID":1}]'), imported.replace('"Biomes": []', '"Biomes": [{"ID":256}]')]) {
+    for (const text of [imported.replace('['+treasure+']', '['+treasure+','+treasure+']'), projectFormat(27), projectFormat(36), imported.replace('"IsLocalization": false', '"IsLocalization": true'), imported.replace('"Y":99', '"Y":null'), imported.replace('"ID":1,', '"ID":9007199254740993,'), imported.replace('"EntityType":5', '"EntityType":100'), imported.replace('"Abilities": []', '"Abilities": null'), imported.replace('"Biomes": []', '"Biomes": [{"ID":1},{"ID":1}]'), imported.replace('"Biomes": []', '"Biomes": [{"ID":256}]')]) {
       expect(inspectMapProject(parseDocument(text)).editable).toBe(false)
       expect(() => addVoxelPlatform(text, options)).toThrow()
       expect(() => moveMapPlacement(text, 1, options.coord)).toThrow()

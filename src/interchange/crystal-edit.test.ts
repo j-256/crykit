@@ -37,7 +37,7 @@ describe('Crystal Edit reference import', () => {
     expect(NativeCatalogSnapshotSchema.safeParse(catalog).success).toBe(true)
   })
 
-  it.each([34, 4, undefined])('recognizes placement-only format %s projects and preserves their exact source without inventing reference definitions', async editorVersion => {
+  it.each([35, 34, 4, undefined])('recognizes placement-only format %s projects and preserves their exact source without inventing reference definitions', async editorVersion => {
     const input = { ID: 'synthetic-map-placements', Title: 'Synthetic placements', ...(editorVersion === undefined ? {} : { EditorVersion: editorVersion }), Entities: [{ ID: 900001, EntityType: 5, BiomeID: 1, Coord: { X: -12, Y: 99, Z: 4 }, TreasureData: { LootType: 1, LootValue: 18 }, FutureField: { retained: true } }] }
     const bytes = new TextEncoder().encode(`\r\n${JSON.stringify(input, null, 2)}\r\n`)
     const preview = await previewImport(bytes, 'placements.json')
@@ -50,6 +50,16 @@ describe('Crystal Edit reference import', () => {
     expect(preview.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'archived-models', message: expect.stringContaining('Entities: 1') })]))
     expect(isCrystalEdit({ ...input, Entities: {} })).toBe(false)
     expect(isCrystalEdit({ ID: input.ID, EditorVersion: 'unknown', Entities: input.Entities })).toBe(false)
+  })
+
+  it.each([34, 35])('interprets format-%i planning fields while retaining source-only metadata and vocabulary verbatim', async version => {
+    const input = { ...syntheticCrystalEdit(), EditorVersion: version, SaveModdedSortOrder: true, System: { Vocab: { General: { WinAbilityMod_Elemental: 'Synthetic elemental text' } } } }
+    const bytes = encode(input)
+    const preview = await previewImport(bytes, 'format-35.json')
+    expect(preview.warnings.some(warning => warning.code === 'unsupported-editor-format')).toBe(false)
+    expect(growthRatings(modModelEntity(preview.proposed.catalogs[0]!, 'crystal-edit:Jobs:40')!)).toEqual({ HP: 70, MP: 20 })
+    expect(preview.proposed.sources[0]!.bytes).toEqual(bytes)
+    expect(input.System.Vocab.General.WinAbilityMod_Elemental).toBe('Synthetic elemental text')
   })
 
   it('preserves every simultaneous prerequisite in columns and native snapshot round-trips', async () => {

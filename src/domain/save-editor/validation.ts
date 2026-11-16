@@ -53,7 +53,10 @@ export function validate(save: CrystalSave, nativeCatalog: SaveEditorCatalog, mo
     const secondary = subJob(member, save)
     if (secondary !== null) known(catalog, 'job', secondary)
     known(catalog, 'gender', number(v.Gender, 'Gender'))
-    if (header.name !== string(v.Name, 'Name') || header.level !== level || header.jobId !== number(v.Job, 'Job') || header.genderId !== number(v.Gender, 'Gender') || header.isPresent !== flag(v.IsPresent)) throw new Error(`Member ${index + 1} disagrees with its header`)
+    // Native format 29 writes derived AppearanceJobID, so the portrait can differ from BSON Job
+    if (save.header.version >= LEGACY_HEADER.appearance) known(catalog, 'job', header.jobId)
+    const classDisagrees = save.header.version < LEGACY_HEADER.appearance && header.jobId !== number(v.Job, 'Job')
+    if (header.name !== string(v.Name, 'Name') || header.level !== level || classDisagrees || header.genderId !== number(v.Gender, 'Gender') || header.isPresent !== flag(v.IsPresent)) throw new Error(`Member ${index + 1} disagrees with its header`)
     for (const [field, family] of [['LearnedJobs', 'job'], ['LearnedAbilities', 'ability'], ['LearnedPassives', 'passive']] as const) numbers(v[field], field).forEach((state, id) => { bound(state, 0, LEARNED.learned, field); if (state > 0) known(catalog, family, id) })
     for (const equipment of array(v.Equipment, 'Equipment')) if (equipment.type !== 'null') known(catalog, 'equipment', number(equipment, 'Equipped ID'))
     const passives = object(v.Passives, 'Equipped passives')

@@ -8,7 +8,7 @@ export interface QuintarTraits {
 }
 
 export const QUINTAR_NATIVE_EVIDENCE = evidence
-export const QUINTAR_NATIVE_SOURCE = `Crystal Project ${evidence.source.platform} PC ${evidence.source.gameVersion}`
+export const QUINTAR_NATIVE_SOURCE = `Crystal Project PC ${evidence.source.gameVersion}`
 export const QUINTAR_NURSERY_CAPACITY = evidence.nurseryCapacity
 export const QUINTAR_PARTNER_RACE_WINS: Readonly<Record<QuintarType, number>> = Object.freeze(evidence.partnerRaceWins)
 

@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "id": "pc-1.6.9-v1",
-  "title": "Crystal Project PC 1.6.9.0 character calculations",
+  "title": "Crystal Project character calculations",
   "source": {
     "kind": "inspected-game-build",
-    "gameVersion": "1.6.9.0",
-    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+    "gameVersion": "1.7.0.1",
+    "executableSha256": "bd1ad18037edaa96250c52446e83c4cbc44cff0e833edbeaf570ed328748cff4",
     "methods": [
       "Sang/Battle/Calculator.cs",
       "Sang/Battle/BattlerBase.cs: RecalcStats",
@@ -2604,6 +2604,11 @@
     },
     "419": {
       "name": "ImmuneToStatusCategory",
+      "kind": "tag",
+      "scope": "battle"
+    },
+    "460": {
+      "name": "ImmuneToRemoveFromBattle",
       "kind": "tag",
       "scope": "battle"
     },

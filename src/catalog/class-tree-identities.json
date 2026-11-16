@@ -2,19 +2,19 @@
   "schemaVersion": 1,
   "source": {
     "sourceId": "crystal-project:pc-class-tree-identities",
-    "snapshot": "PC 1.6.9.0",
-    "applicability": "Native class learning trees for PC 1.6.9.0; other versions and mod configurations require separate evidence"
+    "snapshot": "PC 1.7.0.1",
+    "applicability": "Native class learning trees for PC 1.7.0.1; other versions and mod configurations require separate evidence"
   },
   "learningCostDisplay": {
     "jpPerLp": 100,
-    "executableSha256": "36f7d413160a4deee36b47fc6ac534e87cadb6f23f57337d4630ec99cedb14e6",
+    "executableSha256": "bd1ad18037edaa96250c52446e83c4cbc44cff0e833edbeaf570ed328748cff4",
     "locator": "WindowLearnAbilitySelect.Draw; JP / 100",
-    "version": "PC 1.6.9.0"
+    "version": "PC 1.7.0.1"
   },
   "databaseSha256": {
-    "job": "42b39e967355488775879008a7868c9bcc345e7079c92c30ace725b5cdd7787c",
-    "ability": "9cad173af28266a109d8c6f682708cf32c639bf16996fa8a0589bd545f939b7b",
-    "passive": "9f9a5565e2fb85c3544e50e3a7a9339c4cb0c69526bfc71252dae42641ff13b5"
+    "job": "3d4e29c45b20a01e8eeadadb3159e39b6591e891d3db1207b3c1cfb28dc3b495",
+    "ability": "8cf03198a2b012f26741b2cf3993944a69ad2eb0d39ae4286903c7517cdffc07",
+    "passive": "651010ac1aecacd4373feff226223e7bd2c844b35436c4d04bdc59c75bf30286"
   },
   "classes": {
     "base:class:warrior": {

@@ -23,6 +23,8 @@ describe('Quintar guide presentation', () => {
     expect(markup).toContain('nests northeast or northwest of Sara Sara Bazaar')
     expect(markup).toContain('Quintar Mausoleum under the Quintar Reserve')
     expect(markup).toContain('quintar shopkeeper in Dione Shrine')
+    expect(markup).toContain('Switch 1.6.6 randomizers can make Babel Quintar unobtainable')
+    expect(markup).toContain('PC 1.6.7 adds a recovery pickup near the entrance to Dione Shrine')
     expect(markup).toContain('Trusty Quintar (Blue)')
     expect(markup).toContain('Incubator')
     expect(markup.match(/aria-label="Quintar guide sources"/g)).toHaveLength(1)
