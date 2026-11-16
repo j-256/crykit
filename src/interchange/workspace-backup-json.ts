@@ -1,6 +1,20 @@
 import { WORKSPACE_BACKUP_LIMITS } from './workspace-backup-schema'
 import type { JsonValue } from '../domain/types'
 
+export type BackupJsonByteCounter = 'encodedOutputBytes' | 'decodedInputBytes'
+type WorkObserver = (counter: BackupJsonByteCounter, bytes: number) => void
+let workObserver: WorkObserver | undefined
+export function observeBackupJsonWork(observer: WorkObserver): () => void {
+  workObserver = observer
+  return () => { if (workObserver === observer) workObserver = undefined }
+}
+function observedBytes(observer: WorkObserver | undefined, counter: BackupJsonByteCounter, bytes: Uint8Array): Uint8Array {
+  // Capture ownership at codec entry so late chunks cannot enter a successor observation interval
+  // Diagnostics are optional and must never change decoding, packing, or failure behavior
+  if (observer && observer === workObserver) { try { observer(counter, bytes.byteLength) } catch { /* Observers cannot affect the codec */ } }
+  return bytes
+}
+
 const TEXT_SLICE = 8192
 // V1 exports retain their original packing so accepted archives round-trip byte for byte
 const LEGACY_PAGE_BYTES = 64 * 1024
@@ -25,6 +39,7 @@ function utf8Length(text: string): number {
 // Token pages bound codec scratch space even when a saved string or catalog exceeds one frame
 // Strings split by UTF-16 code units and JSON escaping preserves lone surrogates exactly
 export function* encodeBackupJson(value: unknown, pageBytes = LEGACY_PAGE_BYTES, options?: { readonly packByBytes: boolean }): Generator<Uint8Array> {
+  const observer = workObserver
   if (!Number.isSafeInteger(pageBytes) || pageBytes <= 0 || pageBytes > WORKSPACE_BACKUP_LIMITS.payload) throw new Error('Invalid backup metadata page target')
   // Legacy exports retain their conservative code-unit packing and historical identities
   // New captures can fill the same bounded format by measuring UTF-8 without allocating each token twice
@@ -75,13 +90,14 @@ export function* encodeBackupJson(value: unknown, pageBytes = LEGACY_PAGE_BYTES,
     const text = JSON.stringify(token)
     if (text.length > WORKSPACE_BACKUP_LIMITS.payload / 3 && encoder.encode(text).length > WORKSPACE_BACKUP_LIMITS.payload - 2) throw new Error('Backup metadata token exceeds frame bound')
     const textLength = options?.packByBytes ? utf8Length(text) : text.length
-    if (page.length > 1 && pageLength + textLength + 2 > pageLimit) { yield encoder.encode(page + ']'); page = '['; pageLength = 1 }
+    if (page.length > 1 && pageLength + textLength + 2 > pageLimit) { yield observedBytes(observer, 'encodedOutputBytes', encoder.encode(page + ']')); page = '['; pageLength = 1 }
     pageLength += (page.length > 1 ? 1 : 0) + textLength
     page += (page.length > 1 ? ',' : '') + text
   }
-  yield encoder.encode(page + ']')
+  yield observedBytes(observer, 'encodedOutputBytes', encoder.encode(page + ']'))
 }
 export class BackupJsonReader {
+  private readonly observer = workObserver
   private readonly stack: { value: JsonValue[] | Record<string, JsonValue>; key?: string }[] = []
   private text: string[] | undefined
   private root: JsonValue | undefined
@@ -97,6 +113,7 @@ export class BackupJsonReader {
     else { if (parent.key === undefined) throw new Error('Missing backup metadata key'); parent.value[parent.key] = value; parent.key = undefined }
   }
   consume(bytes: Uint8Array) {
+    observedBytes(this.observer, 'decodedInputBytes', bytes)
     const tokens: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
     if (!Array.isArray(tokens) || !tokens.length) throw new Error('Invalid backup token page')
     for (const token of tokens) {

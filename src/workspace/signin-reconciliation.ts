@@ -1,3 +1,4 @@
+import { beginSigninMergeDiagnostics, type SigninMergeStage } from './signin-merge-diagnostics'
 import { z } from 'zod'
 import { assertActiveProfile, onProfileSessionChange, profileSignal, type ProfileToken } from '../account/profile'
 import { OpaqueIdSchema } from '../account/protocol'
@@ -131,6 +132,10 @@ export interface SigninReconciliationOptions {
 }
 
 export function createSigninReconciliation(options: SigninReconciliationOptions) {
+  let diagnostics: ReturnType<typeof beginSigninMergeDiagnostics>
+  let diagnosticStarted = 0
+  let diagnosticStage: SigninMergeStage = 'signin'
+  const recordDiagnostic = (stage: SigninMergeStage, outcome: 'started' | 'complete' | 'failed' | 'cancelled', errorCode?: string) => diagnostics?.record({ stage, outcome, elapsedMs: performance.now() - diagnosticStarted, ...(errorCode ? { errorCode } : {}) })
   const recoveryEntry = options.entry
   const decisionKey = recoveryEntry ? `${RECOVERY_DECISION_PREFIX}${OpaqueIdSchema.parse(recoveryEntry.pointId)}` : SIGNIN_DECISION_KEY
   let state: SigninReconciliationState = { phase: 'inspecting', source: 'unknown', fresh: false, canOpenAccount: false }
@@ -150,9 +155,14 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     if (disposed) return
     // Stage feedback is transient; a phase transition cannot retain a completed operation's label
     state = { ...state, ...(change.phase ? { stage: undefined } : {}), ...change }
+    if (change.phase === 'choosing') recordDiagnostic('chooser', 'complete')
+    else if (change.phase === 'confirming') recordDiagnostic('review', 'complete')
+    else if (change.phase === 'complete') recordDiagnostic('local-open', 'complete')
+    else if (change.phase === 'failed') recordDiagnostic(diagnosticStage, 'failed', change.reason)
+    else if (change.phase === 'cancelled') recordDiagnostic(diagnosticStage, 'cancelled')
     for (const listener of listeners) { try { listener() } catch { /* Observers cannot alter durable decisions */ } }
   }
-  const preparationStage = (stage: SigninPreparationStage) => { check(); publish({ stage }) }
+  const preparationStage = (stage: SigninPreparationStage) => { check(); diagnosticStage = stage; recordDiagnostic(stage, 'started'); publish({ stage }) }
   const service = () => createReviewedReplacementService(database!, token)
   async function readDecision() {
     const row = await database!.syncState.get(decisionKey)
@@ -332,6 +342,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   function begin(next: ProfileToken) {
     return execute(async () => {
       if (database) throw new Error('SIGNIN_ALREADY_STARTED')
+      diagnostics = beginSigninMergeDiagnostics(); diagnosticStarted = performance.now(); recordDiagnostic('signin', 'started')
       token = next; assertActiveProfile(token); preparationStage('waiting-for-sync'); await drainSyncSchedulers(); check(); database = new AccountDatabase(token.accountId)
       publish({ canOpenAccount: !!options.admittedOffline && !!await database.profileMeta.get('active') })
       unsubscribeSession = onProfileSessionChange(token, online)
@@ -341,6 +352,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   }
   function choose(action: SigninAction) {
     return execute(async () => {
+      recordDiagnostic('review', 'started')
       check()
       if (activated) { await open(); return }
       if (state.replacement?.state === 'paused') throw new Error('REPLACEMENT_REVIEW_REQUIRED')
@@ -369,6 +381,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
   }
   function confirm() {
     return execute(async () => {
+      recordDiagnostic('confirm', 'started')
       check()
       saved = await readDecision()
       if (activated || saved?.value.status === 'complete' && saved.value.operationId === operationId) { activated = true; await open(); return }
