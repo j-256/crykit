@@ -1,6 +1,7 @@
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
+import type { CatalogSnapshot } from '../domain/types'
 import type { WorkspaceRepository } from './repository'
-import { splitWorkspace, type WorkspaceState } from './documents'
+import { splitWorkspace, type WorkspaceDocument, type WorkspaceState } from './documents'
 import { validateWorkspaceClosure, inspectWorkspaceClosures, ARCHIVAL_DOCUMENT_KINDS, type WorkspaceBodyValidation, type WorkspaceRetentionEdges } from './closure'
 import { blobIdentity, hashBlob, memoryBlob } from './blobs'
 import { SnapshotHeaderSchema, SnapshotHeaderV2Schema, SnapshotHeaderV3Schema, type HistoricalCatalogEvidenceSchema, WorkspaceBackupError, type HistoricalEvidenceSchema, type SourceEvidenceSchema } from '../interchange/workspace-backup-schema'
@@ -95,10 +96,31 @@ export function snapshotMetadata(snapshot: WorkspaceSnapshot) {
   schema.parse(header)
   return { ...header, state: { ...state, blobs: state.blobs.map(({ ref }) => ref) } }
 }
-export async function backupMetadataDigest(value: unknown): Promise<string> {
+const CATALOG_DIGEST_SLICE_MS = 16
+export function backupMetadataDigest(value: unknown): Promise<string> { return digestMetadata(value) }
+export function backupWorkspaceDocumentDigest(document: WorkspaceDocument, checkpoint?: () => Promise<void>): Promise<string> {
+  // Only the format owner's deep-immutable catalog can survive task yields without mixed input
+  // Detach the small projection wrapper; other values keep the existing synchronous traversal
+  if (checkpoint && document.kind === 'catalog' && isImmutableCatalogSnapshot(document.value as unknown as CatalogSnapshot)
+    && Object.keys(document).every(key => ['version', 'kind', 'key', 'value'].includes(key))) return digestMetadata(Object.freeze({ ...document }), checkpoint)
+  return backupMetadataDigest(document)
+}
+async function digestMetadata(value: unknown, checkpoint?: () => Promise<void>): Promise<string> {
   const sodium = await getSodium(), state = sodium.crypto_hash_sha256_init()
   try {
-    for (const chunk of encodeBackupJson(value)) sodium.crypto_hash_sha256_update(state, chunk)
+    if (checkpoint) await checkpoint()
+    // Split after the first bounded page too, so preceding validation does not borrow a full slice
+    let lastYield = -Infinity
+    for (const chunk of encodeBackupJson(value)) {
+      sodium.crypto_hash_sha256_update(state, chunk)
+      if (checkpoint && performance.now() - lastYield >= CATALOG_DIGEST_SLICE_MS) {
+        await checkpoint()
+        await new Promise<void>(resolve => setTimeout(resolve, 0))
+        await checkpoint()
+        lastYield = performance.now()
+      }
+    }
+    if (checkpoint) await checkpoint()
     return sodium.crypto_hash_sha256_final(state, 'hex')
   } catch (error) {
     // The pinned wrapper frees SHA state on final; failed token encoding still owns the allocation
@@ -108,7 +130,7 @@ export async function backupMetadataDigest(value: unknown): Promise<string> {
     throw error
   }
 }
-export async function validateWorkspaceSnapshot(snapshot: WorkspaceSnapshot, retainEdges?: (edges: WorkspaceRetentionEdges) => void): Promise<void> {
+export async function validateWorkspaceSnapshot(snapshot: WorkspaceSnapshot, retainEdges?: (edges: WorkspaceRetentionEdges) => void, checkpoint?: () => Promise<void>): Promise<void> {
   snapshotMetadata(snapshot)
   if (snapshot.version !== 1 && snapshot.historicalEvidence && !historicalReaders.has(snapshot)) throw new Error('Historical evidence requires an owned snapshot reader')
   if (snapshot.version === 3) {
@@ -119,14 +141,14 @@ export async function validateWorkspaceSnapshot(snapshot: WorkspaceSnapshot, ret
       else budget.inline(catalog.snapshot)
     }
   }
-  await validateWorkspaceSnapshotV1(snapshot.version === 3 ? compactDomainProjection(snapshot) : projectWorkspaceSnapshotV1(snapshot), undefined, retainEdges)
+  await validateWorkspaceSnapshotV1(snapshot.version === 3 ? compactDomainProjection(snapshot) : projectWorkspaceSnapshotV1(snapshot), undefined, retainEdges, checkpoint ?? (owners.has(snapshot) ? () => assertOwnedWorkspaceSnapshot(snapshot) : undefined))
 }
 // Frozen complete-backup v1 admission includes recursive native/domain validation, not only the header
 // Preserve this route and its dependencies when evolving current formats: closure.ts, validation.ts,
 // file-schemas.ts, planner-journal.ts, documents.ts, document-codec.ts, domain-closure.ts,
 // interchange/native.ts and native-schema.ts, and persistence/local-data.ts
 // Parsers validate without replacing decoded values: key order binds sourceEvidence.projectedDigest
-export async function validateWorkspaceSnapshotV1(snapshot: WorkspaceSnapshotV1, bodyValidation?: WorkspaceBodyValidation, retainEdges?: (edges: WorkspaceRetentionEdges) => void): Promise<void> {
+export async function validateWorkspaceSnapshotV1(snapshot: WorkspaceSnapshotV1, bodyValidation?: WorkspaceBodyValidation, retainEdges?: (edges: WorkspaceRetentionEdges) => void, checkpoint?: () => Promise<void>): Promise<void> {
   const { state: _state, ...header } = snapshot
   SnapshotHeaderSchema.parse(header)
   await validateWorkspaceClosure(snapshot.state, bodyValidation, retainEdges)
@@ -140,7 +162,7 @@ export async function validateWorkspaceSnapshotV1(snapshot: WorkspaceSnapshotV1,
     if (keys.has(unit.key)) throw new Error('Duplicate current-unit evidence')
     keys.add(unit.key)
     const projected = current.get(unit.key)
-    if (!projected || await backupMetadataDigest(projected) !== unit.projectedDigest) throw new Error('Current-unit evidence has a foreign projected association')
+    if (!projected || await backupWorkspaceDocumentDigest(projected, checkpoint) !== unit.projectedDigest) throw new Error('Current-unit evidence has a foreign projected association')
     const inspected = inspectedUnits[index]!
     if (inspected.root.key !== unit.key) throw new Error('Current-unit evidence key mismatch')
     const semantic = (value: unknown) => {
@@ -216,7 +238,7 @@ export async function readCompactSnapshot(input: unknown, bodies: WorkspaceState
     } } }
   }) } }
   await owner.check()
-  await validateWorkspaceSnapshotV1(compactDomainProjection(hydrated))
+  await validateWorkspaceSnapshotV1(compactDomainProjection(hydrated), undefined, undefined, owner.check)
   await owner.check()
   const snapshot = ownWorkspaceSnapshot(hydrated, owner)
   const freeze = (value: unknown): void => { if (!value || typeof value !== 'object' || Object.isFrozen(value)) return; for (const child of Object.values(value)) freeze(child); Object.freeze(value) }

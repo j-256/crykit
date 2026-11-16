@@ -227,11 +227,12 @@ async function rejectedBranch(review: Review): Promise<{ handle: object; retirem
   return { handle, retirement }
 }
 
-export function createReviewedReplacementService(database: AccountDatabase, token: ProfileToken) {
-  const signal = profileSignal(token)
+export function createReviewedReplacementService(database: AccountDatabase, token: ProfileToken, lifetime?: AbortSignal) {
+  const signal = lifetime ? AbortSignal.any([profileSignal(token), lifetime]) : profileSignal(token)
   const check = async (fence: AccountFence) => {
-    assertActiveProfile(token)
+    signal.throwIfAborted(); assertActiveProfile(token)
     if (!same(await database.profileMeta.get('active'), fence)) throw new SyncError('LOCAL_REVISION_CONFLICT')
+    signal.throwIfAborted(); assertActiveProfile(token)
   }
   const ownedReview = (handle: ReviewedAccountData): Review => {
     const review = reviews.get(handle)

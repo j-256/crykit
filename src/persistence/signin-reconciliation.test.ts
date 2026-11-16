@@ -1242,3 +1242,35 @@ it('releases a warm module when account inspection fails', async () => {
   expect(workers[0].terminate).toHaveBeenCalledOnce()
   expect(workers[0].postMessage).not.toHaveBeenCalled()
 })
+
+
+it('cancels real account capture between catalog digest slices without changing durable selection', async () => {
+  const { GUIDE_CATALOG } = await import('../catalog/bundled')
+  const initial = workspace(createBlankLocalData({ now }))
+  const f = await setup(progress('guest'), { ...initial, planner: { ...initial.planner, catalogs: [GUIDE_CATALOG] } })
+  const snapshots = await import('../workspace/snapshot'), original = snapshots.backupWorkspaceDocumentDigest
+  const controller = f.create()
+  let cancellation: Promise<void> | undefined, selected: unknown, intents: unknown, journals: unknown
+  vi.spyOn(snapshots, 'backupWorkspaceDocumentDigest').mockImplementation(async (document, checkpoint) => {
+    if (document.kind !== 'catalog' || !checkpoint || cancellation) return original(document, checkpoint)
+    selected = await f.device.db.profileMeta.get('active')
+    intents = await f.device.db.outbox.toArray()
+    journals = await f.device.db.migrationJournal.toArray()
+    let checks = 0
+    return original(document, async () => {
+      await checkpoint()
+      // The second check precedes the first task yield, so cancellation runs before traversal resumes
+      if (++checks === 2) setTimeout(() => { cancellation = controller.cancel() }, 0)
+    })
+  })
+  await controller.begin(f.device.token)
+  expect(cancellation).toBeDefined()
+  await cancellation
+  expect(controller.getSnapshot().phase).toBe('cancelled')
+  expect(f.locals).toBe(1)
+  expect(await f.device.db.profileMeta.get('active')).toEqual(selected)
+  expect(await f.device.db.outbox.toArray()).toEqual(intents)
+  expect(await f.device.db.migrationJournal.toArray()).toEqual(journals)
+  expect(await f.device.db.syncState.get('signin-receipt:decision')).toBeUndefined()
+  expect(await f.device.db.syncState.get('guest-copy:pending')).toBeUndefined()
+})
