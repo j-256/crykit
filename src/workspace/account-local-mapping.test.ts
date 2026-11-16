@@ -359,3 +359,43 @@ it('rejects changed inherited ciphertext before publishing a mapping receipt', a
     expect(await database.profileMeta.get('active')).toEqual(fence)
   } finally { vi.restoreAllMocks(); await disposeWorkspaceSnapshot(original); await store.dispose(); database.close(); invalidateProfile() }
 })
+
+it.each(['local-ciphertext', 'source-journal'] as const)('rolls back an initial baseline when its captured predecessor changes before the receipt: %s', async kind => {
+  const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
+  const store = createAccountLocalStore(database, token), fixture = await editorClosureFixture(), operation = accountLocalId()
+  try {
+    const prepared = await prepareLocalWorkspace(store.adapter, operation, fixture.state, store.lifetime)
+    const fence = await activateLocalAccountCommit(database, token, await store.prepareActivation(operation, prepared, undefined)); store.committed(operation)
+    const journal = (await database.migrationJournal.get(operation))!, record = (await database.encryptedRevisions.get(fence.head.revisionId))!
+    const chunk = (await database.stagedCipherChunks.get([record.payloadId, 0]))!
+    const cache = await import('./account-cache'), stage = cache.stageAccountJson
+    let changed = false
+    const fault = vi.spyOn(cache, 'stageAccountJson').mockImplementation(async (...args) => {
+      const result = await stage(...args)
+      if ((args[2] as { kind?: string }).kind === 'incremental-mapping-origin') {
+        if (kind === 'local-ciphertext') {
+          const bytes = chunk.bytes.slice(); bytes[0] ^= 1
+          await database.stagedCipherChunks.put({ ...chunk, bytes })
+        } else await database.migrationJournal.put({ ...journal, headRevision: journal.headRevision + 1 })
+        changed = true
+      }
+      return result
+    })
+    await expect(prepareIncrementalBaseline(database, token, fence)).rejects.toThrow(kind === 'local-ciphertext' ? 'Consumed encrypted bytes changed' : 'Mapping baseline preparation changed')
+    expect(changed).toBe(true)
+    expect(await database.syncState.get(`incremental-baseline:${operation}`)).toBeUndefined()
+    expect(await readIncrementalMappedRoot(database, token, fence)).toBeUndefined()
+    expect(await database.profileMeta.get('active')).toEqual(fence)
+    fault.mockRestore()
+    await database.stagedCipherChunks.put(chunk)
+    await database.migrationJournal.put(journal)
+    const ticket = await prepareIncrementalBaseline(database, token, fence), records = await database.encryptedRevisions.count()
+    expect(await prepareIncrementalBaseline(database, token, fence)).toEqual(ticket)
+    expect(await database.encryptedRevisions.count()).toBe(records)
+    await expect(activateIncrementalBaseline(database, token, ticket, undefined, { ...fence, headRevision: fence.headRevision + 1 })).rejects.toThrow('Mapping baseline response changed')
+    expect(await readIncrementalMappedRoot(database, token, fence)).toBeUndefined()
+    await activateIncrementalBaseline(database, token, ticket, undefined, fence)
+    expect(await readIncrementalMappedRoot(database, token, fence)).toBeDefined()
+    expect(await database.profileMeta.get('active')).toEqual(fence)
+  } finally { vi.restoreAllMocks(); await store.dispose(); database.close(); invalidateProfile() }
+})
