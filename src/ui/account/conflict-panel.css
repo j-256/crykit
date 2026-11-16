@@ -27,6 +27,14 @@
 .conflict-version details { font-size: .8rem; }
 .conflict-version summary { min-height: 2.75rem; align-content: center; cursor: pointer; color: var(--text-dim); }
 .conflict-version > .button { margin-top: .5rem; }
+.conflict-file { margin: 1rem 0; min-width: 0; overflow-wrap: anywhere; }
+.conflict-file-name { margin: 0 0 .5rem; font-size: .85rem; line-height: 1.5; }
+.conflict-file-metadata { margin: 0 0 1rem; color: var(--text-dim); font-size: .8rem; line-height: 1.6; }
+.conflict-file-content + .conflict-file-content { margin-top: 1rem; }
+.conflict-file-content > p { margin: .5rem 0; font-size: .8rem; line-height: 1.6; }
+.conflict-file-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.conflict-file-actions .button { max-width: 100%; }
+.conflict-file-actions .button svg { flex-shrink: 0; }
 .conflict-keep-both { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding-top: 1rem; }
 .conflict-keep-both p { max-width: 65ch; margin: 0; color: var(--text-dim); font-size: .8rem; line-height: 1.6; }
 @media (max-width: 50rem) {
