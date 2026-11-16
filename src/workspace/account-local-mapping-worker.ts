@@ -1,3 +1,4 @@
+import { observeBackupJsonWork, type BackupJsonByteCounter } from '../interchange/workspace-backup-json'
 import { AccountDatabase, type AccountIntentRecord, type AccountFence } from '../persistence/account-database'
 import { installProfile, invalidateProfile, assertActiveProfile, type ProfileToken } from '../account/profile'
 import { installAccountWorkCheckpoint } from '../account/background-work'
@@ -7,8 +8,8 @@ import { prepareIncrementalMapping, prepareIncrementalBaseline } from './account
 export type AccountMappingWorkerRequest =
   | { kind: 'initialize'; incarnation: string; accountId: string; key: Uint8Array }
   | { kind: 'foreground'; incarnation: string; pending: boolean }
-  | { kind: 'map'; incarnation: string; id: string; row: AccountIntentRecord }
-  | { kind: 'baseline'; incarnation: string; id: string; fence: AccountFence }
+  | { kind: 'map'; incarnation: string; id: string; row: AccountIntentRecord; diagnostics?: true }
+  | { kind: 'baseline'; incarnation: string; id: string; fence: AccountFence; diagnostics?: true }
   | { kind: 'cancel'; incarnation: string }
 
 let captured: { incarnation: string; token: ProfileToken; database: AccountDatabase } | undefined
@@ -54,15 +55,22 @@ self.onmessage = (event: MessageEvent<AccountMappingWorkerRequest>) => {
   if (busy) { self.postMessage({ incarnation: owner.incarnation, id: input.id, status: 'failed' }); return }
   busy = true
   void (async () => {
+    const codec: Partial<Record<BackupJsonByteCounter, number>> = {}
+    const stopCodec = input.diagnostics === true ? observeBackupJsonWork((key, bytes) => { codec[key] = (codec[key] ?? 0) + bytes }) : undefined
+    const reportCodec = () => {
+      if (stopCodec && captured === owner) self.postMessage({ incarnation: owner.incarnation, id: input.id, status: 'progress', value: { codec } })
+    }
     try {
       await checkpoint()
       const value = input.kind === 'baseline' ? await prepareIncrementalBaseline(owner.database, owner.token, input.fence, checkpoint) : await prepareIncrementalMapping(owner.database, owner.token, input.row, checkpoint)
       assertActiveProfile(owner.token)
       if (captured !== owner) throw new Error('Mapping owner changed')
+      reportCodec()
       self.postMessage({ incarnation: owner.incarnation, id: input.id, status: 'complete', value })
     } catch {
       // Responses contain no private error text, plaintext metadata or source bytes
+      reportCodec()
       if (captured === owner) self.postMessage({ incarnation: owner.incarnation, id: input.id, status: 'failed' })
-    } finally { busy = false }
+    } finally { stopCodec?.(); busy = false }
   })()
 }

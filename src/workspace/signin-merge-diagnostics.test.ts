@@ -91,7 +91,8 @@ it('records confirmed merge preparation separately from review computation', () 
 
 it('keeps worker codec work and repeated ciphertext observations separate from main codec counters', () => {
   const diagnostics = createSigninMergeDiagnostics()
-  diagnostics.workerWork({ encodedOutputBytes: 12, decodedInputBytes: 9 })
+  const observer = diagnostics.workerObserver()
+  observer.beginRequest(); observer.work({ encodedOutputBytes: 12, decodedInputBytes: 9 }); observer.endRequest()
   diagnostics.ciphertextWork('worker', 3, 40)
   diagnostics.ciphertextWork('main', 3, 40)
   diagnostics.ciphertextWork('main', 1, 10)
@@ -105,10 +106,32 @@ it('ignores aggregate worker observations after synthetic diagnostics are stoppe
   api.enableSigninMergeDiagnostics()
   const diagnostics = api.beginSigninMergeDiagnostics()!
   api.stopSigninMergeDiagnostics()
-  api.recordSigninMergeWorkerWork({ encodedOutputBytes: 99 })
+  api.createSigninMergeWorkerObserver()?.work({ encodedOutputBytes: 99 })
   api.recordSigninMergeCiphertextWork('main', 1, 99)
   api.recordSigninMergeCiphertextFailure('worker')
   diagnostics.record({ stage: 'journey', outcome: 'complete', elapsedMs: 1 })
   expect(diagnostics.snapshot()[0].workerMetadata).toBeUndefined()
   expect(diagnostics.snapshot()[0].ciphertextObservations).toBeUndefined()
+})
+
+it('adds every worker attempt while de-duplicating cumulative reports and identifying missing terminal receipts', () => {
+  const diagnostics = createSigninMergeDiagnostics()
+  const first = diagnostics.workerObserver(), second = diagnostics.workerObserver()
+  first.beginRequest(); first.work({ encodedOutputBytes: 12, decodedInputBytes: 9 }); first.endRequest()
+  second.beginRequest(); second.work({ encodedOutputBytes: 7, decodedInputBytes: 3 }); second.work({ encodedOutputBytes: 7, decodedInputBytes: 3 }); second.endRequest()
+  second.beginRequest(); second.work({ encodedOutputBytes: 11, decodedInputBytes: 8 }); second.endRequest()
+  const crashed = diagnostics.workerObserver()
+  crashed.beginRequest(); crashed.endRequest()
+  diagnostics.record({ stage: 'local-open', outcome: 'complete', elapsedMs: 1 })
+  expect(diagnostics.snapshot()[0]).toMatchObject({ workerMetadata: { encodedOutputBytes: 23, decodedInputBytes: 17, traversalBytes: 40 }, workerAccounting: { startedRequests: 4, reportedRequests: 3, incompleteRequests: 1 } })
+})
+
+it('binds delayed worker reports to their original observation instead of a successor journey', () => {
+  const old = createSigninMergeDiagnostics(), observer = old.workerObserver()
+  observer.beginRequest()
+  const next = createSigninMergeDiagnostics()
+  observer.work({ encodedOutputBytes: 99 }); observer.endRequest()
+  next.record({ stage: 'local-open', outcome: 'complete', elapsedMs: 1 })
+  expect(next.snapshot()[0].workerMetadata).toBeUndefined()
+  expect(next.snapshot()[0].workerAccounting).toBeUndefined()
 })

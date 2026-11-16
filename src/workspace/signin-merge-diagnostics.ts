@@ -14,10 +14,11 @@ export interface SigninMergeDiagnostic {
   // These count codec stream traversal in this realm's observation interval, including repeated passes
   // Objects have no output byte stream, so unobserved stream directions remain absent
   readonly workerMetadata?: Readonly<Partial<Record<BackupJsonByteCounter, number>> & { traversalBytes: number }>
+  readonly workerAccounting?: Readonly<{ startedRequests: number; reportedRequests: number; incompleteRequests: number }>
   readonly ciphertextObservations?: Readonly<Partial<Record<'worker' | 'main', { records: number; bytes: number; completedPasses: number; failedPasses: number }>>>
   readonly metadata?: Readonly<Partial<Record<BackupJsonByteCounter, number>> & { traversalBytes: number }>
 }
-type Event = Omit<SigninMergeDiagnostic, 'operationId' | 'metadata' | 'workerMetadata' | 'ciphertextObservations' | 'errorCode'> & { readonly errorCode?: string }
+type Event = Omit<SigninMergeDiagnostic, 'operationId' | 'metadata' | 'workerMetadata' | 'ciphertextObservations' | 'workerAccounting' | 'errorCode'> & { readonly errorCode?: string }
 let enabled = false
 let current: ReturnType<typeof createSigninMergeDiagnostics> | undefined
 let stopPrevious: (() => void) | undefined
@@ -27,7 +28,7 @@ export function enableSigninMergeDiagnostics() { enabled = true; stopPrevious?.(
 export function stopSigninMergeDiagnostics() { enabled = false; stopPrevious?.() }
 export function recordSigninMergeBoundary(stage: 'remote-accepted' | 'journey') { current?.record({ stage, outcome: 'complete', elapsedMs: performance.now() - current.startedAt }) }
 export const signinMergeDiagnosticsEnabled = () => enabled
-export function recordSigninMergeWorkerWork(value: Partial<Record<BackupJsonByteCounter, number>>) { if (enabled) current?.workerWork(value) }
+export function createSigninMergeWorkerObserver() { return enabled ? current?.workerObserver() : undefined }
 export function recordSigninMergeCiphertextWork(realm: 'worker' | 'main', records: number, bytes: number) { if (enabled) current?.ciphertextWork(realm, records, bytes) }
 export function recordSigninMergeCiphertextFailure(realm: 'worker' | 'main') { if (enabled) current?.ciphertextFailure(realm) }
 export function beginSigninMergeDiagnostics() { return enabled ? createSigninMergeDiagnostics() : undefined }
@@ -40,13 +41,38 @@ export function createSigninMergeDiagnostics() {
   const metadata: Partial<Record<BackupJsonByteCounter, number>> = {}
   let terminal = false
   const workerMetadata: Partial<Record<BackupJsonByteCounter, number>> = {}
+  let workerAccounting: { startedRequests: number; reportedRequests: number; incompleteRequests: number } | undefined
   const ciphertextObservations: Partial<Record<'worker' | 'main', { records: number; bytes: number; completedPasses: number; failedPasses: number }>> = {}
   const stop = observeBackupJsonWork((counter, bytes) => { metadata[counter] = (metadata[counter] ?? 0) + bytes })
   stopPrevious = stop
   const diagnostics = {
-    workerWork(value: Partial<Record<BackupJsonByteCounter, number>>) {
-      if (terminal) return
-      for (const key of ['encodedOutputBytes', 'decodedInputBytes'] as const) if (Number.isSafeInteger(value[key]) && value[key]! >= (workerMetadata[key] ?? 0)) workerMetadata[key] = value[key]
+    workerObserver() {
+      workerAccounting ??= { startedRequests: 0, reportedRequests: 0, incompleteRequests: 0 }
+      const accounting = workerAccounting, previous: Partial<Record<BackupJsonByteCounter, number>> = {}
+      let active = false, reported = false, invalid = false
+      return {
+        beginRequest() { if (terminal || active) return; active = true; reported = false; invalid = false; accounting.startedRequests++ },
+        work(value: Partial<Record<BackupJsonByteCounter, number>>) {
+          if (terminal || !active) return
+          // Reports are cumulative within one worker, including terminal failure reports
+          // A retry owns a fresh collector so its smaller counters still contribute every byte
+          for (const key of ['encodedOutputBytes', 'decodedInputBytes'] as const) {
+            const count = value[key] ?? previous[key] ?? 0
+            if (!Number.isSafeInteger(count) || count < (previous[key] ?? 0) || !Number.isSafeInteger((workerMetadata[key] ?? 0) + count - (previous[key] ?? 0))) { invalid = true; return }
+          }
+          for (const key of ['encodedOutputBytes', 'decodedInputBytes'] as const) if (value[key] !== undefined) {
+            workerMetadata[key] = (workerMetadata[key] ?? 0) + value[key]! - (previous[key] ?? 0)
+            previous[key] = value[key]
+          }
+          if (!reported) { reported = true; accounting.reportedRequests++ }
+        },
+        endRequest() {
+          if (!active) return
+          active = false
+          // A crashed or cancelled worker cannot claim zero unreported codec work
+          if (!reported || invalid) accounting.incompleteRequests++
+        },
+      }
     },
     ciphertextWork(realm: 'worker' | 'main', records: number, bytes: number) {
       if (terminal || !Number.isSafeInteger(records) || records < 0 || !Number.isSafeInteger(bytes) || bytes < 0) return
@@ -65,6 +91,7 @@ export function createSigninMergeDiagnostics() {
         ...(event.errorCode ? { errorCode: ERROR_CODES.find(code => code === event.errorCode) ?? 'unexpected' } : {}),
         ...(traversalBytes ? { metadata: { ...metadata, traversalBytes } } : {}),
         ...(Object.keys(workerMetadata).length ? { workerMetadata: { ...workerMetadata, traversalBytes: Object.values(workerMetadata).reduce((sum, value) => sum + value, 0) } } : {}),
+        ...(workerAccounting ? { workerAccounting: { ...workerAccounting } } : {}),
         ...(Object.keys(ciphertextObservations).length ? { ciphertextObservations: structuredClone(ciphertextObservations) } : {}) }
       events.push(safe)
       if (events.length > MAX_EVENTS) events.shift()
