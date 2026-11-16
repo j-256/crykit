@@ -21,7 +21,7 @@ import type { PreparedSigninMerge } from './guest-copy'
 import type { GuestCopySource } from './guest-repository'
 import { assertMergeProofEnvelope, validateMergeInstallation, type MergeInstallationProof } from './signin-merge-installation'
 import { clearMergeCiphertext, observeMergeCiphertext, recheckMergeCiphertext, mergeRecordEqual, type MergeCipherObservation } from './signin-merge-observations'
-import { SIGNIN_MERGE_ERRORS, SIGNIN_MERGE_LIMITS, SigninMergeManifestSchema, SigninMergeReviewSchema, SigninMergeProgressSchema, SigninMergeTicketSchema, assertSigninMergeBudget, type SigninMergeFence, type SigninMergeProgress } from './signin-merge-protocol'
+import { SIGNIN_MERGE_ERRORS, SIGNIN_MERGE_LIMITS, SigninMergeManifestSchema, SigninMergeReviewSchema, SigninMergeProgressSchema, SigninMergeResourceFailureSchema, SigninMergeTicketSchema, assertSigninMergeBudget, type SigninMergeFence, type SigninMergeProgress } from './signin-merge-protocol'
 
 const receipts = new WeakMap<object, { proof: MergeInstallationProof; consumed: boolean }>()
 const mismatch = () => new Error('SIGNIN_RECEIPT_MISMATCH')
@@ -68,7 +68,13 @@ export async function createSigninMergeClient(database: AccountDatabase, token: 
     previous?.dispose(); await lease?.release(); lease = undefined
   }
   const acceptProgress = (value: unknown) => {
-    const message = SigninMergeProgressSchema.parse(value)
+    // Malformed optional diagnostics must not turn a real resource refusal into a transport failure
+    const { resourceFailure, ...ordinary } = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : { resourceFailure: undefined }
+    const message = SigninMergeProgressSchema.parse(ordinary)
+    if (resourceFailure !== undefined) try {
+      const parsed = SigninMergeResourceFailureSchema.safeParse(resourceFailure)
+      if (parsed.success) codecObserver?.resourceFailure(parsed.data)
+    } catch { /* Observer failure cannot suppress the worker's terminal code */ }
     if (message.codec) codecObserver?.work(message.codec)
     if (message.observations?.status === 'complete') recordSigninMergeCiphertextWork('worker', message.observations.records, message.observations.bytes)
     else if (message.observations?.status === 'failed') recordSigninMergeCiphertextFailure('worker')

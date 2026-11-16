@@ -1,3 +1,4 @@
+import { SigninMergeResourceFailureSchema, type SigninMergeResourceFailure } from './signin-merge-protocol'
 import { observeBackupJsonWork, type BackupJsonByteCounter } from '../interchange/workspace-backup-json'
 
 const MAX_EVENTS = 128
@@ -11,6 +12,7 @@ export interface SigninMergeDiagnostic {
   readonly outcome: typeof OUTCOMES[number]
   readonly elapsedMs: number
   readonly errorCode?: typeof ERROR_CODES[number]
+  readonly resourceFailure?: SigninMergeResourceFailure
   // These count codec stream traversal in this realm's observation interval, including repeated passes
   // Objects have no output byte stream, so unobserved stream directions remain absent
   readonly workerMetadata?: Readonly<Partial<Record<BackupJsonByteCounter, number>> & { traversalBytes: number }>
@@ -18,7 +20,7 @@ export interface SigninMergeDiagnostic {
   readonly ciphertextObservations?: Readonly<Partial<Record<'worker' | 'main', { records: number; bytes: number; completedPasses: number; failedPasses: number }>>>
   readonly metadata?: Readonly<Partial<Record<BackupJsonByteCounter, number>> & { traversalBytes: number }>
 }
-type Event = Omit<SigninMergeDiagnostic, 'operationId' | 'metadata' | 'workerMetadata' | 'ciphertextObservations' | 'workerAccounting' | 'errorCode'> & { readonly errorCode?: string }
+type Event = Omit<SigninMergeDiagnostic, 'operationId' | 'metadata' | 'workerMetadata' | 'ciphertextObservations' | 'workerAccounting' | 'errorCode' | 'resourceFailure'> & { readonly errorCode?: string }
 let enabled = false
 let current: ReturnType<typeof createSigninMergeDiagnostics> | undefined
 let stopPrevious: (() => void) | undefined
@@ -39,19 +41,27 @@ export function createSigninMergeDiagnostics() {
   const operationId = crypto.randomUUID(), events: SigninMergeDiagnostic[] = []
   const startedAt = performance.now()
   const metadata: Partial<Record<BackupJsonByteCounter, number>> = {}
-  let terminal = false
+  let terminal = false, observing = true
+  let resourceFailure: SigninMergeResourceFailure | undefined
   const workerMetadata: Partial<Record<BackupJsonByteCounter, number>> = {}
   let workerAccounting: { startedRequests: number; reportedRequests: number; incompleteRequests: number } | undefined
   const ciphertextObservations: Partial<Record<'worker' | 'main', { records: number; bytes: number; completedPasses: number; failedPasses: number }>> = {}
-  const stop = observeBackupJsonWork((counter, bytes) => { metadata[counter] = (metadata[counter] ?? 0) + bytes })
+  const unsubscribe = observeBackupJsonWork((counter, bytes) => { metadata[counter] = (metadata[counter] ?? 0) + bytes })
+  const stop = () => { observing = false; unsubscribe() }
   stopPrevious = stop
   const diagnostics = {
     workerObserver() {
       workerAccounting ??= { startedRequests: 0, reportedRequests: 0, incompleteRequests: 0 }
       const accounting = workerAccounting, previous: Partial<Record<BackupJsonByteCounter, number>> = {}
-      let active = false, reported = false, invalid = false
+      let active = false, reported = false, invalid = false, resourceReported = false
       return {
-        beginRequest() { if (terminal || active) return; active = true; reported = false; invalid = false; accounting.startedRequests++ },
+        beginRequest() { if (terminal || active) return; active = true; reported = false; invalid = false; resourceReported = false; accounting.startedRequests++ },
+        resourceFailure(value: unknown) {
+          if (!observing || terminal || !active || resourceReported) return
+          const parsed = SigninMergeResourceFailureSchema.safeParse(value)
+          if (!parsed.success) return
+          resourceReported = true; resourceFailure = parsed.data
+        },
         work(value: Partial<Record<BackupJsonByteCounter, number>>) {
           if (terminal || !active) return
           // Reports are cumulative within one worker, including terminal failure reports
@@ -89,6 +99,7 @@ export function createSigninMergeDiagnostics() {
       const traversalBytes = Object.values(metadata).reduce((sum, value) => sum + value, 0)
       const safe: SigninMergeDiagnostic = { operationId, stage: event.stage, outcome: event.outcome, elapsedMs: event.elapsedMs,
         ...(event.errorCode ? { errorCode: ERROR_CODES.find(code => code === event.errorCode) ?? 'unexpected' } : {}),
+        ...(resourceFailure ? { resourceFailure: { ...resourceFailure } } : {}),
         ...(traversalBytes ? { metadata: { ...metadata, traversalBytes } } : {}),
         ...(Object.keys(workerMetadata).length ? { workerMetadata: { ...workerMetadata, traversalBytes: Object.values(workerMetadata).reduce((sum, value) => sum + value, 0) } } : {}),
         ...(workerAccounting ? { workerAccounting: { ...workerAccounting } } : {}),
