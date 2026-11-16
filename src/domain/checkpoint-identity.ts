@@ -44,10 +44,20 @@ export function checkpointContentDigest(value: unknown): string {
   return Array.from(hash, word => word.toString(16).padStart(8, '0')).join('')
 }
 
-// Capture the same canonical bytes before yielding; native transaction callers keep the synchronous path
+// Snapshot JSON input synchronously so later caller mutations cannot mix digest stages
+// Separate tasks allow pending input/rendering opportunities, but do not guarantee a paint
+// Byte order is unchanged; native transaction callers keep the synchronous path
 export async function checkpointContentDigestAsync(value: unknown, check: () => void): Promise<string> {
   check()
-  const input = new TextEncoder().encode(JSON.stringify(canonical(value)))
+  const snapshot = canonical(value)
+  check()
+  await new Promise<void>(resolve => setTimeout(resolve, 0))
+  check()
+  const serialized = JSON.stringify(snapshot)
+  check()
+  await new Promise<void>(resolve => setTimeout(resolve, 0))
+  check()
+  const input = new TextEncoder().encode(serialized)
   check()
   await new Promise<void>(resolve => setTimeout(resolve, 0))
   check()

@@ -13,6 +13,43 @@ afterEach(() => vi.restoreAllMocks())
 it.each([null, { z: ['é', '\ud800', null, -0, 1.25], a: { y: undefined, x: true } }, GUIDE_CATALOG])('preserves canonical synchronous digest bytes for async preparation %#', async value => {
   expect(await checkpointContentDigestAsync(value, () => {})).toBe(checkpointContentDigest(value))
 })
+it('snapshots nested JSON before yielding and separates serialization, encoding, and hashing into tasks', async () => {
+  const value = { z: ['é', '\ud800', null, -0, 1.25], a: { y: undefined, x: true } }
+  const serialized = '{"a":{"x":true},"z":["é","\\ud800",null,0,1.25]}'
+  const expectedBytes = new Uint8Array([123,34,97,34,58,123,34,120,34,58,116,114,117,101,125,44,34,122,34,58,91,34,195,169,34,44,34,92,117,100,56,48,48,34,44,110,117,108,108,44,48,44,49,46,50,53,93,125])
+  const expectedDigest = checkpointContentDigest(value)
+  const stringify = vi.spyOn(JSON, 'stringify'), encode = vi.spyOn(TextEncoder.prototype, 'encode'), digest = vi.spyOn(crypto.subtle, 'digest')
+  const result = checkpointContentDigestAsync(value, () => {})
+  try {
+    expect(stringify).not.toHaveBeenCalled()
+    expect(encode).not.toHaveBeenCalled()
+    value.a.x = false
+    value.z.splice(0, value.z.length, 'changed after capture')
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    expect(stringify.mock.results[0]?.value).toBe(serialized)
+    expect(encode).not.toHaveBeenCalled()
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    expect(encode.mock.results[0]?.value).toEqual(expectedBytes)
+    expect(digest).not.toHaveBeenCalled()
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    expect(await result).toBe(expectedDigest)
+    expect(digest.mock.calls[0]).toEqual(['SHA-256', expectedBytes])
+  } finally { await result }
+})
+it.each(['canonical-copy', 'serialization', 'UTF8-encoding'] as const)('rejects cancellation after %s without hashing or admitting source validity', async boundary => {
+  const catalog = fresh(), controller = new AbortController(), digest = vi.spyOn(crypto.subtle, 'digest')
+  const result = prepareSourcePayloadValidation(catalog, () => controller.signal.throwIfAborted())
+  const rejected = expect(result).rejects.toThrow('cancelled between digest stages')
+  // The source validator has its own initial task before the digest captures its private snapshot
+  await new Promise<void>(resolve => setTimeout(resolve, 0))
+  for (let index = 0; index < ['canonical-copy', 'serialization', 'UTF8-encoding'].indexOf(boundary); index++) await new Promise<void>(resolve => setTimeout(resolve, 0))
+  controller.abort(new Error('cancelled between digest stages'))
+  await new Promise<void>(resolve => setTimeout(resolve, 0))
+  await rejected
+  expect(digest).not.toHaveBeenCalled()
+  expect(await prepareSourcePayloadValidation(catalog, () => {})).toBe(true)
+  expect(digest).toHaveBeenCalledTimes(1)
+})
 it('validates the complete immutable source before exact-byte compressed preparation', async () => {
   const catalog = fresh(), peer = fresh(), expected = encodeCatalogPayload(peer), check = vi.fn()
   let taskRan = false
