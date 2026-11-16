@@ -23,7 +23,13 @@ const limits = WORKSPACE_BACKUP_LIMITS as { frames: number; bytes: number; depth
 const defaultLimits = { ...limits }
 const MULTIPAGE_DRAFT_REPEATS = 400_000
 const databases: AccountDatabase[] = []
-afterEach(async () => { Object.assign(limits, defaultLimits); vi.restoreAllMocks(); invalidateProfile(); for (const database of databases.splice(0)) await database.delete() })
+afterEach(async () => {
+  Object.assign(limits, defaultLimits); vi.restoreAllMocks(); invalidateProfile()
+  const connections = databases.splice(0)
+  // Reopening tests own multiple connections to one database; close all before deleting
+  for (const database of connections) database.close()
+  for (const database of connections) await database.delete()
+})
 function account() {
   const key = crypto.getRandomValues(new Uint8Array(32)), accountId = accountLocalId()
   const token = installProfile(accountId, key.slice()), database = new AccountDatabase(accountId)
@@ -308,6 +314,35 @@ it.each(['root', 'body', 'metadata', 'descriptor', 'missing'] as const)('reauthe
   await prepared.dispose(); await disposeWorkspaceSnapshot(snapshot)
 })
 
+it('collects transaction observations only for the registered admission reader', async () => {
+  const { database, token, snapshot, prepared } = await installedFixture()
+  const streams = await import('../workspace/account-streams')
+  const open = vi.spyOn(streams, 'openAccountSource')
+  const handle = await evidence.openAccountInheritedEvidence(database, token, prepared.root)
+  expect(open.mock.calls.length).toBeGreaterThan(0)
+  expect(open.mock.calls.every(args => typeof args[5] === 'function')).toBe(true)
+  open.mockClear()
+  const sources = await evidence.accountInheritedSources(handle)
+  for (const member of sources.members) await pages(member.metadata)
+  for (const body of sources.bodies) await pages(body.content)
+  expect(open.mock.calls.length).toBeGreaterThan(0)
+  expect(open.mock.calls.every(args => args[5] === undefined)).toBe(true)
+  open.mockClear()
+  const retained = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ base: handle })
+  const borrowedReads = open.mock.calls.filter(args => args[3] === undefined)
+  expect(borrowedReads.length).toBeGreaterThan(0)
+  expect(borrowedReads.every(args => args[5] === undefined)).toBe(true)
+  const admissionReads = open.mock.calls.filter(args => args[3] === retained.owner)
+  expect(admissionReads.length).toBeGreaterThan(0)
+  expect(admissionReads.every(args => typeof args[5] === 'function')).toBe(true)
+  const check = evidence.accountInheritedEvidenceCheck(retained.handle, database, token)
+  await database.transaction('rw', database.tables, () => check.recheckInTransaction())
+  await retained.dispose(); await handle.dispose()
+  await expect(pages(sources.members[0].metadata)).rejects.toThrow(/released/)
+  await expect(check.recheckInTransaction()).rejects.toThrow(/released/)
+  await prepared.dispose(); await disposeWorkspaceSnapshot(snapshot)
+})
+
 it('unions independently installed archives while retaining base subset bindings and original metadata refs', async () => {
   const { database, token, snapshot, prepared } = await installedFixture()
   const later = { ...await original(), capturedAt: '2026-10-14' }
@@ -333,6 +368,109 @@ it('unions independently installed archives while retaining base subset bindings
   const originals = new Map([...capturedBackupEvidence(snapshot).historical, ...capturedBackupEvidence(addition).historical])
   for (const member of sources.members) expect(await pages(member.metadata)).toEqual(await pages(originals.get(member.id)!))
   await reopened.dispose(); await disposeWorkspaceSnapshot(snapshot); await disposeWorkspaceSnapshot(addition)
+})
+
+it.each(['subset-root', 'subset-child', 'metadata-page', 'metadata-segment', 'body-registry'] as const)('unions independently valid archives sharing a physical %s without aliasing the result', async overlap => {
+  const { database, token } = account(), first = await original(overlap.startsWith('metadata'))
+  const second = { ...first, capturedAt: '2026-10-13', state: overlap === 'body-registry' ? { ...first.state, blobs: first.state.blobs.map((body, index) => index ? body : { ...body, ref: { ...body.ref, documentId: 'yy-distinct-alias' } }) } : first.state }
+  const snapshots = await Promise.all([first, second].map(value => inheritWorkspaceSnapshot(value, [value])))
+  const prepared = [] as evidence.PreparedAccountInheritedEvidence[]
+  const opened = [] as evidence.AccountInheritedEvidence[]
+  const { readAccountBytes, stageAccountJson, cipherRef } = await import('../workspace/account-cache')
+  const { prepareAccountEvidenceUnion } = await import('../workspace/account-evidence-union')
+  let union: Awaited<ReturnType<typeof prepareAccountEvidenceUnion>> | undefined
+  const read = async (ref: CipherRef) => {
+    const bytes = await readAccountBytes(database, token, ref)
+    try { return JSON.parse(new TextDecoder().decode(bytes)) } finally { bytes.fill(0) }
+  }
+  const stage = async (value: unknown, dependencies: CipherRef[]) => {
+    const record = await stageAccountJson(database, token, value, dependencies)
+    await database.encryptedRevisions.add(record)
+    return cipherRef(record)
+  }
+  try {
+    for (const snapshot of snapshots) {
+      const value = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ additions: [snapshot] })
+      prepared.push(value)
+      await database.encryptedRevisions.bulkAdd([...value.records])
+    }
+    const roots = await Promise.all(prepared.map(value => read(value.root)))
+    const memberPages = await Promise.all(roots.map(value => read(value.members)))
+    const members = memberPages.map(value => ({ ...value.entries[0] }))
+    expect(members[0].id).not.toBe(members[1].id)
+    const subset = await read(members[0].blobSubset)
+    if (overlap === 'subset-root') members[1].blobSubset = members[0].blobSubset
+    else if (overlap === 'subset-child') {
+      members[1].blobSubset = await stage({ ...subset, entries: [], children: [members[0].blobSubset] }, [members[0].blobSubset])
+      expect(members[1].blobSubset).not.toEqual(members[0].blobSubset)
+    } else if (overlap === 'body-registry') {
+      const leftBlobs = await read(roots[0].blobs), rightBlobs = await read(roots[1].blobs)
+      const bindings = rightBlobs.entries.map((entry: { source: { documentId: string }; content: CipherRef }) => ({ ...entry, content: leftBlobs.entries.find((left: typeof entry) => left.source.documentId === (entry.source.documentId === 'yy-distinct-alias' ? first.state.blobs[0].ref.documentId : entry.source.documentId)).content }))
+      roots[1].blobs = await stage({ ...rightBlobs, entries: bindings }, bindings.map((entry: { content: CipherRef }) => entry.content))
+      const rightSubset = await read(members[1].blobSubset)
+      const entries = rightSubset.entries.map((entry: { source: { documentId: string }; content: CipherRef }) => bindings.find((body: typeof entry) => body.source.documentId === entry.source.documentId))
+      members[1].blobSubset = await stage({ ...rightSubset, entries }, entries.map((entry: { content: CipherRef }) => entry.content))
+    } else {
+      // Both originals retain their exact token pages, including a common suffix page
+      // Separate valid graphs may share that page, but one result cannot visit it twice
+      members[1].blobSubset = await stage(subset, subset.entries.map((entry: { content: CipherRef }) => entry.content))
+      const streams = await Promise.all(members.map(value => read(value.metadata)))
+      const metadataPages = await Promise.all(streams.map(value => read(value.pages)))
+      const segments = metadataPages.map(value => value.entries as { ordinal: number; sha256: string; content: CipherRef }[])
+      const common = segments[0].findIndex((segment, index) => segment.sha256 === segments[1][index]?.sha256)
+      expect(common).toBeGreaterThanOrEqual(0)
+      segments[1][common] = { ...segments[1][common], content: segments[0][common].content }
+      let sharedPage: CipherRef | undefined
+      if (overlap === 'metadata-page') sharedPage = await stage({ ...metadataPages[0], entries: [segments[0][common]] }, [segments[0][common].content])
+      for (const [index, stream] of streams.entries()) {
+        let pagesRef: CipherRef
+        if (sharedPage) {
+          const children: CipherRef[] = []
+          for (const segment of segments[index]) children.push(segment.ordinal === common ? sharedPage : await stage({ ...metadataPages[index], entries: [segment] }, [segment.content]))
+          pagesRef = await stage({ ...metadataPages[index], entries: [], children }, children)
+        } else pagesRef = await stage({ ...metadataPages[index], entries: segments[index] }, segments[index].map(segment => segment.content))
+        members[index].metadata = await stage({ ...stream, pages: pagesRef }, [pagesRef])
+      }
+    }
+    const inputRoots: CipherRef[] = []
+    for (const [index, member] of members.entries()) {
+      const memberRef = await stage({ ...memberPages[index], entries: [member] }, [member.metadata, member.blobSubset])
+      const blobs = overlap === 'body-registry' ? roots[index].blobs : roots[0].blobs
+      const root = await stage({ ...roots[index], members: memberRef, blobs }, [memberRef, blobs])
+      inputRoots.push(root)
+      opened.push(await evidence.openAccountInheritedEvidence(database, token, root))
+    }
+    expect(opened.map(value => value.members.length)).toEqual([1, 1])
+    const originals = new Map(snapshots.flatMap(snapshot => [...capturedBackupEvidence(snapshot).historical]))
+    for (const handle of opened) for (const member of (await evidence.accountInheritedSources(handle)).members) expect(await pages(member.metadata)).toEqual(await pages(originals.get(member.id)!))
+    union = await prepareAccountEvidenceUnion(database, token, inputRoots[0], inputRoots[1])
+    const copiedLeaves = union.prepared.records.filter(record => record.descriptor.dependencies.length === 0)
+    expect(copiedLeaves).toHaveLength(overlap.startsWith('subset') ? 0 : 1)
+    await database.encryptedRevisions.bulkAdd([...union.prepared.records])
+    const result = await evidence.openAccountInheritedEvidence(database, token, union.prepared.root)
+    opened.push(result)
+    expect(result.members.map(value => value.id)).toEqual([...originals.keys()].sort())
+    const output = await evidence.accountInheritedSources(result)
+    for (const member of output.members) {
+      expect(await pages(member.metadata)).toEqual(await pages(originals.get(member.id)!))
+      const original = snapshots.find(snapshot => snapshot.historicalEvidence.snapshots[0].id === member.id)!
+      expect(member.subset).toEqual(original.state.blobs.map(body => body.ref))
+    }
+    const outputRoot = await read(union.prepared.root), outputMembers = (await read(outputRoot.members)).entries
+    if (overlap === 'body-registry') {
+      const entries = (await read(outputRoot.blobs)).entries as { source: { documentId: string }; content: CipherRef }[]
+      expect(new Set(entries.map(entry => keyOf(entry.content))).size).toBe(entries.length)
+      expect(entries.map(entry => entry.source.documentId)).toContain('yy-distinct-alias')
+      expect(entries.map(entry => entry.source.documentId)).toContain(first.state.blobs[0].ref.documentId)
+    } else expect(outputRoot.blobs).toEqual(roots[0].blobs)
+    expect(outputMembers[0].blobSubset).not.toEqual(outputMembers[1].blobSubset)
+    if (overlap.startsWith('subset')) for (const member of members) expect(outputMembers.find((value: { id: string }) => value.id === member.id).metadata).toEqual(member.metadata)
+  } finally {
+    await union?.dispose()
+    for (const handle of opened) await handle.dispose()
+    for (const value of prepared) await value.dispose()
+    for (const snapshot of snapshots) await disposeWorkspaceSnapshot(snapshot)
+  }
 })
 
 it('returns the installed root unchanged when valid legacy member pages use a different grouping', async () => {

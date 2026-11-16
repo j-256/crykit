@@ -209,7 +209,7 @@ class GraphReader {
   readonly records = new Map<string, CipherRecord>()
   readonly indexes = new Map<string, CipherRef>()
   readonly observations = new Map<string, { readonly record: CipherRecord; readonly chunks: readonly CipherChunk[] }>()
-  constructor(readonly database: AccountDatabase, readonly token: ProfileToken, readonly budget: Budget, readonly check: () => Promise<void>, readonly owner?: AccountPreparationOwner, private readonly authenticationLifetime?: ReadLifetime) {}
+  constructor(readonly database: AccountDatabase, readonly token: ProfileToken, readonly budget: Budget, readonly check: () => Promise<void>, readonly owner?: AccountPreparationOwner, private readonly authenticationLifetime?: ReadLifetime, private readonly collectObservations = false) {}
   async record(ref: CipherRef, limit: number): Promise<CipherRecord> {
     await this.check()
     const record = await resolveAccountRecord(this.database, this.token, ref, this.owner)
@@ -231,7 +231,10 @@ class GraphReader {
     return { byteLength: captured.descriptor.plainBytes, async *open() {
       await reader.record(ref, limit)
       checked(reader.budget.read, captured.descriptor.plainBytes, WORKSPACE_BACKUP_LIMITS.bytes)
-      const source = await openAccountSource(reader.database, reader.token, ref, reader.owner, captured, (record, chunks) => { reader.observations.set(refKey(ref), { record, chunks }) })
+      // Only registered admission owns transaction observations; lazy and temporary reads
+      // authenticate completely without retaining ciphertext no later check can consume
+      const observe = reader.collectObservations ? (record: CipherRecord, chunks: readonly CipherChunk[]) => { reader.observations.set(refKey(ref), { record, chunks }) } : undefined
+      const source = await openAccountSource(reader.database, reader.token, ref, reader.owner, captured, observe)
       await reader.check()
       let length = 0
       // Retirement can run after the awaited check passes; admission, allocation and
@@ -320,7 +323,7 @@ export async function openAccountInheritedEvidence(database: AccountDatabase, to
   // attempt or restart it after natural stream completion removes the iterator
   unregister = registerProfileCleanup(token, () => { if (join) void join.request(); else void dispose().catch(() => {}) })
   if (join && join.observe().status !== 'not-started') unregister()
-  const budget = new Budget(), reader = new GraphReader(database, token, budget, () => lifetime.check(), owner, lifetime)
+  const budget = new Budget(), reader = new GraphReader(database, token, budget, () => lifetime.check(), owner, lifetime, true)
   releaseObservations = () => reader.observations.clear()
   try {
     budget.reserve(root, 'root')
@@ -468,6 +471,7 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
   const base = input.base
   const reusableRoots: AccountInheritedEvidence[] = []
   const reusableMembers = new Map<string, MemberStream>(), reusableBodies = new Map<string, Body>(), reusableIndexes = new Map<string, CipherRef>()
+  const reusableRecords = new Map<string, CipherRecord>()
   for (const handle of [base, input.merge]) {
     if (!handle) continue
     await assertAccountInheritedEvidenceOwner(handle, database, token)
@@ -487,6 +491,7 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
     for (const [key, record] of owned.reader.records) {
       if (!budget.visits.has(key)) { budget.reserve(cipherRef(record), 'body'); budget.declare(record.descriptor.plainBytes) }
       reader.records.set(key, record)
+      reusableRecords.set(key, record)
     }
     // Reauthenticate every physical record, including index pages whose immutable parsed facts
     // are reused below; a live handle alone proves neither descriptors nor chunks are unchanged
@@ -575,19 +580,40 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
     }
   }
   const records: CipherRecord[] = []
+  const outputNodes = new Set<string>(), bodyNodes = new Set<string>()
+  // Each input may validly own a node also owned by another input, but the frozen result
+  // permits sharing only native bodies. Claim the entire authenticated graft, including
+  // nested pages and raw token segments, before retaining any of it
+  const retainClosure = (ref: CipherRef, subset = false): boolean => {
+    const pending = [ref], closure = new Set<string>()
+    while (pending.length) {
+      const next = pending.pop()!, key = refKey(next)
+      if (subset && bodyNodes.has(key)) continue
+      if (outputNodes.has(key)) return false
+      if (closure.has(key)) continue
+      const record = reusableRecords.get(key)
+      if (!record) throw new Error('Missing authenticated account evidence dependency')
+      closure.add(key)
+      pending.push(...record.descriptor.dependencies)
+    }
+    for (const key of closure) outputNodes.add(key)
+    return true
+  }
   const retain = async (job: Promise<CipherRecord>) => { const record = await job; records.push(freeze(structuredClone(record))); await sourceCheck(); return cipherRef(record) }
   const stageBytes = async (bytes: Uint8Array, dependencies: readonly CipherRef[]) => {
     budget.room(1); budget.declare(bytes.length)
     await sourceCheck()
     const ref = await retain(stageAccountBytes(database, token, bytes, uniqueRefs(dependencies), undefined, owner))
     budget.reserve(ref, 'staged')
+    outputNodes.add(refKey(ref))
     return ref
   }
   const stageJson = async (value: unknown, dependencies: readonly CipherRef[], reuse = true) => {
     const reused = reuse ? reusableIndexes.get(indexKey(value)) : undefined
-    if (reused) {
-      // Non-body graph nodes cannot alias across members in the frozen wire format
-      reusableIndexes.delete(indexKey(value))
+    if (reused && !outputNodes.has(refKey(reused))) {
+      // The builder already claimed every child closure; only this parent remains
+      // If a child had to be copied, its changed ref prevents this index from matching
+      outputNodes.add(refKey(reused))
       await sourceCheck(); return reused
     }
     const bytes = jsonBytes(value)
@@ -598,34 +624,43 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
   for (const body of [...bodies.values()].sort((a, b) => compareBackupRefs(a.ref, b.ref))) {
     if (body.ref.byteLength > maxDocumentBytes || body.ref.byteLength !== body.content.byteLength) throw new Error('Account historical native body exceeds document limit or has wrong length')
     const reused = reusableBodies.get(blobIdentity(body.ref))
-    if (reused) {
-      if (!sameRef(reused.source, body.ref)) throw new Error('Account historical native body identity changed')
+    if (reused && !sameRef(reused.source, body.ref)) throw new Error('Account historical native body identity changed')
+    // Subsets may share a registry binding, but distinct logical bodies must each have
+    // their own physical record even when separate input registries used the same one
+    if (reused && !bodyNodes.has(refKey(reused.content))) {
+      bodyNodes.add(refKey(reused.content)); outputNodes.add(refKey(reused.content))
       shared.push(reused); stored.set(blobIdentity(body.ref), reused); continue
     }
     budget.room(1); budget.declare(body.ref.byteLength)
     await sourceCheck()
     const content = await retain(stageAccountSource(database, token, guarded(body.content), [], undefined, undefined, owner))
     budget.reserve(content, 'body')
+    bodyNodes.add(refKey(content)); outputNodes.add(refKey(content))
     const entry = { source: body.ref, content }; shared.push(entry); stored.set(blobIdentity(body.ref), entry)
   }
   const written: Member[] = []
   for (const member of [...members.values()].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)) {
     const reused = reusableMembers.get(member.id)
-    if (reused) {
+    const writeSubset = async () => {
       const subset = member.subset.map(ref => { const body = stored.get(blobIdentity(ref)); if (!body || !sameRef(ref, body.source)) throw new Error('Account historical subset body mismatch'); return body })
-      const unchanged = subset.length === reused.subsetBodies.length && subset.every((body, index) => refKey(body.content) === refKey(reused.subsetBodies[index].content))
-      const blobSubset = unchanged ? reused.blobSubset : await page('evidence-subset-page', subset, entry => [entry.content], false)
-      written.push({ id: member.id, metadata: reused.metadata, blobSubset })
+      const unchanged = reused && subset.length === reused.subsetBodies.length && subset.every((body, index) => refKey(body.content) === refKey(reused.subsetBodies[index].content))
+      return unchanged && retainClosure(reused.blobSubset, true) ? reused.blobSubset : page('evidence-subset-page', subset, entry => [entry.content], false)
+    }
+    if (reused && retainClosure(reused.metadata)) {
+      written.push({ id: member.id, metadata: reused.metadata, blobSubset: await writeSubset() })
       continue
     }
     budget.potential(member.metadata.byteLength)
     const segments: Segment[] = []
     let length = 0
     for await (const bytes of guarded(member.metadata, member.id).open()) {
-      budget.stagedOriginal(member.id, segments.length)
+      // Installed originals already reserved physical visits during authentication
+      // Only new originals transfer a logical reservation into a staged segment
+      if (!reused) budget.stagedOriginal(member.id, segments.length)
       if (!bytes.length || bytes.length > WORKSPACE_BACKUP_LIMITS.payload) throw new Error('Account metadata token page limit')
       length = checked(length, bytes.length, member.metadata.byteLength)
-      const content = await stageBytes(bytes, [])
+      const existing = reused?.segments[segments.length]?.content
+      const content = existing && retainClosure(existing) ? existing : await stageBytes(bytes, [])
       segments.push({ ordinal: segments.length, byteLength: bytes.length, sha256: await hashBytes(bytes), content })
       await sourceCheck()
     }
@@ -634,8 +669,7 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
     if (identity.id !== member.id) throw new Error('Account historical metadata identity mismatch')
     const pages = await page('evidence-metadata-page', segments, entry => [entry.content])
     const metadata = await stageJson({ version: 1, kind: 'evidence-metadata-stream', codec: 'backup-json-tokens-v1', digest: identity.metadataStreamDigest, byteLength: length, pages }, [pages])
-    const subset = member.subset.map(ref => { const body = stored.get(blobIdentity(ref)); if (!body || !sameRef(ref, body.source)) throw new Error('Account historical subset body mismatch'); return body })
-    const blobSubset = await page('evidence-subset-page', subset, entry => [entry.content], false)
+    const blobSubset = await writeSubset()
     written.push({ id: member.id, metadata, blobSubset })
   }
   const memberRoot = await page('evidence-member-page', written, entry => [entry.metadata, entry.blobSubset])
