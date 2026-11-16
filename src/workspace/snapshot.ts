@@ -171,7 +171,10 @@ export async function validateWorkspaceSnapshotV1(snapshot: WorkspaceSnapshotV1,
       const { revision: _revision, updatedAt: _updatedAt, ...metadata } = original.metadata
       return { ...original, metadata }
     }
-    if (!jsonEqual(semantic(inspected.value), semantic(projected.value))) throw new Error('Current-unit evidence differs from its projected logical record')
+    // Only the format owner's deep-immutable identity proves equality without traversal
+    // Distinct or merely caller-frozen values still require the complete semantic comparison
+    const sameCatalog = projected.kind === 'catalog' && inspected.value === projected.value && isImmutableCatalogSnapshot(inspected.value as CatalogSnapshot)
+    if (!sameCatalog && !jsonEqual(semantic(inspected.value), semantic(projected.value))) throw new Error('Current-unit evidence differs from its projected logical record')
     const root = inspected.root.ref
     if (root.revisionId !== unit.source.revisionId || root.documentId !== unit.source.documentId && root.documentId !== `materialized-catalog:${unit.source.documentId}`) throw new Error('Current-unit evidence body mismatch')
     // Original packaged frames keep a separate identity; ordinary structural values retain exact decoded evidence

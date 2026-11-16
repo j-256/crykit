@@ -1,6 +1,11 @@
 import 'fake-indexeddb/auto'
 import { afterEach, expect, it, vi } from 'vitest'
 import { installProfile, invalidateProfile, type ProfileToken } from '../account/profile'
+import { GUIDE_CATALOG } from '../catalog/bundled'
+import { immutableCatalogSnapshot, isImmutableCatalogSnapshot } from '../interchange/native'
+import * as localData from './local-data'
+import * as closure from '../workspace/closure'
+import * as documents from '../workspace/documents'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { inheritWorkspaceSnapshot } from '../interchange/workspace-backup'
 import { AccountDatabase, activateLocalAccountCommit } from './account-database'
@@ -8,7 +13,7 @@ import { accountLocalId } from '../workspace/account-cache'
 import { prepareAccountWorkspaceWithExistingEvidence } from '../workspace/account-graph'
 import { captureAccountSnapshot } from '../workspace/account-snapshot'
 import * as evidence from '../workspace/account-evidence-snapshots'
-import { disposeWorkspaceSnapshot, openHistoricalSnapshot } from '../workspace/snapshot'
+import { disposeWorkspaceSnapshot, openHistoricalSnapshot, projectWorkspaceSnapshotV1, validateWorkspaceSnapshotV1 } from '../workspace/snapshot'
 import { editorClosureFixture } from '../workspace/test-helpers'
 import { readBlob } from '../workspace/blobs'
 
@@ -19,12 +24,12 @@ afterEach(async () => {
   invalidateProfile()
 })
 
-async function fixture() {
+async function fixture(catalog = false) {
   const key = crypto.getRandomValues(new Uint8Array(32))
   const token = installProfile(accountLocalId(), key.slice()), database = new AccountDatabase(token.accountId)
   cleanup.push(() => database.delete())
   const original = await editorClosureFixture()
-  const state = { ...original.state, editorDocuments: [original.file] }
+  const state = { ...original.state, planner: { ...original.state.planner, catalogs: catalog ? [GUIDE_CATALOG] : original.state.planner.catalogs }, editorDocuments: [original.file] }
   const source = { dataGeneration: LAUNCH_DATA_GENERATION, version: 1 as const, snapshotId: 'snapshot-proof-original', capturedAt: '2026-11-15', revisionVector: { synthetic: 'original' }, state }
   const snapshot = await inheritWorkspaceSnapshot(source, [source])
   cleanup.push(() => disposeWorkspaceSnapshot(snapshot))
@@ -131,4 +136,34 @@ it.each(['documentId', 'revisionId'] as const)('requires the exact inherited %s 
   await expect(captureAccountSnapshot(workspace, input.fence, input.check, { database: input.database, token: input.token, validatedEvidence: input.handle })).rejects.toThrow()
   expect(open).toHaveBeenCalledExactlyOnceWith(input.database, input.token, root)
   await expect(input.handle.check()).resolves.toBeUndefined()
+})
+
+it('avoids canonical allocation for the same admitted catalog during real account capture', async () => {
+  const input = await fixture(true), compare = vi.spyOn(localData, 'jsonEqual')
+  const captured = await input.capture()
+  expect(captured.state.planner.catalogs[0]).toBe(GUIDE_CATALOG)
+  expect(isImmutableCatalogSnapshot(captured.state.planner.catalogs[0])).toBe(true)
+  expect(captured.sourceEvidence?.units.some(unit => unit.key.includes('catalog'))).toBe(true)
+  expect(compare.mock.calls.filter(([left, right]) => left === right && left === GUIDE_CATALOG)).toHaveLength(0)
+})
+
+it.each(['distinct-equal', 'distinct-unequal', 'unbranded', 'shallow-frozen'] as const)('retains structural comparison for %s current catalog evidence', async mode => {
+  const input = await fixture(true), captured = projectWorkspaceSnapshotV1(await input.capture())
+  const inspectedCatalog = structuredClone(GUIDE_CATALOG)
+  if (mode === 'distinct-unequal') Object.assign(inspectedCatalog, { checksum: 'different-evidence' })
+  if (mode === 'shallow-frozen') Object.freeze(inspectedCatalog)
+  if (mode === 'distinct-equal') immutableCatalogSnapshot(inspectedCatalog)
+  expect(inspectedCatalog).not.toBe(GUIDE_CATALOG)
+  expect(isImmutableCatalogSnapshot(inspectedCatalog)).toBe(mode === 'distinct-equal')
+  const inspect = closure.inspectWorkspaceClosures
+  vi.spyOn(closure, 'inspectWorkspaceClosures').mockImplementation(async (...args) => (await inspect(...args)).map(value => value.root.kind === 'catalog' ? { ...value, value: inspectedCatalog } : value))
+  if (mode === 'unbranded' || mode === 'shallow-frozen') {
+    const split = documents.splitWorkspace
+    vi.spyOn(documents, 'splitWorkspace').mockImplementation(state => split(state).map(value => value.kind === 'catalog' ? { ...value, value: inspectedCatalog as unknown as typeof value.value } : value))
+  }
+  const compare = vi.spyOn(localData, 'jsonEqual')
+  const result = validateWorkspaceSnapshotV1(captured)
+  if (mode === 'distinct-unequal') await expect(result).rejects.toThrow('Current-unit evidence differs from its projected logical record')
+  else await expect(result).resolves.toBeUndefined()
+  expect(compare.mock.calls.some(([left]) => left === inspectedCatalog)).toBe(true)
 })
