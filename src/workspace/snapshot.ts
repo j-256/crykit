@@ -3,11 +3,12 @@ import type { WorkspaceRepository } from './repository'
 import { splitWorkspace, type WorkspaceState } from './documents'
 import { validateWorkspaceClosure, inspectWorkspaceClosures, ARCHIVAL_DOCUMENT_KINDS, type WorkspaceBodyValidation, type WorkspaceRetentionEdges } from './closure'
 import { blobIdentity, hashBlob, memoryBlob } from './blobs'
-import { SnapshotHeaderSchema, SnapshotHeaderV2Schema, WorkspaceBackupError, type HistoricalEvidenceSchema, type SourceEvidenceSchema } from '../interchange/workspace-backup-schema'
+import { SnapshotHeaderSchema, SnapshotHeaderV2Schema, SnapshotHeaderV3Schema, type HistoricalCatalogEvidenceSchema, WorkspaceBackupError, type HistoricalEvidenceSchema, type SourceEvidenceSchema } from '../interchange/workspace-backup-schema'
 import { encodeBackupJson } from '../interchange/workspace-backup-json'
 import type { z } from 'zod'
 import { jsonEqual } from '../persistence/local-data'
 import { getSodium } from '../account/crypto/sodium'
+import { StoredCatalogSchema, catalogExpansionBudget, ownCatalogRegistry, resolveRetainedCatalog, sameCatalogBodyRef, type StoredCatalog, type OwnedCatalogRegistry } from './catalog-reference'
 import { isImmutableCatalogSnapshot } from '../interchange/native'
 
 export interface WorkspaceSnapshotV1 {
@@ -23,18 +24,28 @@ export interface WorkspaceSnapshotV2 extends Omit<WorkspaceSnapshotV1, 'version'
   readonly version: 2
   readonly historicalEvidence: z.infer<typeof HistoricalEvidenceSchema>
 }
-export type WorkspaceSnapshot = WorkspaceSnapshotV1 | WorkspaceSnapshotV2
-const historicalReaders = new WeakMap<WorkspaceSnapshotV2, (id: string) => Promise<WorkspaceSnapshotV1>>()
-export function registerHistoricalSnapshotReader(snapshot: WorkspaceSnapshotV2, open: (id: string) => Promise<WorkspaceSnapshotV1>): void { historicalReaders.set(snapshot, open) }
-export async function openHistoricalSnapshot(snapshot: WorkspaceSnapshot, id: string): Promise<WorkspaceSnapshotV1> {
+export interface WorkspaceSnapshotV3 extends Omit<WorkspaceSnapshotV1, 'version'> {
+  readonly version: 3
+  readonly catalogBodies: readonly import('./file-types').WorkspaceBlobRef[]
+  readonly historicalEvidence?: z.infer<typeof HistoricalCatalogEvidenceSchema>
+}
+export type WorkspaceSnapshot = WorkspaceSnapshotV1 | WorkspaceSnapshotV2 | WorkspaceSnapshotV3
+export type SnapshotMetadataV3 = Omit<WorkspaceSnapshotV3, 'state'> & { readonly state: Omit<WorkspaceState, 'planner' | 'blobs'> & { readonly planner: Omit<WorkspaceState['planner'], 'catalogs'> & { readonly catalogs: readonly StoredCatalog[] }; readonly blobs: readonly import('./file-types').WorkspaceBlobRef[] } }
+const compactMetadata = new WeakMap<WorkspaceSnapshotV3, { readonly metadata: SnapshotMetadataV3; readonly registry: OwnedCatalogRegistry }>()
+const historicalReaders = new WeakMap<WorkspaceSnapshot, (id: string) => Promise<WorkspaceSnapshotV1 | WorkspaceSnapshotV3>>()
+export function registerHistoricalSnapshotReader(snapshot: WorkspaceSnapshotV2 | WorkspaceSnapshotV3, open: (id: string) => Promise<WorkspaceSnapshotV1 | WorkspaceSnapshotV3>): void { historicalReaders.set(snapshot, open) }
+export function openHistoricalSnapshot(snapshot: WorkspaceSnapshotV2, id: string): Promise<WorkspaceSnapshotV1>
+export function openHistoricalSnapshot(snapshot: WorkspaceSnapshot, id: string): Promise<WorkspaceSnapshotV1 | WorkspaceSnapshotV3>
+export async function openHistoricalSnapshot(snapshot: WorkspaceSnapshot, id: string): Promise<WorkspaceSnapshotV1 | WorkspaceSnapshotV3> {
   await assertWorkspaceSnapshotCurrent(snapshot)
-  const open = snapshot.version === 2 && historicalReaders.get(snapshot)
+  const open = snapshot.version !== 1 && historicalReaders.get(snapshot)
   if (!open) throw new Error('Historical evidence requires an owned snapshot reader')
   return open(id)
 }
 export function projectWorkspaceSnapshotV1(snapshot: WorkspaceSnapshot): WorkspaceSnapshotV1 {
   if (snapshot.version === 1) return snapshot
   const { historicalEvidence: _historicalEvidence, ...current } = snapshot
+  if (snapshot.version === 3) throw new WorkspaceBackupError('UNSUPPORTED_VERSION', 'Compact compatibility materialization is not enabled')
   return { ...current, version: 1 }
 }
 export interface SnapshotOwner { check(): Promise<void>; dispose(): Promise<void> }
@@ -68,7 +79,16 @@ export async function captureWorkspaceSnapshot(repository: WorkspaceRepository):
   if (!capture) throw new WorkspaceBackupError('BACKUP_INVALID', 'A complete captured workspace is unavailable. Keep this workspace open and retry.')
   return capture()
 }
+export function snapshotMetadata(snapshot: WorkspaceSnapshotV1): import('../interchange/workspace-backup-evidence').SnapshotMetadataV1
+export function snapshotMetadata(snapshot: WorkspaceSnapshotV2): import('../interchange/workspace-backup-evidence').SnapshotMetadataV2
+export function snapshotMetadata(snapshot: WorkspaceSnapshotV3): SnapshotMetadataV3
+export function snapshotMetadata(snapshot: WorkspaceSnapshot): import('../interchange/workspace-backup-evidence').SnapshotMetadataV1 | import('../interchange/workspace-backup-evidence').SnapshotMetadataV2 | SnapshotMetadataV3
 export function snapshotMetadata(snapshot: WorkspaceSnapshot) {
+  if (snapshot.version === 3) {
+    const compact = compactMetadata.get(snapshot)
+    if (!compact) throw new Error('Compact snapshots require owned reader admission')
+    return compact.metadata
+  }
   const { state, ...header } = snapshot
   const schema = snapshot.version === 2 ? SnapshotHeaderV2Schema : SnapshotHeaderSchema
   schema.parse(header)
@@ -89,8 +109,16 @@ export async function backupMetadataDigest(value: unknown): Promise<string> {
 }
 export async function validateWorkspaceSnapshot(snapshot: WorkspaceSnapshot, retainEdges?: (edges: WorkspaceRetentionEdges) => void): Promise<void> {
   snapshotMetadata(snapshot)
-  if (snapshot.version === 2 && !historicalReaders.has(snapshot)) throw new Error('Historical evidence requires an owned snapshot reader')
-  await validateWorkspaceSnapshotV1(projectWorkspaceSnapshotV1(snapshot), undefined, retainEdges)
+  if (snapshot.version !== 1 && snapshot.historicalEvidence && !historicalReaders.has(snapshot)) throw new Error('Historical evidence requires an owned snapshot reader')
+  if (snapshot.version === 3) {
+    const compact = compactMetadata.get(snapshot)!
+    const budget = catalogExpansionBudget()
+    for (const catalog of compact.metadata.state.planner.catalogs) {
+      if (catalog.kind === 'retained-catalog-reference') await resolveRetainedCatalog(catalog, compact.registry, budget.reserve)
+      else budget.inline(catalog.snapshot)
+    }
+  }
+  await validateWorkspaceSnapshotV1(snapshot.version === 3 ? compactDomainProjection(snapshot) : projectWorkspaceSnapshotV1(snapshot), undefined, retainEdges)
 }
 // Frozen complete-backup v1 admission includes recursive native/domain validation, not only the header
 // Preserve this route and its dependencies when evolving current formats: closure.ts, validation.ts,
@@ -145,4 +173,59 @@ export async function validateWorkspaceSnapshotV1(snapshot: WorkspaceSnapshotV1,
 }
 export async function vectorDigest(vector: Readonly<Record<string, string>>): Promise<string> {
   return hashBlob(memoryBlob(new TextEncoder().encode(JSON.stringify(Object.entries(vector).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)))))
+}
+
+// Only this validating reader can register compact metadata; a hydrated object or shallow freeze grants no authority
+export async function readCompactSnapshot(input: unknown, bodies: WorkspaceState['blobs'], catalogBodies: WorkspaceState['blobs'], owner: SnapshotOwner, flat = false): Promise<WorkspaceSnapshotV3> {
+  const raw = structuredClone(input) as SnapshotMetadataV3
+  const { state, ...header } = raw
+  SnapshotHeaderV3Schema.parse(header)
+  if (flat && raw.historicalEvidence !== undefined) throw new Error('Nested compact historical evidence is unsupported')
+  const registry = ownCatalogRegistry(catalogBodies, owner.check), budget = catalogExpansionBudget()
+  const used = new Set<string>(), pins = new Set<string>()
+  const declared = new Map(raw.catalogBodies.map(ref => [blobIdentity(ref), ref]))
+  if (declared.size !== raw.catalogBodies.length) throw new Error('Duplicate catalog subset')
+  const catalogs: WorkspaceState['planner']['catalogs'][number][] = []
+  for (const input of state.planner.catalogs) {
+    const catalog = StoredCatalogSchema.parse(input)
+    let snapshot: WorkspaceState['planner']['catalogs'][number]
+    if (catalog.kind === 'inline-catalog') {
+      budget.inline(catalog.snapshot)
+      snapshot = (input as Extract<StoredCatalog, { kind: 'inline-catalog' }>).snapshot as unknown as typeof snapshot
+    }
+    else {
+      const ref = declared.get(blobIdentity(catalog.body))
+      if (!ref || !sameCatalogBodyRef(ref, catalog.body)) throw new Error('Missing catalog subset body')
+      snapshot = (await resolveRetainedCatalog(catalog, registry, budget.reserve)).snapshot
+      used.add(blobIdentity(ref))
+    }
+    const pin = JSON.stringify([snapshot.id, snapshot.revisionId])
+    if (pins.has(pin)) throw new Error('Duplicate compact catalog identity')
+    pins.add(pin); catalogs.push(snapshot)
+  }
+  if (used.size !== declared.size) throw new Error('Orphan catalog subset body')
+  const native = new Map(bodies.map(body => [blobIdentity(body.ref), body]))
+  const hydrated: WorkspaceSnapshotV3 = { ...raw, state: { ...state, planner: { ...state.planner, catalogs }, blobs: state.blobs.map(ref => {
+    const body = native.get(blobIdentity(ref))
+    if (!body || !sameCatalogBodyRef(ref, body.ref)) throw new Error('Compact native body association mismatch')
+    return { ref, content: { byteLength: body.content.byteLength, async *open() {
+      await owner.check()
+      for await (const bytes of body.content.open()) { await owner.check(); yield bytes; await owner.check() }
+      await owner.check()
+    } } }
+  }) } }
+  await owner.check()
+  await validateWorkspaceSnapshotV1(compactDomainProjection(hydrated))
+  await owner.check()
+  const snapshot = ownWorkspaceSnapshot(hydrated, owner)
+  const freeze = (value: unknown): void => { if (!value || typeof value !== 'object' || Object.isFrozen(value)) return; for (const child of Object.values(value)) freeze(child); Object.freeze(value) }
+  freeze(raw)
+  compactMetadata.set(snapshot, { metadata: raw, registry })
+  return snapshot
+}
+
+// This projection exists only for domain admission, never for export or new historical identity
+function compactDomainProjection(snapshot: WorkspaceSnapshotV3): WorkspaceSnapshotV1 {
+  const { catalogBodies: _catalogBodies, historicalEvidence: _history, ...flat } = snapshot
+  return { ...flat, version: 1 }
 }

@@ -67,11 +67,13 @@ export function encodeCatalogPayload(snapshot: CatalogSnapshot): CompressedCatal
   if (isImmutableCatalogSnapshot(snapshot)) encodedCatalogs.set(snapshot, encoded)
   return encoded
 }
-export function decodeCatalogPayload(value: unknown): unknown {
+export function decodeCatalogPayload(value: unknown, reserveExpanded?: (bytes: number) => void): unknown {
   if (value && typeof value === 'object' && 'kind' in value && value.kind === 'packaged-catalog-pin') throw new Error('Prelaunch package-only catalog records are unsupported')
   if (!value || typeof value !== 'object' || !('kind' in value) || value.kind !== 'compressed-catalog-snapshot') return value
   const encoded = CompressedCatalogSchema.parse(value)
   if (encoded.pages.length !== Math.ceil(encoded.byteLength / SOURCE_PAGE_BYTES)) throw new Error('Catalog snapshot page count mismatch')
+  // Compact owners charge authenticated envelope expansion before any allocation or bundle shortcut
+  reserveExpanded?.(encoded.byteLength)
   // Exact compressed byte equality permits reuse of a packaged object, never a package-only read
   // The self-contained decoder below remains authoritative when the package no longer has that body
   for (const snapshot of BUNDLED_CATALOGS) {

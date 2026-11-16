@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { catalogEvidenceSchemas, validateCatalogEvidenceSources, type CatalogInheritedSnapshotSources } from './catalog-evidence'
 import { accountCleanupOnlyFailure, accountPreparationFailure, assertAccountCleanupJoinable, hasNewAccountCleanupFailure, readAccountCleanupOnlyFailure, readAccountPreparationFailure, type AccountCleanupGroup, type AccountCleanupJoin, type AccountCleanupResult, type AccountManagedCleanup } from './account-cleanup-attempt'
 import { assertActiveProfile, profileSignal, registerProfileCleanup, type ProfileToken } from '../account/profile'
 import { maxDependencies, maxDocumentBytes, RevisionDescriptorSchema } from '../account/protocol'
@@ -9,7 +10,7 @@ import { openAccountSource, stageAccountSource } from './account-streams'
 import { buildIndexPages, INDEX_PAGE_BYTES, INDEX_PAGE_ENTRIES } from './directory'
 import { WorkspaceBlobRefSchema } from './file-schemas'
 import type { BlobSource, WorkspaceBlobRef } from './documents'
-import { blobIdentity, hashBlob } from './blobs'
+import { blobIdentity, hashBlob, verifiedBlob } from './blobs'
 import { NATIVE_BACKUP_JSON_LIMITS, parseBoundedJson } from '../interchange/json'
 import { WORKSPACE_BACKUP_LIMITS } from '../interchange/workspace-backup-schema'
 import { attachBackupBodies, capturedBackupEvidence, compareBackupRefs, equalMetadataStreams, historicalMetadataIdentity, readBackupMetadata, type InheritedSnapshotSources, type SnapshotMetadataV1 } from '../interchange/workspace-backup-evidence'
@@ -171,7 +172,7 @@ class ReadLifetime {
 }
 
 export interface AccountInheritedEvidence {
-  readonly origin: 'evidence-v1'
+  readonly origin: 'evidence-v1' | 'evidence-v2'
   readonly root: CipherRef
   readonly setDigest: string
   readonly members: readonly { readonly id: string }[]
@@ -327,7 +328,9 @@ export async function openAccountInheritedEvidence(database: AccountDatabase, to
   releaseObservations = () => reader.observations.clear()
   try {
     budget.reserve(root, 'root')
-    const header = await reader.json(root, rootSchema, value => [value.members, value.blobs])
+    const catalogSchemas = catalogEvidenceSchemas(CipherRefSchema)
+    const header = await reader.json(root, z.union([rootSchema, catalogSchemas.root]), value => [value.members, value.blobs, ...(value.version === 2 ? [value.catalogBodies] : [])])
+    if (header.version === 2) return await openCatalogAccountEvidence(database, token, root, header, reader, lifetime, dispose, owner)
     const members = await reader.pages(header.members, memberPage, 'member-page', entry => [entry.metadata, entry.blobSubset])
     if (members.some((member, index) => index > 0 && members[index - 1].id >= member.id)) throw new Error('Unsorted or duplicate account historical member')
     if (await inheritedSnapshotSetDigest(members.map(member => member.id)) !== header.setDigest) throw new Error('Account evidence set digest mismatch')
@@ -768,6 +771,7 @@ export function createAccountInheritedEvidencePreparation(database: AccountDatab
           const additions = captureAdditions(input.additions ?? [])
           // Resolve registered sidecar authority before yielding; structural copies cannot become inputs
           const source = input.sourceEvidence && guestEvidenceSources(input.sourceEvidence)
+          if (source?.version === 2 || input.base?.origin === 'evidence-v2' || input.merge?.origin === 'evidence-v2') throw new Error('Compact account evidence writers are not enabled')
           const sidecar = source && { members: source.members.map(member => ({ id: member.id, metadata: member.metadata, subset: member.subset.map(ref => freeze(WorkspaceBlobRefSchema.parse(ref))) })), bodies: source.bodies.map(body => ({ ref: freeze(WorkspaceBlobRefSchema.parse(body.ref)), content: body.content })) }
           const captured = { base: input.base, merge: input.merge, sourceEvidence: input.sourceEvidence, signal: input.signal }
           const profile = profileSignal(token)
@@ -815,4 +819,67 @@ export function createAccountInheritedEvidencePreparation(database: AccountDatab
     }, abandon,
   }
   return Object.freeze(group ? { ...operation, cleanup: group } : operation)
+}
+
+// The new root route shares physical authentication and observation ownership, never the v1 wire schemas
+async function openCatalogAccountEvidence(database: AccountDatabase, token: ProfileToken, root: CipherRef, header: z.infer<ReturnType<typeof catalogEvidenceSchemas<CipherRef>>['root']>, reader: GraphReader, lifetime: ReadLifetime, dispose: () => Promise<void>, owner?: AccountPreparationOwner): Promise<AccountInheritedEvidence> {
+  const schemas = catalogEvidenceSchemas(CipherRefSchema), budget = reader.budget
+  const members = await reader.pages(header.members, pageSchema('evidence-catalog-member-page', schemas.member), 'catalog-member-page', entry => [entry.metadata, entry.blobSubset, entry.catalogSubset])
+  const physicalBodies = new Set<string>()
+  const load = async (ref: CipherRef, catalog: boolean) => {
+    const entries = await reader.pages(ref, pageSchema(catalog ? 'evidence-catalog-body-page' : 'evidence-blob-page', bodySchema), catalog ? 'catalog-body-page' : 'blob-page', entry => [entry.content])
+    for (const [index, body] of entries.entries()) {
+      if (index && compareBackupRefs(entries[index - 1].source, body.source) >= 0 || physicalBodies.has(refKey(body.content))) throw new Error('Unsorted, duplicate, or aliased account catalog body')
+      physicalBodies.add(refKey(body.content))
+      // A physical record cannot serve two roles; subset pages only refer to its authenticated owning registry
+      budget.reserve(body.content, catalog ? 'catalog-body' : 'body')
+      const record = await reader.record(body.content, maxDocumentBytes)
+      reader.edges(record, [])
+      if (record.descriptor.plainBytes !== body.source.byteLength) throw new Error('Account catalog body length mismatch')
+    }
+    return entries
+  }
+  const native = await load(header.blobs, false), catalog = await load(header.catalogBodies, true)
+  const registry = new Map(native.map(body => [blobIdentity(body.source), body])), catalogRegistry = new Map(catalog.map(body => [blobIdentity(body.source), body]))
+  const streams: { member: typeof members[number]; segments: readonly Segment[]; byteLength: number; digest: string; subset: readonly WorkspaceBlobRef[]; catalogSubset: readonly WorkspaceBlobRef[] }[] = []
+  for (const member of members) {
+    const subset = await reader.pages(member.blobSubset, subsetPage, 'subset-page', entry => [entry.content])
+    const catalogSubset = await reader.pages(member.catalogSubset, pageSchema('evidence-catalog-subset-page', bodySchema), 'catalog-subset-page', entry => [entry.content])
+    for (const [entries, lookup] of [[subset, registry], [catalogSubset, catalogRegistry]] as const) for (const entry of entries) {
+      const body = lookup.get(blobIdentity(entry.source))
+      if (!body || !sameRef(body.source, entry.source) || refKey(body.content) !== refKey(entry.content)) throw new Error('Account catalog subset association mismatch')
+    }
+    budget.reserve(member.metadata, 'stream')
+    const stream = member.format === 'compact-v2'
+      ? await reader.json(member.metadata, schemas.stream, value => [value.pages])
+      : await reader.json(member.metadata, streamSchema, value => [value.pages])
+    budget.stream(stream.byteLength)
+    const segments = await reader.pages(stream.pages, metadataPage, 'metadata-page', entry => [entry.content])
+    let length = 0
+    for (const [index, segment] of segments.entries()) {
+      budget.segment(); budget.reserve(segment.content, 'segment')
+      if (segment.ordinal !== index) throw new Error('Account catalog segment ordinal mismatch')
+      const record = await reader.record(segment.content, WORKSPACE_BACKUP_LIMITS.payload)
+      reader.edges(record, [])
+      if (record.descriptor.plainBytes !== segment.byteLength) throw new Error('Account catalog segment length mismatch')
+      length = checked(length, segment.byteLength, stream.byteLength)
+    }
+    if (length !== stream.byteLength) throw new Error('Account catalog stream length mismatch')
+    streams.push({ member, segments, byteLength: length, digest: stream.digest, subset: subset.map(body => body.source), catalogSubset: catalogSubset.map(body => body.source) })
+  }
+  const sourcesFor = (source: GraphReader, guarded: boolean): CatalogInheritedSnapshotSources => {
+    const guard = (content: BlobSource, serial = false) => guarded ? lifetime.source(content, serial) : content
+    return freeze({ version: 2, members: streams.map(stream => ({ format: stream.member.format, id: stream.member.id, metadata: guard(verifiedBlob(source.metadata(stream.segments, stream.byteLength), stream.digest), true), subset: stream.subset, catalogSubset: stream.catalogSubset })), bodies: native.map(body => ({ ref: body.source, content: guard(source.source(body.content, maxDocumentBytes)) })), catalogBodies: catalog.map(body => ({ ref: body.source, content: guard(source.source(body.content, maxDocumentBytes)) })) })
+  }
+  if (await validateCatalogEvidenceSources(sourcesFor(reader, false), () => lifetime.check()) !== header.setDigest) throw new Error('Account catalog set digest mismatch')
+  const sources = (pass: Budget): CatalogInheritedSnapshotSources => {
+    const lazy = new GraphReader(database, token, pass, () => lifetime.check(), owner)
+    for (const [key, record] of reader.records) { pass.reserve(cipherRef(record), 'body'); pass.declare(record.descriptor.plainBytes); lazy.records.set(key, record) }
+    return sourcesFor(lazy, true)
+  }
+  await lifetime.check()
+  const handle: AccountInheritedEvidence = Object.freeze({ origin: 'evidence-v2', root, setDigest: header.setDigest, members: freeze(members.map(({ id, format }) => ({ id, format }))), check: () => lifetime.check(), dispose })
+  // V2 bindings cannot enter v1 preparation: retaining metadata alone would discard catalog edges
+  registered.set(handle, { database, token, lifetime, reader, owner, streams: [], bodies: [], sources, assertLive() { lifetime.assertOpen(); assertActiveProfile(token); owner?.check() } })
+  return handle
 }

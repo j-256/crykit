@@ -1,6 +1,7 @@
+import { finishCatalogSnapshot } from './workspace-backup-catalog'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { encodeBackupPage, decodeBackupPage } from './workspace-backup-compression'
-import { BackupFrameSchema, WORKSPACE_BACKUP_MAGIC as MAGIC, WORKSPACE_BACKUP_LIMITS as LIMITS, WORKSPACE_BACKUP_VERSION, WORKSPACE_BACKUP_EVIDENCE_VERSION, BackupManifestV2Schema, WorkspaceBackupError, type BackupFrame, type BackupManifestV2 } from './workspace-backup-schema'
+import { BackupFrameSchema, WORKSPACE_BACKUP_MAGIC as MAGIC, WORKSPACE_BACKUP_LIMITS as LIMITS, WORKSPACE_BACKUP_VERSION, WORKSPACE_BACKUP_EVIDENCE_VERSION, BackupManifestV2Schema, BackupManifestV3Schema, WORKSPACE_BACKUP_CATALOG_VERSION, WorkspaceBackupError, type BackupFrame, type BackupManifestV2 } from './workspace-backup-schema'
 import { BackupJsonReader, encodeBackupJson } from './workspace-backup-json'
 import { snapshotMetadata, validateWorkspaceSnapshot, assertWorkspaceSnapshotCurrent, ownWorkspaceSnapshot, disposeWorkspaceSnapshot, projectWorkspaceSnapshotV1, vectorDigest, type WorkspaceSnapshot, type WorkspaceSnapshotV1 } from '../workspace/snapshot'
 import { createBackupStaging } from '../workspace/backup-staging'
@@ -36,6 +37,7 @@ async function* bounded(stream: AsyncIterable<Uint8Array> | Iterable<Uint8Array>
   }
 }
 export async function* exportWorkspaceBackup(snapshot: WorkspaceSnapshot, options: { readonly version?: typeof WORKSPACE_BACKUP_EVIDENCE_VERSION } = {}): AsyncIterable<Uint8Array> {
+  if (snapshot.version === 3) throw new WorkspaceBackupError('UNSUPPORTED_VERSION', 'Compact snapshot writers and compatibility exports are not enabled')
   if (snapshot.version === 1 && options.version === WORKSPACE_BACKUP_EVIDENCE_VERSION) {
     const owned = await inheritWorkspaceSnapshot(snapshot, [])
     try { yield* exportWorkspaceBackup(owned, options) } finally { await disposeWorkspaceSnapshot(owned) }
@@ -136,16 +138,21 @@ export async function readWorkspaceBackup(stream: AsyncIterable<Uint8Array>, opt
       if (rawFrame && typeof rawFrame === 'object' && 'kind' in rawFrame && rawFrame.kind === 'manifest'
         && 'format' in rawFrame && rawFrame.format === 'crykit-workspace-backup'
         && 'version' in rawFrame && typeof rawFrame.version === 'string'
-        && isSemanticVersion(rawFrame.version) && rawFrame.version !== WORKSPACE_BACKUP_VERSION && rawFrame.version !== WORKSPACE_BACKUP_EVIDENCE_VERSION) {
+        && isSemanticVersion(rawFrame.version) && rawFrame.version !== WORKSPACE_BACKUP_VERSION && rawFrame.version !== WORKSPACE_BACKUP_EVIDENCE_VERSION && rawFrame.version !== WORKSPACE_BACKUP_CATALOG_VERSION) {
         if (index || payloadLength || !current || route !== 2 && !portable) throw new Error('Inconsistent backup manifest')
         await terminalEnd()
         throw new WorkspaceBackupError('UNSUPPORTED_VERSION', 'This complete backup uses an unsupported version. Open it with a compatible CryKit version.')
       }
-      const value = rawFrame && typeof rawFrame === 'object' && 'kind' in rawFrame && rawFrame.kind === 'manifest' && 'version' in rawFrame && rawFrame.version === WORKSPACE_BACKUP_EVIDENCE_VERSION ? BackupManifestV2Schema.parse(rawFrame) : BackupFrameSchema.parse(rawFrame)
+      const value = rawFrame && typeof rawFrame === 'object' && 'kind' in rawFrame && rawFrame.kind === 'manifest' && 'version' in rawFrame && rawFrame.version === WORKSPACE_BACKUP_CATALOG_VERSION ? BackupManifestV3Schema.parse(rawFrame) : rawFrame && typeof rawFrame === 'object' && 'kind' in rawFrame && rawFrame.kind === 'manifest' && 'version' in rawFrame && rawFrame.version === WORKSPACE_BACKUP_EVIDENCE_VERSION ? BackupManifestV2Schema.parse(rawFrame) : BackupFrameSchema.parse(rawFrame)
       if (new TextDecoder('utf-8', { fatal: true }).decode(metadata) !== JSON.stringify(value)) throw new Error('Noncanonical or duplicate backup frame metadata')
       if (value.kind === 'manifest') {
         if (index || payloadLength || value.frames !== frames - 1 || value.bytes !== before || value.documents !== document || value.chain !== chain || !current) throw new Error('Inconsistent backup manifest')
         await terminalEnd()
+        if (value.version === WORKSPACE_BACKUP_CATALOG_VERSION) {
+          if (route !== 3) throw new Error('Backup metadata and manifest version mismatch')
+          returned = true; await iterator.return?.()
+          return await finishCatalogSnapshot(current, documents, staging, value.vector, options.signal)
+        }
         if (value.version === WORKSPACE_BACKUP_EVIDENCE_VERSION) {
           if (route !== 2) throw new Error('Backup metadata and manifest version mismatch')
           // Complete framing and iterator cleanup precede all historical closure validation
@@ -166,7 +173,7 @@ export async function readWorkspaceBackup(stream: AsyncIterable<Uint8Array>, opt
         registerBackupMetadata(owned, current)
         return owned
       }
-      if (value.document !== document || value.chunk !== index || value.length !== payload.length || value.digest !== await hash(payload) || document === 0 && value.encoding !== 'deflate-json-tokens-v1' || document > 0 && route !== 2 && value.encoding !== 'bytes' || encoding !== undefined && encoding !== value.encoding || document === 0 && value.key !== 'workspace' || documentKey !== undefined && documentKey !== value.key) throw new Error('Invalid backup document sequence or digest')
+      if (value.document !== document || value.chunk !== index || value.length !== payload.length || value.digest !== await hash(payload) || document === 0 && value.encoding !== 'deflate-json-tokens-v1' || document > 0 && route !== 2 && route !== 3 && value.encoding !== 'bytes' || encoding !== undefined && encoding !== value.encoding || document === 0 && value.key !== 'workspace' || documentKey !== undefined && documentKey !== value.key) throw new Error('Invalid backup document sequence or digest')
       documentKey = value.key; encoding = value.encoding
       chain = await nextChain(chain, metadata, payload)
       if (value.encoding === 'deflate-json-tokens-v1') {
