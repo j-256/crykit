@@ -27,6 +27,32 @@ async function register(page: Page) {
   await page.evaluate(capability => fetch('/api/v1/auth/verify', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ capability }) }), emails.find((value: { recipient: string }) => value.recipient === email).capability)
   return email
 }
+async function reachStandaloneActionByUserScroll(page: Page, action: string) {
+  const main = page.getByRole('main'), button = page.getByRole('button', { name: action, exact: true })
+  const scrollTop = () => main.evaluate(element => element.scrollTop)
+  const inViewport = () => button.evaluate(element => { const rect = element.getBoundingClientRect(); return rect.top >= 0 && rect.bottom <= innerHeight && rect.left >= 0 && rect.right <= innerWidth })
+  // Locator clicks can scroll inaccessible content into view, so establish native input access first
+  expect(await main.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
+  await page.mouse.move(195, 422)
+  await page.mouse.wheel(0, 1200)
+  await expect.poll(scrollTop).toBeGreaterThan(0)
+  const maxScrollSteps = 8
+  for (let step = 0; step < maxScrollSteps; step++) {
+    const before = await scrollTop()
+    if (before === 0) break
+    await page.keyboard.press('PageUp')
+    await expect.poll(scrollTop).toBeLessThan(before)
+  }
+  await expect.poll(scrollTop).toBe(0)
+  await page.keyboard.press('PageDown')
+  await expect.poll(scrollTop).toBeGreaterThan(0)
+  for (let step = 0; step < maxScrollSteps && !await inViewport(); step++) {
+    await page.keyboard.press(await button.evaluate(element => element.getBoundingClientRect().top < 0) ? 'PageUp' : 'PageDown')
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+  }
+  await expect.poll(inViewport).toBe(true)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+}
 test('sign-in merges Progress once across reload and confirms account data on a second device', async ({ page, browser, accountOrigin }, testInfo) => {
   test.setTimeout(240_000)
   const journeyStarted = Date.now()
@@ -34,20 +60,26 @@ test('sign-in merges Progress once across reload and confirms account data on a 
   const email = await register(page)
   const label = 'Synthetic Progress ' + 'long-name-'.repeat(16)
   await guestProgress(page, label)
+  await page.setViewportSize({ width: 390, height: 844 })
   const started = Date.now()
   await signIn(page, email)
   await expect(page.getByRole('heading', { name: 'Choose what to keep', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
   await testInfo.attach('fresh-account-preparation', { body: JSON.stringify({ milliseconds: Date.now() - started, defaultCatalog: true }), contentType: 'application/json' })
   await expect(page.getByText(label, { exact: false }).first()).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await reachStandaloneActionByUserScroll(page, 'Merge (recommended)')
   await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Review your merge', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+  await expect(page.getByRole('heading', { name: 'Review your merge', exact: true })).toBeFocused()
+  await reachStandaloneActionByUserScroll(page, 'Confirm merge')
   await phase('merge-prepared')
   await page.reload()
   await signIn(page, email)
   await expect(page.getByRole('heading', { name: 'Choose what to keep', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
   await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Review your merge', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+  await expect(page.getByRole('heading', { name: 'Review your merge', exact: true })).toBeFocused()
+  await reachStandaloneActionByUserScroll(page, 'Confirm merge')
   await phase('fresh-review-after-reload')
   await page.getByRole('button', { name: 'Confirm merge', exact: true }).click()
   await expect(page.getByRole('complementary', { name: 'Account sync' })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
