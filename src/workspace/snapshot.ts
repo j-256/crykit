@@ -9,7 +9,7 @@ import { encodeBackupJson } from '../interchange/workspace-backup-json'
 import type { z } from 'zod'
 import { jsonEqual } from '../persistence/local-data'
 import { getSodium } from '../account/crypto/sodium'
-import { StoredCatalogSchema, catalogExpansionBudget, ownCatalogRegistry, resolveRetainedCatalog, sameCatalogBodyRef, type StoredCatalog, type OwnedCatalogRegistry } from './catalog-reference'
+import { hydrateStoredCatalogs, catalogExpansionBudget, resolveRetainedCatalog, sameCatalogBodyRef, type StoredCatalog, type OwnedCatalogRegistry } from './catalog-reference'
 import { isImmutableCatalogSnapshot } from '../interchange/native'
 
 export interface WorkspaceSnapshotV1 {
@@ -207,29 +207,7 @@ export async function readCompactSnapshot(input: unknown, bodies: WorkspaceState
   const { state, ...header } = raw
   SnapshotHeaderV3Schema.parse(header)
   if (flat && raw.historicalEvidence !== undefined) throw new Error('Nested compact historical evidence is unsupported')
-  const registry = ownCatalogRegistry(catalogBodies, owner.check), budget = catalogExpansionBudget()
-  const used = new Set<string>(), pins = new Set<string>()
-  const declared = new Map(raw.catalogBodies.map(ref => [blobIdentity(ref), ref]))
-  if (declared.size !== raw.catalogBodies.length) throw new Error('Duplicate catalog subset')
-  const catalogs: WorkspaceState['planner']['catalogs'][number][] = []
-  for (const input of state.planner.catalogs) {
-    const catalog = StoredCatalogSchema.parse(input)
-    let snapshot: WorkspaceState['planner']['catalogs'][number]
-    if (catalog.kind === 'inline-catalog') {
-      budget.inline(catalog.snapshot)
-      snapshot = (input as Extract<StoredCatalog, { kind: 'inline-catalog' }>).snapshot as unknown as typeof snapshot
-    }
-    else {
-      const ref = declared.get(blobIdentity(catalog.body))
-      if (!ref || !sameCatalogBodyRef(ref, catalog.body)) throw new Error('Missing catalog subset body')
-      snapshot = (await resolveRetainedCatalog(catalog, registry, budget.reserve)).snapshot
-      used.add(blobIdentity(ref))
-    }
-    const pin = JSON.stringify([snapshot.id, snapshot.revisionId])
-    if (pins.has(pin)) throw new Error('Duplicate compact catalog identity')
-    pins.add(pin); catalogs.push(snapshot)
-  }
-  if (used.size !== declared.size) throw new Error('Orphan catalog subset body')
+  const { catalogs, registry } = await hydrateStoredCatalogs(state.planner.catalogs, raw.catalogBodies, catalogBodies, owner.check)
   const native = new Map(bodies.map(body => [blobIdentity(body.ref), body]))
   const hydrated: WorkspaceSnapshotV3 = { ...raw, state: { ...state, planner: { ...state.planner, catalogs }, blobs: state.blobs.map(ref => {
     const body = native.get(blobIdentity(ref))

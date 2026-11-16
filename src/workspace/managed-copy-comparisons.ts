@@ -3,7 +3,7 @@ import { assertActiveProfile, type ProfileToken } from '../account/profile'
 import { maxDocumentBytes, OpaqueIdSchema } from '../account/protocol'
 import type { AccountDatabase, AccountFence, CipherRef } from '../persistence/account-database'
 import { guestPlannerValuesEqual as same } from '../persistence/guest-planner-equality'
-import { attachBackupBodies, capturedBackupEvidence, historicalMetadataIdentity, readBackupMetadata, type SnapshotMetadataV1 } from '../interchange/workspace-backup-evidence'
+import { attachBackupBodies } from '../interchange/workspace-backup-evidence'
 import { parseBoundedJson } from '../interchange/json'
 import { GuestCopyJournalSchema, SAVED_COPY_PREFIX } from './guest-copy-journal'
 import { CipherRefSchema } from './account-cache'
@@ -13,12 +13,15 @@ import { SigninProgressMappingSchema, signinProgressCorrespondence } from './sig
 import { applicableCopiedComparisons } from './copied-branch'
 import { admitLocalRoot, admittedLocalReferences, type LocalStoreAdapter, type AdmittedLocalSnapshot } from './local-root'
 import { readLocalEvidence } from './local-evidence'
-import { guestEvidenceSources } from './guest-evidence'
-import { assertOwnedWorkspaceSnapshot, ownWorkspaceSnapshot, snapshotMetadata, type WorkspaceSnapshot } from './snapshot'
+import { capturedCopyOriginal, guestEvidenceSources } from './guest-evidence'
+import { assertOwnedWorkspaceSnapshot, ownWorkspaceSnapshot, readCompactSnapshot, type WorkspaceSnapshot } from './snapshot'
 import { sameCipherRefs } from './account-retaining'
 import { IncrementalWorkspaceIntentSchema, readIncrementalMappedRoot, type IncrementalWorkspaceIntent } from './account-mapping-origin'
 import { openAccountWorkspace, type OpenAccountWorkspace } from './account-graph'
 import { assertAccountInheritedEvidenceOwner, accountInheritedSources, type AccountInheritedEvidence } from './account-evidence-snapshots'
+
+import { comparisonOriginal, comparisonState } from './comparison-original'
+import { historicalSourceIdentity } from '../interchange/workspace-backup-catalog'
 
 declare const __CRYKIT_MANAGED_COMPARISON_QUALIFICATION__: boolean
 // Only the explicit synthetic browser build defines this rollout capability as true
@@ -27,12 +30,17 @@ export function managedComparisonWritesEnabled(): boolean {
   return typeof __CRYKIT_MANAGED_COMPARISON_QUALIFICATION__ !== 'undefined' && __CRYKIT_MANAGED_COMPARISON_QUALIFICATION__
 }
 const digest = z.string().regex(/^[a-f0-9]{64}$/)
-export const ManagedCopyComparisonsSchema = z.strictObject({
-  version: z.literal(1), kind: z.literal('managed-copy-comparisons'), operationId: OpaqueIdSchema, mode: z.literal('additive'),
+const ComparisonFields = {
+  kind: z.literal('managed-copy-comparisons'), operationId: OpaqueIdSchema, mode: z.literal('additive'),
   source: CipherRefSchema, sourceEvidence: CipherRefSchema, sourceIdentity: digest, sourceDigest: digest,
   destination: z.strictObject({ key: z.literal('active'), headRevision: z.number().int().nonnegative().safe(), head: CipherRefSchema }), destinationEvidence: CipherRefSchema,
   keys: z.array(z.string().min(1)), progressMappings: z.array(SigninProgressMappingSchema), originals: z.array(WorkspaceConflictSchema),
-}).superRefine((value, context) => {
+}
+// V1 always means legacy originals; only the explicit V2 envelope can bind compact metadata
+export const ManagedCopyComparisonsSchema = z.discriminatedUnion('version', [
+  z.strictObject({ version: z.literal(1), ...ComparisonFields }),
+  z.strictObject({ version: z.literal(2), sourceFormat: z.literal('compact-v2'), ...ComparisonFields }),
+]).superRefine((value, context) => {
   if (new Set(value.keys).size !== value.keys.length || new Set(value.originals.map(original => original.id)).size !== value.originals.length
     || new Set(value.progressMappings.map(mapping => mapping.sourceKey)).size !== value.progressMappings.length
     || new Set(value.progressMappings.map(mapping => mapping.destinationKey)).size !== value.progressMappings.length)
@@ -43,8 +51,8 @@ const dependencies = (value: ManagedCopyComparisons) => [...new Map([value.sourc
 
 export async function stageManagedCopyComparisons(adapter: LocalStoreAdapter, operationId: string, selected: WorkspaceSnapshot, source: AdmittedLocalSnapshot, destination: AdmittedLocalSnapshot, fence: AccountFence, keys: readonly string[], progressMappings: ManagedCopyComparisons['progressMappings']): Promise<CipherRef> {
   await assertOwnedWorkspaceSnapshot(selected)
-  const identity = await historicalMetadataIdentity(capturedBackupEvidence(selected).current)
-  const value = ManagedCopyComparisonsSchema.parse({ version: 1, kind: 'managed-copy-comparisons', operationId, mode: 'additive', source: source.head, sourceEvidence: source.root.inheritedEvidence, sourceIdentity: identity.id, sourceDigest: identity.metadataStreamDigest, destination: fence, destinationEvidence: destination.root.inheritedEvidence, keys, progressMappings, originals: await applicableCopiedComparisons(selected.state) })
+  const member = await capturedCopyOriginal(selected), identity = await historicalSourceIdentity(member.format, member.metadata)
+  const value = ManagedCopyComparisonsSchema.parse({ ...(member.format === 'compact-v2' ? { version: 2, sourceFormat: member.format } : { version: 1 }), kind: 'managed-copy-comparisons', operationId, mode: 'additive', source: source.head, sourceEvidence: source.root.inheritedEvidence, sourceIdentity: identity.id, sourceDigest: identity.metadataStreamDigest, destination: fence, destinationEvidence: destination.root.inheritedEvidence, keys, progressMappings, originals: await applicableCopiedComparisons(selected.state) })
   return adapter.stage(operationId, memoryBlob(new TextEncoder().encode(JSON.stringify(value))), dependencies(value))
 }
 
@@ -83,11 +91,13 @@ export async function readManagedCopyComparisons(database: AccountDatabase, toke
   if (!same(source.root.inheritedEvidence, value.sourceEvidence)) throw new Error('Managed comparison source evidence changed')
   const evidence = await readLocalEvidence(adapter, value.sourceEvidence, check)
   if (!evidence) throw new Error('Managed comparison originals are missing')
-  const sources = guestEvidenceSources(evidence), member = sources.members.find(item => item.id === value.sourceIdentity)
-  if (!member || (await historicalMetadataIdentity(member.metadata)).metadataStreamDigest !== value.sourceDigest) throw new Error('Managed comparison original identity changed')
-  const original = ownWorkspaceSnapshot(attachBackupBodies(await readBackupMetadata(member.metadata) as SnapshotMetadataV1, new Map(sources.bodies.map(body => [blobIdentity(body.ref), body]))), { check: async () => { await evidence.check(); await check() }, dispose: async () => {} })
-  const metadata = (state: WorkspaceSnapshot['state']) => snapshotMetadata({ ...original, state }).state
-  if (!same(metadata(original.state), metadata(source.state)) || !same(await applicableCopiedComparisons(original.state), value.originals)) throw new Error('Managed comparison source differs from its original')
+  const sources = guestEvidenceSources(evidence)
+  const retained = await comparisonOriginal(sources, { ...value, sourceFormat: value.version === 2 ? value.sourceFormat : 'legacy-v1' })
+  const owner = { check: async () => { await evidence.check(); await check() }, dispose: async () => {} }
+  const original = retained.raw.version === 3
+    ? await readCompactSnapshot(retained.raw, retained.bodies, retained.catalogBodies, owner, true)
+    : ownWorkspaceSnapshot(attachBackupBodies(retained.raw, new Map(retained.bodies.map(body => [blobIdentity(body.ref), body]))), owner)
+  if (!same(comparisonState(original.state), comparisonState(source.state)) || !same(await applicableCopiedComparisons(original.state), value.originals)) throw new Error('Managed comparison source differs from its original')
   const correspondence = signinProgressCorrespondence(source.state, before.state)
   if (value.progressMappings.some(mapping => !correspondence.mappings.some(expected => same(expected, mapping)))) throw new Error('Managed comparison Progress association changed')
   for (const body of source.state.blobs) if (await hashBlob(body.content) !== body.ref.sha256) throw new Error('Managed comparison source body changed')
@@ -119,14 +129,13 @@ export async function proveManagedComparisonMapping(database: AccountDatabase, t
   const nativeSource = await openAccountWorkspace(database, token, source.head, evidence)
   const nativeDestination = await openAccountWorkspace(database, token, destinationHead)
   if (!same(nativeSource.entries, source.entries) || !same(nativeDestination.entries, destination.entries)
-    || !same(snapshotMetadata({ ...admitted.original, state: nativeSource.state }).state, snapshotMetadata({ ...admitted.original, state: source.state }).state)) throw new Error('Managed comparison native materialization changed')
+    || !same(comparisonState(nativeSource.state), comparisonState(source.state))) throw new Error('Managed comparison native materialization changed')
   source = nativeSource
   destination = nativeDestination
   if (!same(source.inheritedEvidence, evidence.root)) throw new Error('Managed comparison native evidence changed')
-  const actual = snapshotMetadata({ ...admitted.original, state: source.state }).state
-  if (!same(actual, snapshotMetadata(admitted.original).state)) throw new Error('Managed comparison materialization differs from its original')
-  const sources = await accountInheritedSources(evidence), member = sources.members.find(value => value.id === admitted.value.sourceIdentity)
-  if (!member || (await historicalMetadataIdentity(member.metadata)).metadataStreamDigest !== admitted.value.sourceDigest) throw new Error('Managed comparison native originals changed')
+  const actual = comparisonState(source.state)
+  if (!same(actual, comparisonState(admitted.original.state))) throw new Error('Managed comparison materialization differs from its original')
+  await comparisonOriginal(await accountInheritedSources(evidence), { ...admitted.value, sourceFormat: admitted.value.version === 2 ? admitted.value.sourceFormat : 'legacy-v1' })
   for (const body of source.state.blobs) if (await hashBlob(body.content) !== body.ref.sha256) throw new Error('Managed comparison materialized body changed')
   const proof: ManagedComparisonMappingProof = Object.freeze({ kind: 'managed-comparison-mapping' })
   mappings.set(proof, { database, token, source, destination, evidence, value: admitted.value })

@@ -386,6 +386,19 @@ async function captureCurrentEvidence(snapshot: WorkspaceSnapshot, preserveStore
   return evidence
 }
 
+// Use the same flat current-member producer as the saved copy archive, including ordered subsets
+// A comparison binding must never hash a compact stream with the legacy identity domain
+export async function capturedCopyOriginal(snapshot: WorkspaceSnapshot) {
+  const evidence = await captureCurrentEvidence(snapshot, true), sources = guestEvidenceSources(evidence)
+  const member = sources.members[0]
+  const metadata = { byteLength: member.metadata.byteLength, async *open() {
+    await evidence.check()
+    for await (const bytes of member.metadata.open()) { await evidence.check(); yield bytes; await evidence.check() }
+    await evidence.check()
+  } }
+  return { ...member, metadata, format: member.format ?? 'legacy-v1' as const }
+}
+
 // Match complete-backup inheritance without constructing and then decoding another backup
 // Stored pages keep their original packing; native capture supplies the raw original instead of another picker projection
 export async function guestEvidenceForCopy(selected: WorkspaceSnapshot, source?: WorkspaceSnapshot, originals?: CapturedGuestEvidence): Promise<CapturedGuestEvidence> {

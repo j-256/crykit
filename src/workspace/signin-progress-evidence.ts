@@ -1,8 +1,11 @@
 import { logicalEntityKey } from '../domain/definitions'
 import type { LocalData, PartyProgressRecord } from '../domain/types'
 import { jsonEqual } from '../persistence/local-data'
-import { SnapshotHeaderSchema } from '../interchange/workspace-backup-schema'
-import { historicalMetadataIdentity, readBackupMetadata, type SnapshotMetadataV1 } from '../interchange/workspace-backup-evidence'
+import { SnapshotHeaderSchema, SnapshotHeaderV3Schema } from '../interchange/workspace-backup-schema'
+import { readBackupMetadata, type SnapshotMetadataV1 } from '../interchange/workspace-backup-evidence'
+import { historicalSourceIdentity } from '../interchange/workspace-backup-catalog'
+import { hydrateStoredCatalogs, sameCatalogBodyRef } from './catalog-reference'
+import type { SnapshotMetadataV3 } from './snapshot'
 import { blobIdentity, verifiedBlob } from './blobs'
 import { splitWorkspace, type WorkspaceConflict, type WorkspaceDocument, type WorkspaceState } from './documents'
 import { resolvedDomainClosureKeys, validateArchiveDomainValue } from './domain-closure'
@@ -14,11 +17,33 @@ export async function validateSigninProgressIdentity(state: WorkspaceState, conf
   if (!identity) return
   const body = state.blobs.find(blob => blobIdentity(blob.ref) === blobIdentity(identity.sourceMetadata))
   if (!body || !jsonEqual(body.ref, identity.sourceMetadata)) throw new Error('Missing Progress original metadata')
-  const digest = await historicalMetadataIdentity(body.content)
+  const digest = await historicalSourceIdentity(identity.version === 2 ? identity.sourceFormat : 'legacy-v1', body.content)
   if (digest.id !== identity.sourceIdentity || digest.metadataStreamDigest !== identity.sourceDigest) throw new Error('Progress original metadata identity mismatch')
-  const raw = await readBackupMetadata(verifiedBlob(body.content, identity.sourceDigest)) as SnapshotMetadataV1
-  const { state: originalState, ...header } = raw
-  SnapshotHeaderSchema.parse(header)
+  const raw = await readBackupMetadata(verifiedBlob(body.content, identity.sourceDigest)) as SnapshotMetadataV1 | SnapshotMetadataV3
+  const { state: storedState, ...header } = raw
+  let originalState: Omit<WorkspaceState, 'blobs'> & { blobs: readonly import('./file-types').WorkspaceBlobRef[] }
+  if (identity.version === 1) {
+    SnapshotHeaderSchema.parse(header)
+    originalState = (raw as SnapshotMetadataV1).state
+  } else {
+    SnapshotHeaderV3Schema.parse(header)
+    if (raw.version !== 3 || raw.historicalEvidence !== undefined) throw new Error('Invalid compact Progress original')
+    if (identity.sourceFormat !== 'compact-v2' || identity.catalogBodies.length !== raw.catalogBodies.length || identity.catalogBodies.some((binding, index) => !sameCatalogBodyRef(binding.source, raw.catalogBodies[index]))) throw new Error('Progress original catalog subset changed')
+    const retainedKeys = new Set<string>()
+    const bodies = identity.catalogBodies.map(({ source, retained }) => {
+      const key = blobIdentity(retained)
+      if (retainedKeys.has(key) || source.byteLength !== retained.byteLength || source.sha256 !== retained.sha256 || source.encoding !== retained.encoding) throw new Error('Progress original catalog binding changed')
+      retainedKeys.add(key)
+      const body = state.blobs.find(body => blobIdentity(body.ref) === key)
+      if (!body || !sameCatalogBodyRef(retained, body.ref)) throw new Error('Missing Progress original catalog')
+      // The archive has separate native/catalog roles, while conflict bodies share one registry
+      // Relocation changes only storage identity; the original full ref still authenticates bytes
+      return { ref: source, content: body.content }
+    })
+    // Only retained catalog frames are read here; unrelated native payloads remain inert below
+    const { catalogs } = await hydrateStoredCatalogs(storedState.planner.catalogs, raw.catalogBodies, bodies, async () => {})
+    originalState = { ...storedState, planner: { ...storedState.planner, catalogs } }
+  }
   const sourceParts = JSON.parse(identity.sourceKey) as unknown
   const destinationParts = JSON.parse(identity.destinationKey) as unknown
   if (!Array.isArray(sourceParts) || !Array.isArray(destinationParts) || sourceParts.length !== 3 || destinationParts.length !== 3 || [...sourceParts, ...destinationParts].some(part => typeof part !== 'string') || sourceParts[0] !== 'progress' || destinationParts[0] !== 'progress' || sourceParts[1] !== destinationParts[1] || sourceParts[2] === destinationParts[2] || identity.destinationKey !== conflict.unit.privateKey || conflict.unit.kind !== 'record') throw new Error('Invalid Progress original identity mapping')

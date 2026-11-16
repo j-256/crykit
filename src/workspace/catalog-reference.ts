@@ -9,7 +9,7 @@ import { decodeCatalogPayload } from './catalog-codec'
 import { privateRecordKey, type WorkspaceState } from './documents'
 
 export * from './catalog-reference-schema'
-import { CatalogBodyRefSchema, RetainedCatalogReferenceSchema } from './catalog-reference-schema'
+import { CatalogBodyRefSchema, RetainedCatalogReferenceSchema, StoredCatalogSchema } from './catalog-reference-schema'
 type Body = WorkspaceState['blobs'][number]
 export interface OwnedCatalogRegistry { readonly kind: 'owned-catalog-registry' }
 interface Registration { readonly bodies: ReadonlyMap<string, Body>; readonly check: () => Promise<void> }
@@ -66,4 +66,34 @@ export function catalogExpansionBudget() {
     remaining -= bytes
   }
   return { reserve, inline(snapshot: unknown) { for (const page of encodeBackupJson(snapshot)) reserve(page.byteLength) } }
+}
+
+// This hydrates catalog metadata only, not a workspace or its unrelated native payloads
+// Snapshot admission and scoped Progress provenance share the same role-separated frame checks
+export async function hydrateStoredCatalogs(inputs: readonly unknown[], refs: readonly Body['ref'][], bodies: readonly Body[], check: () => Promise<void>) {
+  const registry = ownCatalogRegistry(bodies, check), budget = catalogExpansionBudget()
+  const declared = new Map(refs.map(ref => [blobIdentity(ref), ref]))
+  if (declared.size !== refs.length) throw new Error('Duplicate catalog subset')
+  const used = new Set<string>(), pins = new Set<string>()
+  const catalogs: WorkspaceState['planner']['catalogs'][number][] = []
+  for (const input of inputs) {
+    await check()
+    const catalog = StoredCatalogSchema.parse(input)
+    let snapshot: WorkspaceState['planner']['catalogs'][number]
+    if (catalog.kind === 'inline-catalog') {
+      budget.inline(catalog.snapshot)
+      snapshot = (input as Extract<import('./catalog-reference-schema').StoredCatalog, { kind: 'inline-catalog' }>).snapshot as unknown as typeof snapshot
+    } else {
+      const ref = declared.get(blobIdentity(catalog.body))
+      if (!ref || !sameCatalogBodyRef(ref, catalog.body)) throw new Error('Missing catalog subset body')
+      snapshot = (await resolveRetainedCatalog(catalog, registry, budget.reserve)).snapshot
+      used.add(blobIdentity(ref))
+    }
+    const pin = JSON.stringify([snapshot.id, snapshot.revisionId])
+    if (pins.has(pin)) throw new Error('Duplicate compact catalog identity')
+    pins.add(pin); catalogs.push(snapshot)
+  }
+  if (used.size !== declared.size) throw new Error('Orphan catalog subset body')
+  await check()
+  return { catalogs, registry }
 }

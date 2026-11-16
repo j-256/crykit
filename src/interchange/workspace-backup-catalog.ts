@@ -12,6 +12,10 @@ const COMPACT_ID_DOMAIN = new TextEncoder().encode('crykit/historical-snapshot/v
 export async function compactHistoricalIdentity(content: import('../workspace/documents').BlobSource): Promise<string> {
   return hashBlob({ byteLength: COMPACT_ID_DOMAIN.length + content.byteLength, async *open() { yield COMPACT_ID_DOMAIN; yield* content.open() } })
 }
+// The stream digest is representation identity; the domain-separated ID also binds its format
+export async function historicalSourceIdentity(format: HistoricalMemberFormat, content: import('../workspace/documents').BlobSource) {
+  return historicalMetadataIdentity(content, format)
+}
 export async function catalogEvidenceSetDigest(members: readonly { format: HistoricalMemberFormat; id: string }[]): Promise<string> {
   const keys = members.map(historicalMemberKey)
   if (keys.some((key, index) => index > 0 && keys[index - 1] >= key)) throw new Error('Unsorted or duplicate mixed historical members')

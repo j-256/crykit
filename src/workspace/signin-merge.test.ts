@@ -298,6 +298,52 @@ it('publishes a self-contained Progress identity association and rejects forged 
     } finally { await imported.dispose() }
   } finally { await service.dispose() }
 })
+it('recopies compact Progress comparisons with exact source bindings and independent retained catalog bodies', async () => {
+  vi.stubGlobal('__CRYKIT_COMPACT_CATALOG_QUALIFICATION__', true)
+  const { GUIDE_CATALOG } = await import('../catalog/bundled')
+  const { preparePublicationAttempt } = await import('../account/sync/publication')
+  const { openRemoteProjection } = await import('../account/sync/projection')
+  const { prepareCopiedConflictPublication } = await import('./copied-conflicts')
+  const { validateWorkspaceClosure, archiveTypedReferences } = await import('./closure')
+  const { hashBlob, blobIdentity } = await import('./blobs')
+  const { GuestCopyJournalSchema } = await import('./guest-copy-journal')
+  const withCatalog = (state: WorkspaceState): WorkspaceState => ({ ...state, planner: { ...state.planner, catalogs: [GUIDE_CATALOG] }, libraryDefaults: { version: 1, layers: [{ catalogId: GUIDE_CATALOG.id, catalogRevisionId: GUIDE_CATALOG.revisionId, enabled: true }] } })
+  const source = withCatalog(progress('local', false)), destination = withCatalog(progress('account'))
+  const { token, database, service } = await setup(source, destination)
+  try {
+    const base = await openAccountWorkspace(database, token, (await database.profileMeta.get('active'))!.head)
+    const publication = await preparePublicationAttempt(database, token, base, null, new Map(), 0)
+    const remote = (await openRemoteProjection(database, token, new Map(publication.final.heads.map(ref => [ref.documentId, ref.revisionId])), base.head, 0))!
+    await service.commitGuestCopy(token, await service.previewSigninMerge(token))
+    const intent = await openAccountJson(database, token, (await database.outbox.toArray())[0].ref, MappedWorkspaceIntentSchema)
+    const target = await openAccountWorkspace(database, token, intent.target)
+    const state = (await prepareCopiedConflictPublication(database, token, intent, target, remote)).target.state
+    const original = state.conflicts[0], identity = original.progressIdentity
+    if (identity?.version !== 2) throw new Error('Expected compact Progress identity')
+    expect(identity.catalogBodies.length).toBeGreaterThan(0)
+    const imported = createGuestCopyService(async () => ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'recopied-compact-comparison', capturedAt: now, revisionVector: {}, state }, { async check() {}, async dispose() {} }))
+    try {
+      const preview = await imported.previewGuestCopy(token, [privateRecordKey('conflict', original.id), privateRecordKey('playthrough', 'play')])
+      await imported.commitGuestCopy(token, preview)
+      const journal = await openAccountJson(database, token, (await database.syncState.get(`guest-copy:${preview.copyId}`))!.ref, GuestCopyJournalSchema)
+      const copiedIntent = await openAccountJson(database, token, journal.intent, MappedWorkspaceIntentSchema)
+      const copiedTarget = await openAccountWorkspace(database, token, copiedIntent.target)
+      const recopied = (await prepareCopiedConflictPublication(database, token, copiedIntent, copiedTarget, remote)).target.state
+      const comparison = recopied.conflicts[0], association = comparison.progressIdentity
+      if (association?.version !== 2) throw new Error('Expected recopied compact Progress identity')
+      expect({ ...association, catalogBodies: undefined }).toEqual({ ...identity, catalogBodies: undefined })
+      expect(association.catalogBodies.map(binding => binding.source)).toEqual(identity.catalogBodies.map(binding => binding.source))
+      for (const [index, binding] of association.catalogBodies.entries()) {
+        expect(binding.retained).toEqual(identity.catalogBodies[index].retained)
+        expect(recopied.blobs.filter(body => body.ref.sha256 === binding.source.sha256)).toHaveLength(1)
+        const body = recopied.blobs.find(body => blobIdentity(body.ref) === blobIdentity(binding.retained))!
+        expect(await hashBlob(body.content)).toBe(binding.source.sha256)
+        expect(archiveTypedReferences('conflict', comparison)).toContainEqual(binding.retained)
+      }
+      await expect(validateWorkspaceClosure(recopied)).resolves.toBeUndefined()
+    } finally { await imported.dispose() }
+  } finally { await service.dispose(); vi.unstubAllGlobals() }
+})
 it('selects unavailable-definition receipts as meaningful preferences without requiring a live definition', async () => {
   const receipt = { ref: { kind: 'personal' as const, definitionId: 'missing' as import('../domain/types').PersonalDefinitionId }, kind: 'class' as const, name: 'Unavailable class' }
   const source = workspace({ ...createBlankLocalData({ now }), unavailableDefinitions: [receipt] })
