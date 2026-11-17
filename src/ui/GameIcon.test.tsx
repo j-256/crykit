@@ -8,7 +8,8 @@ import { NATIVE_GAME_DATA } from '../catalog/native-game'
 import { SYNTHETIC_MOD_SNAPSHOT } from '../catalog/mod.test-helpers'
 import { createBlankLocalData } from '../domain/local-data'
 import type { EntityId, EntityRef } from '../domain/types'
-import { DefinitionArtwork } from './GameIcon'
+import { DefinitionArtwork, hasExternalFieldIcons } from './GameIcon'
+import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
 
 vi.mock('../catalog/sprites', async importOriginal => {
   const original = await importOriginal<typeof import('../catalog/sprites')>()
@@ -16,6 +17,17 @@ vi.mock('../catalog/sprites', async importOriginal => {
 })
 
 describe('shared definition artwork', () => {
+  it('credits exactly the supplemental icons available to authoritative permission fields', () => {
+    for (const field of [CLASS_FIELDS.equipment, CRYSTAL_EDIT_FIELDS.equipment]) {
+      expect(hasExternalFieldIcons({ [field]: { state: 'known', value: ['Sword'] } })).toBe(true)
+      expect(hasExternalFieldIcons({ [field]: { state: 'known', value: ['Heavy Head', 'Accessory', 'Synthetic future type'] } })).toBe(false)
+      expect(hasExternalFieldIcons({ [field]: { state: 'unknown' } })).toBe(false)
+      expect(hasExternalFieldIcons({ [field]: { state: 'conflicting', claims: [{ value: ['Sword'], sources: [] }, { value: ['Axe'], sources: [] }] } })).toBe(false)
+    }
+    expect(hasExternalFieldIcons({ Weapons: { state: 'known', value: ['Swords'] } })).toBe(true)
+    expect(hasExternalFieldIcons({ Location: { state: 'known', value: ['Sword'] } })).toBe(false)
+  })
+
   it('renders an exact mod skill icon before its generic glyph and recovers after a failed image when the selection changes', async () => {
     const entities = buildBundledModEntities(SYNTHETIC_MOD_SNAPSHOT, NATIVE_GAME_DATA.enums)
     const catalog = { ...DEFAULT_CATALOG, entities }

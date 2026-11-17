@@ -3,7 +3,7 @@ import { NATIVE_RECORD_FIELD } from '../domain/native-game'
 import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
 import type { Knowledge, KnowledgeClaim, SourceRef } from '../domain/types'
 import { externalSources, sourceDisplay, visibleSources } from './source-display'
-import { fieldIconKey } from '../catalog/menu-icons'
+import { fieldIconKey, isEquipmentPermissionField } from '../catalog/menu-icons'
 import { GameIcon } from './GameIcon'
 import { isStatRatingField } from '../domain/stat-ratings'
 import { StatRatings } from './StatRatings'
@@ -73,9 +73,11 @@ interface ClaimSelection {
 }
 
 export function ClaimList({ claims, selection, field, moneyFormat = 'coins' }: { claims: readonly KnowledgeClaim<unknown>[]; selection?: ClaimSelection; field?: string; moneyFormat?: MoneyFormat }) {
+  // Keep disputed permission text and citations without presenting either branch as confirmed icons
+  const valueField = isEquipmentPermissionField(field) ? undefined : field
   return <ol className="knowledge-claims">{claims.map((claim, index) => <li className="knowledge-claim" key={index}>
     {selection ? <label className="check-row"><input aria-describedby={`${selection.name}-claim-${index}`} checked={selection.index === index} name={selection.name} onChange={() => selection.onChange(index)} type="radio" value={index}/><strong>Use claim {index + 1}</strong></label> : <strong className="knowledge-claim__label">Claim {index + 1}</strong>}
-    <Sources anchor={<div className="knowledge-claim__value" id={selection ? `${selection.name}-claim-${index}` : undefined}><StructuredValue field={field} moneyFormat={moneyFormat} value={claim.value}/></div>} label={`Sources for ${field ?? 'claim'} ${index + 1}`}><SourceReferences includeGameExports sources={claim.sources}/></Sources>
+    <Sources anchor={<div className="knowledge-claim__value" id={selection ? `${selection.name}-claim-${index}` : undefined}><StructuredValue field={valueField} moneyFormat={moneyFormat} value={claim.value}/></div>} label={`Sources for ${field ?? 'claim'} ${index + 1}`}><SourceReferences includeGameExports sources={claim.sources}/></Sources>
     {claim.note && <p className="knowledge-claim__note"><MoneyText>{claim.note}</MoneyText></p>}
   </li>)}</ol>
 }

@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Sources } from './Sources'
 import { DefinitionClaimsPanel, DefinitionFactsPanel, DefinitionSourcesPanel } from './DefinitionDetailSections'
+import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import type { EntityId } from '../domain/types'
 import { KnowledgeValue } from './KnowledgeValue'
@@ -65,6 +66,23 @@ async function closeSources(popup: HTMLElement) {
 }
 
 describe('source claim presentation', () => {
+  it('keeps competing permission text and each citation without confirmed equipment icons', async () => {
+    for (const field of [CLASS_FIELDS.equipment, CRYSTAL_EDIT_FIELDS.equipment]) {
+      const sources = [{ sourceId: 'https://first.example.test/permissions', locator: 'First permission record' }, { sourceId: 'https://second.example.test/permissions', locator: 'Second permission record' }]
+      const container = await renderInteractive(<KnowledgeValue field={field} value={{ state: 'conflicting', claims: [{ value: ['Sword'], sources: [sources[0]!] }, { value: ['Shield'], sources: [sources[1]!] }] }}/>)
+      expect(container.textContent).toContain('2 differing source values')
+      expect(container.textContent).toContain('Sword')
+      expect(container.textContent).toContain('Shield')
+      expect(container.querySelectorAll('img, [data-game-icon]')).toHaveLength(0)
+      for (const [index, source] of sources.entries()) {
+        const popup = await openSources(container, `Sources for ${field} ${index + 1}`)
+        expect(popup.textContent).toContain(source.locator)
+        expect(popup.querySelector('a')?.href).toBe(source.sourceId)
+        await closeSources(popup)
+      }
+    }
+  })
+
   it('shows structured values, notes and source revisions while treating markup and unsafe URLs as text', async () => {
     const container = await renderInteractive(<KnowledgeValue value={{ state: 'conflicting', claims: [
       { value: '<script>untrusted()</script>', note: 'Synthetic disputed description', sources: [{ sourceId: 'javascript:untrusted()', locator: 'data:text/html,untrusted' }] },
