@@ -1,15 +1,29 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
+import { sourcePayloadValid } from '../src/domain/source-fulfillment'
+import { readLocalData, replacePlannerFixture, waitForPlannerReady } from './local-data-helpers'
+import { REFERENCE_UNCERTAINTY_CATALOG, REFERENCE_UNCERTAINTY_ENTITIES, RETAINED_STUDY_SOURCES } from './reference-uncertainty-fixtures'
+
+const study = REFERENCE_UNCERTAINTY_ENTITIES.study
+const description = REFERENCE_UNCERTAINTY_ENTITIES.description
+const independentPath = (record: typeof study) => referencePath(record.id, REFERENCE_UNCERTAINTY_CATALOG.id, REFERENCE_UNCERTAINTY_CATALOG.revisionId, record.name)
+async function installIndependentSource(page: Page) {
+  expect(sourcePayloadValid(REFERENCE_UNCERTAINTY_CATALOG)).toBe(true)
+  await page.goto('/#/reference')
+  await waitForPlannerReady(page)
+  await replacePlannerFixture(page, await readLocalData(page), [REFERENCE_UNCERTAINTY_CATALOG])
+}
 
 test('Sources opens by keyboard and restores focus after Escape and Close', async ({ page }) => {
-  await page.goto(referencePath('base:item:132'))
-  const trigger = page.getByRole('button', { name: 'Sources for Shoudu Stew', exact: true })
-  const popup = page.getByRole('dialog', { name: 'Sources for Shoudu Stew', exact: true })
+  await installIndependentSource(page)
+  await page.goto(independentPath(study))
+  const trigger = page.getByRole('button', { name: 'Sources for Synthetic retained study', exact: true })
+  const popup = page.getByRole('dialog', { name: 'Sources for Synthetic retained study', exact: true })
   await trigger.focus()
   await trigger.press('Enter')
   await expect(popup).toBeVisible()
-  await expect(popup.getByRole('heading', { name: 'Sources for Shoudu Stew', exact: true })).toBeFocused()
+  await expect(popup.getByRole('heading', { name: 'Sources for Synthetic retained study', exact: true })).toBeFocused()
   await expect(trigger).toHaveAttribute('aria-expanded', 'true')
   await expect(popup.locator('.sources-trigger')).toHaveCount(0)
   await page.keyboard.press('Escape')
@@ -24,10 +38,10 @@ test('Sources opens by keyboard and restores focus after Escape and Close', asyn
 
 test('field Sources supports click-away, Tab-out and switching disclosures', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto(referencePath('base:job:0'))
-  const trigger = page.getByRole('button', { name: 'Sources for Master', exact: true })
-  const popup = page.getByRole('dialog', { name: 'Sources for Master', exact: true })
+  const trigger = page.getByRole('button', { name: 'Sources for Class master', exact: true })
+  const popup = page.getByRole('dialog', { name: 'Sources for Class master', exact: true })
   await trigger.click()
-  await expect(popup.getByRole('link', { name: /Community wiki/ })).toBeVisible()
+  await expect(popup.getByRole('link', { name: /Community wiki/ })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Warrior?oldid=13324')
   await page.getByRole('heading', { name: 'Warrior', exact: true }).click()
   await expect(popup).not.toBeVisible()
   await trigger.click()
@@ -44,12 +58,13 @@ test('field Sources supports click-away, Tab-out and switching disclosures', { t
 
 test('Sources stays within a narrow viewport and scrolls long retained evidence', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 })
-  await page.goto(referencePath('base:item:132'))
-  const trigger = page.getByRole('button', { name: 'Sources for Shoudu Stew', exact: true })
+  await installIndependentSource(page)
+  await page.goto(independentPath(study))
+  const trigger = page.getByRole('button', { name: 'Sources for Synthetic retained study', exact: true })
   await expect(trigger).toHaveCSS('width', '16px')
   await expect(trigger).toHaveCSS('height', '16px')
   await trigger.click()
-  const popup = page.getByRole('dialog', { name: 'Sources for Shoudu Stew', exact: true })
+  const popup = page.getByRole('dialog', { name: 'Sources for Synthetic retained study', exact: true })
   await expect(popup).toBeVisible()
   const bounds = (await popup.boundingBox())!
   expect(bounds.x).toBeGreaterThanOrEqual(0)
@@ -57,6 +72,7 @@ test('Sources stays within a narrow viewport and scrolls long retained evidence'
   expect(bounds.x + bounds.width).toBeLessThanOrEqual(320)
   expect(bounds.y + bounds.height).toBeLessThanOrEqual(640)
   await expect(popup.locator('.sources-popup__body')).toContainText(/missing HP/i)
+  for (const source of RETAINED_STUDY_SOURCES) await expect(popup.locator(`a[href="${source.sourceId}"]`)).toBeVisible()
   const body = popup.locator('.sources-popup__body')
   expect(await body.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
   await body.evaluate(element => { element.scrollTop = element.scrollHeight })
@@ -68,8 +84,9 @@ test('Sources stays within a narrow viewport and scrolls long retained evidence'
 
 test('superscript Sources stays attached when external field values and description headings wrap', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 })
-  for (const entry of [{ id: 'base:job:0', label: 'Sources for Master' }, { id: 'base:equipment:134', label: 'Sources for Description' }]) {
-    await page.goto(referencePath(entry.id))
+  await installIndependentSource(page)
+  for (const entry of [{ path: referencePath('base:job:0'), label: 'Sources for Class master' }, { path: independentPath(description), label: 'Sources for Description' }]) {
+    await page.goto(entry.path)
     const trigger = page.getByRole('button', { name: entry.label, exact: true })
     const layout = await trigger.evaluate(element => {
       const group = element.closest<HTMLElement>('.sources-attached')!

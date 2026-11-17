@@ -7,15 +7,15 @@ import { waitForPlannerReady } from './local-data-helpers'
 
 const WARRIOR = detail('base:job:0')
 
-async function expectArtwork(page: Page, name: string, source: 'game' | 'wiki' = 'game') {
-  const image = page.getByRole('img', { name: `${name} ${source} artwork`, exact: true })
+async function expectArtwork(page: Page, name: string) {
+  const image = page.getByRole('img', { name: `${name} game artwork`, exact: true })
   await expect(image).toBeVisible()
   await expect.poll(() => image.evaluate(element => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
   expect(await image.evaluate(element => new URL((element as HTMLImageElement).src).origin === location.origin)).toBe(true)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 }
 
-test('native artwork stays quiet and wiki fallbacks retain attribution offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
+test('native artwork stays quiet and supplemental menu icons retain attribution offline', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   const external: string[] = []
   page.on('request', request => { if (!new URL(request.url()).hostname.match(/^(127\.0\.0\.1|localhost)$/)) external.push(request.url()) })
   await page.goto(WARRIOR)
@@ -34,13 +34,22 @@ test('native artwork stays quiet and wiki fallbacks retain attribution offline',
   await context.setOffline(true)
   await page.reload()
   await expectArtwork(page, 'Warrior')
-  for (const [id, name, source] of [['base:equipment:0', 'Short Sword', 'game'], ['base:monster:ref-849', 'Slime', 'wiki']] as const) {
+  const permissions = page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Equipment permissions$/ }) })
+  await expect(permissions).toContainText('Sword')
+  const icons = permissions.locator('img')
+  await expect(icons).toHaveCount(7)
+  await expect.poll(() => icons.evaluateAll(elements => elements.every(element => (element as HTMLImageElement).naturalWidth > 0))).toBe(true)
+  expect(await icons.evaluateAll(elements => elements.every(element => new URL((element as HTMLImageElement).src).origin === location.origin))).toBe(true)
+  await page.getByRole('button', { name: 'Sources for Warrior', exact: true }).click()
+  const sources = page.getByRole('dialog', { name: 'Sources for Warrior', exact: true })
+  await expect(sources.getByRole('heading', { name: 'Sources for menu icons', exact: true })).toBeVisible()
+  await expect(sources.getByRole('link', { name: 'swords', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/File%3ASwordAbilityIcon.png?oldid=2786')
+  await expect(sources).toContainText('No reviewed license declaration on the wiki file page')
+  await sources.getByRole('button', { name: 'Close sources', exact: true }).click()
+  for (const [id, name] of [['base:equipment:0', 'Short Sword'], ['base:monster:2', 'Slime']] as const) {
     await page.goto(detail(id))
-    await expectArtwork(page, name, source)
-    if (source === 'wiki') {
-      await page.getByRole('button', { name: `Sources for ${name}`, exact: true }).click()
-      await expect(page.getByRole('link', { name: 'Slime.png', exact: true })).toHaveAttribute('href', /oldid=\d+$/)
-    }
+    await expectArtwork(page, name)
+    await expect(page.getByText('Artwork source', { exact: true })).toHaveCount(0)
   }
   expect(external).toEqual([])
 })

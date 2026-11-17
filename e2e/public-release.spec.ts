@@ -8,7 +8,7 @@ test('credits and bundled licenses remain available offline without external req
   })
   await page.goto('/#/settings/credits')
   const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
-  await expect(panel.getByRole('heading', { name: 'Game artwork and community reference' })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'Game data and artwork' })).toBeVisible()
   await expect(panel.getByRole('link', { name: 'Browse the source', exact: true })).toHaveAttribute('href', 'https://github.com/j-256/crykit')
   const applicationLicense = await panel.getByRole('link', { name: 'AGPL-3.0-only', exact: true }).getAttribute('href')
   await panel.getByRole('button', { name: 'Offline & Storage', exact: true }).click()

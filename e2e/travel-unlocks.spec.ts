@@ -1,5 +1,6 @@
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
+import { CURRENT_NATIVE_SOURCE_LABEL } from './reference-helpers'
 import { readFile } from 'node:fs/promises'
 import { strFromU8, unzipSync } from 'fflate'
 import { expect, test, type Page } from '@playwright/test'
@@ -93,12 +94,26 @@ test('tracks mount instruments, shrine stones, and capability items independentl
   expect(Object.values(selectedPlaythrough(localData).characters)).toHaveLength(0)
   await page.getByRole('link', { name: 'Ibek Bell: location & requirements', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Ibek Bell', exact: true })).toBeVisible()
-  await expect(page.getByText('Reward for clearing the Ancient Reservoir in Poko Poko Desert.', { exact: true })).toBeVisible()
+  const acquisition = page.getByRole('region', { name: 'How to obtain', exact: true })
+  await expect(acquisition.getByText('NPC', { exact: true })).toBeVisible()
+  await expect(acquisition).toContainText('Ancient Reservoir (Goats)')
+  await expect(acquisition).toContainText('Quantity: 1')
+  await expect(acquisition).toContainText('Additional story or interaction conditions apply')
+  await expect(page.getByText('Summons an Ibek mount.', { exact: true })).toBeVisible()
   const sources = page.getByRole('dialog', { name: 'Sources for Ibek Bell', exact: true })
   await expect(sources).toHaveCount(0)
   await page.getByRole('button', { name: 'Sources for Ibek Bell', exact: true }).click()
-  await expect(sources.getByRole('link', { name: 'Community wiki · Mounts', exact: true })).toHaveAttribute('href', /Mounts\?oldid=5937/)
+  await expect(sources).toContainText(CURRENT_NATIVE_SOURCE_LABEL)
+  await expect(sources).toContainText('Database/item.dat/50; native item ID 50')
+  await expect(sources.locator('a[href^="https://crystal-project.fandom.com/"]')).toHaveCount(0)
+  await sources.getByRole('button', { name: 'Close sources', exact: true }).click()
+  const descriptionTrigger = page.getByRole('button', { name: 'Sources for Description', exact: true })
+  await descriptionTrigger.click()
+  const descriptionSources = page.getByRole('dialog', { name: 'Sources for Description', exact: true })
+  await expect(descriptionSources.getByRole('link', { name: 'Community wiki · Mounts', exact: true })).toHaveAttribute('href', 'https://crystal-project.fandom.com/wiki/Mounts?oldid=5937')
+  await expect(descriptionSources).toContainText('Community wiki evidence; Nintendo Switch and enabled-mod applicability are unverified')
   await page.keyboard.press('Escape')
+  await expect(descriptionTrigger).toBeFocused()
   await page.goBack()
   await expect(page.getByRole('checkbox', { name: 'Treasure Finder: acquired', exact: true })).toBeChecked()
   await page.getByRole('navigation', { name: 'Progress guides', exact: true }).getByRole('link', { name: 'Class seals', exact: true }).click()
