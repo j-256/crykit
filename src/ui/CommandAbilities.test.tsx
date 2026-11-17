@@ -34,8 +34,11 @@ describe('command ability lists', () => {
     expect([...container.querySelectorAll('.ability-preview__trigger > span:nth-child(2)')].map(element => element.textContent)).toEqual(['Cure', 'Curen', 'Curena', 'Raise', 'Return', 'Spark Shine', 'Star Flare', 'Mend', 'Spotlight', 'Blackout'])
     expect(button(container, 'Cure').textContent).toContain('6 MP, 10 CT')
     expect(button(container, 'Cure').querySelector('img')).not.toBeNull()
-    expect(preview(container, 'Cure').textContent).toContain('Recovery: 50 + 1.5 Spi')
-    expect(preview(container, 'Cure').textContent).toContain('Can use out of combat.')
+    expect(preview(container, 'Cure').textContent).toContain('Single target magic.')
+    expect(preview(container, 'Cure').textContent).toContain('Description does not fully cover: power formulas; defense and scaling; combat details.')
+    expect(preview(container, 'Cure').textContent).not.toContain('Not applicable')
+    expect(preview(container, 'Cure').textContent).not.toContain('Recovery:')
+    expect(preview(container, 'Cure').textContent).not.toContain('Can use out of combat.')
     expect(preview(container, 'Spotlight').textContent).toContain('Inflict: Spotlight for 2 turns.')
     expect(preview(container, 'Spotlight').textContent).toContain('Take 35% more Fire damage.')
     expect(preview(container, 'Blackout').textContent).toContain('Immune to Fire damage.')
@@ -56,6 +59,20 @@ describe('command ability lists', () => {
     expect(button(container, 'Cure').textContent).toContain('Cost: Unknown')
     expect(button(container, 'Cure').textContent).not.toContain('6 MP')
     expect(container.querySelector('[aria-label="Sources for Synthetic command abilities"]')).not.toBeNull()
+  })
+
+  it.each([
+    { field: { state: 'unknown' as const, reason: 'Synthetic unrecorded text' }, expected: 'Unknown' },
+    { field: { state: 'conflicting' as const, claims: [{ value: 'Synthetic first description', sources: [{ sourceId: 'synthetic-first' }] }, { value: 'Synthetic second description', sources: [{ sourceId: 'synthetic-second' }] }] }, expected: 'Conflicting sources' },
+    { field: { state: 'known' as const, value: 'Synthetic authored healing details', sources: [{ sourceId: 'synthetic-authored' }] }, expected: 'Synthetic authored healing details' },
+  ])('retains $field.state authored descriptions without assigning native coverage', ({ field, expected }) => {
+    const cure = CURRENT_CATALOG.entities['base:ability:7']!
+    const catalog = { ...CURRENT_CATALOG, entities: { ...CURRENT_CATALOG.entities, [cure.id]: { ...cure, fields: { ...cure.fields, Description: field } } } }
+    const before = JSON.stringify(catalog.entities[cure.id])
+    const container = render(option('Cleric', [catalog]), [catalog])
+    expect(preview(container, 'Cure').textContent).toContain(expected)
+    expect(preview(container, 'Cure').textContent).not.toContain('Description does not fully cover:')
+    expect(JSON.stringify(catalog.entities[cure.id])).toBe(before)
   })
 
   it('shows the selected mode membership and the variant ability cost', () => {
