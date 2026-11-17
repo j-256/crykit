@@ -7,6 +7,7 @@ import { modPlanningReason } from '../catalog/mods'
 import { corroboratedFact } from '../catalog/source-corroboration'
 import { bundledModIdentity } from '../domain/bundled-mods'
 import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
+import { EQUIPMENT_CATEGORIES } from '../domain/equipment-categories'
 import { catalogEntity } from '../domain/entity-identities'
 import type { CatalogSnapshot, GameSetupRevision, LocalData } from '../domain/types'
 import { MoneyText } from './MoneyText'
@@ -22,13 +23,32 @@ import { Sources } from './Sources'
 import { externalSources } from './source-display'
 import { CommandAbilities } from './CommandAbilities'
 
+const PERMISSION_GROUP_LABELS = Object.freeze({ Weapons: 'Weapons', 'Armor & headgear': 'Armor', 'Accessories & shields': 'Accessories' })
+
+function classPermissionFacts(option: DefinitionOption) {
+  const field = [CLASS_FIELDS.equipment, CRYSTAL_EDIT_FIELDS.equipment].find(field => Object.hasOwn(option.record.fields, field))
+  if (!field) return undefined
+  const value = option.record.fields[field]!
+  // An explicit unknown or unsupported native field must not revive older known permissions
+  if (value.state !== 'known' || !Array.isArray(value.value) || value.value.length === 0 || !value.value.every(type => typeof type === 'string' && Object.hasOwn(EQUIPMENT_CATEGORIES, type))) return [{ label: 'Equipment permissions', field, value }]
+  const groups = new Map<string, string[]>()
+  for (const type of value.value) {
+    const category = EQUIPMENT_CATEGORIES[type as keyof typeof EQUIPMENT_CATEGORIES]
+    const label = PERMISSION_GROUP_LABELS[category.group]
+    groups.set(label, [...(groups.get(label) ?? []), category.label])
+  }
+  return [...groups].map(([label, names]) => ({ label, field, value: { ...value, value: names.join(', ') } }))
+}
+
 function selectionFacts(option: DefinitionOption, showClassPermissions: boolean) {
   const facts = decisionFacts(option.record).map(fact => ({ ...fact, field: fact.label }))
   if (option.kind !== 'class') return facts.filter(({ label }) => !['passive', 'innate'].includes(option.kind) || !/^(pp|cost)$/i.test(label))
   // A native unknown must not fall back to an older command label
   const commandField = [CLASS_FIELDS.command, CRYSTAL_EDIT_FIELDS.command, 'Command'].find(field => Object.hasOwn(option.record.fields, field)) ?? CLASS_FIELDS.command
   const command = { label: 'Command', field: commandField, value: option.record.fields[commandField] ?? { state: 'unknown' as const } }
-  return showClassPermissions ? [command, ...facts.filter(({ label }) => !/^command$/i.test(label))] : [command]
+  if (!showClassPermissions) return [command]
+  const permissions = classPermissionFacts(option)
+  return [command, ...(permissions ?? []), ...facts.filter(({ label }) => !/^command$/i.test(label) && !(permissions && /^(weapons?|armors?|accessories)$/i.test(label)))]
 }
 
 function ClassSummaryFact({ label, value, interactiveHelp }: ReturnType<typeof decisionFacts>[number] & { interactiveHelp: boolean }) {
@@ -37,7 +57,7 @@ function ClassSummaryFact({ label, value, interactiveHelp }: ReturnType<typeof d
     const iconKey = fieldIconKey(label, text)
     return <span className="build-class-facts__command">{iconKey ? <GameIcon iconKey={iconKey}/> : <Icon name="tome"/>}<span>Command: {text}</span></span>
   }
-  if (/^(weapons?|armors?)$/i.test(label) && value.state === 'known') {
+  if (/^(weapons?|armors?|accessories)$/i.test(label) && value.state === 'known') {
     const entries = typeof value.value === 'string' ? value.value.split(',').map(part => part.trim()).filter(Boolean) : Array.isArray(value.value) && value.value.every(part => typeof part === 'string') ? value.value as readonly string[] : undefined
     if (entries?.length) return <span className="build-class-facts__types">{entries.map((name, index) => {
       const iconKey = fieldIconKey(label, name)
@@ -70,7 +90,8 @@ export function BuildSelectionDetails({ option, comparedWith, alternatives = [],
   const sourceNotice = nativeStatSourceNotice(option.record)
   // Sub-command evidence covers its command and ability membership, without implying growth or equipment access
   const membershipField = [CLASS_FIELDS.abilities, CRYSTAL_EDIT_FIELDS.abilities].find(field => Object.hasOwn(option.record.fields, field))
-  const sourceFields = option.kind === 'class' ? { ...Object.fromEntries(facts.map(({ field, value }) => [field, value])), ...(showAbilities && membershipField ? { [membershipField]: option.record.fields[membershipField]! } : {}) } : option.record.fields
+  // Grouped permission labels are presentation only; corroboration checks the complete original field
+  const sourceFields = option.kind === 'class' ? { ...Object.fromEntries(facts.map(({ field, value }) => [field, option.record.fields[field] ?? value])), ...(showAbilities && membershipField ? { [membershipField]: option.record.fields[membershipField]! } : {}) } : option.record.fields
   const values = [...Object.values(sourceFields), ...(option.ppCost ? [option.ppCost] : [])]
   const fieldSources = values.flatMap(value => value.state === 'conflicting' ? value.claims.flatMap(claim => claim.sources) : value.state === 'notApplicable' ? [] : value.sources ?? [])
   const catalog = option.ref.kind === 'catalog' ? catalogs.find(catalog => option.ref.kind === 'catalog' && catalog.id === option.ref.catalogId && catalog.revisionId === option.ref.catalogRevisionId) : undefined
