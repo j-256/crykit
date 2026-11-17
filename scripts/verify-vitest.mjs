@@ -4,7 +4,10 @@ import { verifyVitest } from './vitest-verification.mjs'
 
 const USAGE = `Usage: npm run test:vitest:prepared -- [-h|--help]
 Run all prepared Vitest projects from the repository root without test filters.
-Local Node projects finish before native Worker/persistence shards run in pairs.
+Local Node projects finish before native Worker/persistence shards.
+CRYKIT_NATIVE_TEST_CONCURRENCY accepts 1 or 2 simultaneous native shards (default 2).
+Serial mode keeps all cases and deadlines; an explicit setting is rejected with CI.
+The selected mode is logged and saved in the attempt execution.json.
 Node failure prevents native startup; every native shard retains a serial worker.
 Each native shard stops after its first failure and that case's cleanup.
 All children drain before results merge; every child and report merge must pass.

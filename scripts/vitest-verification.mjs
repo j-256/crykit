@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, renameSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, renameSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { VerificationError } from './verification-error.mjs'
@@ -8,13 +8,22 @@ const VITEST_CLI = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', im
 // Miniflare closes dispatched connections; separate loopback families reduce source-address allocation contention
 // Keep rejection-path transport behavior and a bounded number of isolated native processes
 const NATIVE_SHARDS = 4
-const NATIVE_CONCURRENCY = 2
+const DEFAULT_NATIVE_CONCURRENCY = 2
+const NATIVE_CONCURRENCY_ENV = 'CRYKIT_NATIVE_TEST_CONCURRENCY'
 const NATIVE_LOOPBACK_FAMILIES = Object.freeze(['ipv4', 'ipv6'])
 const LANES = Object.freeze([
   { name: 'node', projects: ['unit', 'dom', 'persistence'] },
   // A failing serial shard can bail after cleanup without aborting another active database case
   ...Array.from({ length: NATIVE_SHARDS }, (_, index) => ({ name: `native-${index + 1}`, projects: ['worker', 'persistence-service'], workers: 1, bail: 1, shard: `${index + 1}/${NATIVE_SHARDS}`, loopback: NATIVE_LOOPBACK_FAMILIES[index % NATIVE_LOOPBACK_FAMILIES.length] })),
 ])
+
+export function nativeTestConcurrency(env = process.env) {
+  const value = env[NATIVE_CONCURRENCY_ENV]
+  if (value !== undefined && value !== '1' && value !== '2') throw new VerificationError(`${NATIVE_CONCURRENCY_ENV} must be 1 or 2`, 2)
+  // CI owns a different unfiltered schedule; never silently ignore a requested local resource bound
+  if (env.CI && value !== undefined) throw new VerificationError(`${NATIVE_CONCURRENCY_ENV} is only supported without CI`, 2)
+  return value === undefined ? DEFAULT_NATIVE_CONCURRENCY : Number(value)
+}
 
 async function configuredProjects({ cwd, configFile }) {
   const { loadConfigFromFile } = await import('vite')
@@ -39,10 +48,14 @@ async function runVitest(args, { cwd, env, label, report }) {
 }
 
 export async function verifyVitest({ cwd = process.cwd(), env = process.env, run = runVitest, readProjects = configuredProjects, report = message => process.stderr.write(message + '\n') } = {}) {
+  const nativeConcurrency = nativeTestConcurrency(env)
   if (!existsSync(VITEST_CLI)) throw new VerificationError('Vitest is required; run npm ci first', 3)
   const output = resolve(cwd, '.account-tests'), configFile = resolve(cwd, 'vite.config.ts')
   mkdirSync(output, { recursive: true })
   const attempt = mkdtempSync(join(output, 'vitest-lanes-')), resultFile = join(output, 'vitest-results.json')
+  const execution = env.CI ? { mode: 'ci' } : { mode: 'local', nativeConcurrency, lanes: LANES }
+  writeFileSync(join(attempt, 'execution.json'), JSON.stringify(execution) + '\n')
+  report(env.CI ? '[vitest] Hosted scheduling' : `[vitest] Local native concurrency=${nativeConcurrency}; shards=${NATIVE_SHARDS}; workers per shard=1`)
   // Preserve diagnostics from preceding attempts, but never leave an old successful report at the live path
   if (existsSync(resultFile)) renameSync(resultFile, join(attempt, 'previous-results.json'))
   const execute = (args, label, runEnv = env) => run(args, { cwd, env: runEnv, label, report })
@@ -72,9 +85,10 @@ export async function verifyVitest({ cwd = process.cwd(), env = process.env, run
   await runLane(LANES[0])
   const results = []
   const nativeLanes = LANES.slice(1)
-  for (let index = 0; index < nativeLanes.length; index += NATIVE_CONCURRENCY) {
-    // Drain the whole pair after a failure before starting another backend or merging its evidence
-    results.push(...await Promise.allSettled(nativeLanes.slice(index, index + NATIVE_CONCURRENCY).map(runLane)))
+  for (let index = 0; index < nativeLanes.length; index += nativeConcurrency) {
+    // The resource bound changes batching only, never membership, deadlines, or failure cleanup
+    // Drain the whole batch after a failure before starting another backend or merging its evidence
+    results.push(...await Promise.allSettled(nativeLanes.slice(index, index + nativeConcurrency).map(runLane)))
   }
   // A failure never cancels its sibling's active case or releases ownership before database cleanup
   // Merge failing reports too when available, retaining every result without authorizing publication

@@ -2,6 +2,7 @@
 import { parseArgs } from 'node:util'
 import { verifyIntegration } from './integration-verification.mjs'
 import { coordinateVerification } from './verification-coordination.mjs'
+import { nativeTestConcurrency } from './vitest-verification.mjs'
 
 const USAGE = `Usage: npm run verify -- [-h|--help] [-I|--if-needed] [-r|--resume]
 Prepare each required build once, then pass prerequisite checks and exclusive saves.
@@ -11,6 +12,9 @@ Every required command must pass; ownership lasts until running siblings settle.
 Requires Node.js, npm, Git, npm ci, openssl, and Playwright Chromium, Firefox, WebKit.
 Run npx playwright install chromium firefox webkit to install the test browsers.
 No positional arguments or test filters are accepted.
+CRYKIT_NATIVE_TEST_CONCURRENCY accepts 1 or 2 (default 2) for local native shards.
+Serial mode preserves all cases and deadlines; this setting is rejected with CI.
+The selected environment separates checkpoint reuse and is logged by Vitest.
 CRYKIT_E2E_PORT selects the local preview port (default 4173).
 Account acceptance workers own ephemeral HTTPS loopback ports and fresh backends.
 Installed, configured wt-queue coordinates full runs and checks base freshness.
@@ -35,7 +39,11 @@ Exit: 0 passed/help, 1 check failure, 2 usage/changed source, 3 missing tool,
 try {
   const { values } = parseArgs({ options: { help: { type: 'boolean', short: 'h' }, 'if-needed': { type: 'boolean', short: 'I' }, resume: { type: 'boolean', short: 'r' } }, strict: true })
   if (values.help) process.stdout.write(USAGE)
-  else await coordinateVerification(() => verifyIntegration({ ifNeeded: values['if-needed'], resume: values.resume }))
+  else {
+    // Reject invalid resource settings before acquiring coordination or preparing any build inputs
+    nativeTestConcurrency()
+    await coordinateVerification(() => verifyIntegration({ ifNeeded: values['if-needed'], resume: values.resume }))
+  }
 } catch (error) {
   console.error(`[verify] ${error.message}`)
   process.exitCode = error.exitCode ?? (error.code?.startsWith('ERR_PARSE_ARGS') ? 2 : 1)
