@@ -2,7 +2,7 @@ import { renderToStaticMarkup as renderMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CATALOG } from '../catalog/bundled'
 import { createBlankLocalData } from '../domain'
-import { CLASS_FIELDS } from '../domain/crystal-edit'
+import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
 import { BuildSelectionDetails, BuildSelectionFacts } from './BuildSelectionDetails'
 import { buildDefinitionOptions } from './definitions'
 
@@ -26,6 +26,50 @@ describe('selection inspector facts', () => {
     expect(facts).toContain('Command: White Magic')
     expect(facts).not.toMatch(/Weapons|Armor|Innate/)
     expect(JSON.stringify(cleric.record)).toBe(before)
+  })
+
+  it('presents exact native permission groups in full and compact class details without changing source facts', () => {
+    const warrior = options.find(option => option.ref.kind === 'catalog' && option.ref.entityId === 'base:job:0')!
+    const before = JSON.stringify(warrior.record)
+    const html = renderToStaticMarkup(<BuildSelectionDetails catalogs={[DEFAULT_CATALOG]} option={warrior}/>)
+    for (const name of ['Swords', 'Axes', 'Daggers', 'Spears', 'Shields', 'Heavy helmets', 'Heavy armor', 'Accessories']) expect(html).toContain(name)
+    const compact = renderToStaticMarkup(<BuildSelectionFacts option={warrior}/>)
+    expect(compact).toContain('Weapons: Swords')
+    expect(compact).toContain('Armor: Heavy helmets')
+    expect(compact).toContain('Accessories: Shields')
+    expect(JSON.stringify(warrior.record)).toBe(before)
+  })
+
+  it('does not replace authoritative uncertain or unrecognized permissions with known legacy fields', () => {
+    const warrior = options.find(option => option.ref.kind === 'catalog' && option.ref.entityId === 'base:job:0')!
+    const legacy = { Weapons: { state: 'known' as const, value: 'Synthetic obsolete weapon' }, Armor: { state: 'known' as const, value: 'Synthetic obsolete armor' } }
+    for (const value of [{ state: 'unknown' as const, reason: 'Synthetic unknown permissions' }, { state: 'conflicting' as const, claims: [{ value: ['Sword'], sources: [] }, { value: ['Axe'], sources: [] }] }, { state: 'known' as const, value: ['Synthetic future type'] }, { state: 'notApplicable' as const }]) {
+      const option = { ...warrior, record: { ...warrior.record, fields: { ...legacy, [CLASS_FIELDS.equipment]: value } } }
+      const html = renderToStaticMarkup(<BuildSelectionDetails option={option}/>)
+      expect(html).toContain('Equipment permissions')
+      expect(html).not.toContain('Synthetic obsolete')
+      if (value.state === 'known') expect(html).toContain('Synthetic future type')
+      if (value.state === 'unknown') expect(html).toContain('Synthetic unknown permissions')
+      if (value.state === 'conflicting') expect(html).toContain('2 differing source values')
+    }
+    const legacyOnly = { ...warrior, record: { ...warrior.record, fields: legacy } }
+    const html = renderToStaticMarkup(<BuildSelectionDetails option={legacyOnly}/>)
+    expect(html).toContain('Synthetic obsolete weapon')
+    expect(html).toContain('Synthetic obsolete armor')
+  })
+
+  it('uses declared imported permissions only when the native field is absent', () => {
+    const warrior = options.find(option => option.ref.kind === 'catalog' && option.ref.entityId === 'base:job:0')!
+    const imported = { [CRYSTAL_EDIT_FIELDS.equipment]: { state: 'known' as const, value: ['Wand', 'Light Body'] }, Weapons: { state: 'known' as const, value: 'Synthetic obsolete weapon' } }
+    const option = { ...warrior, record: { ...warrior.record, fields: imported } }
+    const html = renderToStaticMarkup(<BuildSelectionDetails option={option}/>)
+    expect(html).toContain('Wands')
+    expect(html).toContain('Light armor')
+    expect(html).not.toContain('Synthetic obsolete')
+    const unavailable = { ...option, record: { ...option.record, fields: { ...imported, [CLASS_FIELDS.equipment]: { state: 'unknown' as const } } } }
+    const unknown = renderToStaticMarkup(<BuildSelectionFacts option={unavailable}/>)
+    expect(unknown).toContain('Equipment permissions: Unknown')
+    expect(unknown).not.toMatch(/Wands|Light armor|Synthetic obsolete/)
   })
 
   it('includes attributed missing descriptions and class master notes without acquisition duplication', () => {

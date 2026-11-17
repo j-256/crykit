@@ -7,7 +7,7 @@ const EQUIPMENT_ALIASES: Readonly<Record<string, string>> = Object.freeze({
   wand: 'wands', book: 'books', katana: 'katanas', shield: 'shields',
   'heavy helmet': 'heavy helmets', 'light hat': 'light hats',
 })
-const EQUIPMENT_FIELDS = new Set(['weapon', 'weapons', 'armor', 'armors', 'category'])
+const EQUIPMENT_FIELDS = new Set(['weapon', 'weapons', 'armor', 'armors', 'accessories', 'category'])
 const SKILL_TYPES = MENU_ICON_KEYS.filter(key => key.startsWith('skill:')).map(key => key.slice('skill:'.length)).sort((left, right) => right.length - left.length)
 
 export function fieldIconKey(field: string, value: string): string | undefined {
