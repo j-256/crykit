@@ -1,3 +1,4 @@
+import { CURRENT_GAME_VERSION } from './reference-helpers'
 import { syntheticCatalog } from '../src/workspace/test-helpers'
 import { LAUNCH_DATA_GENERATION } from '../src/domain/data-generation'
 import { openBuildPickerFilters } from './build-picker-helpers'
@@ -240,17 +241,17 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   const version = panel.getByRole('combobox', { name: /^Game version/ })
   const mode = panel.getByRole('combobox', { name: 'Game mode', exact: true })
   await expect(platform.locator('option')).toHaveText(['Unknown', 'Nintendo Switch', 'Windows', 'macOS', 'Linux', 'PC (platform unspecified)'])
-  await expect(version.locator('option')).toHaveText(['Unknown', '1.6.6', '1.6.9'])
+  await expect(version.locator('option')).toHaveText(['Unknown', '1.6.6', CURRENT_GAME_VERSION])
   await expect(version).toHaveValue('1.6.6')
   await expect(mode.locator('option')).toHaveText(['Unknown', 'Standard', 'Vanilla', 'Chaos'])
   await expect(panel.getByLabel('Exact game version', { exact: true })).toHaveCount(0)
   await platform.selectOption('Nintendo Switch')
-  await expect(version.locator('option')).toHaveText(['Unknown', '1.6.6', '1.6.9'])
+  await expect(version.locator('option')).toHaveText(['Unknown', '1.6.6', CURRENT_GAME_VERSION])
   await platform.selectOption('Windows')
-  await version.selectOption('1.6.9')
-  await expect(version).toHaveValue('1.6.9')
+  await version.selectOption(CURRENT_GAME_VERSION)
+  await expect(version).toHaveValue(CURRENT_GAME_VERSION)
   await platform.selectOption('PC')
-  await expect(version.locator('option')).toHaveText(['Unknown', '1.6.6', '1.6.9'])
+  await expect(version.locator('option')).toHaveText(['Unknown', '1.6.6', CURRENT_GAME_VERSION])
   for (const pack of SWITCH_MOD_PACKS) {
     const group = panel.locator('.game-setup-mod-pack').filter({ hasText: pack.name })
     await expect(group.locator(':scope > summary small')).toHaveText(`0 of ${pack.mods.length} enabled · ${pack.mods.length} need review`)
@@ -263,7 +264,7 @@ test('fixed Switch choices start unknown, apply the confirmed setup, and recover
   for (const name of CONFIRMED_SWITCH_MOD_SETUP.enabledMods) await expect(panel.getByRole('combobox', { name: name, exact: true })).toHaveValue('enabled')
   for (const name of CONFIRMED_SWITCH_MOD_SETUP.disabledMods) await expect(panel.getByRole('combobox', { name: name, exact: true })).toHaveValue('disabled')
   await expect(platform).toHaveValue('PC')
-  await expect(version).toHaveValue('1.6.9')
+  await expect(version).toHaveValue(CURRENT_GAME_VERSION)
   const shield = panel.getByRole('combobox', { name: 'Doge Shield', exact: true })
   await shield.focus()
   await shield.press('d')

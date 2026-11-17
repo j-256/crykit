@@ -1,3 +1,5 @@
+import { PC_CALCULATION_SCOPE } from '../src/domain/calculation-rules'
+import { CURRENT_NATIVE_LABEL, CURRENT_GAME_VERSION } from './reference-helpers'
 import { importSyntheticLibrary } from './mod-library-fixtures'
 import { openStatBreakdown } from './calculation-presentation-helpers'
 import { openBuildPickerFilters } from './build-picker-helpers'
@@ -12,7 +14,7 @@ async function planNativeSample(page: Page) {
   await expect(page.getByLabel('Calculation level', { exact: true })).toHaveValue('60')
   await page.locator('.build-behavior > summary').click()
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption({ label: 'Unmodified game' })
-  await page.getByRole('combobox', { name: 'Game version', exact: true }).selectOption('1.6.9')
+  await page.getByRole('combobox', { name: 'Game version', exact: true }).selectOption(CURRENT_GAME_VERSION)
   await page.locator('.game-setup-base-details > summary').click()
   await page.getByRole('combobox', { name: 'Platform', exact: true }).selectOption('Windows')
   await page.getByRole('combobox', { name: 'Game mode', exact: true }).selectOption('Standard')
@@ -39,7 +41,10 @@ test('build details separate fixed class ratings from level stats and keep editi
   await expect(page.getByRole('table', { name: 'Calculated character stats', exact: true })).not.toContainText('Unknown')
   const calculated = page.getByRole('region', { name: 'Calculated stats', exact: true })
   await expect(calculated.locator('.calculation-coverage')).toHaveJSProperty('open', false)
-  await expect(calculated.getByText('Uses PC 1.7.0.1 calculation rules for this version.', { exact: true })).toBeVisible()
+  await calculated.getByText('Calculation sources and coverage', { exact: true }).click()
+  await expect(calculated.getByText(`Uses ${PC_CALCULATION_SCOPE} formulas and supported mods from this Game Setup.`, { exact: true })).toBeVisible()
+  await calculated.getByText('Calculation sources and coverage', { exact: true }).click()
+  await expect(calculated.locator('.calculation-coverage')).toHaveJSProperty('open', false)
   await expect(calculated.getByText("Resting stats, without active statuses or turn effects.", { exact: true })).toBeVisible()
   await expect(calculated.getByText(/^Balance mode:/)).toBeVisible()
   await expect(stats).not.toContainText('Crystal Edit')
@@ -53,7 +58,7 @@ test('build details separate fixed class ratings from level stats and keep editi
   const classFacts = classField.locator('.build-class-facts')
   await expect(classFacts.locator(':scope > span').first()).toHaveText('Command: Battle Skill')
   await expect(classFacts.getByRole('img', { name: 'Weapons: Swords', exact: true })).toHaveAttribute('title', 'Swords')
-  await expect(classFacts.getByRole('img', { name: 'Armor: Shields', exact: true })).toHaveAttribute('tabindex', '0')
+  await expect(classFacts.getByRole('img', { name: 'Accessories: Shields', exact: true })).toHaveAttribute('tabindex', '0')
   const body = page.locator('.build-field').filter({ has: page.getByRole('combobox', { name: 'Body', exact: true }) })
   await expect(body.locator('.build-selection-facts')).toContainText('Defense')
   await expect(body.locator('.build-selection-facts')).not.toContainText('Cost')
@@ -84,7 +89,7 @@ test('build details separate fixed class ratings from level stats and keep editi
   await expect(classRatings.getByRole('heading', { name: 'Warrior growth', exact: true })).toBeVisible()
   await expect(classRatings.locator('.stat-rating').filter({ has: page.locator('abbr', { hasText: /^MND$/ }) }).getByRole('img', { name: '0.5 of 5 stars', exact: true })).toBeVisible()
   await expect(stats.getByRole('heading', { name: 'Warrior stats', exact: true })).toBeVisible()
-  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
+  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
   await expect(stats.getByRole('heading', { name: 'Wizard stats', exact: true })).toBeVisible()
   await expect(classRatings.locator('.stat-rating').filter({ has: page.locator('abbr', { hasText: /^MND$/ }) }).getByRole('img', { name: '4.5 of 5 stars', exact: true })).toBeVisible()
   await expect(inspector).toBeVisible()
@@ -94,7 +99,7 @@ test('build details separate fixed class ratings from level stats and keep editi
   await subCommandPicker.press('ArrowDown')
   await expect(classRatings.getByRole('heading', { name: 'Wizard growth', exact: true })).toBeVisible()
   await expect(classRatings.locator('.stat-rating').filter({ has: page.locator('abbr', { hasText: /^MND$/ }) }).getByRole('img', { name: '4.5 of 5 stars', exact: true })).toBeVisible()
-  await page.getByRole('listbox', { name: 'Choose Sub-command', exact: true }).getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^White Magic \(Cleric\)$/ }) }).click()
+  await page.getByRole('listbox', { name: 'Choose Sub-command', exact: true }).getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: /^White Magic \(Cleric\)$/ }) }).click()
   await expect(classRatings.getByRole('heading', { name: 'Wizard growth', exact: true })).toBeVisible()
   await expect(inspector).toContainText('White Magic')
   await expect(inspector.locator('.stat-ratings')).toHaveCount(0)
@@ -110,7 +115,7 @@ test('build details separate fixed class ratings from level stats and keep editi
 test('level and allocated growth change numeric stats while class ratings remain fixed', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto('/#/builds/library/new')
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
-  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
+  await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
   await openStatBreakdown(page)
   const stats = page.getByRole('region', { name: 'Class stats', exact: true })
   await openStatBreakdown(page)
@@ -216,14 +221,14 @@ test('equipment searches explicitly reveal incompatible choices below allowed eq
   await page.goto('/#/builds/library/new')
   const choose = async (label: string, name: string) => {
     await page.getByRole('combobox', { name: label, exact: true }).fill(name)
-    await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
+    await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
   }
   await choose('Class', 'Cleric')
   const hand = page.getByRole('combobox', { name: 'Main hand', exact: true })
   const results = page.getByRole('listbox', { name: 'Choose Main hand', exact: true })
   await hand.fill('Short')
-  const sword = results.getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Short Sword$/ }) })
-  const staff = results.getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Short Staff$/ }) })
+  const sword = results.getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: /^Short Sword$/ }) })
+  const staff = results.getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: /^Short Staff$/ }) })
   await expect(staff).toHaveAttribute('data-permission-state', 'valid')
   await expect(sword).toHaveCount(0)
   await openBuildPickerFilters(page)
@@ -251,7 +256,7 @@ test('equipment searches explicitly reveal incompatible choices below allowed eq
   await expect(results.locator('[data-permission-state="invalid"]')).toHaveCount(0)
   await hand.press('Escape')
   await page.getByRole('combobox', { name: 'Head', exact: true }).fill('Short Sword')
-  await expect(page.getByRole('listbox', { name: 'Choose Head', exact: true }).getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Short Sword$/ }) })).toHaveCount(0)
+  await expect(page.getByRole('listbox', { name: 'Choose Head', exact: true }).getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: /^Short Sword$/ }) })).toHaveCount(0)
 })
 
 test('class choices show medium armor icons and identify Synthetic Class as Synthetic Moonlight content', async ({ page }) => {
@@ -261,7 +266,7 @@ test('class choices show medium armor icons and identify Synthetic Class as Synt
   const classField = page.locator('.build-field').filter({ has: classPicker })
   const results = page.getByRole('listbox', { name: 'Choose Class', exact: true })
   await classPicker.fill('Assassin')
-  const assassin = results.getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Assassin$/ }) })
+  const assassin = results.getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: /^Assassin$/ }) })
   for (const type of ['Medium headgear', 'Medium armor']) {
     const icon = assassin.getByRole('img', { name: `Armor: ${type}`, exact: true })
     await expect(icon).toHaveAttribute('title', type)

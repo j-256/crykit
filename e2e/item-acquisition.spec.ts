@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import { referencePath, referenceUrlPattern } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
+import { CONFLICTING_LOCATIONS, REFERENCE_EVIDENCE_ENTITIES, REFERENCE_EVIDENCE_SOURCES, evidenceReferencePath, installReferenceEvidence } from './reference-evidence-fixtures'
 
 test('an item leads to its shop and required item, with usable mobile layout', { tag: MOBILE_TEST_TAG }, async ({ page, context }) => {
   await page.goto(referencePath('base:item:203'))
@@ -49,9 +50,9 @@ test('crafting ingredients link to their own acquisition routes and missing rout
   await expect(page.getByRole('region', { name: 'How to obtain', exact: true })).toContainText("No source here says how to obtain this item.")
   await page.goto(referencePath('base:item:50'))
   await expect(page.getByRole('region', { name: 'How to obtain', exact: true })).not.toContainText('Additional acquisition guidance is recorded')
-  await expect(page.getByText('Reward for clearing the Ancient Reservoir in Poko Poko Desert.', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Sources for Ibek Bell', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Sources for Ibek Bell', exact: true }).getByRole('link', { name: 'Community wiki · Mounts', exact: true })).toHaveAttribute('href', /Mounts\?oldid=5937/)
+  await expect(page.locator('.reference-description')).toContainText('Summons an Ibek mount.')
+  await page.getByRole('button', { name: 'Sources for Description', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Sources for Description', exact: true }).getByRole('link', { name: 'Community wiki · Mounts', exact: true })).toHaveAttribute('href', /Mounts\?oldid=5937/)
 })
 
 test('item sources and prerequisite navigation work offline', async ({ page, context }) => {
@@ -90,43 +91,47 @@ test('native rewards explain their requirements and seed facts link to the harve
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
-test('the reviewed Rotten Salmon choice shows its price and retains the original acquisition claims', async ({ page }) => {
+test('native choice requirements and independent original acquisition claims keep their own sources', async ({ page }) => {
+  await installReferenceEvidence(page)
   await page.goto(referencePath('base:item:11'))
   const section = page.getByRole('region', { name: 'How to obtain', exact: true })
-  const original = page.getByText(/^Can be purchased in Delende from the Shady Merchant for /).filter({ visible: true })
   await expect(section.getByRole('img', { name: '13 copper', exact: true })).toBeVisible()
   await expect(section).toContainText('Choose Buy')
-  await expect(original).toHaveCount(1)
-  await expect(page.getByRole('region', { name: 'Description', exact: true })).toContainText('Can be purchased in Delende from the Shady Merchant for')
-  await page.getByRole('button', { name: 'Sources for Rotten Salmon', exact: true }).click()
-  const sources = page.getByRole('dialog', { name: 'Sources for Rotten Salmon', exact: true })
-  await sources.getByText('Original acquisition notes', { exact: true }).click()
-  await expect(original).toHaveCount(1)
-  await expect(sources).toContainText('The matching game routes appear under How to obtain.')
-  await expect(sources.locator('a[href*="/wiki/Rotten_Salmon?"]').first()).toBeVisible()
+  await expect(section).toContainText('Have fewer than 1 Rotten Salmon')
+  await page.goto(evidenceReferencePath(REFERENCE_EVIDENCE_ENTITIES.conflicting))
+  const facts = page.getByRole('region', { name: 'Definition facts', exact: true })
+  for (const value of CONFLICTING_LOCATIONS) await expect(facts.getByText(value, { exact: true })).toHaveCount(1)
+  await page.getByRole('button', { name: 'Sources for Synthetic disputed seal', exact: true }).click()
+  const originals = page.getByRole('region', { name: 'Imported claims', exact: true })
+  for (const value of CONFLICTING_LOCATIONS) await expect(originals.getByText(value, { exact: true })).toBeVisible()
+  for (const source of REFERENCE_EVIDENCE_SOURCES) await expect(originals.locator(`a[href="${source.sourceId}"]`)).toBeVisible()
   await page.keyboard.press('Escape')
+  await page.goto(referencePath('base:item:11'))
   await section.getByRole('combobox', { name: 'Game mode', exact: true }).selectOption({ label: 'Chaos' })
   await expect(section.getByRole('img', { name: '13 copper', exact: true })).toHaveCount(0)
   await expect(section).not.toContainText('Additional acquisition guidance is recorded')
+  await page.goto(evidenceReferencePath(REFERENCE_EVIDENCE_ENTITIES.conflicting))
+  await page.reload()
+  for (const value of CONFLICTING_LOCATIONS) await expect(facts.getByText(value, { exact: true })).toHaveCount(1)
 })
 
-test('Dress keeps native acquisition quiet and cites its external description', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
+test('Dress preserves native acquisition and separately attributes retained directions', { tag: MOBILE_TEST_TAG }, async ({ page }) => {
   await page.goto(referencePath('base:equipment:134'))
   const section = page.getByRole('region', { name: 'How to obtain', exact: true })
   await expect(section).toContainText('Fungus')
   await expect(section).toContainText('Quintar Sanctum')
   await expect(section).not.toContainText('Definition facts below')
-  await expect(page.getByRole('region', { name: 'Description', exact: true }).getByText(/before reaching the Chemist crystal/)).toBeVisible()
-  await expect(page.locator('.reference-description')).toContainText('before reaching the Chemist crystal')
-  await expect(page.locator('.reference-description')).toContainText("useful to light armor wearers who don't need Mind or Spirit")
-  await expect(section.locator('.sources-trigger')).toHaveCount(0)
+  await expect(page.locator('.reference-description')).toContainText('Take 5% less magical damage.')
+  await expect(page.locator('.reference-description')).not.toContainText('before reaching the Chemist crystal')
+  await expect(section).toContainText('Reward: talk to mushroom in Quintar Sanctum')
+  await expect(section.getByRole('button', { name: 'Sources for Directions', exact: true })).toHaveCount(1)
   const location = section.getByText('Coordinates', { exact: true }).locator('..')
   await expect(location).not.toHaveAttribute('open')
   await location.getByText('Coordinates', { exact: true }).click()
   await expect(location).toContainText('X 564 · Y 172 · Z -477')
-  await page.getByRole('button', { name: 'Sources for Description', exact: true }).click()
-  const sources = page.getByRole('dialog', { name: 'Sources for Description', exact: true })
-  await expect(sources.locator('a[href*="/wiki/Dress?"]').first()).toBeVisible()
+  await page.getByRole('button', { name: 'Sources for Directions', exact: true }).click()
+  const sources = page.getByRole('dialog', { name: 'Sources for Directions', exact: true })
+  await expect(sources.locator('a[href="https://crystal-project.fandom.com/wiki/Light_armor/table?oldid=11534"]').first()).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(sources).toHaveCount(0)
 })

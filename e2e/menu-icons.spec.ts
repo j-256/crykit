@@ -1,4 +1,4 @@
-import { referencePath } from './reference-helpers'
+import { CURRENT_NATIVE_LABEL, referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { waitForPlannerReady } from './local-data-helpers'
@@ -35,7 +35,10 @@ test('game icons accompany character equipment, inventory, and both pickers with
   await expect(weapons).toContainText('Swords, Axes, Daggers, Spears')
   await loadedIcons(weapons, 4)
   const armor = facts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Armor$/ }) })
-  await loadedIcons(armor, 3)
+  await loadedIcons(armor, 2)
+  const accessories = facts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Accessories$/ }) })
+  await loadedIcons(accessories, 1)
+  await expect(accessories).toContainText('Shields, Accessories')
   for (const image of await armor.locator('img').all()) await expect(image).toHaveAttribute('src', /equipment-types-[^/]+\.png$/)
   await details.getByRole('button', { name: 'Sources for Warrior', exact: true }).click()
   const sourceDetails = page.getByRole('dialog', { name: 'Sources for Warrior', exact: true })
@@ -52,7 +55,7 @@ test('game icons accompany character equipment, inventory, and both pickers with
   await page.goto('/#/builds/library/new')
   await waitForPlannerReady(page)
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
-  const warrior = page.getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.getByText('Warrior', { exact: true }) })
+  const warrior = page.getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.getByText('Warrior', { exact: true }) })
   await loadedIcons(warrior, 9)
   await warrior.click()
   const selectedDetails = isMobile ? page.locator('.build-field').filter({ has: page.getByRole('combobox', { name: 'Class', exact: true }) }).locator('.build-field__evidence > details > summary') : page.getByRole('complementary', { name: 'Selection details', exact: true }).getByRole('heading', { name: 'Warrior', exact: true })
@@ -77,7 +80,10 @@ test('game icons accompany character equipment, inventory, and both pickers with
   await page.goto(referencePath('base:job:0'))
   await page.reload()
   await waitForPlannerReady(page)
-  await loadedIcons(page.locator('.icon-values').filter({ hasText: 'Swords, Axes, Daggers, Spears' }), 4)
+  const permissions = page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Equipment permissions$/ }) })
+  await expect(permissions).toContainText('Sword')
+  await expect(permissions).toContainText('Heavy Body')
+  await loadedIcons(permissions, 7)
   expect(external).toEqual([])
 })
 
@@ -87,8 +93,10 @@ test('failed menu icons retain readable equipment labels', async ({ browser, bas
   await page.route(/\.(?:gif|png|webp)(?:\?|$)/, route => route.abort())
   await page.goto(`${baseURL}${referencePath('base:job:0')}`)
   await waitForPlannerReady(page)
-  const weapons = page.locator('.icon-values').filter({ hasText: 'Swords, Axes, Daggers, Spears' })
+  const weapons = page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Equipment permissions$/ }) })
   await expect(weapons).toBeVisible()
+  await expect(weapons).toContainText('Sword')
+  await expect(weapons).toContainText('Heavy Body')
   await expect(weapons.locator('img')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Warrior', exact: true })).toBeVisible()
   await context.close()

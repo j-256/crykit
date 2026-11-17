@@ -1,3 +1,4 @@
+import { CURRENT_NATIVE_LABEL, CURRENT_GAME_VERSION } from './reference-helpers'
 import { LAUNCH_DATA_GENERATION } from '../src/domain/data-generation'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
@@ -83,7 +84,7 @@ test('exact versions and difficulty preserve other Playthroughs and historical p
   const panel = settings(page)
   await openGameSetupSection(panel, 'Game context')
   await panel.getByRole('combobox', { name: 'Platform', exact: true }).selectOption('Windows')
-  await panel.getByRole('combobox', { name: 'Game version', exact: true }).selectOption('1.6.9')
+  await panel.getByRole('combobox', { name: 'Game version', exact: true }).selectOption(CURRENT_GAME_VERSION)
   await panel.getByRole('combobox', { name: 'Game mode', exact: true }).selectOption('Standard')
   await panel.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('2')
   await openGameSetupSection(panel, 'Rules from game data')
@@ -94,7 +95,7 @@ test('exact versions and difficulty preserve other Playthroughs and historical p
   await expect(panel.getByRole('button', { name: 'Sources for Hard difficulty', exact: true })).toHaveCount(0)
   await panel.getByRole('combobox', { name: 'Platform', exact: true }).selectOption('Linux')
   await panel.getByRole('button', { name: 'Sources for Hard difficulty', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Sources for Hard difficulty', exact: true })).toContainText('PC 1.6.9 game data')
+  await expect(page.getByRole('dialog', { name: 'Sources for Hard difficulty', exact: true })).toContainText(`${CURRENT_NATIVE_LABEL} game data`)
   await page.keyboard.press('Escape')
   await expect(panel.getByText('The calculation rules package has no recorded Game Setup applicability for Linux.', { exact: true })).toBeVisible()
   await panel.getByRole('button', { name: 'Enter exact version', exact: true }).click()

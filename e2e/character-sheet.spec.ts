@@ -1,3 +1,4 @@
+import { CURRENT_GAME_VERSION } from './reference-helpers'
 import { BUNDLED_CATALOGS } from '../src/catalog/bundled'
 import { LAUNCH_DATA_GENERATION } from '../src/domain/data-generation'
 import { openStatBreakdown } from './calculation-presentation-helpers'
@@ -41,7 +42,7 @@ function syntheticLocalData(changedContext = false, nativeCalculations = false):
   }
   if (nativeCalculations) {
     const setupId = asId<GameSetupRevisionId>('synthetic-native-stats-setup')
-    localData = addGameSetupRevision(localData, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID]!, id: setupId, platform: known('Windows'), gameVersion: known('1.6.9.0'), mode: known('Standard'), slots: SUGGESTED_BUILD_SLOTS, activate: true, now: TEST_NOW })
+    localData = addGameSetupRevision(localData, { ...localData.gameSetups[TEST_GAME_SETUP_REVISION_ID]!, id: setupId, platform: known('Windows'), gameVersion: known(CURRENT_GAME_VERSION), mode: known('Standard'), slots: SUGGESTED_BUILD_SLOTS, activate: true, now: TEST_NOW })
     localData = captureCharacter(localData, { characterId: CHARACTER_ID, gameSetupRevisionId: setupId, primaryClass: known(personalRef('Synthetic warrior')), secondaryClass: { state: 'notApplicable' }, level: known(24), displayedStats: { 'Max HP': { value: known(777), unit: 'points' } }, equipment: Object.fromEntries(SUGGESTED_BUILD_SLOTS.map(slot => [slot.id, null])), passives: known([]), now: TEST_NOW })
   }
   // The selected tracked setup must match the intended fixture context after device selections are restored explicitly

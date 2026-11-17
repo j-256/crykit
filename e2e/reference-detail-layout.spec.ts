@@ -1,11 +1,12 @@
-import { openSavedCatalogVersion } from './definition-fixtures'
+import { REFERENCE_EVIDENCE_CATALOG, REFERENCE_EVIDENCE_ENTITIES, evidenceReferencePath, installReferenceEvidence } from './reference-evidence-fixtures'
+import { openSavedSourceVersion } from './definition-fixtures'
 import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 
-const WARRIOR = referencePath('base:job:0')
+const TABLE_CLASS = evidenceReferencePath(REFERENCE_EVIDENCE_ENTITIES.wide)
 
-async function checkDetailLayout(page: Page, desktop: boolean, name = 'Warrior') {
+async function checkDetailLayout(page: Page, desktop: boolean, name = 'Synthetic table class') {
   await expect(page.getByRole('heading', { name: 'Refine', exact: true })).toHaveCount(0)
   const facts = page.getByRole('region', { name: 'Definition facts', exact: true })
   const battle = facts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Battle Skill$/ }) }).filter({ has: page.getByRole('table') })
@@ -70,19 +71,21 @@ async function checkDetailLayout(page: Page, desktop: boolean, name = 'Warrior')
 }
 
 test('gives reference tables the detail width and restores filtered browsing', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
+  await installReferenceEvidence(page)
   await page.goto('/#/reference')
-  await page.getByRole('searchbox', { name: 'Search reference', exact: true }).fill('Warrior')
-  await page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Warrior', exact: true }) }).click()
+  await page.getByRole('searchbox', { name: 'Search reference', exact: true }).fill('Synthetic table class')
+  await page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Synthetic table class', exact: true }) }).click()
   await checkDetailLayout(page, testInfo.project.name === 'desktop')
   await page.getByRole('button', { name: 'Back to results', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Refine', exact: true })).toBeVisible()
-  await expect(page.getByRole('searchbox', { name: 'Search reference', exact: true })).toHaveValue('Warrior')
-  await expect(page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Warrior', exact: true }) })).toBeVisible()
+  await expect(page.getByRole('searchbox', { name: 'Search reference', exact: true })).toHaveValue('Synthetic table class')
+  await expect(page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Synthetic table class', exact: true }) })).toBeVisible()
 })
 
 test('uses the same wide tables and clean headings for personal definitions', { tag: MOBILE_TEST_TAG }, async ({ page }, testInfo) => {
-  await page.goto(WARRIOR)
-  await openSavedCatalogVersion(page, 'base:job:0', 'Synthetic wide Warrior')
+  await installReferenceEvidence(page)
+  await page.goto(TABLE_CLASS)
+  await openSavedSourceVersion(page, REFERENCE_EVIDENCE_CATALOG, REFERENCE_EVIDENCE_ENTITIES.wide.id, 'Synthetic wide Warrior')
   await expect(page.getByRole('heading', { name: 'Synthetic wide Warrior', exact: true })).toBeVisible()
   await checkDetailLayout(page, testInfo.project.name === 'desktop', 'Synthetic wide Warrior')
 })
