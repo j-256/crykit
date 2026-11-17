@@ -1,3 +1,5 @@
+import { CLASS_FIELDS, CRYSTAL_EDIT_FIELDS } from '../domain/crystal-edit'
+import { EQUIPMENT_CATEGORIES } from '../domain/equipment-categories'
 import { MENU_ICON_KEYS, menuIcon } from './sprites'
 import type { CatalogEntity } from '../domain/types'
 
@@ -10,10 +12,18 @@ const EQUIPMENT_ALIASES: Readonly<Record<string, string>> = Object.freeze({
 const EQUIPMENT_FIELDS = new Set(['weapon', 'weapons', 'armor', 'armors', 'accessories', 'category'])
 const SKILL_TYPES = MENU_ICON_KEYS.filter(key => key.startsWith('skill:')).map(key => key.slice('skill:'.length)).sort((left, right) => right.length - left.length)
 
+export function isEquipmentPermissionField(field: string | undefined): boolean {
+  return field === CLASS_FIELDS.equipment || field === CRYSTAL_EDIT_FIELDS.equipment
+}
+
 export function fieldIconKey(field: string, value: string): string | undefined {
   const label = value.trim().toLowerCase().replace(/\s+/g, ' ')
   const name = field.trim().toLowerCase()
-  let key = EQUIPMENT_FIELDS.has(name) ? `equipment:${EQUIPMENT_ALIASES[label] ?? label}`
+  // Native permission names use the same taxonomy for visible icons and their source credits
+  const permissionField = isEquipmentPermissionField(field)
+  const permission = permissionField && Object.hasOwn(EQUIPMENT_CATEGORIES, value) ? EQUIPMENT_CATEGORIES[value as keyof typeof EQUIPMENT_CATEGORIES] : undefined
+  let key = permissionField ? permission ? `equipment:${permission.label.toLowerCase()}` : undefined
+    : EQUIPMENT_FIELDS.has(name) ? `equipment:${EQUIPMENT_ALIASES[label] ?? label}`
     : name === 'element' || name === 'elements' ? `element:${label}`
       : name === 'command' ? `command:${label}`
         : name === 'type' ? `skill:${label}` : undefined
@@ -54,7 +64,8 @@ export function fieldIconKeys(fields: CatalogEntity['fields']): readonly string[
   }
   for (const [field, knowledge] of Object.entries(fields)) {
     if (knowledge.state === 'known') visit(field, knowledge.value)
-    else if (knowledge.state === 'conflicting') knowledge.claims.forEach(claim => visit(field, claim.value))
+    // Competing permission branches remain evidence, not a confirmed equipment allowance
+    else if (knowledge.state === 'conflicting' && !isEquipmentPermissionField(field)) knowledge.claims.forEach(claim => visit(field, claim.value))
   }
   return [...keys]
 }

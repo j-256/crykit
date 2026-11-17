@@ -10,7 +10,7 @@ import { LocalArtworkContext } from './mods/PrivateArtwork'
 import { Sources } from './Sources'
 
 const ICON_SIZE = 24
-const CLASS_ICON_FIELDS = [[CLASS_FIELDS.command, 'Command'], [CRYSTAL_EDIT_FIELDS.command, 'Command'], [CLASS_FIELDS.equipment, 'Weapons'], [CRYSTAL_EDIT_FIELDS.equipment, 'Weapons']] as const
+const CLASS_ICON_FIELDS = [[CLASS_FIELDS.command, 'Command'], [CRYSTAL_EDIT_FIELDS.command, 'Command']] as const
 export { LocalArtworkContext } from './mods/PrivateArtwork'
 
 function IconImage({ icon, iconKey, placeholderKind = 'other' }: { icon: MenuIcon; iconKey: string; placeholderKind?: CatalogEntityKind }) {
