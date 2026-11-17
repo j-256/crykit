@@ -176,39 +176,83 @@ it('retains inline imports and original source bytes in compact archives and pla
   } finally { vi.unstubAllGlobals() }
 })
 
-it.each(['quota', 'interrupted', 'corrupt-readback'] as const)('leaves account selection and originals intact after %s', async fault => {
+it.each(['quota', 'interrupted', 'corrupt-readback', 'corrupt-intent'] as const)('leaves account selection and originals intact after %s', async fault => {
   vi.stubGlobal('__CRYKIT_COMPACT_CATALOG_QUALIFICATION__', true)
-  const { AccountDatabase } = await import('../persistence/account-database')
+  const { AccountDatabase, activateLocalAccountCommit } = await import('../persistence/account-database')
   const { installProfile, invalidateProfile } = await import('../account/profile')
   const { accountLocalId } = await import('./account-cache')
   const { seedManagedWorkspace } = await import('../persistence/managed-sync.test-helpers')
   const { prepareAccountCatalogMigration } = await import('./catalog-migration')
   const stores = await import('./account-local-store')
+  const { IncrementalWorkspaceIntentSchema } = await import('./account-mapping-origin')
+  const { readBlob } = await import('./blobs')
+  const { maxDocumentBytes } = await import('../account/protocol')
   const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32))), database = new AccountDatabase(token.accountId)
+  let migration: Awaited<ReturnType<typeof prepareAccountCatalogMigration>> | undefined
   try {
     const original = await fixture()
     await seedManagedWorkspace(database, token, original.state)
-    const expected = (await database.profileMeta.get('active'))!, previous = new Set(await database.encryptedRevisions.toCollection().primaryKeys())
+    const expected = (await database.profileMeta.get('active'))!
+    const descriptors = await database.encryptedRevisions.toArray(), chunks = await database.stagedCipherChunks.toArray()
+    const journal = await database.migrationJournal.toArray(), heads = await database.documentHeads.toArray()
+    const previous = new Set(descriptors.map(record => record.revisionId))
+    let injected = false, intentRef: import('./local-root').LocalRecordRef | undefined
     const create = stores.createAccountLocalStore
     vi.spyOn(stores, 'createAccountLocalStore').mockImplementation((...args) => {
-      const store = create(...args)
+      const store = create(...args), stage = store.adapter.stage
+      let lastStage: { ref: import('./local-root').LocalRecordRef; source: Parameters<typeof stage>[1] } | undefined
+      store.adapter.stage = async (...args) => {
+        const ref = await stage(...args)
+        lastStage = { ref, source: args[1] }
+        return ref
+      }
       return { ...store, async persistOperation(...args) {
         if (fault === 'quota') throw new DOMException('synthetic quota', 'QuotaExceededError')
         await store.persistOperation(...args)
         if (fault === 'interrupted') throw new Error('synthetic interruption')
-        const changed = (await database.encryptedRevisions.toArray()).find(record => !previous.has(record.revisionId))!
-        const chunk = (await database.stagedCipherChunks.where('payloadId').equals(changed.payloadId).first())!
-        const bytes = chunk.bytes.slice(); bytes[0] ^= 1
-        await database.stagedCipherChunks.put({ ...chunk, bytes })
+        // Random revision ordering can select the separate intent instead of the graph being reopened
+        // Read the producer's plaintext only: pre-admitting ciphertext would change the boundary under test
+        expect(lastStage).toBeDefined()
+        const bytes = await readBlob(lastStage!.source, maxDocumentBytes)
+        let intent: ReturnType<typeof IncrementalWorkspaceIntentSchema.parse>
+        try { intent = IncrementalWorkspaceIntentSchema.parse(JSON.parse(new TextDecoder().decode(bytes))) }
+        finally { bytes.fill(0) }
+        expect(intent.operationId).toBe(args[0])
+        expect(intent.before).toEqual(expected.head)
+        intentRef = lastStage!.ref
+        const target = fault === 'corrupt-intent' ? intentRef : intent.after
+        const changed = (await database.encryptedRevisions.get(target.revisionId))!
+        expect(changed.descriptor.documentId).toBe(target.documentId)
+        expect(previous.has(changed.revisionId)).toBe(false)
+        const chunk = (await database.stagedCipherChunks.get([changed.payloadId, 0]))!
+        expect(chunk.bytes.length).toBeGreaterThan(0)
+        const corrupted = chunk.bytes.slice(); corrupted[0] ^= 1
+        await database.stagedCipherChunks.put({ ...chunk, bytes: corrupted })
+        expect((await database.stagedCipherChunks.get([changed.payloadId, 0]))!.bytes).toEqual(corrupted)
+        injected = true
       } }
     })
-    await expect(prepareAccountCatalogMigration(database, token, expected)).rejects.toThrow()
+    if (fault === 'corrupt-intent') {
+      migration = await prepareAccountCatalogMigration(database, token, expected)
+      expect(injected).toBe(true)
+      expect(migration.prepared.intent).toEqual(intentRef)
+      // The live producer retains intent observations; the atomic activation must recheck their actual bytes
+      await expect(activateLocalAccountCommit(database, token, migration.prepared)).rejects.toThrow('Consumed encrypted bytes changed')
+    } else {
+      await expect(prepareAccountCatalogMigration(database, token, expected)).rejects.toThrow()
+      if (fault === 'corrupt-readback') expect(injected).toBe(true)
+    }
     expect(await database.profileMeta.get('active')).toEqual(expected)
     expect(await database.outbox.count()).toBe(0)
+    expect(await database.migrationJournal.toArray()).toEqual(journal)
+    expect(await database.documentHeads.toArray()).toEqual(heads)
+    expect((await database.encryptedRevisions.toArray()).filter(record => previous.has(record.revisionId))).toEqual(descriptors)
+    const payloads = new Set(descriptors.map(record => record.payloadId))
+    expect((await database.stagedCipherChunks.toArray()).filter(chunk => payloads.has(chunk.payloadId))).toEqual(chunks)
     const store = create(database, token), { admitLocalRoot } = await import('./local-root')
     expect((await admitLocalRoot(store.adapter, expected.head, store.lifetime)).state.planner).toEqual(original.state.planner)
     await store.dispose()
-  } finally { vi.restoreAllMocks(); vi.unstubAllGlobals(); invalidateProfile(); await database.delete() }
+  } finally { await migration?.dispose(); vi.restoreAllMocks(); vi.unstubAllGlobals(); invalidateProfile(); await database.delete() }
 })
 
 it('cancels a blocked compact metadata reader when account preparation is abandoned', async () => {
