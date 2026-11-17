@@ -21,13 +21,14 @@ export async function seedSelectedNativeAccount() {
   } finally { database.close() }
 }
 
-export async function seedQualificationChoices(repository: import('../../src/workspace/repository').WorkspaceRepository, baseline: 'default' | 'guide') {
+export async function seedQualificationChoices(repository: import('../../src/workspace/repository').WorkspaceRepository, baseline: 'default' | 'retained') {
   const { createPersonalDefinition, createPlaythrough, addGameSetupRevision } = await import('../../src/domain/local-data')
   const { upsertProgress } = await import('../../src/domain/characters')
   const { prepareModComposition, composeModCatalog, expandModCatalogs } = await import('../../src/domain/mod-layers')
-  const { DEFAULT_CATALOG, GUIDE_CATALOG } = await import('../../src/catalog/bundled')
-  if (baseline !== 'default' && baseline !== 'guide') throw new Error('Qualification requires an explicit genuine bundled baseline')
-  const catalog = baseline === 'default' ? DEFAULT_CATALOG : GUIDE_CATALOG
+  const { DEFAULT_CATALOG } = await import('../../src/catalog/bundled')
+  const { SYNTHETIC_RETAINED_CATALOG } = await import('../../src/domain/retained-catalog.test-helpers')
+  if (baseline !== 'default' && baseline !== 'retained') throw new Error('Qualification requires an explicit bundled or synthetic retained baseline')
+  const catalog = baseline === 'default' ? DEFAULT_CATALOG : SYNTHETIC_RETAINED_CATALOG
   const before = await repository.readWorkspace()
   const imported = before.planner.catalogs.find(catalog => catalog.schemaVersion === 'crystal-edit-json-1')
   if (!imported) throw new Error('Qualification requires the actual imported source')

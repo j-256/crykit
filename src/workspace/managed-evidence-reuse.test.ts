@@ -226,13 +226,13 @@ it('does not let a later successful decrypt replace pinned installed ciphertext 
 it('upgrades a legacy archive without rewriting its original graph or collapsing native and catalog roles', async () => {
   vi.stubGlobal('__CRYKIT_COMPACT_CATALOG_QUALIFICATION__', true)
   const { store, before, expected, previous, inherited, database, token } = await installedEvidence(true)
-  const { GUIDE_CATALOG } = await import('../catalog/bundled')
+  const { CURRENT_CATALOG } = await import('../catalog/bundled')
   const { captureCompactCatalogSnapshot } = await import('./catalog-capture')
   const { capturedBackupEvidence } = await import('../interchange/workspace-backup-evidence')
   const { guestEvidenceSources, compareGuestEvidence } = await import('./guest-evidence')
   const { memoryBlob, hashBlob, blobIdentity } = await import('./blobs')
   const timestamp = '2026-11-16T00:00:00.000Z'
-  let state = { ...before.state, planner: { ...before.state.planner, catalogs: [GUIDE_CATALOG] } }
+  let state = { ...before.state, planner: { ...before.state.planner, catalogs: [CURRENT_CATALOG] } }
   const capture = () => captureCompactCatalogSnapshot(ownWorkspaceSnapshot({ version: 1, dataGeneration: LAUNCH_DATA_GENERATION, snapshotId: 'compact-addition', capturedAt: timestamp, revisionVector: {}, state }, { async check() { store.lifetime.check() }, async dispose() {} }))
   const catalog = capturedBackupEvidence(await capture()).catalogBodies![0].ref
   const content = memoryBlob(new Uint8Array([11, 12]))

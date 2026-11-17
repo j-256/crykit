@@ -2,15 +2,16 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { hashBlob } from './blobs'
 import { workspaceDocumentSource } from './document-codec'
 import type { JsonValue } from '../domain/types'
-import { GUIDE_CATALOG } from '../catalog/bundled'
+import { CURRENT_CATALOG } from '../catalog/bundled'
+import { SYNTHETIC_RETAINED_CATALOG } from '../domain/retained-catalog.test-helpers'
 import { immutableCatalogSnapshot } from '../interchange/native'
 import { checkpointContentDigest, checkpointContentDigestAsync } from '../domain/checkpoint-identity'
 import { prepareSourcePayloadValidation, sourcePayloadValid } from '../domain/source-fulfillment'
 import { prepareCatalogPayload, encodeCatalogPayload, decodeCatalogPayload } from './catalog-codec'
 
-const fresh = () => immutableCatalogSnapshot(structuredClone(GUIDE_CATALOG))
+const fresh = () => immutableCatalogSnapshot(structuredClone(SYNTHETIC_RETAINED_CATALOG))
 afterEach(() => vi.restoreAllMocks())
-it.each([null, { z: ['é', '\ud800', null, -0, 1.25], a: { y: undefined, x: true } }, GUIDE_CATALOG])('preserves canonical synchronous digest bytes for async preparation %#', async value => {
+it.each([null, { z: ['é', '\ud800', null, -0, 1.25], a: { y: undefined, x: true } }, SYNTHETIC_RETAINED_CATALOG, CURRENT_CATALOG])('preserves canonical synchronous digest bytes for async preparation %#', async value => {
   expect(await checkpointContentDigestAsync(value, () => {})).toBe(checkpointContentDigest(value))
 })
 it('snapshots nested JSON before yielding and separates serialization, encoding, and hashing into tasks', async () => {
@@ -59,7 +60,8 @@ it('validates the complete immutable source before exact-byte compressed prepara
   expect(taskRan).toBe(true)
   expect(check.mock.calls.length).toBeGreaterThan(4)
   expect(sourcePayloadValid(catalog)).toBe(true)
-  expect(sourcePayloadValid(catalog, [])).toBe(false)
+  expect(sourcePayloadValid(catalog, [])).toBe(true)
+  expect(sourcePayloadValid(catalog, [{ id: catalog.id, revisionId: catalog.revisionId, checksum: 'builtin:sha256:' + '0'.repeat(64) }])).toBe(false)
   expect(JSON.stringify(encoded)).toBe(JSON.stringify(expected))
   const frame = (value: typeof catalog) => workspaceDocumentSource({ version: 1, kind: 'catalog', key: 'synthetic-catalog', value: value as unknown as JsonValue })
   expect(await hashBlob(frame(catalog))).toBe(await hashBlob(frame(peer)))
@@ -67,12 +69,12 @@ it('validates the complete immutable source before exact-byte compressed prepara
   expect(decodeCatalogPayload(encoded)).toEqual(catalog)
   expect(() => decodeCatalogPayload({ ...encoded, pages: [...encoded.pages, '!!!!'] })).toThrow()
 })
-it.each(['mutable', 'shallow', 'checksum', 'receipt', 'contents'] as const)('rejects %s source authority without trusting a claimed checksum', async mode => {
-  const catalog = structuredClone(GUIDE_CATALOG)
+it.each(['mutable', 'shallow', 'checksum', 'stale-revision', 'contents'] as const)('rejects %s source authority without trusting a claimed checksum', async mode => {
+  const catalog = structuredClone(SYNTHETIC_RETAINED_CATALOG)
   if (mode === 'shallow') Object.freeze(catalog)
   else if (mode !== 'mutable') {
     if (mode === 'checksum') Object.assign(catalog, { checksum: 'builtin:sha256:' + '0'.repeat(64) })
-    if (mode === 'receipt') Object.assign(catalog, { revisionId: 'v999' })
+    if (mode === 'stale-revision') Object.assign(catalog, { revisionId: 'v999' })
     if (mode === 'contents') {
       const entity = Object.values(catalog.entities)[0]!
       Object.assign(catalog, { entities: { ...catalog.entities, [entity.id]: { ...entity, name: 'Changed source payload' } } })
@@ -118,4 +120,14 @@ it.each(['hash-complete', 'last-page'] as const)('checks late ownership loss aft
     await prepareCatalogPayload(catalog, () => {})
     expect(observed.mock.calls.length).toBeGreaterThan(before)
   }
+})
+
+it.each(['retained', 'packaged-mismatch', 'untrusted-mod'] as const)('keeps synchronous and async source authority identical for %s', async mode => {
+  const { checksum: _checksum, ...original } = SYNTHETIC_RETAINED_CATALOG
+  const content = mode === 'packaged-mismatch' ? { ...original, id: CURRENT_CATALOG.id, revisionId: CURRENT_CATALOG.revisionId }
+    : mode === 'untrusted-mod' ? { ...original, id: 'crystal-project/mod/synthetic-untrusted' as typeof original.id } : original
+  const catalog = immutableCatalogSnapshot({ ...content, checksum: `builtin:sha256:${checkpointContentDigest(content)}` })
+  const valid = mode === 'retained'
+  expect(sourcePayloadValid(catalog)).toBe(valid)
+  expect(await prepareSourcePayloadValidation(immutableCatalogSnapshot(structuredClone(catalog)), () => {})).toBe(valid)
 })

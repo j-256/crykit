@@ -5,7 +5,8 @@ import { createGuestCopyService } from '../workspace/guest-copy'
 import { ownWorkspaceSnapshot, validateWorkspaceSnapshot } from '../workspace/snapshot'
 import { captureCompactCatalogSnapshot } from '../workspace/catalog-capture'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
-import { GUIDE_CATALOG } from '../catalog/bundled'
+import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
+import { SYNTHETIC_PACKAGED_CATALOG } from '../workspace/catalog-writer.test-helpers'
 import { now, progress } from '../workspace/signin-merge.test-helpers'
 import { editorClosureFixture } from '../workspace/test-helpers'
 import { blobIdentity, hashBlob, memoryBlob } from '../workspace/blobs'
@@ -16,6 +17,14 @@ import { inheritWorkspaceSnapshot } from '../interchange/workspace-backup'
 import { openAccountInheritedEvidence, accountInheritedSources } from '../workspace/account-evidence-snapshots'
 import * as comparisons from '../workspace/managed-copy-comparisons'
 
+// Comparison originals deliberately repeat full legacy metadata, independent of catalog scale
+// Declare this bounded source without changing production membership or skipping physical admission
+vi.mock('../catalog/bundled', async importOriginal => {
+  const actual = await importOriginal<typeof import('../catalog/bundled')>()
+  const { SYNTHETIC_PACKAGED_CATALOG } = await import('../workspace/catalog-writer.test-helpers')
+  return { ...actual, BUNDLED_CATALOGS: Object.freeze([...actual.BUNDLED_CATALOGS, SYNTHETIC_PACKAGED_CATALOG]) }
+})
+
 let service: Awaited<ReturnType<typeof conflictService>> | undefined
 afterEach(async () => { await service?.dispose(); service = undefined; vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
@@ -23,14 +32,16 @@ it.each([false, true])('publishes saved editor and Progress originals after prod
   vi.stubGlobal('__CRYKIT_COMPACT_CATALOG_QUALIFICATION__', enabled)
   vi.spyOn(compact, 'compactCatalogWritersEnabled').mockReturnValue(enabled)
   vi.spyOn(comparisons, 'managedComparisonWritesEnabled').mockReturnValue(true)
+  expect(BUNDLED_CATALOGS).toContain(CURRENT_CATALOG)
+  expect(BUNDLED_CATALOGS).toContain(SYNTHETIC_PACKAGED_CATALOG)
   const fixture = await editorClosureFixture()
   const source = { ...progress('local', false), editorDocuments: [fixture.file], blobs: fixture.blobs }
   const content = memoryBlob(new Uint8Array([1, 216]))
   const draft = { ...fixture.file.unfinished.text, revisionId: 'account-draft', byteLength: content.byteLength, sha256: await hashBlob(content) }
   const destination = { ...progress('account'), editorDocuments: [{ ...fixture.file, unfinished: { ...fixture.file.unfinished, text: draft } }], blobs: [...fixture.blobs, { ref: draft, content }] }
   for (const state of [source, destination]) {
-    state.planner = { ...state.planner, catalogs: [GUIDE_CATALOG] }
-    state.libraryDefaults = { version: 1, layers: [{ catalogId: GUIDE_CATALOG.id, catalogRevisionId: GUIDE_CATALOG.revisionId, enabled: true }] }
+    state.planner = { ...state.planner, catalogs: [SYNTHETIC_PACKAGED_CATALOG] }
+    state.libraryDefaults = { version: 1, layers: [{ catalogId: SYNTHETIC_PACKAGED_CATALOG.id, catalogRevisionId: SYNTHETIC_PACKAGED_CATALOG.revisionId, enabled: true }] }
   }
   let collision: { native: import('../workspace/documents').WorkspaceBlobRef; catalog: import('../workspace/documents').WorkspaceBlobRef } | undefined
   if (enabled) {

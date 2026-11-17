@@ -22,10 +22,10 @@ describe('semantic navigation routes', () => {
   it('uses exact current pins with stable IDs and descriptive final segments', () => {
     for (const [id, path] of [
       ['base:item:203', 'item/203/quintar-berries'],
-      ['base:other:ref-909', 'other/ref-909/achievements'],
+      ['base:item:18', 'item/18/tonic'],
     ]) {
       const detail = route({ page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: id as CatalogRef['entityId'] } })
-      expect(formatAppRoute(detail)).toBe(`#/reference/crystal-project/vanilla/v1/${path}`)
+      expect(formatAppRoute(detail)).toBe(`#/reference/crystal-project/vanilla/v3/${path}`)
       expectRoundTrip(detail)
     }
   })
@@ -85,7 +85,7 @@ describe('semantic navigation routes', () => {
   })
 
   it('keeps the exact numeric identity independent of the readable slug', () => {
-    const root = '#/reference/crystal-project/vanilla/v1/'
+    const root = '#/reference/crystal-project/vanilla/v3/'
     const desert = route({ page: 'reference', view: 'detail', ref: { kind: 'catalog', catalogId: DEFAULT_CATALOG.id, catalogRevisionId: DEFAULT_CATALOG.revisionId, entityId: 'base:monster:316' as CatalogRef['entityId'] } })
     expect(formatAppRoute(desert)).toBe(`${root}monster/316/brutish-quintar-desert`)
     expect(parseAppRoute(`${root}monster/316/completely-wrong-name`)).toEqual(desert)

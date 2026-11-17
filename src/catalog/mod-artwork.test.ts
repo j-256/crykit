@@ -58,8 +58,10 @@ describe('source-scoped mod artwork with synthetic assets', () => {
     const job = Object.values(full.entities).find(entity => entity.kind === 'class')!
     const source = job.fields[GAME_RECORD_FIELD]
     if (source?.state !== 'known') throw new Error('Expected synthetic source record')
+    const otherInterpretation = full.revisionId.replace(/-p[1-9][0-9]*$/, '-p999') as typeof full.revisionId
+    expect(otherInterpretation).not.toBe(full.revisionId)
     const variants: CatalogEntity[] = [
-      { ...job, origins: { mechanical: { ...job.origins!.mechanical, catalogRevisionId: full.revisionId.replace(/p1$/, 'p2') as typeof full.revisionId }, text: job.origins!.text } },
+      { ...job, origins: { mechanical: { ...job.origins!.mechanical, catalogRevisionId: otherInterpretation }, text: job.origins!.text } },
       { ...job, kind: 'item' },
       { ...job, fields: { ...job.fields, [MOD_PROJECT_FIELD]: { state: 'known', value: 'crystal-edit:another-project' } } },
       { ...job, fields: { ...job.fields, [GAME_RECORD_FIELD]: { ...source, sources: [{ sourceId: `source:sha256:${'0'.repeat(64)}` }] } } },

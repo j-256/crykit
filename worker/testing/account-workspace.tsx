@@ -77,10 +77,10 @@ const accountBootstrapProof = {
     return (await import('./signin-merge-qualification')).seedSelectedNativeAccount()
   },
   async seedCompactCatalogDestination() {
-    const { GUIDE_CATALOG } = await import('../../src/catalog/bundled')
+    const { CURRENT_CATALOG } = await import('../../src/catalog/bundled')
     const { editorClosureFixture } = await import('../../src/workspace/test-helpers')
     const fixture = await editorClosureFixture(), token = currentProfileToken()!, database = new AccountDatabase(token.accountId)
-    try { await seedManagedWorkspace(database, token, { ...fixture.state, planner: { ...fixture.state.planner, catalogs: [GUIDE_CATALOG] } }) } finally { database.close() }
+    try { await seedManagedWorkspace(database, token, { ...fixture.state, planner: { ...fixture.state.planner, catalogs: [CURRENT_CATALOG] } }) } finally { database.close() }
   },
   async initializeCatalogDevice() {
     const { openAccountRepository } = await import('../../src/workspace/account-repository')
@@ -452,7 +452,7 @@ function WorkspaceProof() {
           progress: Object.values(state.planner.localData.playthroughs).reduce((sum, value) => sum + Object.keys(value.progress).length, 0),
           conflicts: state.conflicts.length }
       },
-      async seedQualificationChoices(baseline: 'default' | 'guide') { return (await import('./signin-merge-qualification')).seedQualificationChoices(workspace.repository, baseline) },
+      async seedQualificationChoices(baseline: 'default' | 'retained') { return (await import('./signin-merge-qualification')).seedQualificationChoices(workspace.repository, baseline) },
       async qualificationEvidence() { return (await import('./signin-merge-qualification')).qualificationEvidence(workspace.repository) },
       async qualifyOldPublishedProgress() { return (await import('./signin-merge-qualification')).qualifyOldPublishedProgress(workspace.repository) },
       async seedGuestProgress(label: string) {

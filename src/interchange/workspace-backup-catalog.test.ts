@@ -2,7 +2,8 @@ import 'fake-indexeddb/auto'
 import { createHash } from 'node:crypto'
 import { afterEach, expect, it, vi } from 'vitest'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
-import { CURRENT_CATALOG, GUIDE_CATALOG } from '../catalog/bundled'
+import { CURRENT_CATALOG } from '../catalog/bundled'
+import { SYNTHETIC_RETAINED_CATALOG } from '../domain/retained-catalog.test-helpers'
 import { createBlankLocalData } from '../domain/local-data'
 import { privateRecordKey } from '../workspace/documents'
 import { workspaceDocumentSource } from '../workspace/document-codec'
@@ -57,7 +58,7 @@ it('rejects missing, orphan, and contradictory compact catalog registries', asyn
   await expect(readWorkspaceBackup(archive({ ...f.raw, state: { ...f.raw.state, planner: { ...f.raw.state.planner, catalogs: [] } } }, [doc]))).rejects.toThrow()
 })
 it('keeps legacy and compact historical metadata flat with distinct exact identities offline', async () => {
-  const f = await fixture(), legacy = { ...f.raw, version: 1, state: { ...f.raw.state, planner: { ...f.raw.state.planner, catalogs: [GUIDE_CATALOG] } } } as Record<string, unknown>
+  const f = await fixture(), legacy = { ...f.raw, version: 1, state: { ...f.raw.state, planner: { ...f.raw.state.planner, catalogs: [SYNTHETIC_RETAINED_CATALOG] } } } as Record<string, unknown>
   delete legacy.catalogBodies
   const id = (value: unknown, version: number) => { const digest = createHash('sha256').update(`crykit/historical-snapshot/v${version}\0`); for (const page of encodeBackupJson(value)) digest.update(page); return digest.digest('hex') }
   const members = [{ format: 'legacy-v1', id: id(legacy, 1), raw: legacy }, { format: 'compact-v2', id: id(f.raw, 2), raw: f.raw }].sort((a, b) => `${a.format}:${a.id}`.localeCompare(`${b.format}:${b.id}`))
@@ -105,15 +106,14 @@ it('preserves source-evidence projected associations and original native byte or
 })
 
 it('preserves ordered inline imports, explicit unknowns, and retained source catalogs together', async () => {
-  const { GUIDE_CATALOG } = await import('../catalog/bundled')
   const { previewCrystalEdit } = await import('./crystal-edit')
   const imported = (await previewCrystalEdit(new TextEncoder().encode(JSON.stringify({ ID: 'synthetic-compact-inline', EditorVersion: 34, Items: [] })), 'synthetic.json')).proposed.catalogs[0]!
   const f = await fixture()
-  const catalogs = [{ kind: 'inline-catalog', snapshot: GUIDE_CATALOG }, f.raw.state.planner.catalogs[0], { kind: 'inline-catalog', snapshot: imported }]
+  const catalogs = [{ kind: 'inline-catalog', snapshot: SYNTHETIC_RETAINED_CATALOG }, f.raw.state.planner.catalogs[0], { kind: 'inline-catalog', snapshot: imported }]
   const raw = { ...f.raw, state: { ...f.raw.state, planner: { ...f.raw.state.planner, catalogs } } }
   const opened = await readWorkspaceBackup(archive(raw, [await bodyDocument(f)]))
   try {
-    expect(opened.state.planner.catalogs).toEqual([GUIDE_CATALOG, CURRENT_CATALOG, imported])
+    expect(opened.state.planner.catalogs).toEqual([SYNTHETIC_RETAINED_CATALOG, CURRENT_CATALOG, imported])
     expect(snapshotMetadata(opened).state.planner.catalogs).toEqual(catalogs)
   } finally { await disposeWorkspaceSnapshot(opened) }
 })
