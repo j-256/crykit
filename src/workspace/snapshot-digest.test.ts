@@ -1,11 +1,11 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { GUIDE_CATALOG } from '../catalog/bundled'
+import { SYNTHETIC_RETAINED_CATALOG } from '../domain/retained-catalog.test-helpers'
 import { getSodium } from '../account/crypto/sodium'
 import { assertActiveProfile, installProfile, invalidateProfile } from '../account/profile'
 import { backupMetadataDigest, backupWorkspaceDocumentDigest } from './snapshot'
 import { captureWorkspaceDocument } from './documents'
 
-const document = () => captureWorkspaceDocument('catalog', 'synthetic-catalog', GUIDE_CATALOG)
+const document = () => captureWorkspaceDocument('catalog', 'synthetic-catalog', SYNTHETIC_RETAINED_CATALOG)
 afterEach(() => { vi.restoreAllMocks(); invalidateProfile() })
 const forceSlices = () => { let time = 0; vi.spyOn(performance, 'now').mockImplementation(() => time += 20) }
 
@@ -18,7 +18,7 @@ it('yields real tasks while preserving exact legacy token-page digest and immuta
   expect(timerRan).toBe(true)
   expect(actual).toBe(expected)
   expect(check.mock.calls.length).toBeGreaterThan(2)
-  expect(Reflect.set(GUIDE_CATALOG, 'id', 'mutated-catalog')).toBe(false)
+  expect(Reflect.set(SYNTHETIC_RETAINED_CATALOG, 'id', 'mutated-catalog')).toBe(false)
 })
 
 it.each(['owner', 'profile', 'cancel'] as const)('rejects %s revocation between task slices and clears its hash state once', async cause => {
@@ -37,7 +37,7 @@ it.each(['owner', 'profile', 'cancel'] as const)('rejects %s revocation between 
 
 it('retains scheduling for unbranded mutable catalogs and other document kinds', async () => {
   const check = vi.fn(async () => {}), input = document()
-  const mutable = { ...input, value: structuredClone(GUIDE_CATALOG) as never }
+  const mutable = { ...input, value: structuredClone(SYNTHETIC_RETAINED_CATALOG) as never }
   forceSlices()
   expect(await backupWorkspaceDocumentDigest(mutable, check)).toBe(await backupMetadataDigest(mutable))
   expect(await backupWorkspaceDocumentDigest({ version: 1, kind: 'history', key: 'synthetic-history', value: { text: 'unchanged' } }, check)).toBe(await backupMetadataDigest({ version: 1, kind: 'history', key: 'synthetic-history', value: { text: 'unchanged' } }))

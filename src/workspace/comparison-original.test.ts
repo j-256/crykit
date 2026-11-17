@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { GUIDE_CATALOG } from '../catalog/bundled'
+import { CURRENT_CATALOG } from '../catalog/bundled'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { compactHistoricalIdentity, historicalSourceIdentity } from '../interchange/workspace-backup-catalog'
 import { metadataSource, readBackupMetadata } from '../interchange/workspace-backup-evidence'
@@ -14,7 +14,7 @@ async function fixture() {
   vi.stubGlobal('__CRYKIT_COMPACT_CATALOG_QUALIFICATION__', true)
   let live = true
   const state = progress('local', false)
-  const source = ownWorkspaceSnapshot({ version: 1, dataGeneration: LAUNCH_DATA_GENERATION, snapshotId: 'original', capturedAt: now, revisionVector: {}, state: { ...state, planner: { ...state.planner, catalogs: [GUIDE_CATALOG] } } }, { async check() { if (!live) throw new Error('Released original') }, async dispose() { live = false } })
+  const source = ownWorkspaceSnapshot({ version: 1, dataGeneration: LAUNCH_DATA_GENERATION, snapshotId: 'original', capturedAt: now, revisionVector: {}, state: { ...state, planner: { ...state.planner, catalogs: [CURRENT_CATALOG] } } }, { async check() { if (!live) throw new Error('Released original') }, async dispose() { live = false } })
   const snapshot = await captureCompactCatalogSnapshot(source), current = await capturedCopyOriginal(snapshot)
   const sources = guestEvidenceSources(await guestEvidenceForCopy(snapshot))
   const identity = await historicalSourceIdentity(current.format, current.metadata)

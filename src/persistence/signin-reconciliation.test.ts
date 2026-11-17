@@ -1245,9 +1245,9 @@ it('releases a warm module when account inspection fails', async () => {
 
 
 it('cancels real account capture between catalog digest slices without changing durable selection', async () => {
-  const { GUIDE_CATALOG } = await import('../catalog/bundled')
+  const { SYNTHETIC_RETAINED_CATALOG } = await import('../domain/retained-catalog.test-helpers')
   const initial = workspace(createBlankLocalData({ now }))
-  const f = await setup(progress('guest'), { ...initial, planner: { ...initial.planner, catalogs: [GUIDE_CATALOG] } })
+  const f = await setup(progress('guest'), { ...initial, planner: { ...initial.planner, catalogs: [SYNTHETIC_RETAINED_CATALOG] } })
   const snapshots = await import('../workspace/snapshot'), original = snapshots.backupWorkspaceDocumentDigest
   const controller = f.create()
   let cancellation: Promise<void> | undefined, selected: unknown, intents: unknown, journals: unknown

@@ -527,7 +527,9 @@ test('v6 mod receipts require viewer-owned exact content and interpretation', { 
 
 test('changed interpretation receipts refuse same-content imports without changing local records', { tag: MOBILE_TEST_TAG }, async ({ page, baseURL }) => {
   const { text, payload, source } = await portableModFixture()
-  const changed = JSON.parse(JSON.stringify(payload).replaceAll(source.revisionId, source.revisionId.replace(/-p1$/, '-p2'))) as PublicSnapshot
+  const otherInterpretation = source.revisionId.replace(/-p[1-9][0-9]*$/, '-p999')
+  expect(otherInterpretation).not.toBe(source.revisionId)
+  const changed = JSON.parse(JSON.stringify(payload).replaceAll(source.revisionId, otherInterpretation)) as PublicSnapshot
   await page.goto(createPublicShareUrl(changed, `${baseURL}/`))
   await expect(page.getByRole('heading', { name: payload.title, exact: true }).first()).toBeVisible()
   await openShareSources(page)

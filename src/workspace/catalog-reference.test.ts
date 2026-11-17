@@ -47,12 +47,12 @@ it('binds every reference field and rejects lookalike registry capabilities', as
 })
 
 it('rejects authenticated frames with foreign keys, malformed pages, expanded overflow, or changed contents under the same pins', async () => {
-  const { GUIDE_CATALOG } = await import('../catalog/bundled')
+  const { SYNTHETIC_RETAINED_CATALOG } = await import('../domain/retained-catalog.test-helpers')
   const { encodeCatalogPayload } = await import('./catalog-codec')
   const { encodeBackupPage } = await import('../interchange/workspace-backup-compression')
   const { maxDocumentBytes } = await import('../account/protocol')
   const { memoryBlob } = await import('./blobs')
-  const catalog = GUIDE_CATALOG, encoded = encodeCatalogPayload(catalog)
+  const catalog = SYNTHETIC_RETAINED_CATALOG, encoded = encodeCatalogPayload(catalog)
   const key = privateRecordKey('catalog', catalog.id, catalog.revisionId)
   const frame = (value: unknown, frameKey: string) => {
     const payload = new TextEncoder().encode(JSON.stringify(value)), metadata = new TextEncoder().encode(JSON.stringify({ version: 1, kind: 'catalog', key: frameKey, encoding: 'json', byteLength: payload.length }))

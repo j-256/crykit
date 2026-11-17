@@ -16,6 +16,13 @@ import { editorClosureFixture } from './test-helpers'
 import { MappedWorkspaceIntentSchema } from './account-intents'
 import { readCopiedConflicts } from './copied-conflicts'
 
+// Keep production membership intact while giving isolated writer contracts a bounded exact source
+vi.mock('../catalog/bundled', async importOriginal => {
+  const actual = await importOriginal<typeof import('../catalog/bundled')>()
+  const { SYNTHETIC_PACKAGED_CATALOG } = await import('./catalog-writer.test-helpers')
+  return { ...actual, BUNDLED_CATALOGS: Object.freeze([...actual.BUNDLED_CATALOGS, SYNTHETIC_PACKAGED_CATALOG]) }
+})
+
 const databases: AccountDatabase[] = []
 afterEach(async () => { invalidateProfile(); for (const database of databases.splice(0)) await database.delete() })
 async function setup(source: WorkspaceState, destination = workspace(createBlankLocalData({ now }))) {
@@ -300,14 +307,14 @@ it('publishes a self-contained Progress identity association and rejects forged 
 })
 it('recopies compact Progress comparisons with exact source bindings and independent retained catalog bodies', async () => {
   vi.stubGlobal('__CRYKIT_COMPACT_CATALOG_QUALIFICATION__', true)
-  const { GUIDE_CATALOG } = await import('../catalog/bundled')
+  const { SYNTHETIC_PACKAGED_CATALOG } = await import('./catalog-writer.test-helpers')
   const { preparePublicationAttempt } = await import('../account/sync/publication')
   const { openRemoteProjection } = await import('../account/sync/projection')
   const { prepareCopiedConflictPublication } = await import('./copied-conflicts')
   const { validateWorkspaceClosure, archiveTypedReferences } = await import('./closure')
   const { hashBlob, blobIdentity } = await import('./blobs')
   const { GuestCopyJournalSchema } = await import('./guest-copy-journal')
-  const withCatalog = (state: WorkspaceState): WorkspaceState => ({ ...state, planner: { ...state.planner, catalogs: [GUIDE_CATALOG] }, libraryDefaults: { version: 1, layers: [{ catalogId: GUIDE_CATALOG.id, catalogRevisionId: GUIDE_CATALOG.revisionId, enabled: true }] } })
+  const withCatalog = (state: WorkspaceState): WorkspaceState => ({ ...state, planner: { ...state.planner, catalogs: [SYNTHETIC_PACKAGED_CATALOG] }, libraryDefaults: { version: 1, layers: [{ catalogId: SYNTHETIC_PACKAGED_CATALOG.id, catalogRevisionId: SYNTHETIC_PACKAGED_CATALOG.revisionId, enabled: true }] } })
   const source = withCatalog(progress('local', false)), destination = withCatalog(progress('account'))
   const { token, database, service } = await setup(source, destination)
   try {

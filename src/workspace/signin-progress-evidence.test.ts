@@ -29,7 +29,7 @@ it.each(['complete', 'missing-catalog', 'changed-catalog', 'late-catalog-failure
   const { vi } = await import('vitest')
   vi.stubGlobal('__CRYKIT_COMPACT_CATALOG_QUALIFICATION__', true)
   try {
-    const { GUIDE_CATALOG } = await import('../catalog/bundled')
+    const { CURRENT_CATALOG } = await import('../catalog/bundled')
     const { captureCompactCatalogSnapshot } = await import('./catalog-capture')
     const { ownWorkspaceSnapshot } = await import('./snapshot')
     const { capturedCopyOriginal } = await import('./guest-evidence')
@@ -38,7 +38,7 @@ it.each(['complete', 'missing-catalog', 'changed-catalog', 'late-catalog-failure
     const { blobIdentity, readBlob, memoryBlob } = await import('./blobs')
     const fixture = await editorClosureFixture(), destination = progress('account')
     const source = { ...progress('local', false), editorDocuments: [fixture.file], blobs: fixture.blobs }
-    source.planner = { ...source.planner, catalogs: [GUIDE_CATALOG] }
+    source.planner = { ...source.planner, catalogs: [CURRENT_CATALOG] }
     const snapshot = await captureCompactCatalogSnapshot(ownWorkspaceSnapshot({ version: 1, dataGeneration: LAUNCH_DATA_GENERATION, snapshotId: 'compact-progress', capturedAt: now, revisionVector: {}, state: source }, { async check() {}, async dispose() {} }))
     const member = await capturedCopyOriginal(snapshot), identity = await historicalSourceIdentity(member.format, member.metadata)
     const originalCatalogBodies = [...capturedBackupEvidence(snapshot).catalogBodies!]

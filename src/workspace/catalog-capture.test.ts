@@ -1,19 +1,49 @@
 import 'fake-indexeddb/auto'
 import { expect, it, vi } from 'vitest'
+import { BUNDLED_CATALOGS, CURRENT_CATALOG } from '../catalog/bundled'
+import { SYNTHETIC_PACKAGED_CATALOG } from './catalog-writer.test-helpers'
+import { SYNTHETIC_RETAINED_CATALOG } from '../domain/retained-catalog.test-helpers'
+import { sourcePayloadValid } from '../domain/source-fulfillment'
 import { compactCatalogEvidenceFixture } from './catalog-evidence.test-helpers'
 import { ownWorkspaceSnapshot, snapshotMetadata, disposeWorkspaceSnapshot } from './snapshot'
 import { captureCompactCatalogSnapshot } from './catalog-capture'
 import { capturedBackupEvidence, equalMetadataStreams, inheritWorkspaceSnapshot, historicalEvidenceId } from '../interchange/workspace-backup-evidence'
 import { exportWorkspaceBackup, readWorkspaceBackup } from '../interchange/workspace-backup'
 
-async function fixture() {
-  const f = await compactCatalogEvidenceFixture()
+// Keep production membership intact while giving isolated writer contracts a bounded exact source
+vi.mock('../catalog/bundled', async importOriginal => {
+  const actual = await importOriginal<typeof import('../catalog/bundled')>()
+  const { SYNTHETIC_PACKAGED_CATALOG } = await import('./catalog-writer.test-helpers')
+  return { ...actual, BUNDLED_CATALOGS: Object.freeze([...actual.BUNDLED_CATALOGS, SYNTHETIC_PACKAGED_CATALOG]) }
+})
+
+async function fixture(catalog = SYNTHETIC_PACKAGED_CATALOG) {
+  const f = await compactCatalogEvidenceFixture(false, catalog)
   return ownWorkspaceSnapshot({ ...f.legacy.raw, state: { ...f.legacy.raw.state, blobs: [] } }, { async check() {}, async dispose() {} })
 }
 it('leaves production captures unchanged while the writer capability is disabled', async () => {
   const source = await fixture()
   expect(await captureCompactCatalogSnapshot(source)).toBe(source)
 })
+it('requires declared membership and exact encoded body even for a valid retained source', async () => {
+  vi.stubGlobal('__CRYKIT_COMPACT_CATALOG_QUALIFICATION__', true)
+  try {
+    expect(BUNDLED_CATALOGS).toContain(CURRENT_CATALOG)
+    expect(BUNDLED_CATALOGS).toContain(SYNTHETIC_PACKAGED_CATALOG)
+    expect(BUNDLED_CATALOGS).not.toContain(SYNTHETIC_RETAINED_CATALOG)
+    const inline = await captureCompactCatalogSnapshot(await fixture(SYNTHETIC_RETAINED_CATALOG))
+    try {
+      expect(snapshotMetadata(inline).state.planner.catalogs[0]).toMatchObject({ kind: 'inline-catalog' })
+      expect(capturedBackupEvidence(inline).catalogBodies).toEqual([])
+    } finally { await disposeWorkspaceSnapshot(inline) }
+    const reordered = Object.fromEntries(Object.entries(SYNTHETIC_PACKAGED_CATALOG).reverse()) as unknown as typeof SYNTHETIC_PACKAGED_CATALOG
+    expect(sourcePayloadValid(reordered)).toBe(true)
+    const source = await fixture(reordered)
+    try { await expect(captureCompactCatalogSnapshot(source)).rejects.toThrow('Packaged catalog frame differs from the exact bundled body') }
+    finally { await disposeWorkspaceSnapshot(source) }
+  } finally { vi.unstubAllGlobals() }
+})
+
 it('captures exact bundled references and shares one fallback across new inherited captures', async () => {
   vi.stubGlobal('__CRYKIT_COMPACT_CATALOG_QUALIFICATION__', true)
   try {

@@ -6,10 +6,10 @@ import { waitForPlannerReady } from './local-data-helpers'
 const DESERT_PATH = referencePath('base:monster:316')
 const PUN_STORM_PATH = syntheticReferencePath(1, 'Abilities', 9002, 'Synthetic Technique')
 
-test('native and supplemental entries use exact current catalog routes directly', async ({ page }) => {
+test('native entries use exact current catalog routes directly', async ({ page }) => {
   for (const [path, name] of [
-    ['/#/reference/crystal-project/vanilla/v1/item/203/quintar-berries', 'Quintar Berries'],
-    ['/#/reference/crystal-project/vanilla/v1/other/ref-909/achievements', 'Achievements'],
+    ['/#/reference/crystal-project/vanilla/v3/item/203/quintar-berries', 'Quintar Berries'],
+    ['/#/reference/crystal-project/vanilla/v3/item/18/tonic', 'Tonic'],
   ]) {
     await page.goto(path)
     await expect(page.getByRole('heading', { name, exact: true })).toBeVisible()
@@ -62,7 +62,7 @@ test('a wrong slug resolves by ID and normalizes without an extra history entry'
 test('mod names survive nested search routes', async ({ page }) => {
   await importSyntheticLibrary(page)
   await page.goto(PUN_STORM_PATH)
-  await expect(page).toHaveURL(/\/crystal-project\/imported\/ce1-[a-f0-9]{64}\/j1-[a-f0-9]{64}-p1\/ability\/9002\/synthetic-technique$/)
+  await expect(page).toHaveURL(/\/crystal-project\/imported\/ce1-[a-f0-9]{64}\/j1-[a-f0-9]{64}-p3\/ability\/9002\/synthetic-technique$/)
   await page.getByRole('button', { name: /^(Search|Search CryKit)$/ }).filter({ visible: true }).click()
   await expect(page).toHaveURL(/\/9002\/synthetic-technique\/search$/)
   await page.reload()

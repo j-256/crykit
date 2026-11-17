@@ -9,7 +9,7 @@ import { accountTableDigests, mergeInstallationBoundary } from './signin-qualifi
 const app = '/__accounts-proof/account-workspace.html'
 const password = 'synthetic complete original merge qualification password'
 
-test('small GUIDE Merge preserves originals across devices and isolates old nested Progress refusal', async ({ page, browser, accountOrigin }, testInfo) => {
+test('small retained-source Merge preserves originals across devices and isolates old nested Progress refusal', async ({ page, browser, accountOrigin }, testInfo) => {
   test.skip(process.env.CRYKIT_MANAGED_COMPARISON_QUALIFICATION !== '1', 'Requires explicit synthetic comparison capability')
   test.setTimeout(180_000)
   expect(process.env.CRYKIT_OLD_MAPPING_WORKER_PATH, 'The original preservation journey also requires the immutable old reader assets').toBeTruthy()
