@@ -1,3 +1,4 @@
+import { assertBytePagesEqual } from './byte-pages.test-helpers'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -76,7 +77,7 @@ it('independently reopens exact original token pages and native subset order und
   expect(retained.root).toEqual(prepared.root)
   await retained.dispose()
   const sources = await evidence.accountInheritedSources(reopened)
-  expect(await pages(sources.members[0].metadata)).toEqual(expected)
+  assertBytePagesEqual(await pages(sources.members[0].metadata), expected)
   expect(sources.members[0].subset).toEqual(historical.state.blobs.map(body => body.ref))
   expect(sources.bodies.map(body => body.ref.documentId)).toEqual([...sources.bodies.map(body => body.ref.documentId)].sort())
   const raw = await readBackupMetadata(sources.members[0].metadata) as import('../interchange/workspace-backup-evidence').SnapshotMetadataV1
@@ -166,7 +167,7 @@ it('retains installed originals without allocating ciphertext and stages only an
   const reopened = await evidence.openAccountInheritedEvidence(database, token, added.root)
   const sources = await evidence.accountInheritedSources(reopened)
   const originals = new Map([...capturedBackupEvidence(snapshot).historical, ...capturedBackupEvidence(addition).historical])
-  for (const member of sources.members) expect(await pages(member.metadata)).toEqual(await pages(originals.get(member.id)!))
+  for (const member of sources.members) assertBytePagesEqual(await pages(member.metadata), await pages(originals.get(member.id)!))
   await reopened.dispose(); await disposeWorkspaceSnapshot(snapshot); await disposeWorkspaceSnapshot(addition)
 })
 
@@ -366,7 +367,7 @@ it('unions independently installed archives while retaining base subset bindings
   expect(reopened.members).toHaveLength(2)
   const sources = await evidence.accountInheritedSources(reopened)
   const originals = new Map([...capturedBackupEvidence(snapshot).historical, ...capturedBackupEvidence(addition).historical])
-  for (const member of sources.members) expect(await pages(member.metadata)).toEqual(await pages(originals.get(member.id)!))
+  for (const member of sources.members) assertBytePagesEqual(await pages(member.metadata), await pages(originals.get(member.id)!))
   await reopened.dispose(); await disposeWorkspaceSnapshot(snapshot); await disposeWorkspaceSnapshot(addition)
 })
 
@@ -442,7 +443,7 @@ it.each(['subset-root', 'subset-child', 'metadata-page', 'metadata-segment', 'bo
     }
     expect(opened.map(value => value.members.length)).toEqual([1, 1])
     const originals = new Map(snapshots.flatMap(snapshot => [...capturedBackupEvidence(snapshot).historical]))
-    for (const handle of opened) for (const member of (await evidence.accountInheritedSources(handle)).members) expect(await pages(member.metadata)).toEqual(await pages(originals.get(member.id)!))
+    for (const handle of opened) for (const member of (await evidence.accountInheritedSources(handle)).members) assertBytePagesEqual(await pages(member.metadata), await pages(originals.get(member.id)!))
     union = await prepareAccountEvidenceUnion(database, token, inputRoots[0], inputRoots[1])
     const copiedLeaves = union.prepared.records.filter(record => record.descriptor.dependencies.length === 0)
     expect(copiedLeaves).toHaveLength(overlap.startsWith('subset') ? 0 : 1)
@@ -452,7 +453,7 @@ it.each(['subset-root', 'subset-child', 'metadata-page', 'metadata-segment', 'bo
     expect(result.members.map(value => value.id)).toEqual([...originals.keys()].sort())
     const output = await evidence.accountInheritedSources(result)
     for (const member of output.members) {
-      expect(await pages(member.metadata)).toEqual(await pages(originals.get(member.id)!))
+      assertBytePagesEqual(await pages(member.metadata), await pages(originals.get(member.id)!))
       const original = snapshots.find(snapshot => snapshot.historicalEvidence.snapshots[0].id === member.id)!
       expect(member.subset).toEqual(original.state.blobs.map(body => body.ref))
     }
@@ -535,7 +536,7 @@ it.each(['subset-root', 'subset-child', 'metadata-page', 'metadata-segment'] as 
     expect(opened.map(handle => handle.members.length)).toEqual([1, 1])
     expect(opened[0].members[0].id).not.toBe(opened[1].members[0].id)
     const originals = new Map(snapshots.flatMap(snapshot => [...capturedBackupEvidence(snapshot).historical]))
-    for (const handle of opened) for (const member of (await evidence.accountInheritedSources(handle)).members) expect(await pages(member.metadata)).toEqual(await pages(originals.get(member.id)!))
+    for (const handle of opened) for (const member of (await evidence.accountInheritedSources(handle)).members) assertBytePagesEqual(await pages(member.metadata), await pages(originals.get(member.id)!))
     union = await prepareAccountEvidenceUnion(database, token, leftRef, rightRef)
     await database.encryptedRevisions.bulkAdd([...union.prepared.records])
     const result = await evidence.openAccountInheritedEvidence(database, token, union.prepared.root)
@@ -543,7 +544,7 @@ it.each(['subset-root', 'subset-child', 'metadata-page', 'metadata-segment'] as 
     expect(result.members.map(member => member.id)).toEqual([...originals.keys()].sort())
     const sources = await evidence.accountInheritedSources(result)
     for (const member of sources.members) {
-      expect(await pages(member.metadata)).toEqual(await pages(originals.get(member.id)!))
+      assertBytePagesEqual(await pages(member.metadata), await pages(originals.get(member.id)!))
       const snapshot = snapshots.find(value => value.historicalEvidence.snapshots[0].id === member.id)!
       expect(member.subset).toEqual(snapshot.state.blobs.map(body => body.ref))
     }
@@ -731,7 +732,7 @@ it('bounds many small original token pages across members without losing their b
   const prepared = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ additions: [snapshot] })
   await database.encryptedRevisions.bulkAdd([...prepared.records])
   const reopened = await evidence.openAccountInheritedEvidence(database, token, prepared.root)
-  for (const member of (await evidence.accountInheritedSources(reopened)).members) expect(await pages(member.metadata)).toEqual(await pages(members.find(value => value.id === member.id)!.metadata))
+  for (const member of (await evidence.accountInheritedSources(reopened)).members) assertBytePagesEqual(await pages(member.metadata), await pages(members.find(value => value.id === member.id)!.metadata))
   await reopened.dispose()
   const before = await database.stagedCipherChunks.toArray()
   let readPages = 0
@@ -1511,7 +1512,7 @@ it('snapshots original stream references before asynchronous ownership checks an
   const sources = await evidence.accountInheritedSources(prepared.handle)
   expect(sources.bodies.some(body => body.ref.documentId === 'current-only')).toBe(false)
   expect(sources.bodies.filter(body => body.ref.revisionId === 'same-bytes')).toHaveLength(2)
-  for (const member of sources.members) expect(await pages(member.metadata)).toEqual(await pages(originals.get(member.id)!))
+  for (const member of sources.members) assertBytePagesEqual(await pages(member.metadata), await pages(originals.get(member.id)!))
   await prepared.dispose(); await disposeWorkspaceSnapshot(snapshot)
 })
 
@@ -2094,7 +2095,7 @@ it('prepares exact captured sidecar sources directly and rejects structural or r
     expect(prepared.handle.members).toEqual(snapshot.historicalEvidence.snapshots)
     const sources = await evidence.accountInheritedSources(prepared.handle)
     const expected = capturedBackupEvidence(snapshot)
-    for (const member of sources.members) expect(await pages(member.metadata)).toEqual(await pages(expected.historical.get(member.id)!))
+    for (const member of sources.members) assertBytePagesEqual(await pages(member.metadata), await pages(expected.historical.get(member.id)!))
     for (const body of sources.bodies) expect(await readBlob(body.content, body.ref.byteLength)).toEqual(await readBlob(expected.blobs.find(value => blobIdentity(value.ref) === blobIdentity(body.ref))!.content, body.ref.byteLength))
     const forged = evidence.createAccountInheritedEvidencePreparation(database, token)
     try { await expect(forged.prepare({ sourceEvidence: { ...sourceEvidence } })).rejects.toThrow(/captured/) }
