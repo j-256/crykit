@@ -1,3 +1,4 @@
+import { CURRENT_NATIVE_LABEL, CURRENT_GAME_VERSION } from './reference-helpers'
 import { waitForPlannerReady, openBuildGameSetup } from './local-data-helpers'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { expect, test, type Page } from '@playwright/test'
@@ -9,7 +10,7 @@ async function choose(page: Page, label: string, name: string) {
   const input = page.getByRole('combobox', { name: label, exact: true }).filter({ visible: true })
   await input.fill(name)
   const expected = label === 'Sub-command' ? new RegExp(`\\(${name}\\)$`) : new RegExp(`^${name}$`)
-  const choice = page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: expected }) })
+  const choice = page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: expected }) })
   await choice.click()
   await expect(input).toHaveValue(expected)
 }
@@ -31,7 +32,7 @@ test('creates and equips four members from a Team and retains them after reload 
   await page.getByRole('combobox', { name: /^Choose shared setup/ }).selectOption({ label: 'Sample starter Game Setup · r1' })
   await openBuildGameSetup(page)
   await page.getByRole('combobox', { name: 'Copy Game Setup', exact: true }).selectOption('vanilla')
-  await page.getByRole('combobox', { name: 'Game version', exact: true }).selectOption({ label: '1.6.9' })
+  await page.getByRole('combobox', { name: 'Game version', exact: true }).selectOption({ label: CURRENT_GAME_VERSION })
   await page.locator('.build-behavior > summary').click()
   await page.getByRole('textbox', { name: 'Team name' }).fill('Audit Expedition')
   for (const [index, member] of members.entries()) {
@@ -136,7 +137,7 @@ test('explains hand conflicts beside slots and retains saved equipment without a
   await expect(list).toContainText('hidden by equipment conflicts')
   await openBuildPickerFilters(page)
   await list.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
-  const sword = list.getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Diamond Sword$/ }) })
+  const sword = list.getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: /^Diamond Sword$/ }) })
   await expect(sword).toContainText('Dual Wield')
   await sword.click()
   await expect(page.locator('.slot-entry').filter({ has: offhand }).locator('.build-field-issues')).toContainText('Dual Wield')

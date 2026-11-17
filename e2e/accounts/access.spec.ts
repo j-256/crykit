@@ -1,3 +1,4 @@
+import { CURRENT_NATIVE_LABEL } from '../reference-helpers'
 import { finishAccountSignin } from './signin-helpers'
 import { GUEST_COORDINATOR_DATABASE } from '../../src/persistence/storage-names'
 import { expectPrimedSignInRateLimit, nativeCredentialQuota, prepareAccountProofCache } from './network-fixture'
@@ -475,7 +476,7 @@ test('leaving mounted Account during sign-in cancels late activation and keeps g
     await page.getByRole('textbox', { name: 'Build title', exact: true }).fill(title)
     await expect(page.getByRole('region', { name: 'Build import recovery', exact: true })).toHaveCount(0)
     await page.getByRole('combobox', { name: 'Class', exact: true }).filter({ visible: true }).fill('Wizard')
-    await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.6.9.0' }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
+    await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: /^Wizard$/ }) }).click()
     await page.getByRole('button', { name: 'Save build', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Save new revision', exact: true })).toBeVisible()
     expect(Object.values((await readLocalData(page)).builds).some(build => build.title === title)).toBe(true)

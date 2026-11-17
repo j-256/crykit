@@ -1,6 +1,6 @@
+import { CURRENT_NATIVE_LABEL, CURRENT_NATIVE_SOURCE_LABEL, currentReferencePath, referencePath } from './reference-helpers'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { currentReferencePath, referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { waitForPlannerReady } from './local-data-helpers'
 import { expect, test } from '@playwright/test'
@@ -94,7 +94,7 @@ test('native enemy facts, separate steal rates, identity links, and offline scop
   await page.goto(SLIME_PATH)
   await expect(page.getByRole('heading', { name: 'Slime', exact: true })).toBeVisible()
   const details = page.getByRole('region', { name: 'Game details', exact: true })
-  await expect(page.locator('.reference-card__meta')).toContainText('PC 1.7.0.1')
+  await expect(page.locator('.reference-card__meta')).toContainText(CURRENT_NATIVE_LABEL)
   const facts = page.getByRole('region', { name: 'Definition facts', exact: true })
   await expect(facts.locator('.sources-trigger')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Refine', exact: true })).toHaveCount(0)
@@ -108,8 +108,9 @@ test('native enemy facts, separate steal rates, identity links, and offline scop
   const sourceTrail = page.getByRole('dialog', { name: 'Sources for Slime', exact: true })
   await expect(sourceTrail).toHaveCount(0)
   await sourceTrigger.click()
-  await sourceTrail.getByText('Related source entries', { exact: true }).click()
-  await expect(sourceTrail.getByRole('button', { name: 'Slime', exact: true })).toBeVisible()
+  await expect(sourceTrail.getByText(CURRENT_NATIVE_SOURCE_LABEL, { exact: true })).toBeVisible()
+  await expect(sourceTrail).toContainText('Database/monster.dat/2; native monster ID 2')
+  await expect(sourceTrail.getByText('Related source entries', { exact: true })).toHaveCount(0)
   await page.keyboard.press('Escape')
   await expect(sourceTrail).toHaveCount(0)
   await expect(sourceTrigger).toBeFocused()
@@ -199,17 +200,17 @@ test('legacy build pickers prefer the native base and retain one reconciled Cure
   await page.getByRole('button', { name: 'Mira: sample Cleric', exact: true }).click()
   await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Cleric')
   const classes = page.getByRole('listbox', { name: 'Choose Class', exact: true })
-  const cleric = classes.getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Cleric$/ }) })
+  const cleric = classes.getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: /^Cleric$/ }) })
   await expect(cleric).toHaveCount(1)
-  await expect(cleric).toContainText('PC 1.7.0.1')
+  await expect(cleric).toContainText(CURRENT_NATIVE_LABEL)
   await cleric.click()
   await page.getByRole('button', { name: 'Checks & Notes', exact: true }).click()
   await page.getByText('Ability and hit-chance preview', { exact: true }).click()
   await page.getByRole('combobox', { name: 'Preview ability', exact: true }).fill('Cure')
   const abilities = page.getByRole('listbox', { name: 'Choose Preview ability', exact: true })
-  const cure = abilities.getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Cure(?: \(Vanilla mode\))?$/ }) })
+  const cure = abilities.getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: /^Cure(?: \(Vanilla mode\))?$/ }) })
   await expect(cure).toHaveCount(1)
-  await expect(cure).toContainText('PC 1.7.0.1')
+  await expect(cure).toContainText(CURRENT_NATIVE_LABEL)
   await openBuildPickerFilters(page)
   await abilities.getByText('Broader planning options', { exact: true }).click()
   await page.getByLabel('Include other sources and mode variants', { exact: true }).check()

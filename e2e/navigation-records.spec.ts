@@ -1,3 +1,4 @@
+import { CURRENT_NATIVE_SOURCE_ID, CURRENT_NATIVE_SOURCE_LABEL } from './reference-helpers'
 import { importSyntheticLibrary, SYNTHETIC_LIBRARY_ROOTS } from './mod-library-fixtures'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { modContentFingerprint } from '../src/interchange/mod-content'
@@ -180,7 +181,8 @@ test('reference source options remain readable, bounded, and exact', { tag: MOBI
   await page.getByRole('button', { name: 'Source', exact: true }).click()
   const sourceSearch = page.getByRole('searchbox', { name: 'Search reference sources', exact: true })
   const sources = page.getByRole('group', { name: 'Reference source filters', exact: true })
-  const nativeSource = sources.getByRole('button', { name: /^Windows 1\.6\.9 game files\. Full source: native-game:windows:1\.6\.9\. \d+ matches$/ })
+  const escapedNativeSource = `${CURRENT_NATIVE_SOURCE_LABEL}. Full source: ${CURRENT_NATIVE_SOURCE_ID}. `.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const nativeSource = sources.getByRole('button', { name: new RegExp(`^${escapedNativeSource}\\d+ matches$`) })
   if (!isMobile) {
     const viewport = page.viewportSize()!
     const facetPanel = page.locator('.facet-panel')
@@ -231,6 +233,6 @@ test('reference source options remain readable, bounded, and exact', { tag: MOBI
   await sourceSearch.fill(sourceId)
   await expect(sources.getByRole('button', { name: new RegExp(`^${sourceId}\\. Full source: ${sourceId}\\. \\d+ matches$`) })).toBeVisible()
   // This facet searches extraction provenance rather than projected gameplay labels
-  await sourceSearch.fill('Windows 1.6.9')
+  await sourceSearch.fill(CURRENT_NATIVE_SOURCE_LABEL)
   await expect(nativeSource).toBeVisible()
 })

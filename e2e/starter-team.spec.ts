@@ -1,3 +1,4 @@
+import { CURRENT_NATIVE_LABEL, CURRENT_GAME_VERSION } from './reference-helpers'
 import { checkpointBuildView } from '../src/domain/team-checkpoints'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
@@ -72,7 +73,7 @@ test('a fresh guest can explore and edit the sample team, then reopen it offline
   const picker = page.getByRole('listbox', { name: 'Choose Main hand', exact: true })
   await openBuildPickerFilters(page)
   await picker.getByRole('checkbox', { name: 'Hide known equipment conflicts', exact: true }).uncheck()
-  await picker.getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Rapier$/ }) }).click()
+  await picker.getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: /^Rapier$/ }) }).click()
   await page.getByRole('button', { name: 'Save new revision', exact: true }).click()
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
   const saved = await exportLocalData(page)
@@ -205,7 +206,7 @@ test('PC game data remains scoped when a team uses Switch 1.6.6', async ({ page 
   await openCurrentGameSetup(panel)
   await openGameSetupSection(panel, 'Game context')
   await panel.getByLabel('Platform', { exact: true }).selectOption('Windows')
-  await panel.getByLabel('Game version', { exact: true }).selectOption('1.6.9')
+  await panel.getByLabel('Game version', { exact: true }).selectOption(CURRENT_GAME_VERSION)
   await panel.getByLabel('Game mode', { exact: true }).selectOption('Standard')
   await saveAndApplyGameSetup(panel)
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
@@ -238,7 +239,7 @@ test('PC game data remains scoped when a team uses Switch 1.6.6', async ({ page 
   const switchTeam = await createTeam('Synthetic Switch context')
   const scope = switchTeam.locator('.validation-group').filter({ hasText: 'Compatibility has not been verified' })
   await scope.locator('summary').click()
-  await expect(scope).toContainText('Game Setup applicability has not been recorded for Nintendo Switch 1.6.6. Reference facts retain the pinned PC 1.7.0.1 source scope.')
+  await expect(scope).toContainText(`Game Setup applicability has not been recorded for Nintendo Switch 1.6.6. Reference facts retain the pinned ${CURRENT_NATIVE_LABEL} source scope.`)
   await scope.getByRole('button', { name: 'Review setup', exact: true }).click()
   await expect(panel.getByLabel('Platform', { exact: true })).toHaveValue('Nintendo Switch')
   await expect(panel.getByLabel('Game version', { exact: true })).toBeFocused()

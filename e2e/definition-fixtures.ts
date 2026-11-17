@@ -7,7 +7,7 @@ import { savedCatalogVersion } from '../src/domain/legacy-definition.test-helper
 import { createPersonalDefinition } from '../src/domain/local-data'
 import { personalDefinitionRef } from '../src/domain/definitions'
 import { formatEntityRefPath } from '../src/ui/navigation'
-import type { EntityId, LocalData, PersonalDefinition, PersonalDefinitionId } from '../src/domain/types'
+import type { CatalogSnapshot, EntityId, LocalData, PersonalDefinition, PersonalDefinitionId } from '../src/domain/types'
 
 export async function readPlannerData(page: Page): Promise<LocalData> {
   await expect(page.getByText('Saved locally', { exact: true })).toBeAttached()
@@ -42,6 +42,11 @@ export async function openSavedCatalogVersion(page: Page, entityId: string, name
   const baseline = setup?.modComposition?.baseline
   const catalog = BUNDLED_CATALOGS.find(candidate => baseline ? candidate.id === baseline.catalogId && candidate.revisionId === baseline.catalogRevisionId : setup?.catalogLock[candidate.id] === candidate.revisionId)
   if (!catalog) throw new Error('The fixture has no pinned bundled base catalog')
+  return openSavedSourceVersion(page, catalog, entityId, name, values)
+}
+
+export async function openSavedSourceVersion(page: Page, catalog: CatalogSnapshot, entityId: string, name: string, values: Pick<Parameters<typeof savedCatalogVersion>[2], 'fields' | 'aliases'> = {}) {
+  const source = await readPlannerData(page)
   const saved = savedCatalogVersion(source, [catalog], { sourceRef: { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: entityId as EntityId }, name, ...values })
   return storeFixture(page, saved.localData, saved.definition)
 }

@@ -1,3 +1,4 @@
+import { CURRENT_NATIVE_LABEL } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expect, test, type Page } from '@playwright/test'
 
@@ -13,7 +14,7 @@ const SHORT_DESKTOP_VIEWPORT_HEIGHTS = [720, 480]
 async function choose(page: Page, label: string, name: string) {
   const field = page.getByRole('combobox', { name: label, exact: true })
   await field.fill(name)
-  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
+  await page.getByRole('listbox', { name: `Choose ${label}`, exact: true }).getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: new RegExp(`^${name}$`) }) }).click()
 }
 
 async function railControlGeometry(page: Page) {
@@ -113,7 +114,7 @@ test('team and library summaries show every equipment slot and PP crystal', { ta
   await expect(miraOffHand.locator('.wiki-sprite, .game-icon, .artwork-placeholder')).toHaveCSS('filter', 'grayscale(1)')
   await expect(miraOffHand.locator('.wiki-sprite, .game-icon, .artwork-placeholder')).toHaveCSS('opacity', '0.46')
   const sol = page.getByRole('region', { name: 'Build Library', exact: true }).locator('.build-card').filter({ hasText: 'Sol: sample Wizard' })
-  await expect(sol.locator('[data-tooltip^="Main hand: Oak Wand"]')).toHaveAttribute('data-tooltip', 'Main hand: Oak Wand\nOne-handed\nAttack: +42\nMind: +12\nMax. MP: +4\nCost: 60 copper')
+  await expect(sol.locator('[data-tooltip^="Main hand: Oak Wand"]')).toHaveAttribute('data-tooltip', 'Main hand: Oak Wand\nOne-handed\nAttack: +42\nMax. MP: +4\nMind: +12\nCost: 60 copper')
 
   await page.getByRole('button', { name: 'Compare Revisions', exact: true }).click()
   await page.getByLabel('Revision A').selectOption({ index: 1 })

@@ -1,3 +1,4 @@
+import { CURRENT_NATIVE_LABEL, CURRENT_GAME_VERSION, referencePath } from './reference-helpers'
 import { crystalEditSourceKey } from '../src/interchange/source-identity'
 import { formatCatalogSourceId, CATALOG_GAME } from '../src/domain/source-identity'
 import { openStatBreakdown } from './calculation-presentation-helpers'
@@ -13,7 +14,6 @@ import { createPersonalDefinition } from '../src/domain'
 import { CRYSTAL_PROJECT_WORKSHOP_URL } from '../src/domain/mod-workshop'
 import { expectOfflineReady } from './offline-helpers'
 import { openBuildGameSetup, openGameSetupSection, waitForPlannerReady, selectedGuestPlannerName, readLocalData as storedData } from './local-data-helpers'
-import { referencePath } from './reference-helpers'
 import { createHash } from 'node:crypto'
 import { readManagedGuestWorkspace } from './guest-planner-reader'
 import { blobIdentity } from '../src/workspace/blobs'
@@ -430,7 +430,7 @@ test.describe('saves editor revisions into Mods, derives rules, and preserves pi
     await expect(mod).toContainText('Version 1')
     await page.goto('/#/builds/library/new')
     await openBuildGameSetup(page)
-    await page.getByRole('combobox', { name: 'Game version', exact: true }).selectOption('1.6.9')
+    await page.getByRole('combobox', { name: 'Game version', exact: true }).selectOption(CURRENT_GAME_VERSION)
     await page.getByRole('combobox', { name: 'Difficulty', exact: true }).selectOption('0')
     await page.locator('.game-setup-base-details > summary').click()
     await page.getByRole('combobox', { name: 'Game mode', exact: true }).selectOption('Vanilla')
@@ -444,7 +444,7 @@ test.describe('saves editor revisions into Mods, derives rules, and preserves pi
     await expect(page.locator('.game-setup-derived')).toContainText('TwoHandedPAtkFlat')
     await expect(page.locator('.game-setup-derived')).toContainText('80')
     await page.getByRole('combobox', { name: 'Class', exact: true }).fill('Warrior')
-    await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: 'PC 1.7.0.1' }).filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
+    await page.getByRole('listbox', { name: 'Choose Class', exact: true }).getByRole('option').filter({ hasText: CURRENT_NATIVE_LABEL }).filter({ has: page.locator('strong', { hasText: /^Warrior$/ }) }).click()
     await expect(page.getByText('Balance mode: vanilla · from Game Setup', { exact: true })).toBeVisible()
     await expect(page.getByRole('combobox', { name: 'PC balance mode', exact: true })).toHaveCount(0)
     await page.getByRole('combobox', { name: 'Equipped passive 1', exact: true }).fill('Synthetic unarmed')
