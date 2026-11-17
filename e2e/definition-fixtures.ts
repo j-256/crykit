@@ -1,3 +1,4 @@
+import { retainFixtureCatalog } from './fixture-catalogs'
 import { strFromU8, unzipSync, zipSync } from 'fflate'
 import { readFile } from 'node:fs/promises'
 import { replacePlannerData, readLocalData } from './local-data-helpers'
@@ -14,7 +15,7 @@ export async function readPlannerData(page: Page): Promise<LocalData> {
   return readLocalData(page)
 }
 
-async function storeFixture(page: Page, localData: LocalData, definition: PersonalDefinition) {
+async function storeFixture(page: Page, localData: LocalData, definition: PersonalDefinition, sourceCatalog?: CatalogSnapshot) {
   const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))
   await page.goto('/#/settings/data')
   const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
@@ -25,8 +26,9 @@ async function storeFixture(page: Page, localData: LocalData, definition: Person
   if (!path) throw new Error('The fixture backup download did not finish')
   const files = unzipSync(await readFile(path))
   const bundle = JSON.parse(strFromU8(files['bundle.json']!))
-  // Keep the exact catalog and source receipts while replacing only synthetic planner state
-  files['bundle.json'] = encode({ ...bundle, localData: { ...localData, changes: [] }, history: [] })
+  const catalogs = sourceCatalog ? retainFixtureCatalog(bundle.catalogs, sourceCatalog) : bundle.catalogs
+  // Preserve source receipts while supplying the exact source needed by the new synthetic reference
+  files['bundle.json'] = encode({ ...bundle, catalogs, localData: { ...localData, changes: [] }, history: [] })
   const archive = zipSync(files)
   await panel.getByLabel('Choose import file', { exact: true }).setInputFiles({ name: 'synthetic-saved-definition.zip', mimeType: 'application/zip', buffer: Buffer.from(archive) })
   await replacePlannerData(panel)
@@ -48,7 +50,7 @@ export async function openSavedCatalogVersion(page: Page, entityId: string, name
 export async function openSavedSourceVersion(page: Page, catalog: CatalogSnapshot, entityId: string, name: string, values: Pick<Parameters<typeof savedCatalogVersion>[2], 'fields' | 'aliases'> = {}) {
   const source = await readPlannerData(page)
   const saved = savedCatalogVersion(source, [catalog], { sourceRef: { kind: 'catalog', catalogId: catalog.id, catalogRevisionId: catalog.revisionId, entityId: entityId as EntityId }, name, ...values })
-  return storeFixture(page, saved.localData, saved.definition)
+  return storeFixture(page, saved.localData, saved.definition, catalog)
 }
 
 export async function openCustomDefinition(page: Page, name = 'Synthetic custom sword') {
