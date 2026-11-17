@@ -1,5 +1,5 @@
 import { openSavedCatalogVersion, readPlannerData } from './definition-fixtures'
-import { referencePath } from './reference-helpers'
+import { CURRENT_NATIVE_SOURCE_ID, CURRENT_NATIVE_SOURCE_LABEL, referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 import { expectOfflineReady } from './offline-helpers'
 import { skipInitialModSetup, openBuildGameSetup, selectedPlaythrough } from './local-data-helpers'
@@ -257,8 +257,17 @@ test('native personal class versions retain external attribution and exact sourc
   const sources = page.getByRole('dialog', { name: 'Sources for Synthetic personal Warrior', exact: true })
   await expect(sources).toHaveCount(0)
   await trigger.click()
-  await expect(sources.getByRole('link', { name: 'Community wiki · Warrior', exact: true })).toBeVisible()
-  await expect(sources.getByText('Crystal Edit vanilla class export', { exact: true })).toBeVisible()
+  expect(saved.sources.some(source => source.sourceId === CURRENT_NATIVE_SOURCE_ID)).toBe(true)
+  await expect(sources).toContainText(CURRENT_NATIVE_SOURCE_LABEL)
+  await expect(sources).toContainText('original definition')
+  await expect(sources.getByRole('heading', { name: 'Sources for menu icons', level: 4, exact: true })).toBeVisible()
+  for (const [name, file, revision] of [['swords', 'SwordAbilityIcon', '2786'], ['axes', 'AxeAbilityIcon', '2773'], ['daggers', 'DaggerAbilityIcon', '2777'], ['spears', 'SpearAbilityIcon', '2779'], ['Battle Skill', 'BattleSkillIcon', '2590']] as const) {
+    const credit = sources.getByRole('link', { name, exact: true })
+    await expect(credit).toHaveAttribute('href', `https://crystal-project.fandom.com/wiki/File%3A${file}.png?oldid=${revision}`)
+    await expect(credit.locator('..')).toContainText('No reviewed license declaration on the wiki file page')
+  }
+  await expect(sources.getByRole('link', { name: 'Community wiki · Warrior', exact: true })).toHaveCount(0)
+  await expect(sources.getByText('Crystal Edit vanilla class export', { exact: true })).toHaveCount(0)
   await expect(sources.getByText('Native job #0', { exact: true })).toHaveCount(0)
   await expect(sources.locator('pre.native-source-record')).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

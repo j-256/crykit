@@ -1,11 +1,19 @@
 import { openCustomDefinition } from './definition-fixtures'
 import { referencePath } from './reference-helpers'
 import { expectOfflineReady } from './offline-helpers'
-import { waitForPlannerReady } from './local-data-helpers'
+import { readLocalData, replacePlannerFixture, waitForPlannerReady } from './local-data-helpers'
+import { syntheticCatalog } from '../src/workspace/test-helpers'
+import { sourcePayloadValid } from '../src/domain/source-fulfillment'
+import type { CatalogEntity } from '../src/domain/types'
+import { CURRENT_CATALOG } from '../src/catalog/bundled'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import gameArtwork from '../src/catalog/game-artwork.json' with { type: 'json' }
 
 const COIN_ARTWORK = { gold: gameArtwork.uiArtwork.goldCoin.asset, silver: gameArtwork.uiArtwork.silverCoin.asset, copper: gameArtwork.uiArtwork.copperCoin.asset }
+const MONEY_SOURCES = [{ sourceId: 'https://money.example.test/synthetic-shop', locator: 'Synthetic shop and crafting notes' }]
+const MONEY_SHOP: CatalogEntity = { id: 'synthetic:money-shop' as CatalogEntity['id'], name: 'Synthetic coin shop', kind: 'location', aliases: [], sources: MONEY_SOURCES, fields: { 'Table: Shop': { state: 'known', value: [{ Item: 'Stout Shield', 'Cost (copper)': 30 }], sources: MONEY_SOURCES } } }
+const MONEY_DESCRIPTION: CatalogEntity = { id: 'synthetic:money-description' as CatalogEntity['id'], name: 'Synthetic crafting recipe', kind: 'item', aliases: [], sources: MONEY_SOURCES, fields: {}, rawDescription: 'Synthetic crafting fee: 30 silver. Silver Bow x1; Gold Ingot x3.' }
+const MONEY_CATALOG = syntheticCatalog('browser-money-evidence', undefined, { [MONEY_SHOP.id]: MONEY_SHOP, [MONEY_DESCRIPTION.id]: MONEY_DESCRIPTION })
 
 function costRow(page: Page) {
   return page.getByRole('region', { name: 'Definition facts', exact: true }).locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Cost \(copper\)$/ }) })
@@ -55,13 +63,21 @@ test('whole and mixed coin prices use local icons and remain available offline',
 })
 
 test('shop tables and descriptions show coins while custom editing retains copper units', async ({ page }) => {
-  await page.goto(referencePath('base:location:ref-246'))
+  // Authored shop and recipe text exercise formatting without claiming removed native acquisition data
+  expect(MONEY_CATALOG.id).not.toBe(CURRENT_CATALOG.id)
+  expect(sourcePayloadValid(MONEY_CATALOG)).toBe(true)
+  await page.goto('/#/reference')
+  await waitForPlannerReady(page)
+  await replacePlannerFixture(page, await readLocalData(page), [MONEY_CATALOG])
+  await page.goto(referencePath(MONEY_SHOP.id, MONEY_CATALOG.id, MONEY_CATALOG.revisionId, MONEY_SHOP.name))
   const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'Stout Shield', exact: true }) })
   await expect(row.getByRole('img', { name: '30 copper', exact: true })).toBeVisible()
   await loadedCoins(row, 1)
 
-  await page.goto(referencePath('base:equipment:149'))
-  const description = page.locator('.reference-description').getByRole('region', { name: 'Description', exact: true })
+  await page.goto(referencePath(MONEY_DESCRIPTION.id, MONEY_CATALOG.id, MONEY_CATALOG.revisionId, MONEY_DESCRIPTION.name))
+  const description = page.locator('.reference-description')
+  await expect(description).toHaveCount(1)
+  await expect(description).toContainText('Synthetic crafting fee:')
   await expect(description.getByRole('img', { name: '30 silver', exact: true })).toBeVisible()
   await loadedCoins(description, 1)
   await expect(description).toContainText('Silver Bow x1')

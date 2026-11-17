@@ -23,6 +23,7 @@ export const REFERENCE_EVIDENCE_ENTITIES = {
   equivalent: entity('synthetic:equivalent-item', 'Synthetic agreed blade', { Location: { state: 'known', value: 'Drop: synthetic guardian in the northern ruins', sources: REFERENCE_EVIDENCE_SOURCES } }),
   effects: entity('synthetic:effect-item', 'Synthetic original effects', { Effect: claims(ORIGINAL_EFFECTS) }),
   description: entity('synthetic:description-item', 'Synthetic attributed item', { Description: { state: 'known', value: IMPORTED_DESCRIPTION, sources: [REFERENCE_EVIDENCE_SOURCES[0]!] } }, 'item', IMPORTED_DESCRIPTION),
+  contributions: { ...entity('synthetic:contribution-item', 'Synthetic listed contribution', {}, 'item'), listedContributions: { Defense: { state: 'known' as const, value: { value: 18, unit: 'listed flat value' }, sources: [REFERENCE_EVIDENCE_SOURCES[0]!] } } },
   wide: entity('synthetic:wide-class', 'Synthetic table class', {
     'Table: Battle Skill': { state: 'known', value: [{ Ability: 'Synthetic strike', Cost: '4 AP', Effect: 'Synthetic observed effect' }], sources: [{ ...REFERENCE_EVIDENCE_SOURCES[0]!, locator: 'Synthetic class > Battle Skill' }] },
     'Table: Passives 2': { state: 'known', value: [{ Passive: 'Synthetic guard', PP: 2, Effect: 'Synthetic passive effect' }], sources: [{ ...REFERENCE_EVIDENCE_SOURCES[1]!, locator: 'Synthetic class > Passives' }] },
@@ -35,7 +36,7 @@ void ignoredChecksum
 const content = { ...base, claims: Object.values(REFERENCE_EVIDENCE_ENTITIES).flatMap(record => Object.entries(record.fields).flatMap(([field, value]) => value.state === 'conflicting' ? value.claims.map(claim => ({ entityId: record.id, field, value: { state: 'known' as const, value: claim.value, sources: claim.sources }, sources: claim.sources })) : [])) }
 export const REFERENCE_EVIDENCE_CATALOG: CatalogSnapshot = { ...content, checksum: `payload:sha256:${checkpointContentDigest(content)}` }
 export function evidenceReferencePath(record: CatalogEntity): string {
-  return referencePath(record.id, REFERENCE_EVIDENCE_CATALOG.id, REFERENCE_EVIDENCE_CATALOG.revisionId)
+  return referencePath(record.id, REFERENCE_EVIDENCE_CATALOG.id, REFERENCE_EVIDENCE_CATALOG.revisionId, record.name)
 }
 
 export async function installReferenceEvidence(page: Page) {

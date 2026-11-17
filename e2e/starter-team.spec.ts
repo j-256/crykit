@@ -2,7 +2,7 @@ import { CURRENT_NATIVE_LABEL, CURRENT_GAME_VERSION } from './reference-helpers'
 import { checkpointBuildView } from '../src/domain/team-checkpoints'
 import { openBuildPickerFilters } from './build-picker-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { skipInitialModSetup, openCurrentGameSetup, saveAndApplyGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection } from './local-data-helpers'
+import { skipInitialModSetup, openCurrentGameSetup, saveAndApplyGameSetup, selectedPlaythrough, chooseFourTeamMembers, createBlankPlaythrough, openGameSetupSection, readLocalData } from './local-data-helpers'
 import { expectOfflineReady } from './offline-helpers'
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
@@ -200,7 +200,7 @@ test('sample team uncertainty uses plain language and targeted actions', async (
   await expect(team.getByRole('button', { name: 'Import reference data', exact: true })).toHaveCount(0)
 })
 
-test('PC game data remains scoped when a team uses Switch 1.6.6', async ({ page }) => {
+test('the Switch 1.6.6 proxy stays scoped away from unsupported versions', async ({ page }) => {
   await page.goto('/#/settings/game-setup?scope=playthrough')
   const panel = page.getByRole('region', { name: 'Data & Settings', exact: true })
   await openCurrentGameSetup(panel)
@@ -237,10 +237,30 @@ test('PC game data remains scoped when a team uses Switch 1.6.6', async ({ page 
   await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
   await page.goto('/#/builds/teams')
   const switchTeam = await createTeam('Synthetic Switch context')
-  const scope = switchTeam.locator('.validation-group').filter({ hasText: 'Compatibility has not been verified' })
+  await expect(switchTeam.getByText('Compatibility has not been verified', { exact: true })).toHaveCount(0)
+  const beforeUnsupported = await readLocalData(page)
+  const switchScenario = Object.values(selectedPlaythrough(beforeUnsupported).scenarios).find(scenario => scenario.label === 'Synthetic Switch context')!
+  expect(switchScenario).toBeDefined()
+  const switchSetup = beforeUnsupported.gameSetups[switchScenario.gameSetupRevisionId]!
+  expect(switchSetup.platform).toEqual({ state: 'known', value: 'Nintendo Switch' })
+  expect(switchSetup.gameVersion).toEqual({ state: 'known', value: '1.6.6' })
+  await page.goto('/#/settings/game-setup?scope=playthrough')
+  await openCurrentGameSetup(panel)
+  await openGameSetupSection(panel, 'Game context')
+  await panel.getByRole('button', { name: 'Enter exact version', exact: true }).click()
+  await panel.getByLabel('Exact game version', { exact: true }).fill('synthetic-2.0')
+  await saveAndApplyGameSetup(panel)
+  await panel.getByRole('link', { name: 'Back to previous page', exact: true }).click()
+  await page.goto('/#/builds/teams')
+  const unsupportedTeam = await createTeam('Synthetic unsupported Switch context')
+  const afterUnsupported = await readLocalData(page)
+  for (const scenario of Object.values(selectedPlaythrough(beforeUnsupported).scenarios)) expect(selectedPlaythrough(afterUnsupported).scenarios[scenario.id]).toEqual(scenario)
+  expect(afterUnsupported.gameSetups[switchSetup.id]).toEqual(switchSetup)
+  const scope = unsupportedTeam.locator('.validation-group').filter({ hasText: 'Compatibility has not been verified' })
   await scope.locator('summary').click()
-  await expect(scope).toContainText(`Game Setup applicability has not been recorded for Nintendo Switch 1.6.6. Reference facts retain the pinned ${CURRENT_NATIVE_LABEL} source scope.`)
+  await expect(scope).toContainText(`Game Setup applicability has not been recorded for Nintendo Switch synthetic-2.0. Reference facts retain the pinned ${CURRENT_NATIVE_LABEL} source scope.`)
   await scope.getByRole('button', { name: 'Review setup', exact: true }).click()
   await expect(panel.getByLabel('Platform', { exact: true })).toHaveValue('Nintendo Switch')
+  await expect(panel.getByLabel('Game version', { exact: true })).toHaveValue('synthetic-2.0')
   await expect(panel.getByLabel('Game version', { exact: true })).toBeFocused()
 })
