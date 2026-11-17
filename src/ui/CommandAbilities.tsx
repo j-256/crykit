@@ -18,6 +18,12 @@ import { nativeTarget, previewAbilityGroups } from './preview-ability-groups'
 import { Sources } from './Sources'
 
 const COST_RESOURCES = ['HP', 'MP', 'AP', 'CT', 'CD'] as const
+const DESCRIPTION_GAP_LABELS: Readonly<Record<string, string>> = {
+  'Ability power formula': 'power formulas',
+  'Ability defense and scaling details': 'defense and scaling',
+  'Ability combat details': 'combat details',
+  'Weapon type scope details': 'weapon restrictions',
+}
 
 function abilityCost(definition: DefinitionOption['record']): string {
   const field = definition.fields.Cost
@@ -48,8 +54,12 @@ export function CommandAbilities({ option, command, localData, catalogs, gameSet
       // Native effect text omits scaling formulas; retain authored descriptions for those gaps with their evidence
       const useDescription = !native || native.unresolved.includes('Ability power formula') || native.unresolved.includes('Weapon type scope details')
       const descriptionField = useDescription ? definition.fields.Description : undefined
-      const description = useDescription ? descriptionField ? compactKnowledge(descriptionField) : nativeDisplayDescription(definition) : undefined
-      const lines = [...new Set([...(description?.split(/\r?\n/).filter(Boolean) ?? []), ...selectionSummaryLines(details).filter(line => !/^cost:/i.test(line))])]
+      // An absent authored description says nothing about whether an ability's effects apply
+      const description = useDescription ? descriptionField ? descriptionField.state === 'notApplicable' ? undefined : compactKnowledge(descriptionField) : nativeDisplayDescription(definition) : undefined
+      // Coverage gaps belong to the corroborated renderer, not to the game's underlying mechanics
+      const gaps = [...new Set(native?.unresolved.map(gap => DESCRIPTION_GAP_LABELS[gap] ?? 'other effects') ?? [])]
+      const coverage = gaps.length ? `Description does not fully cover: ${gaps.join('; ')}.` : undefined
+      const lines = [...new Set([...(description?.split(/\r?\n/).filter(Boolean) ?? []), ...selectionSummaryLines(details).filter(line => !/^cost:/i.test(line)), ...(coverage ? [coverage] : [])])]
       const target = catalog && !definition.fields['Crystal Edit source record'] && 'legacy' in definition ? { catalog, entity: definition } : undefined
       const shownFields = { Cost: definition.fields.Cost, Description: descriptionField }
       const sources = [...Object.entries(shownFields).flatMap(([field, value]) => {

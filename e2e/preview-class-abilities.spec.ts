@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page, type Locator } from '@playwright/test'
 import { createBlankPlaythrough, skipInitialModSetup } from './local-data-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
 
@@ -18,7 +18,17 @@ async function openPreview(page: Page) {
   }
 }
 
-test('class inspection lists command abilities with costs and accessible effect previews', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }) => {
+async function expectPreviewInViewport(page: Page, popup: Locator) {
+  const bounds = await popup.boundingBox()
+  const viewport = page.viewportSize()!
+  expect(bounds).not.toBeNull()
+  expect(bounds!.x).toBeGreaterThanOrEqual(0)
+  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width)
+  expect(bounds!.y).toBeGreaterThanOrEqual(0)
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height)
+}
+
+test('class inspection lists command abilities with costs and accessible effect previews', { tag: MOBILE_TEST_TAG }, async ({ page, isMobile }, testInfo) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await page.goto('/')
@@ -40,8 +50,13 @@ test('class inspection lists command abilities with costs and accessible effect 
   await cure.focus()
   const popup = page.getByRole('tooltip')
   await expect(popup).toBeVisible()
-  await expect(popup).toContainText('Recovery: 50 + 1.5 Spi')
-  await expect(popup).toContainText('Can use out of combat.')
+  await expect(popup).toContainText('Single target magic.')
+  await expect(popup).toContainText('Description does not fully cover: power formulas; defense and scaling; combat details.')
+  await expect(popup).not.toContainText('Not applicable')
+  await expect(popup).not.toContainText('Recovery:')
+  await expect(popup).not.toContainText('Can use out of combat.')
+  await expectPreviewInViewport(page, popup)
+  await page.screenshot({ path: testInfo.outputPath('native-cure-description.png') })
   await expect(cure).toBeFocused()
   await cure.press('Escape')
   await expect(popup).not.toBeVisible()
@@ -52,13 +67,15 @@ test('class inspection lists command abilities with costs and accessible effect 
   await expect(popup).toContainText('Inflict: Spotlight for 2 turns.')
   await expect(popup).toContainText('Take 35% more Fire damage.')
   if (!isMobile) { await popup.hover(); await expect(popup).toBeVisible() }
-  const bounds = await popup.boundingBox()
-  const viewport = page.viewportSize()!
-  expect(bounds!.x).toBeGreaterThanOrEqual(0)
-  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width)
-  expect(bounds!.y).toBeGreaterThanOrEqual(0)
-  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height)
+  await expectPreviewInViewport(page, popup)
   await page.keyboard.press('Escape')
+  await expect(popup).not.toBeVisible()
+  const blackout = abilities.getByRole('button', { name: 'Blackout details', exact: true })
+  await blackout.focus()
+  await expect(popup).toBeVisible()
+  await expect(popup).toContainText('Immune to Fire damage.')
+  await expectPreviewInViewport(page, popup)
+  await blackout.press('Escape')
   await expect(popup).not.toBeVisible()
   await chooseNative(page, 'Sub-command', 'Wizard', 'Black Magic (Wizard)')
   await expect(inspector.getByRole('list', { name: 'Black Magic ability list', exact: true })).toBeVisible()
