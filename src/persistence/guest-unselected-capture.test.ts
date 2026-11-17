@@ -1,3 +1,4 @@
+import { SYNTHETIC_RETAINED_CATALOG } from '../domain/retained-catalog.test-helpers'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import { deepStrictEqual } from 'node:assert'
 import 'fake-indexeddb/auto'
@@ -82,7 +83,8 @@ it('projects one complete unselected journaled target from its frozen native par
 it('retains history-only bundled pins and every stored catalog without adding unused app catalogs', async () => {
   const setup = await fixture()
   try {
-    const [stored, historical] = BUNDLED_CATALOGS
+    const stored = SYNTHETIC_RETAINED_CATALOG, historical = BUNDLED_CATALOGS[0]!
+    expect(stored.id).not.toBe(historical.id)
     const first = (await setup.required.localDatas.get('local-data-record'))!
     const template = Object.values(createTestLocalData().gameSetups)[0]!
     const pinned = addGameSetupRevision(first.localData, { ...template, catalogLock: { [historical.id]: historical.revisionId } })
@@ -96,7 +98,8 @@ it('retains history-only bundled pins and every stored catalog without adding un
     const { state } = await setup.read(await setup.capture())
     expect(state.planner.localData.gameSetups).toEqual({})
     expect(state.planner.history.some(entry => Object.values(entry.before.gameSetups).some(setup => setup.catalogLock[historical.id] === historical.revisionId))).toBe(true)
-    expect(state.planner.catalogs.map(catalog => [catalog.id, catalog.revisionId])).toEqual(BUNDLED_CATALOGS.map(catalog => [catalog.id, catalog.revisionId]))
+    expect(state.planner.catalogs.map(catalog => [catalog.id, catalog.revisionId])).toEqual([...BUNDLED_CATALOGS, stored].map(catalog => [catalog.id, catalog.revisionId]))
+    deepStrictEqual(state.planner.catalogs.find(catalog => catalog.id === historical.id && catalog.revisionId === historical.revisionId), historical)
     deepStrictEqual(state.planner.catalogs.find(catalog => catalog.id === stored.id && catalog.revisionId === stored.revisionId), stored)
     deepStrictEqual(await nativeVector(setup), before)
   } finally { setup.close() }

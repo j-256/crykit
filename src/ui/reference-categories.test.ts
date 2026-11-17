@@ -33,7 +33,7 @@ describe('reference category identities', () => {
     expect(confirmed.some(item => item.entity.name === 'Synthetic Axe' && bundledModRecord(item.entity)?.EquipmentType === 1)).toBe(true)
     const sourceRecord = (entity: CatalogEntity) => nativeSourceRecord(entity) ?? bundledModRecord(entity)
     expect(confirmed.filter(item => sourceRecord(item.entity)).map(item => item.key)).toEqual(items.filter(item => item.entity.kind === 'item' && sourceRecord(item.entity)?.EquipmentType === 1).map(item => item.key))
-    expect(confirmed.filter(item => !sourceRecord(item.entity)).map(item => item.entity.name)).toEqual(['Axes'])
+    expect(confirmed.filter(item => !sourceRecord(item.entity))).toEqual([])
     expect(buildFacetOptions(items.filter(item => item.entity.kind === 'item'), 'category').filter(option => referenceCategoryLabel(option.value) === 'Axes')).toEqual([{ value: 'equipment:axe', count: confirmed.length }])
     expect(partitionReferenceItems(items, { ...filters, categories: ['Axes'] }).confirmed).toEqual([])
     expect(referenceCategoryLabel('equipment:axe')).toBe('Axes')

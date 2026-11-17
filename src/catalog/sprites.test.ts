@@ -1,3 +1,4 @@
+import { NATIVE_GAME_DATA } from './native-game'
 import { describe, expect, it } from 'vitest'
 import type { EntityId } from '../domain/types'
 import { catalogArtwork, classWorldArtwork, menuIcon, nativeUiArtwork } from './sprites'
@@ -84,7 +85,7 @@ describe('bundled artwork identity', () => {
     expect(eye.binding).not.toHaveProperty('identity')
     expect(eye.binding.nativeRecord).toMatchObject({ database: 'item', databaseId: 28, mode: 'base' })
     expect(eye.binding.rendering.sourceTextures[0]).toMatchObject({ texturePath: 'Icon/ItemC', region: { x: 70, y: 70, width: 32, height: 32 } })
-    expect(eye.nativeDefinitions).toEqual(expect.objectContaining({ platform: 'Windows', gameVersion: '1.6.9' }))
+    expect(eye.nativeDefinitions).toEqual(expect.objectContaining({ platform: NATIVE_GAME_DATA.source.platform, gameVersion: NATIVE_GAME_DATA.source.gameVersion }))
     expect(catalogArtwork(builtin, { id: 'base:status:0' as EntityId, kind: 'status' })?.source).toBe('native')
     expect(catalogArtwork('synthetic-import', { id: 'base:item:28' as EntityId, kind: 'item' })).toBeUndefined()
     expect(catalogArtwork(builtin, { id: 'base:item:28' as EntityId, kind: 'monster' })).toBeUndefined()
