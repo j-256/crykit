@@ -33,6 +33,24 @@ function planningFixture() {
 }
 
 describe('quiet game export presentation', () => {
+  it('keeps complete ratings and attribution together for native and imported wide facts', () => {
+    const ratings = { HP: 80, MP: 20, STR: 80, VIT: 80, DEX: 30, AGI: 50, MND: 10, SPI: 30, SPD: 50, LUK: 50 }
+    const before = JSON.stringify(ratings)
+    for (const source of [native, external]) {
+      const value = { state: 'known' as const, value: ratings, sources: [source] }
+      const html = renderToStaticMarkup(<DefinitionFactsPanel facts={[[CLASS_FIELDS.ratings, value]]}/>)
+      expect(html).toContain('Growth ratings')
+      expect(html.match(/role="img"/g)).toHaveLength(Object.keys(ratings).length)
+      for (const [stat, points] of Object.entries(ratings)) {
+        expect(html).toContain(`>${stat}</abbr>`)
+        expect(html).toContain(`aria-label="${points / 20} of 5 stars"`)
+      }
+      if (source === external) expect(html).toContain(`Sources for ${CLASS_FIELDS.ratings}`)
+      else expect(html).not.toContain('Sources for')
+    }
+    expect(JSON.stringify(ratings)).toBe(before)
+  })
+
   it('keeps known native facts and entity provenance out of ordinary Sources controls', () => {
     const facts = renderToStaticMarkup(<DefinitionFactsPanel facts={[['Growth ratings', { state: 'known', value: { HP: 80 }, sources: [native] }]]}/>)
     expect(facts).toContain('Growth ratings')
