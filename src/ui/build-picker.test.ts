@@ -95,6 +95,14 @@ describe('build picker decisions', () => {
     expect(pickerListedStat({ ...modifier, record: { ...modifier.record, listedContributions: { Attack: { state: 'known', value: { value: 12, unit: 'listed flat value' } } } } }, 'Attack')).toBe(12)
   })
 
+  it('warns when a reference-only search match has an explicitly established source-stat conflict', () => {
+    // The matcher consumes an established conflict; changing a native record would invalidate its corroboration
+    const entry = { names: ['Synthetic shoes'], aliases: [], details: ['Dexterity: +14'], referenceText: 'Supplemental Dexterity +6', conflictingReferenceStats: true }
+    expect(entry.conflictingReferenceStats).toBe(true)
+    expect(pickerSearchMatch(entry, 'dexterity +6')).toEqual({ rank: 5, explanation: 'Matched source text; check Sources for differing stats' })
+    expect(pickerSearchMatch(entry, 'dexterity +14')).toEqual({ rank: 4, explanation: 'Matched details: Dexterity: +14' })
+  })
+
   it('sorts native equipment by the same authoritative flat values shown in result summaries', () => {
     const nativeOption = (name: string) => {
       const record = Object.values(DEFAULT_CATALOG.entities).find(entity => entity.name === name)!
@@ -103,6 +111,7 @@ describe('build picker decisions', () => {
     expect(pickerListedStat(nativeOption('Acrobat Shoes'), 'Dexterity')).toBe(14)
     expect(pickerListedStat(nativeOption("Cleric's Robe"), 'Defense')).toBeGreaterThan(0)
     const shoes = pickerSearchEntry({ ...nativeOption('Acrobat Shoes'), description: 'Supplemental Dexterity +6' }, 'Acrobat Shoes')
-    expect(pickerSearchMatch(shoes, 'dexterity +6')?.explanation).toBe("Matched source text; check Sources for differing stats")
+    expect(shoes.conflictingReferenceStats).toBe(false)
+    expect(pickerSearchMatch(shoes, 'dexterity +6')?.explanation).toBe('Matched reference text: Supplemental Dexterity +6')
   })
 })

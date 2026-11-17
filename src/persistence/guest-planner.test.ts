@@ -1,3 +1,4 @@
+import { SYNTHETIC_RETAINED_CATALOG } from '../domain/retained-catalog.test-helpers'
 import 'fake-indexeddb/auto'
 import Dexie from 'dexie'
 import { unzipSync } from 'fflate'
@@ -471,7 +472,8 @@ it.each(['wrapper checksum', 'wrapper identity', 'wrapper key', 'snapshot checks
 
 it.each([false, true])('installs with an exact packaged catalog staged: %s while preserving an unrelated catalog', async staged => {
   const { database, preparation } = await installerFixture(true)
-  const snapshot = BUNDLED_CATALOGS[0]!, unrelated = BUNDLED_CATALOGS[1]!
+  const snapshot = BUNDLED_CATALOGS[0]!, unrelated = SYNTHETIC_RETAINED_CATALOG
+  expect(unrelated.id).not.toBe(snapshot.id)
   const row = { key: JSON.stringify([snapshot.id, snapshot.revisionId]), id: snapshot.id, revisionId: snapshot.revisionId, checksum: snapshot.checksum, snapshot }
   const unrelatedRow = { key: JSON.stringify([unrelated.id, unrelated.revisionId]), id: unrelated.id, revisionId: unrelated.revisionId, checksum: unrelated.checksum, snapshot: unrelated }
   await database.catalogs.add(unrelatedRow)

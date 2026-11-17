@@ -1,3 +1,4 @@
+import { SYNTHETIC_RETAINED_CATALOG } from '../domain/retained-catalog.test-helpers'
 import { describe, expect, it, vi } from 'vitest'
 import { createSampleLocalData } from '../domain/sample-data'
 import { BUNDLED_CATALOGS } from '../catalog/bundled'
@@ -38,7 +39,9 @@ describe('independent private records', () => {
   })
   it.each(['reordered', 'copied'] as const)('preserves the exact %s catalog membership during assembly', mode => {
     const original = sampleWorkspace()
-    const catalogs = mode === 'reordered' ? [...BUNDLED_CATALOGS].reverse() : structuredClone(BUNDLED_CATALOGS)
+    const distinct = [BUNDLED_CATALOGS[0]!, SYNTHETIC_RETAINED_CATALOG]
+    expect(new Set(distinct.map(catalog => JSON.stringify([catalog.id, catalog.revisionId]))).size).toBe(2)
+    const catalogs = mode === 'reordered' ? [...distinct].reverse() : structuredClone(BUNDLED_CATALOGS)
     const documents = splitWorkspace({ ...original, planner: { ...original.planner, catalogs } })
     const loaded = assembleWorkspace(documents, 0).planner.catalogs
     expect(loaded).not.toBe(BUNDLED_CATALOGS)

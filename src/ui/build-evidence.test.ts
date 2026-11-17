@@ -153,7 +153,7 @@ describe('build choice evidence', () => {
     const bundled = buildDefinitionOptions(localData, [DEFAULT_CATALOG])
     const early = bundled.find(value => value.name === "Cleric's Robe")!
     const late = bundled.find(value => value.name === 'Cleric Robe')!
-    expect(definitionChoiceSourceLabel(early)).toContain('PC 1.6.9.0 · base database')
+    expect(definitionChoiceSourceLabel(early)).toContain('PC 1.7.0.1 · base database')
     expect(definitionChoiceSourceLabel(early)).toContain('equipment 123 · level 36')
     expect(definitionChoiceSourceLabel(late)).toContain('equipment 547 · level 60')
     expect(selectionSummaryLines(early)).toEqual(expect.arrayContaining(['Defense: +28', 'Resistance: +115', 'Spirit: +36']))

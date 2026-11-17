@@ -1,3 +1,4 @@
+import { CURRENT_CRYSTAL_EDIT_VERSION } from '../../domain/crystal-edit-compatibility'
 import 'fake-indexeddb/auto'
 import '../../workspace/guest-managed-monitor.test-helpers'
 import { act } from 'react'
@@ -130,6 +131,7 @@ describe('inspector exact edits and navigation', () => {
 
   it('keeps changed lookup history separate from the mod format without rewriting the saved copy', async () => {
     const text = '{"EditorVersion":34,"Title":"Synthetic mod"}'
+    expect(CURRENT_CRYSTAL_EDIT_VERSION).toBeGreaterThan(34)
     const row = { ...saved, originalText: text, draftText: text, referenceId: 'synthetic-earlier-lookup' }
     storage.get.mockResolvedValue(row)
     await open()
@@ -141,7 +143,7 @@ describe('inspector exact edits and navigation', () => {
     const reference = container.querySelector('[role="dialog"][aria-label="Sources for inspector labels"]')!
     expect(reference.textContent).toContain("different CryKit reference data")
     expect(format.open).toBe(false)
-    expect(format.querySelector('summary')?.textContent).toBe('Editor format: Crystal Edit format 34')
+    expect(format.querySelector('summary')?.textContent).toBe('Editor format: Older editor format 34')
     expect([...container.querySelectorAll('[role="status"], [role="alert"]')].map(element => element.textContent)).toEqual(['Saved in this browser'])
     await act(async () => reference.querySelector<HTMLButtonElement>('button[aria-label="Close sources"]')!.click())
     expect(container.querySelector('[role="dialog"]')).toBeNull()
