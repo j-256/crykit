@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -402,6 +402,16 @@ test('CLI documents both modes and rejects filtering, positional arguments, and 
     for (const args of [['--grep', 'summons'], ['--help='], ['--', 'summons.spec.ts']]) assert.throws(() => cli(args), error => error.status === 2 && error.stdout === '')
     if (script === 'verify-integration.mjs') assert.throws(() => cli([], { ...f.env, PATH: '' }), error => error.status === 3 && /Git is required/.test(error.stderr))
     else assert.equal(cli(['--']), '')
+  }
+})
+
+test('full verification rejects invalid native resources before coordination or preparation', t => {
+  const f = fixture(t)
+  for (const overrides of [{ CRYKIT_NATIVE_TEST_CONCURRENCY: '3' }, { CI: '1', CRYKIT_NATIVE_TEST_CONCURRENCY: '1' }]) {
+    assert.throws(() => execFileSync(process.execPath, [scriptPath('verify-integration.mjs')], {
+      cwd: f.cwd, env: { ...f.env, ...overrides, CRYKIT_WT_QUEUE: join(f.cwd, 'must-not-run') }, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'],
+    }), error => error.status === 2 && /CRYKIT_NATIVE_TEST_CONCURRENCY/.test(error.stderr))
+    assert.equal(existsSync(join(f.cwd, '.account-tests')), false)
   }
 })
 

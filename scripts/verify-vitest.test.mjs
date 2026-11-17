@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -16,6 +16,7 @@ function fixture(t) {
   t.after(() => rmSync(cwd, { recursive: true, force: true }))
   const env = { ...process.env }
   delete env.CI
+  delete env.CRYKIT_NATIVE_TEST_CONCURRENCY
   return { cwd, env, readProjects: async () => PROJECTS }
 }
 function lane(args) { return args.includes('--project=worker') ? 'native' : args.some(arg => arg.startsWith('--merge-reports=')) ? 'merge' : 'node' }
@@ -54,6 +55,79 @@ test('prepared Node work finishes before native pairs and merging waits for ever
     assert.equal(calls.length, 5)
   } finally { node.resolve(); for (const release of native) release.resolve(); await pending }
   assert.deepEqual(calls.map(call => call.name), ['node', 'native', 'native', 'native', 'native', 'merge'])
+})
+
+for (const concurrency of ['1', '2']) test(`explicit native concurrency ${concurrency} preserves every lane and records its configuration`, async t => {
+  const f = fixture(t), releases = Array.from({ length: 4 }, () => Promise.withResolvers())
+  f.env.CRYKIT_NATIVE_TEST_CONCURRENCY = concurrency
+  const calls = [], messages = []
+  let active = 0, maximum = 0
+  const pending = verifyVitest({ ...f, report: message => messages.push(message), run: async (args, options) => {
+    calls.push({ args, env: options.env }); blob(args)
+    if (lane(args) !== 'native') return
+    active++; maximum = Math.max(maximum, active)
+    const index = Number(args.find(arg => arg.startsWith('--shard=')).split('=')[1].split('/')[0]) - 1
+    try { await releases[index].promise } finally { active-- }
+  } })
+  try {
+    await turn()
+    assert.equal(calls.length, 1 + Number(concurrency))
+    for (let index = 0; index < releases.length; index++) {
+      releases[index].resolve(); await turn()
+      assert.ok(active <= Number(concurrency))
+    }
+  } finally { for (const release of releases) release.resolve(); await pending }
+  assert.equal(maximum, Number(concurrency))
+  const natives = calls.filter(call => lane(call.args) === 'native')
+  assert.deepEqual(natives.map(call => call.args.find(arg => arg.startsWith('--shard='))), ['--shard=1/4', '--shard=2/4', '--shard=3/4', '--shard=4/4'])
+  for (const call of natives) {
+    assert.deepEqual(call.args.filter(arg => arg.startsWith('--project=')), ['--project=worker', '--project=persistence-service'])
+    assert.ok(call.args.includes('--maxWorkers=1') && call.args.includes('--bail=1'))
+    assert.equal(call.args.some(arg => /timeout|testNamePattern|exclude/.test(arg)), false)
+  }
+  assert.deepEqual(natives.map(call => call.env.CRYKIT_NATIVE_TEST_LOOPBACK), ['ipv4', 'ipv6', 'ipv4', 'ipv6'])
+  assert.deepEqual(calls.map(call => lane(call.args)), ['node', 'native', 'native', 'native', 'native', 'merge'])
+  assert.ok(messages.some(message => message.includes(`native concurrency=${concurrency}`)))
+  const attempts = readdirSync(join(f.cwd, '.account-tests')).filter(name => name.startsWith('vitest-lanes-'))
+  assert.equal(attempts.length, 1)
+  const configuration = JSON.parse(readFileSync(join(f.cwd, '.account-tests', attempts[0], 'execution.json'), 'utf8'))
+  assert.equal(configuration.mode, 'local')
+  assert.equal(configuration.nativeConcurrency, Number(concurrency))
+  assert.deepEqual(configuration.lanes.map(value => value.name), ['node', 'native-1', 'native-2', 'native-3', 'native-4'])
+})
+
+test('serial native failure completes cleanup and runs remaining shards before reporting failure', async t => {
+  const f = fixture(t), cleanup = Promise.withResolvers(), calls = []
+  f.env.CRYKIT_NATIVE_TEST_CONCURRENCY = '1'
+  let cleaned = false
+  const pending = verifyVitest({ ...f, report: () => {}, run: async args => {
+    calls.push(args); blob(args)
+    if (args.includes('--shard=1/4')) {
+      await cleanup.promise; cleaned = true; throw new Error('Synthetic serial failure')
+    }
+    if (lane(args) === 'native') assert.equal(cleaned, true)
+  } })
+  const outcome = pending.catch(error => error)
+  try { await turn(); assert.equal(calls.length, 2) }
+  finally { cleanup.resolve() }
+  assert.match((await outcome).message, /Synthetic serial failure/)
+  assert.deepEqual(calls.map(lane), ['node', 'native', 'native', 'native', 'native', 'merge'])
+})
+
+test('invalid or meaningless native concurrency fails before discovery, reports, or child startup', async t => {
+  for (const value of ['', '0', '3', '-1', '01', '1.0', ' 1', '2 ', 'auto']) {
+    const f = fixture(t)
+    await assert.rejects(verifyVitest({ ...f, env: { ...f.env, CRYKIT_NATIVE_TEST_CONCURRENCY: value },
+      readProjects: async () => { assert.fail('discovery must not start') }, run: async () => { assert.fail('child must not start') } }),
+    error => error.exitCode === 2 && /CRYKIT_NATIVE_TEST_CONCURRENCY/.test(error.message))
+    assert.equal(existsSync(join(f.cwd, '.account-tests')), false)
+  }
+  for (const value of ['1', '2']) {
+    const f = fixture(t)
+    await assert.rejects(verifyVitest({ ...f, env: { ...f.env, CI: '1', CRYKIT_NATIVE_TEST_CONCURRENCY: value },
+      run: async () => { assert.fail('hosted child must not start') } }), error => error.exitCode === 2 && /CI/.test(error.message))
+    assert.equal(existsSync(join(f.cwd, '.account-tests')), false)
+  }
 })
 
 test('a native failure drains every remaining native peer before merging reports', async t => {
@@ -153,6 +227,22 @@ test('real pinned Vitest lanes merge every executed case without running them ag
   assert.equal(report.numPassedTests, 4)
   assert.equal(report.numFailedTests, 0)
   assert.deepEqual(readFileSync(join(f.cwd, 'executed.txt'), 'utf8').trim().split('\n').sort(), ['native', 'native-later', 'native-peer', 'node'])
+})
+
+test('real serial native children retain every case and reject overlapping backend lifetimes', async t => {
+  const bodies = { node: `test('node case', () => expect(1).toBe(1))` }
+  for (const name of ['native-a', 'native-b', 'native-c', 'native-d']) bodies[name] = `import { openSync, closeSync, unlinkSync, appendFileSync } from 'node:fs';
+let lock;
+afterEach(async () => { await new Promise(resolve => setImmediate(resolve)); closeSync(lock); unlinkSync('backend.lock'); appendFileSync('lifecycle.txt', 'end\\n') });
+test('exclusive backend ${name}', async () => { lock = openSync('backend.lock', 'wx'); appendFileSync('lifecycle.txt', 'start\\n'); await new Promise(resolve => setTimeout(resolve, 30)); expect(1).toBe(1) })`
+  const f = realFixture(t, bodies)
+  f.env.CRYKIT_NATIVE_TEST_CONCURRENCY = '1'
+  await verifyVitest({ ...f, report: () => {} })
+  const report = JSON.parse(readFileSync(join(f.cwd, '.account-tests/vitest-results.json'), 'utf8'))
+  assert.equal(report.numPassedTests, 5)
+  assert.equal(report.numFailedTests, 0)
+  assert.equal(existsSync(join(f.cwd, 'backend.lock')), false)
+  assert.deepEqual(readFileSync(join(f.cwd, 'lifecycle.txt'), 'utf8').trim().split('\n'), ['start', 'end', 'start', 'end', 'start', 'end', 'start', 'end'])
 })
 
 test('a native failure finishes asynchronous transaction cleanup before stopping later cases', async t => {
