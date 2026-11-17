@@ -1,6 +1,10 @@
 import { MOBILE_TEST_TAG } from './test-tags'
-import { skipInitialModSetup, saveAndApplyGameSetup, openCurrentGameSetup, createBlankPlaythrough, openSwitchModPacks, waitForPlannerReady } from './local-data-helpers'
+import { skipInitialModSetup, saveAndApplyGameSetup, openCurrentGameSetup, createBlankPlaythrough, openSwitchModPacks, waitForPlannerReady, readLocalData, replacePlannerFixture } from './local-data-helpers'
+import { sourcePayloadValid } from '../src/domain/source-fulfillment'
+import { skillWeaponRule } from '../src/domain/skill-weapons'
+import { REFERENCE_UNCERTAINTY_CATALOG, REFERENCE_UNCERTAINTY_ENTITIES } from './reference-uncertainty-fixtures'
 import { expectOfflineReady } from './offline-helpers'
+import { referencePath } from './reference-helpers'
 import { expect, test, type Page } from '@playwright/test'
 
 const card = (page: Page, name: string) => page.locator('.reference-card').filter({ has: page.getByRole('heading', { name, exact: true }) })
@@ -21,6 +25,15 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('dagger lookup is keyboard accessible and retains filters through details, history, and offline reloads', { tag: MOBILE_TEST_TAG }, async ({ page, context, isMobile }) => {
+  const { unknownSkill, conflictingSkill } = REFERENCE_UNCERTAINTY_ENTITIES
+  expect(sourcePayloadValid(REFERENCE_UNCERTAINTY_CATALOG)).toBe(true)
+  expect(skillWeaponRule(unknownSkill)).toMatchObject({ state: 'unknown' })
+  expect(skillWeaponRule(conflictingSkill)).toMatchObject({ state: 'conflicting' })
+  const before = await readLocalData(page)
+  expect(before.planningGameSetupRevisionId).toBeDefined()
+  const admitted = await replacePlannerFixture(page, before, [REFERENCE_UNCERTAINTY_CATALOG])
+  expect(admitted.planningGameSetupRevisionId).toBe(before.planningGameSetupRevisionId)
+  expect(admitted.gameSetups[admitted.planningGameSetupRevisionId!]).toEqual(before.gameSetups[before.planningGameSetupRevisionId!])
   await page.goto('/')
   await skipInitialModSetup(page)
   await expect(page.getByRole('heading', { name: 'Builds', exact: true })).toBeVisible()
@@ -45,9 +58,28 @@ test('dagger lookup is keyboard accessible and retains filters through details, 
   for (const name of ['Fire', 'Taunt', 'Beat Down', 'Equip Dagger']) await expect(card(page, name)).toHaveCount(0)
   await expect(page.getByText('Possible match', { exact: true })).toHaveCount(0)
   const uncertain = page.getByRole('checkbox', { name: /Include skills with unknown/ })
+  await expect(uncertain).toBeVisible()
+  await expect(card(page, unknownSkill.name)).toHaveCount(0)
+  await expect(card(page, conflictingSkill.name)).toHaveCount(0)
   await uncertain.check()
   await expect(page).toHaveURL(/uncertainSkills=1/)
+  const beforeExpansion = await page.locator('.reference-card').count()
+  const showMore = page.getByRole('button', { name: /^Show \d+ more$/ })
+  await expect(showMore).toBeVisible()
+  await showMore.click()
+  await expect.poll(() => page.locator('.reference-card').count()).toBeGreaterThan(beforeExpansion)
+  await expect(card(page, unknownSkill.name)).toContainText('Possible match')
+  await expect(card(page, unknownSkill.name)).toContainText('Weapon requirements unknown')
+  await expect(card(page, conflictingSkill.name)).toContainText('Possible match')
+  await expect(card(page, conflictingSkill.name)).toContainText('Conflicting weapon requirements')
+  for (const record of [unknownSkill, conflictingSkill]) {
+    const href = await card(page, record.name).getAttribute('href')
+    expect(href).not.toBeNull()
+    expect(new URL(href!, page.url()).hash.split('?')[0]).toBe(new URL(referencePath(record.id, REFERENCE_UNCERTAINTY_CATALOG.id, REFERENCE_UNCERTAINTY_CATALOG.revisionId, record.name), page.url()).hash)
+  }
   await uncertain.uncheck()
+  await expect(card(page, unknownSkill.name)).toHaveCount(0)
+  await expect(card(page, conflictingSkill.name)).toHaveCount(0)
   await card(page, 'Backstab').click()
   await expect(page.getByRole('heading', { name: 'Backstab', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Back to results', exact: true }).click()
