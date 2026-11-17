@@ -2,11 +2,11 @@ import { REFERENCE_EVIDENCE_CATALOG, REFERENCE_EVIDENCE_ENTITIES, evidenceRefere
 import { openSavedSourceVersion } from './definition-fixtures'
 import { referencePath } from './reference-helpers'
 import { MOBILE_TEST_TAG } from './test-tags'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page, type TestInfo } from '@playwright/test'
 
 const TABLE_CLASS = evidenceReferencePath(REFERENCE_EVIDENCE_ENTITIES.wide)
 
-async function checkDetailLayout(page: Page, desktop: boolean, name = 'Synthetic table class') {
+async function checkDetailLayout(page: Page, desktop: boolean, testInfo: TestInfo, name = 'Synthetic table class') {
   await expect(page.getByRole('heading', { name: 'Refine', exact: true })).toHaveCount(0)
   const facts = page.getByRole('region', { name: 'Definition facts', exact: true })
   const battle = facts.locator('.definition-row').filter({ has: page.locator('dt', { hasText: /^Battle Skill$/ }) }).filter({ has: page.getByRole('table') })
@@ -30,20 +30,28 @@ async function checkDetailLayout(page: Page, desktop: boolean, name = 'Synthetic
   await expect(ratings.locator('.stat-rating')).toHaveCount(10)
   const ratingGeometry = await ratings.locator('.stat-ratings').evaluate(record => {
     const bounds = record.getBoundingClientRect()
-    return [...record.children].map(pair => {
+    const value = record.closest('dd')!.getBoundingClientRect()
+    const wrapper = record.closest('.sources-attached')!.getBoundingClientRect()
+    const anchor = record.closest('.sources-anchor')!.getBoundingClientRect()
+    return { widths: { ratings: bounds.width, value: value.width, wrapper: wrapper.width, anchor: anchor.width }, pairs: [...record.children].map(pair => {
       const label = document.createRange()
       label.selectNodeContents(pair.querySelector('dt')!)
       const labelBounds = label.getBoundingClientRect()
       const valueBounds = pair.querySelector('dd')!.getBoundingClientRect()
       return { gap: valueBounds.left - labelBounds.right, aligned: Math.abs(valueBounds.top + valueBounds.height / 2 - labelBounds.top - labelBounds.height / 2) < 2, fits: valueBounds.right <= bounds.right, column: Math.round(pair.getBoundingClientRect().left) }
-    })
+    }) }
   })
-  for (const pair of ratingGeometry) {
+  await testInfo.attach('wide-fact-geometry', { body: JSON.stringify({ table: geometry, ratings: ratingGeometry }), contentType: 'application/json' })
+  expect(Math.abs(ratingGeometry.widths.wrapper - ratingGeometry.widths.value)).toBeLessThanOrEqual(1)
+  expect(ratingGeometry.widths.ratings).toBeCloseTo(ratingGeometry.widths.anchor, 0)
+  for (const pair of ratingGeometry.pairs) {
     expect(pair.gap).toBeGreaterThan(0)
     expect(pair.aligned).toBe(true)
     expect(pair.fits).toBe(true)
   }
-  if (desktop) expect(new Set(ratingGeometry.map(pair => pair.column)).size).toBeGreaterThan(1)
+  if (desktop) expect(new Set(ratingGeometry.pairs.map(pair => pair.column)).size).toBeGreaterThan(1)
+  await ratings.scrollIntoViewIfNeeded()
+  await ratings.screenshot({ path: testInfo.outputPath('wide-fact-ratings.png') })
   const trigger = page.getByRole('button', { name: `Sources for ${name}`, exact: true })
   const sources = page.getByRole('dialog', { name: `Sources for ${name}`, exact: true })
   await expect(sources).toHaveCount(0)
@@ -54,6 +62,7 @@ async function checkDetailLayout(page: Page, desktop: boolean, name = 'Synthetic
   const beforeOpening = await facts.evaluate(element => ({ top: element.getBoundingClientRect().top, width: element.getBoundingClientRect().width }))
   await trigger.click()
   await expect(sources).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('wide-fact-sources.png') })
   const popupBounds = (await sources.boundingBox())!
   const viewport = page.viewportSize()!
   expect(popupBounds.x).toBeGreaterThanOrEqual(0)
@@ -75,7 +84,7 @@ test('gives reference tables the detail width and restores filtered browsing', {
   await page.goto('/#/reference')
   await page.getByRole('searchbox', { name: 'Search reference', exact: true }).fill('Synthetic table class')
   await page.locator('.reference-card').filter({ has: page.getByRole('heading', { name: 'Synthetic table class', exact: true }) }).click()
-  await checkDetailLayout(page, testInfo.project.name === 'desktop')
+  await checkDetailLayout(page, testInfo.project.name === 'desktop', testInfo)
   await page.getByRole('button', { name: 'Back to results', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Refine', exact: true })).toBeVisible()
   await expect(page.getByRole('searchbox', { name: 'Search reference', exact: true })).toHaveValue('Synthetic table class')
@@ -87,7 +96,7 @@ test('uses the same wide tables and clean headings for personal definitions', { 
   await page.goto(TABLE_CLASS)
   await openSavedSourceVersion(page, REFERENCE_EVIDENCE_CATALOG, REFERENCE_EVIDENCE_ENTITIES.wide.id, 'Synthetic wide Warrior')
   await expect(page.getByRole('heading', { name: 'Synthetic wide Warrior', exact: true })).toBeVisible()
-  await checkDetailLayout(page, testInfo.project.name === 'desktop', 'Synthetic wide Warrior')
+  await checkDetailLayout(page, testInfo.project.name === 'desktop', testInfo, 'Synthetic wide Warrior')
 })
 
 test('gameplay facts lead equipment details while engine fields stay available on demand', { tag: MOBILE_TEST_TAG }, async ({ page }) => {

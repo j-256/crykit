@@ -1307,6 +1307,9 @@ h1::before { position: absolute; right: 0; bottom: -2px; width: 6px; height: 6px
 .definition-facts > .definition-row--wide { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .definition-facts > .definition-row--wide > dt { font-weight: 650; }
 .definition-facts > .definition-row--wide > dd { text-align: left; }
+/* Attributed wide facts need the same available width as uncited tables and ratings */
+.definition-facts > .definition-row--wide > dd > .sources-attached { display: flex; width: 100%; }
+.definition-facts > .definition-row--wide > dd > .sources-attached > .sources-anchor { flex: 1; }
 @media (max-width: 900px) {
   .definition-facts { grid-template-columns: minmax(0, 1fr); }
 }
