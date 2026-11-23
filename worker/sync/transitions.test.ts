@@ -1,5 +1,6 @@
 import { createHash, createHmac, hkdfSync } from 'node:crypto'
 import { expect, it } from 'vitest'
+import { boundedPreparation } from '../testing/bounded-preparation'
 import { CommitRequestSchema, MutationTransitionResponseSchema, type CommitRequest, type CommitReceipt, type MutationTransition, type RevisionDescriptor, type SafeEvent } from '../../src/account/protocol'
 import { command, customer, direct, fixture, id, measuredDatabase, measurement, post, prepared } from './testing'
 
@@ -230,14 +231,17 @@ it('reconciles lost acceptance through both receipt APIs without changing quota 
   expect(await f.db.prepare('SELECT COUNT(*) AS n FROM transaction_guards').first('n')).toBe(0)
   expect(await f.db.prepare('SELECT COUNT(*) AS n FROM scan_leases').first('n')).toBe(0)
 })
-it('measures bounded indexed history reads and stable complete fixed-directory batches during later writes', async ({ onTestFailed }) => {
+it('measures bounded indexed history reads and stable complete fixed-directory batches during later writes', async ({ onTestFailed, signal }) => {
   const started = performance.now(), phases: { phase: string; elapsedMs: number }[] = []
   const markPhase = (phase: string) => phases.push({ phase, elapsedMs: performance.now() - started })
   // A timeout must distinguish fixture preparation from the measured read without exposing record identities
   onTestFailed(() => { console.error('crykit_transition_fixture_failure', { elapsedMs: performance.now() - started, phases }) })
   markPhase('create-fixture')
   const { readMutationTransition } = await import('./transitions')
-  const f = await fixture(), signed = await customer(f), key = new Uint8Array(32).fill(7)
+  const f = await fixture()
+  const preparationConcurrency = 4
+  const preparation = boundedPreparation(signal, f, preparationConcurrency)
+  const signed = await customer(f), key = new Uint8Array(32).fill(7)
   // Mirror the fixed identity recipe in workspace/directory without importing its browser repository graph
   // This synthetic account fixture measures physical coverage; B2 must derive and validate encrypted allocation
   const directoryShards = 64
@@ -245,9 +249,9 @@ it('measures bounded indexed history reads and stable complete fixed-directory b
   const directories = Array.from({ length: directoryShards }, (_, shard) => fixedId('crykit/directory-id/v1', `directory:${shard}`))
   const control = fixedId('crykit/workspace-root-id/v1', 'workspace:root')
   const documents = [control, ...directories, id(), id()]
-  const originals: RevisionDescriptor[] = []
+  // Independent uploads can overlap, but ordered publication starts only after every descriptor is ready
   markPhase('prepare-originals')
-  for (const documentId of documents) originals.push((await prepared(f, signed, { documentId })).descriptor)
+  const originals = await preparation.map(documents, async documentId => (await prepared(f, signed, { documentId })).descriptor)
   const commands: CommitRequest[] = []
   markPhase('publish-originals')
   for (let index = 0; index < originals.length; index += 32) {
@@ -268,9 +272,9 @@ it('measures bounded indexed history reads and stable complete fixed-directory b
   for (const batch of batches) expect({ ...batch, documents: [] }).toEqual({ ...batches[0], documents: [] })
   expect(batches.flatMap(batch => batch.documents).find(row => row.documentId === control)).toEqual({ documentId: control, before: originals[0].revisionId, after: originals[0].revisionId })
   expect((await transition(f, signed, target, [future.documentId, never])).documents).toEqual([{ documentId: future.documentId, before: null, after: null }, { documentId: never, before: null, after: null }])
-  const alternate: RevisionDescriptor[] = []
   markPhase('prepare-alternates')
-  for (const original of originals.slice(0, 32)) alternate.push((await prepared(f, signed, { documentId: original.documentId, parents: [original.revisionId] })).descriptor)
+  const alternate = await preparation.map(originals.slice(0, 32), async original =>
+    (await prepared(f, signed, { documentId: original.documentId, parents: [original.revisionId] })).descriptor)
   await accept(f, signed, command(alternate, [], []))
   const { context, principal } = await direct(f, signed)
   const measured = measuredDatabase(f.db), sql: string[] = []
