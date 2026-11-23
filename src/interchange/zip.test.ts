@@ -20,8 +20,8 @@ describe('safe ZIP handling', () => {
     }
   })
 
-  it('checks metadata before extracting and verifies CRC output', () => {
-    const archive = zipSync({ 'data/value.txt': bytes('synthetic value') }, { level: 0 })
+  it.each([0, 6] as const)('checks metadata and rejects corrupted data at compression level %s', level => {
+    const archive = zipSync({ 'data/value.txt': bytes('synthetic value') }, { level })
     const directory = inspectZip(archive)
     expect(directory.entries).toHaveLength(1)
     const result = safeUnzip(archive)
