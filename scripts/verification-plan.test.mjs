@@ -14,19 +14,22 @@ test('execution identity includes relevant overrides without retaining secret va
   assert.equal(executionEnvironment(Object.fromEntries(Object.entries(baseline).reverse())), identity)
 })
 
-test('native concurrency selects distinct checkpoint campaigns and only identical mode can resume', async t => {
+test('native and browser concurrency select distinct checkpoint campaigns and only identical modes can resume', async t => {
   const { createCheckpointSession } = await import('./verification-checkpoints.mjs')
   const directory = mkdtempSync(join(tmpdir(), 'verification-native-mode-'))
   t.after(() => rmSync(directory, { recursive: true, force: true }))
   let executions = 0
-  const identities = [executionEnvironment({}), executionEnvironment({ CRYKIT_NATIVE_TEST_CONCURRENCY: '2' }), executionEnvironment({ CRYKIT_NATIVE_TEST_CONCURRENCY: '1' })]
-  assert.equal(new Set(identities).size, 3)
-  for (const identity of [...identities, identities[2]]) {
+  const serialNative = { CRYKIT_NATIVE_TEST_CONCURRENCY: '1' }
+  const environments = [{}, { CRYKIT_NATIVE_TEST_CONCURRENCY: '2' }, serialNative,
+    { ...serialNative, CRYKIT_BROWSER_PHASE_CONCURRENCY: '2' }, { ...serialNative, CRYKIT_BROWSER_PHASE_CONCURRENCY: '1' }]
+  const identities = environments.map(executionEnvironment)
+  assert.equal(new Set(identities).size, environments.length)
+  for (const identity of [...identities, identities.at(-1)]) {
     const session = createCheckpointSession({ directory, identity, resume: true, report: () => {} })
     try { await session.run('test:vitest:prepared', () => { executions++ }) }
     finally { session.close() }
   }
-  assert.equal(executions, 3)
+  assert.equal(executions, environments.length)
 })
 
 test('installed identity ignores compiler caches while retaining dependency and browser changes', t => {

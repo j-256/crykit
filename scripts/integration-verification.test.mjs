@@ -20,6 +20,7 @@ function fixture(t) {
   const env = { ...process.env, XDG_CACHE_HOME: join(directory, 'cache') }
   delete env.WT_QUEUE_VERIFICATION_TOKEN
   delete env.CRYKIT_WT_QUEUE
+  delete env.CRYKIT_BROWSER_PHASE_CONCURRENCY
   const git = (args, location = cwd) => execFileSync('git', args, { cwd: location, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
   git(['init', '--quiet', '--initial-branch=main'])
   git(['config', 'user.name', 'Synthetic maintainer'])
@@ -223,8 +224,10 @@ test('prerequisites and exclusive saves finish before Vitest and browser sibling
   } finally { preparation.resolve(); checks.resolve(); saves.resolve(); vitest.resolve(); browsers.resolve(); await pending }
 })
 
-test('a failed browser lane drains its running sibling and prevents publication', async t => {
+test('a failed browser lane drains its running sibling and prevents publication with explicit parallel scheduling', async t => {
   const f = fixture(t)
+  f.env.CI = ''
+  f.env.CRYKIT_BROWSER_PHASE_CONCURRENCY = '2'
   const phase = VERIFICATION_COMMANDS.slice(4)
   for (const failedCommand of phase) {
     await verifyIntegration(f.options)
@@ -247,6 +250,37 @@ test('a failed browser lane drains its running sibling and prevents publication'
       await rejected
       assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
     } finally { sibling.resolve(); await rejected }
+  }
+})
+
+test('serial browser phases finish in order and attempt both even after failure', async t => {
+  const f = fixture(t)
+  const env = { ...f.env, CI: '', CRYKIT_BROWSER_PHASE_CONCURRENCY: '1' }
+  const guest = 'test:e2e', account = 'test:e2e:accounts:remaining'
+  const path = verificationRecordPath(verificationContext(f.cwd, env))
+  for (const failed of [undefined, guest, account]) {
+    const events = []
+    const generalStarted = Promise.withResolvers(), releaseGeneral = Promise.withResolvers()
+    const messages = []
+    const pending = verifyIntegration({ ...f.options, env, report: message => messages.push(message), run: async command => {
+      if (command !== guest && command !== account) return
+      events.push(`start ${command}`)
+      if (command === guest) { generalStarted.resolve(); await releaseGeneral.promise }
+      events.push(`finish ${command}`)
+      if (command === failed) throw new Error(`Synthetic ${command} failure`)
+    } })
+    const outcome = failed ? assert.rejects(pending, new RegExp(`Synthetic ${failed} failure`)) : pending
+    try {
+      await generalStarted.promise
+      await new Promise(resolve => setImmediate(resolve))
+      assert.deepEqual(events, [`start ${guest}`])
+      assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
+    } finally { releaseGeneral.resolve(); await outcome }
+    assert.deepEqual(events, [`start ${guest}`, `finish ${guest}`, `start ${account}`, `finish ${account}`])
+    assert.ok(messages.some(message => message.includes('Browser phase concurrency=1')))
+    assert.equal(JSON.parse(readFileSync(path, 'utf8')).browserPhaseConcurrency, 1)
+    if (failed) assert.throws(() => checkPushVerification(f.input(), f.options), /missing or stale/)
+    else checkPushVerification(f.input(), f.options)
   }
 })
 
@@ -398,7 +432,11 @@ test('CLI documents both modes and rejects filtering, positional arguments, and 
   const f = fixture(t)
   for (const script of ['verify-integration.mjs', 'check-push-verification.mjs']) {
     const cli = (args, env = f.env) => execFileSync(process.execPath, [scriptPath(script), ...args], { cwd: f.cwd, env, input: '', encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] })
-    for (const flag of ['-h', '--help']) assert.match(cli([flag]), /Usage:/)
+    for (const flag of ['-h', '--help']) {
+      const help = cli([flag])
+      assert.match(help, /Usage:/)
+      if (script === 'verify-integration.mjs') assert.match(help, /CRYKIT_BROWSER_PHASE_CONCURRENCY/)
+    }
     for (const args of [['--grep', 'summons'], ['--help='], ['--', 'summons.spec.ts']]) assert.throws(() => cli(args), error => error.status === 2 && error.stdout === '')
     if (script === 'verify-integration.mjs') assert.throws(() => cli([], { ...f.env, PATH: '' }), error => error.status === 3 && /Git is required/.test(error.stderr))
     else assert.equal(cli(['--']), '')
@@ -412,6 +450,20 @@ test('full verification rejects invalid native resources before coordination or 
       cwd: f.cwd, env: { ...f.env, ...overrides, CRYKIT_WT_QUEUE: join(f.cwd, 'must-not-run') }, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'],
     }), error => error.status === 2 && /CRYKIT_NATIVE_TEST_CONCURRENCY/.test(error.stderr))
     assert.equal(existsSync(join(f.cwd, '.account-tests')), false)
+  }
+})
+
+test('invalid browser phase concurrency rejects before CLI coordination or direct verification', async t => {
+  const f = fixture(t)
+  const base = { ...f.env, CI: '', CRYKIT_WT_QUEUE: join(f.cwd, 'must-not-run') }
+  delete base.CRYKIT_NATIVE_TEST_CONCURRENCY
+  for (const [CI, value] of [['', ''], ['', '3'], ['', '01'], ['1', '1'], ['1', '2']]) {
+    const env = { ...base, CI, CRYKIT_BROWSER_PHASE_CONCURRENCY: value }
+    assert.throws(() => execFileSync(process.execPath, [scriptPath('verify-integration.mjs')], {
+      cwd: f.cwd, env, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'],
+    }), error => error.status === 2 && /CRYKIT_BROWSER_PHASE_CONCURRENCY/.test(error.stderr))
+    await assert.rejects(verifyIntegration({ ...f.options, env }), error => error.exitCode === 2 && /CRYKIT_BROWSER_PHASE_CONCURRENCY/.test(error.message))
+    assert.equal(existsSync(env.XDG_CACHE_HOME), false)
   }
 })
 

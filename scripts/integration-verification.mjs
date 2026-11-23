@@ -8,6 +8,9 @@ import { VERIFICATION_STEPS, VERIFICATION_COMMANDS, createVerificationPlan, read
 import { VerificationError } from './verification-error.mjs'
 import { assertCoordinatedOwnership } from './verification-coordination.mjs'
 
+const BROWSER_PHASE_CONCURRENCY_ENV = 'CRYKIT_BROWSER_PHASE_CONCURRENCY'
+const DEFAULT_BROWSER_PHASE_CONCURRENCY = 2
+const BROWSER_PHASES = Object.freeze([VERIFICATION_STEPS.browser, VERIFICATION_STEPS.accounts])
 const RECORD_VERSION = 2
 const OBJECT_ID_PATTERN = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/
 const MAX_GIT_OUTPUT_BYTES = 32 * 1024 * 1024
@@ -18,6 +21,14 @@ export { VerificationError } from './verification-error.mjs'
 function git(cwd, args) {
   try { return execFileSync('git', args, { cwd, encoding: 'utf8', maxBuffer: MAX_GIT_OUTPUT_BYTES, stdio: ['ignore', 'pipe', 'pipe'] }).trim() }
   catch (error) { throw new VerificationError(error.code === 'ENOENT' ? 'Git is required' : 'Unable to inspect the Git checkout or published object', error.code === 'ENOENT' ? 3 : 2) }
+}
+
+export function browserPhaseConcurrency(env = process.env) {
+  const value = env[BROWSER_PHASE_CONCURRENCY_ENV]
+  if (value === undefined) return DEFAULT_BROWSER_PHASE_CONCURRENCY
+  if (env.CI) throw new VerificationError(`${BROWSER_PHASE_CONCURRENCY_ENV} is only supported without CI`)
+  if (value !== '1' && value !== '2') throw new VerificationError(`${BROWSER_PHASE_CONCURRENCY_ENV} must be 1 or 2`)
+  return Number(value)
 }
 
 export function verificationContext(cwd = process.cwd(), env = process.env) {
@@ -77,13 +88,14 @@ async function runNpm(command, { cwd, env, log }) {
 export async function verifyIntegration({ cwd = process.cwd(), env = process.env, run = runNpm, ifNeeded = false, resume = false,
   readInstalled: installedIdentity = readInstalled, readPrepared: preparedIdentity = readPrepared, createPlan = createVerificationPlan,
   report = message => process.stderr.write(message + '\n') } = {}) {
+  const concurrency = browserPhaseConcurrency(env)
   const before = verificationContext(cwd, env)
   const ownership = acquireVerificationOwnership(join(before.directory, 'ownership'))
   try {
     const options = { cwd: before.root, env, run }
     const path = verificationRecordPath(before)
     const attempt = randomUUID()
-    const record = { version: RECORD_VERSION, status: 'running', attempt, tree: before.tree, runtime, commands: VERIFICATION_COMMANDS }
+    const record = { version: RECORD_VERSION, status: 'running', attempt, tree: before.tree, runtime, browserPhaseConcurrency: concurrency, commands: VERIFICATION_COMMANDS }
     let inputStamp
     const stamp = () => ({ 'installed tools': installedIdentity({ ...options, metadata: true }), 'prepared outputs': preparedIdentity({ ...options, metadata: true }) })
     const assertCurrent = () => {
@@ -131,8 +143,12 @@ export async function verifyIntegration({ cwd = process.cwd(), env = process.env
       await phase(VERIFICATION_STEPS.checks)
       await phase(VERIFICATION_STEPS.saves)
       await phase(VERIFICATION_STEPS.tests)
-      // Keep coordinator ownership until both siblings finish, including after either fails
-      const results = await Promise.allSettled([VERIFICATION_STEPS.browser, VERIFICATION_STEPS.accounts].map(phase))
+      // Run both independent suites even if the first fails, and retain ownership until both finish
+      report(`[verify] Browser phase concurrency=${concurrency}`)
+      const results = []
+      for (let start = 0; start < BROWSER_PHASES.length; start += concurrency) {
+        results.push(...await Promise.allSettled(BROWSER_PHASES.slice(start, start + concurrency).map(phase)))
+      }
       const failed = results.find(result => result.status === 'rejected')
       if (failed) throw failed.reason
       assertCurrent()

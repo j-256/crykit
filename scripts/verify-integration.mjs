@@ -1,20 +1,23 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util'
-import { verifyIntegration } from './integration-verification.mjs'
+import { browserPhaseConcurrency, verifyIntegration } from './integration-verification.mjs'
 import { coordinateVerification } from './verification-coordination.mjs'
 import { nativeTestConcurrency } from './vitest-verification.mjs'
 
 const USAGE = `Usage: npm run verify -- [-h|--help] [-I|--if-needed] [-r|--resume]
 Prepare each required build once, then pass prerequisite checks and exclusive saves.
 Run Vitest only after the complete save-performance project passes.
-After Vitest passes, run guest browsers alongside isolated HTTPS account journeys.
+After Vitest passes, run both guest browsers and isolated HTTPS account journeys.
 Every required command must pass; ownership lasts until running siblings settle.
 Requires Node.js, npm, Git, npm ci, openssl, and Playwright Chromium, Firefox, WebKit.
 Run npx playwright install chromium firefox webkit to install the test browsers.
 No positional arguments or test filters are accepted.
 CRYKIT_NATIVE_TEST_CONCURRENCY accepts 1 or 2 (default 2) for local native shards.
 Serial mode preserves all cases and deadlines; this setting is rejected with CI.
-The selected environment separates checkpoint reuse and is logged by Vitest.
+CRYKIT_BROWSER_PHASE_CONCURRENCY accepts 1 or 2 (default 2) for local browser phases.
+Use 1 for guest then account, or 2 to run them together. An explicit value is invalid with CI.
+Both suites keep their worker limits and deadlines. Resource settings separate
+checkpoint reuse. The verifier logs browser concurrency and Vitest logs native concurrency.
 CRYKIT_E2E_PORT selects the local preview port (default 4173).
 Account acceptance workers own ephemeral HTTPS loopback ports and fresh backends.
 Installed, configured wt-queue coordinates full runs and checks base freshness.
@@ -42,6 +45,7 @@ try {
   else {
     // Reject invalid resource settings before acquiring coordination or preparing any build inputs
     nativeTestConcurrency()
+    browserPhaseConcurrency()
     await coordinateVerification(() => verifyIntegration({ ifNeeded: values['if-needed'], resume: values.resume }))
   }
 } catch (error) {
