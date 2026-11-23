@@ -28,7 +28,13 @@ describe('complete source backup payloads', () => {
     }
   })
   it('retains deeply immutable admitted catalogs without trusting altered archive contents', async () => {
-    const bytes = nativeFixture({ mutatePayload: payload => { payload.catalogs = [CURRENT_CATALOG] } })
+    // Store the complete bodies so this admission check does not spend its deadline deflating each catalog
+    const archive = (catalog: unknown, mutateLocalData?: (data: Record<string, unknown>) => void) => nativeFixture({
+      storeBundle: true,
+      mutatePayload: payload => { payload.catalogs = [catalog] },
+      mutateLocalData,
+    })
+    const bytes = archive(CURRENT_CATALOG)
     const preview = await previewNativeBackup(bytes, 'complete.zip')
     const catalog = preview.proposed.catalogs[0]!
     expect(isImmutableCatalogSnapshot(catalog)).toBe(true)
@@ -37,19 +43,21 @@ describe('complete source backup payloads', () => {
     expect(Object.isFrozen(entity.sources)).toBe(true)
     expect(() => { (entity as { name: string }).name = 'Altered guide' }).toThrow()
 
-    const next = await previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [CURRENT_CATALOG] }, mutateLocalData: data => { data.revision = 7 } }), 'next.zip')
+    const next = await previewNativeBackup(archive(CURRENT_CATALOG, data => { data.revision = 7 }), 'next.zip')
     expect(next.proposed.catalogs[0]).toBe(catalog)
     expect(next.proposed.localData.revision).toBe(7)
     const unexpected = { ...CURRENT_CATALOG, unchecked: 'Unknown catalog field' }
-    await expect(previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [unexpected] } }), 'unexpected.zip')).rejects.toThrow(/unsupported shape/)
+    await expect(previewNativeBackup(archive(unexpected), 'unexpected.zip')).rejects.toThrow(/unsupported shape/)
 
-    const changed = structuredClone(CURRENT_CATALOG)
-    const changedEntity = Object.values(changed.entities)[0]! as { name: string }
-    changedEntity.name = 'Altered guide'
-    await expect(previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [changed] } }), 'changed.zip')).rejects.toThrow(/invalid identity, revision, or contents/)
-    const malformed = structuredClone(CURRENT_CATALOG) as unknown as { entities: Record<string, { sources: unknown }> }
-    Object.values(malformed.entities)[0]!.sources = 'Invalid provenance'
-    await expect(previewNativeBackup(nativeFixture({ mutatePayload: payload => { payload.catalogs = [malformed] } }), 'malformed.zip')).rejects.toThrow(/unsupported shape/)
+    const [entityId, original] = Object.entries(CURRENT_CATALOG.entities)[0]!
+    const withChangedEntity = (fields: Record<string, unknown>) => ({
+      ...CURRENT_CATALOG,
+      entities: { ...CURRENT_CATALOG.entities, [entityId]: { ...original, ...fields } },
+    })
+    const changed = withChangedEntity({ name: 'Altered guide' })
+    await expect(previewNativeBackup(archive(changed), 'changed.zip')).rejects.toThrow(/invalid identity, revision, or contents/)
+    const malformed = withChangedEntity({ sources: 'Invalid provenance' })
+    await expect(previewNativeBackup(archive(malformed), 'malformed.zip')).rejects.toThrow(/unsupported shape/)
   })
   it('rejects prelaunch package-only manifests and requires complete source bodies', async () => {
     const pin = { id: CURRENT_CATALOG.id, revisionId: CURRENT_CATALOG.revisionId, checksum: CURRENT_CATALOG.checksum }
@@ -68,6 +76,7 @@ function selectedPlaythroughRecord(localData: Record<string, unknown>): Record<s
 }
 
 function nativeFixture(options: {
+  readonly storeBundle?: boolean
   readonly version?: string
   readonly activeScenarioId?: string
   readonly includeBadSource?: boolean
@@ -112,7 +121,7 @@ function nativeFixture(options: {
   options.mutatePayload?.(payload)
   return zipSync({
     'manifest.json': encode(manifest),
-    'bundle.json': encode(payload),
+    'bundle.json': [encode(payload), options.storeBundle ? { level: 0 } : {}],
     ...(options.includeBadSource ? { 'sources/0000.bin': source } : {}),
   })
 }
