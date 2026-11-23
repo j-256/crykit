@@ -175,3 +175,47 @@ it('rejects a delayed numeric observation from a nonterminal predecessor collect
   expect(old.snapshot()[0].resourceFailure).toBeUndefined()
   expect(next.snapshot()[0].resourceFailure).toBeUndefined()
 })
+
+it('reads active work without recording a boundary or moving a late completion to its successor', async () => {
+  const api = await import('./signin-merge-diagnostics')
+  api.enableSigninMergeDiagnostics()
+  try {
+    const old = api.beginSigninMergeDiagnostics()!
+    let resolve!: () => void
+    const operation = new Promise<void>(accept => { resolve = accept })
+    const pending = api.observeSigninSyncWork('capture-local', () => operation)
+    expect(pending).toBe(operation)
+    const worker = old.workerObserver()
+    worker.beginRequest()
+    const live = api.readLiveSigninSyncDiagnostics()
+    expect(live).toMatchObject({ state: 'observing', activeWorkerRequests: 1, activeUnreportedWorkerRequests: 1, spans: [{ label: 'capture-local', activeAgeMs: expect.any(Number) }] })
+    expect(live).not.toHaveProperty('workerMetadata')
+    expect(old.snapshot()).toEqual([])
+    worker.work({ decodedInputBytes: 17 }); worker.endRequest()
+    expect(api.readLiveSigninSyncDiagnostics()).toMatchObject({ activeWorkerRequests: 0, activeUnreportedWorkerRequests: 0, workerMetadata: { decodedInputBytes: 17, traversalBytes: 17 } })
+    api.beginSigninMergeDiagnostics()
+    resolve(); await pending
+    expect(old.live()).toMatchObject({ state: 'stopped' })
+    expect(api.readLiveSigninSyncDiagnostics()).toMatchObject({ spans: [], activeWorkerRequests: 0 })
+    expect(api.readSigninMergeDiagnostics()).toEqual([])
+  } finally { api.stopSigninMergeDiagnostics() }
+})
+
+it('bounds span history and reports settled work without changing its rejection', async () => {
+  const api = await import('./signin-merge-diagnostics')
+  api.enableSigninMergeDiagnostics()
+  try {
+    api.beginSigninMergeDiagnostics()
+    for (let i = 0; i < 65; i++) await api.observeSigninSyncWork('sync-iteration', () => Promise.resolve())
+    const reason = new Error('rejected mapping')
+    await expect(api.observeSigninSyncWork('map-request', () => Promise.reject(reason))).rejects.toBe(reason)
+    const live = api.readLiveSigninSyncDiagnostics()
+    expect(live?.state).toBe('observing')
+    if (live?.state !== 'observing') throw new Error('Missing observation')
+    expect(live.spans).toHaveLength(64)
+    expect(live.evictedCompleted).toBe(2)
+    expect(live.omittedStarts).toBe(0)
+    expect(live.spans.at(-1)).toMatchObject({ label: 'map-request', outcome: 'failed', endMs: expect.any(Number) })
+    expect(api.readSigninMergeDiagnostics()).toEqual([])
+  } finally { api.stopSigninMergeDiagnostics() }
+})

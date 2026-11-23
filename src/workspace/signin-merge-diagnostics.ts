@@ -20,6 +20,9 @@ export interface SigninMergeDiagnostic {
   readonly ciphertextObservations?: Readonly<Partial<Record<'worker' | 'main', { records: number; bytes: number; completedPasses: number; failedPasses: number }>>>
   readonly metadata?: Readonly<Partial<Record<BackupJsonByteCounter, number>> & { traversalBytes: number }>
 }
+type SyncSpanLabel = 'sync-iteration' | 'capture-local' | 'map-request' | 'baseline-request' | 'remote-projection' | 'managed-projection'
+const MAX_SYNC_SPANS = 64
+type SyncSpan = { label: SyncSpanLabel; startMs: number; endMs?: number; outcome?: 'complete' | 'failed' }
 type Event = Omit<SigninMergeDiagnostic, 'operationId' | 'metadata' | 'workerMetadata' | 'ciphertextObservations' | 'workerAccounting' | 'errorCode' | 'resourceFailure'> & { readonly errorCode?: string }
 let enabled = false
 let current: ReturnType<typeof createSigninMergeDiagnostics> | undefined
@@ -35,6 +38,18 @@ export function recordSigninMergeCiphertextWork(realm: 'worker' | 'main', record
 export function recordSigninMergeCiphertextFailure(realm: 'worker' | 'main') { if (enabled) current?.ciphertextFailure(realm) }
 export function beginSigninMergeDiagnostics() { return enabled ? createSigninMergeDiagnostics() : undefined }
 export function readSigninMergeDiagnostics(): readonly SigninMergeDiagnostic[] { return current?.snapshot() ?? [] }
+export function readLiveSigninSyncDiagnostics() { return enabled ? current?.live() ?? null : null }
+
+// Attach observation to the original promise without delaying, replacing or handling the caller's result
+export function observeSigninSyncWork<T>(label: SyncSpanLabel, work: () => Promise<T>): Promise<T> {
+  const finish = enabled ? current?.startSpan(label) : undefined
+  if (!finish) return work()
+  try {
+    const pending = work()
+    void pending.then(() => finish('complete'), () => finish('failed'))
+    return pending
+  } catch (error) { finish('failed'); throw error }
+}
 export function createSigninMergeDiagnostics() {
   // Successor operations retire the prior observer before subscribing; late disposal cannot retire the successor
   stopPrevious?.()
@@ -46,16 +61,50 @@ export function createSigninMergeDiagnostics() {
   const workerMetadata: Partial<Record<BackupJsonByteCounter, number>> = {}
   let workerAccounting: { startedRequests: number; reportedRequests: number; incompleteRequests: number } | undefined
   const ciphertextObservations: Partial<Record<'worker' | 'main', { records: number; bytes: number; completedPasses: number; failedPasses: number }>> = {}
+  let activeWorkerRequests = 0, activeUnreportedWorkerRequests = 0
+  const spans: SyncSpan[] = []
+  let evictedCompleted = 0, omittedStarts = 0
+  function codecCounters() {
+    const traversalBytes = Object.values(metadata).reduce((sum, value) => sum + value, 0)
+    return {
+      ...(traversalBytes ? { metadata: { ...metadata, traversalBytes } } : {}),
+      ...(Object.keys(workerMetadata).length ? { workerMetadata: { ...workerMetadata, traversalBytes: Object.values(workerMetadata).reduce((sum, value) => sum + value, 0) } } : {}),
+      ...(workerAccounting ? { workerAccounting: { ...workerAccounting } } : {}),
+    }
+  }
   const unsubscribe = observeBackupJsonWork((counter, bytes) => { metadata[counter] = (metadata[counter] ?? 0) + bytes })
   const stop = () => { observing = false; unsubscribe() }
   stopPrevious = stop
   const diagnostics = {
+    startSpan(label: SyncSpanLabel) {
+      if (!observing) return
+      // Retain active spans preferentially and report missing observations rather than inventing durations
+      if (spans.length === MAX_SYNC_SPANS) {
+        const old = spans.findIndex(span => span.endMs !== undefined)
+        if (old < 0) { omittedStarts++; return }
+        spans.splice(old, 1); evictedCompleted++
+      }
+      const span: SyncSpan = { label, startMs: performance.now() - startedAt }
+      spans.push(span)
+      // This closure belongs to the starting collector, including after a new sign-in replaces it
+      return (outcome: 'complete' | 'failed') => {
+        if (!observing) return
+        span.endMs = performance.now() - startedAt; span.outcome = outcome
+      }
+    },
+    live() {
+      const readMs = performance.now() - startedAt, readEpochMs = Date.now()
+      if (!observing) return { state: 'stopped' as const, readMs, readEpochMs }
+      return { state: 'observing' as const, readMs, readEpochMs, evictedCompleted, omittedStarts,
+        spans: spans.map(span => span.endMs === undefined ? { ...span, activeAgeMs: readMs - span.startMs } : { ...span }),
+        ...codecCounters(), activeWorkerRequests, activeUnreportedWorkerRequests }
+    },
     workerObserver() {
       workerAccounting ??= { startedRequests: 0, reportedRequests: 0, incompleteRequests: 0 }
       const accounting = workerAccounting, previous: Partial<Record<BackupJsonByteCounter, number>> = {}
       let active = false, reported = false, invalid = false, resourceReported = false
       return {
-        beginRequest() { if (terminal || active) return; active = true; reported = false; invalid = false; resourceReported = false; accounting.startedRequests++ },
+        beginRequest() { if (terminal || active) return; active = true; reported = false; invalid = false; resourceReported = false; accounting.startedRequests++; activeWorkerRequests++; activeUnreportedWorkerRequests++ },
         resourceFailure(value: unknown) {
           if (!observing || terminal || !active || resourceReported) return
           const parsed = SigninMergeResourceFailureSchema.safeParse(value)
@@ -74,11 +123,12 @@ export function createSigninMergeDiagnostics() {
             workerMetadata[key] = (workerMetadata[key] ?? 0) + value[key]! - (previous[key] ?? 0)
             previous[key] = value[key]
           }
-          if (!reported) { reported = true; accounting.reportedRequests++ }
+          if (!reported) { reported = true; accounting.reportedRequests++; activeUnreportedWorkerRequests-- }
         },
         endRequest() {
           if (!active) return
-          active = false
+          active = false; activeWorkerRequests--
+          if (!reported) activeUnreportedWorkerRequests--
           // A crashed or cancelled worker cannot claim zero unreported codec work
           if (!reported || invalid) accounting.incompleteRequests++
         },
@@ -96,13 +146,10 @@ export function createSigninMergeDiagnostics() {
     },
     record(event: Event) {
       if (terminal || !STAGES.includes(event.stage) || !OUTCOMES.includes(event.outcome) || !Number.isFinite(event.elapsedMs) || event.elapsedMs < 0) return
-      const traversalBytes = Object.values(metadata).reduce((sum, value) => sum + value, 0)
       const safe: SigninMergeDiagnostic = { operationId, stage: event.stage, outcome: event.outcome, elapsedMs: event.elapsedMs,
         ...(event.errorCode ? { errorCode: ERROR_CODES.find(code => code === event.errorCode) ?? 'unexpected' } : {}),
         ...(resourceFailure ? { resourceFailure: { ...resourceFailure } } : {}),
-        ...(traversalBytes ? { metadata: { ...metadata, traversalBytes } } : {}),
-        ...(Object.keys(workerMetadata).length ? { workerMetadata: { ...workerMetadata, traversalBytes: Object.values(workerMetadata).reduce((sum, value) => sum + value, 0) } } : {}),
-        ...(workerAccounting ? { workerAccounting: { ...workerAccounting } } : {}),
+        ...codecCounters(),
         ...(Object.keys(ciphertextObservations).length ? { ciphertextObservations: structuredClone(ciphertextObservations) } : {}) }
       events.push(safe)
       if (events.length > MAX_EVENTS) events.shift()
