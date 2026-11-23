@@ -21,6 +21,7 @@ const capturedEmails: ServiceEmail[] = []
 const pendingFaults: string[] = []
 // Excluded browser harness: hold actual Worker responses so tests observe native header/body ordering
 interface ResponseGate { path: string; phase: 'before-headers' | 'body'; arrived: boolean; released: boolean }
+const accountMetadataPath = '/api/v1/account'
 let responseGate: ResponseGate | undefined
 let localServiceOrigin: string | undefined
 let localNetworkIdentity: string | undefined
@@ -105,7 +106,7 @@ export default {
         localServiceOrigin = input.origin ?? undefined
         response = jsonResponse({ ok: true })
       } else if (path === '/__accounts/control/response-gate' && request.method === 'POST') {
-        const input = await readJson(request, z.strictObject({ path: z.enum(['/api/v1/auth/logout', '/api/v1/auth/renew', '/api/v1/auth/login/finish', '/api/v1/auth/devices/start', '/api/v1/account/sessions/revoke']), phase: z.enum(['before-headers', 'body']) }), maxAuthJsonBytes)
+        const input = await readJson(request, z.strictObject({ path: z.enum([accountMetadataPath, '/api/v1/auth/logout', '/api/v1/auth/renew', '/api/v1/auth/login/finish', '/api/v1/auth/devices/start', '/api/v1/account/sessions/revoke']), phase: z.enum(['before-headers', 'body']) }), maxAuthJsonBytes)
         if (responseGate) responseGate.released = true
         responseGate = { ...input, arrived: false, released: false }
         response = jsonResponse({ ok: true })
@@ -169,7 +170,7 @@ export default {
       console.warn(JSON.stringify({ event: 'local-origin-rejection', requestId: context.requestId, path: new URL(request.url).pathname, origin: request.headers.get('origin'), serviceOrigin: env.SERVICE_ORIGIN }))
     }
     const gate = responseGate
-    if (gate && new URL(request.url).pathname === gate.path && !gate.arrived) {
+    if (gate && new URL(request.url).pathname === gate.path && !gate.arrived && (gate.path !== accountMetadataPath || request.method === 'GET')) {
       gate.arrived = true
       // Keep request-owned I/O alive; a cross-request bare Promise can be abandoned by workerd
       const wait = async () => { while (!gate.released) await new Promise(resolve => setTimeout(resolve, 10)) }
