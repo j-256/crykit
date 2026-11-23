@@ -31,24 +31,44 @@ async function reachStandaloneActionByUserScroll(page: Page, action: string) {
   const main = page.getByRole('main'), button = page.getByRole('button', { name: action, exact: true })
   const scrollTop = () => main.evaluate(element => element.scrollTop)
   const inViewport = () => button.evaluate(element => { const rect = element.getBoundingClientRect(); return rect.top >= 0 && rect.bottom <= innerHeight && rect.left >= 0 && rect.right <= innerWidth })
+  async function scrollByInput(input: 'wheel' | 'PageUp' | 'PageDown', before: number) {
+    const movingAction = await button.elementHandle()
+    const controller = new AbortController()
+    const moved = (top: number) => input === 'PageUp' ? top < before : top > before
+    try {
+      if (input === 'wheel') await page.mouse.wheel(0, 1200)
+      else await page.keyboard.press(input)
+      // The main's rectangle stays fixed while its contents move. A changed offset alone can be mid-animation
+      // NaN keeps both numeric assertions pending, even when the pre-input offset is already positive
+      const observedOffset = expect.poll(async () => {
+        if (!moved(await scrollTop())) return Number.NaN
+        await movingAction.waitForElementState('stable', { signal: controller.signal, timeout: 0 })
+        const after = await scrollTop()
+        return moved(after) ? after : Number.NaN
+      })
+      if (input === 'PageUp') await observedOffset.toBeLessThan(before)
+      else await observedOffset.toBeGreaterThan(0)
+    } finally {
+      // Cancel any outstanding geometry wait when the numeric assertion reaches its deadline
+      controller.abort()
+      await movingAction.dispose()
+    }
+  }
   // Locator clicks can scroll inaccessible content into view, so establish native input access first
   expect(await main.evaluate(element => element.scrollHeight > element.clientHeight)).toBe(true)
   await page.mouse.move(195, 422)
-  await page.mouse.wheel(0, 1200)
-  await expect.poll(scrollTop).toBeGreaterThan(0)
+  await scrollByInput('wheel', await scrollTop())
   const maxScrollSteps = 8
   for (let step = 0; step < maxScrollSteps; step++) {
     const before = await scrollTop()
     if (before === 0) break
-    await page.keyboard.press('PageUp')
-    await expect.poll(scrollTop).toBeLessThan(before)
+    await scrollByInput('PageUp', before)
   }
   await expect.poll(scrollTop).toBe(0)
-  await page.keyboard.press('PageDown')
-  await expect.poll(scrollTop).toBeGreaterThan(0)
+  await scrollByInput('PageDown', await scrollTop())
   for (let step = 0; step < maxScrollSteps && !await inViewport(); step++) {
-    await page.keyboard.press(await button.evaluate(element => element.getBoundingClientRect().top < 0) ? 'PageUp' : 'PageDown')
-    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+    const key = await button.evaluate(element => element.getBoundingClientRect().top < 0) ? 'PageUp' : 'PageDown'
+    await scrollByInput(key, await scrollTop())
   }
   await expect.poll(inViewport).toBe(true)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
