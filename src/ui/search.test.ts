@@ -96,7 +96,7 @@ describe('reference search projection', () => {
     const imported = projectReferenceEntity({ ...CURRENT_CATALOG, checksum: 'synthetic-import' }, shard)
     expect(imported.projection.text).toMatchObject({ state: 'known', value: expect.not.stringContaining('teleports the party') })
     expect(JSON.stringify(shard)).toBe(before)
-    expect(shard.sources.some(source => source.sourceId.includes('fandom.com'))).toBe(false)
+    for (const source of shard.sources) expect(source.sourceId).not.toContain('fandom.com')
   })
 
   it('searches names, aliases, and raw text without treating normalized effects as labels', () => {

@@ -15,7 +15,7 @@ test('derived public shell resolves root assets without changing portable index 
   const shell = bundle[HOSTED_SHARE_SHELL].source
   assert.ok(shell.includes('<base href="/">'))
   assert.ok(!shell.includes('data-cf-beacon'))
-  assert.ok(!shell.includes('https://static.cloudflareinsights.com'))
+  assert.doesNotMatch(shell, /https:\/\/static\.cloudflareinsights\.com/)
   assert.ok(shell.includes("script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'"))
   assert.ok(shell.includes('src="./assets/app.js"'))
   assert.equal(new URL('./assets/app.js', new URL('/', 'https://example.test/t/Abc0123-_xy')).pathname, '/assets/app.js')
