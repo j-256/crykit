@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { createSigninMergeWorkerObserver } from './signin-merge-diagnostics'
+import { createSigninMergeWorkerObserver, observeSigninSyncWork } from './signin-merge-diagnostics'
 import { waitForAccountForeground } from '../account/background-work'
 import { assertActiveProfile, registerProfileCleanup, type ProfileToken } from '../account/profile'
 import { createProfileWorker, type ProfileWorkerLease } from '../account/profile-worker'
@@ -31,7 +31,7 @@ export async function mapIncrementalAccountIntent(database: AccountDatabase, tok
   const row = structuredClone(input), worker = await workerFor(token)
   assertActiveProfile(token)
   try {
-    const ticket = IncrementalMappingTicketSchema.parse(await requestMapping(worker, { kind: 'map', row }, signal))
+    const ticket = IncrementalMappingTicketSchema.parse(await observeSigninSyncWork('map-request', () => requestMapping(worker, { kind: 'map', row }, signal)))
     assertActiveProfile(token)
     if (ticket.operationId !== row.id) throw new Error('Mapping response identity changed')
     // Only the original main-profile owner can publish the exact encrypted worker receipt
@@ -49,7 +49,7 @@ export async function mapIncrementalAccountBaseline(database: AccountDatabase, t
   const worker = await workerFor(token)
   assertActiveProfile(token)
   try {
-    const ticket = IncrementalMappingTicketSchema.parse(await requestMapping(worker, { kind: 'baseline', fence }, signal))
+    const ticket = IncrementalMappingTicketSchema.parse(await observeSigninSyncWork('baseline-request', () => requestMapping(worker, { kind: 'baseline', fence }, signal)))
     assertActiveProfile(token)
     await activateIncrementalBaseline(database, token, ticket, () => waitForAccountForeground(token, signal), fence)
     const mapped = await readIncrementalMappedRoot(database, token, fence)

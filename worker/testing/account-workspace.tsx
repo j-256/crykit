@@ -1,4 +1,4 @@
-import { enableSigninMergeDiagnostics, readSigninMergeDiagnostics, recordSigninMergeBoundary, stopSigninMergeDiagnostics } from '../../src/workspace/signin-merge-diagnostics'
+import { readLiveSigninSyncDiagnostics, enableSigninMergeDiagnostics, readSigninMergeDiagnostics, recordSigninMergeBoundary, stopSigninMergeDiagnostics } from '../../src/workspace/signin-merge-diagnostics'
 import { signInProfile } from '../../src/account/lifecycle'
 import { writeDeviceSelection } from '../../src/workspace/device-selection'
 import { assertActiveProfile, profileSignal, type ProfileToken } from '../../src/account/profile'
@@ -61,6 +61,7 @@ async function signinProgressFixture(label: string, marker: string) {
 const accountBootstrapProof = {
   // Fixture-only composition preserves the real auth choice while seeding before provider admission
   signIn: signInProfile,
+  readLiveSigninSyncDiagnostics,
   enableSigninMergeDiagnostics,
   signinMergeDiagnostics: readSigninMergeDiagnostics,
   recordSigninMergeBoundary,

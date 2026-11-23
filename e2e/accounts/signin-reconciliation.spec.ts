@@ -77,51 +77,107 @@ test('sign-in merges Progress once across reload and confirms account data on a 
   test.setTimeout(240_000)
   const journeyStarted = Date.now()
   const phase = async (name: string) => testInfo.attach(`phase-${name}`, { body: JSON.stringify({ elapsedMilliseconds: Date.now() - journeyStarted }), contentType: 'application/json' })
-  const email = await register(page)
-  const label = 'Synthetic Progress ' + 'long-name-'.repeat(16)
-  await guestProgress(page, label)
-  await page.setViewportSize({ width: 390, height: 844 })
-  const started = Date.now()
-  await signIn(page, email)
-  await expect(page.getByRole('heading', { name: 'Choose what to keep', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-  await testInfo.attach('fresh-account-preparation', { body: JSON.stringify({ milliseconds: Date.now() - started, defaultCatalog: true }), contentType: 'application/json' })
-  await expect(page.getByText(label, { exact: false }).first()).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  await reachStandaloneActionByUserScroll(page, 'Merge (recommended)')
-  await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Review your merge', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-  await expect(page.getByRole('heading', { name: 'Review your merge', exact: true })).toBeFocused()
-  await reachStandaloneActionByUserScroll(page, 'Confirm merge')
-  await phase('merge-prepared')
-  await page.reload()
-  await signIn(page, email)
-  await expect(page.getByRole('heading', { name: 'Choose what to keep', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-  await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Review your merge', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-  await expect(page.getByRole('heading', { name: 'Review your merge', exact: true })).toBeFocused()
-  await reachStandaloneActionByUserScroll(page, 'Confirm merge')
-  await phase('fresh-review-after-reload')
-  await page.getByRole('button', { name: 'Confirm merge', exact: true }).click()
-  await expect(page.getByRole('complementary', { name: 'Account sync' })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-  const merged = await page.evaluate(() => (window as any).workspaceProof.inspect(false))
-  expect(merged.playthroughs).toContainEqual(expect.objectContaining({ label, progress: 1 }))
-  await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-  await expect.poll(() => page.evaluate(async () => (await (window as any).accountBootstrapProof.accountStorage()).pending.length), { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS }).toBe(0)
-  await phase('merge-published')
-  const context = await browser.newContext({ baseURL: accountOrigin, ignoreHTTPSErrors: true })
-  const second = await context.newPage()
+  const realms = ['before-reload', 'after-reload', 'second-device'] as const
+  type Realm = typeof realms[number]
+  const attempted = new Set<Realm>()
+  let active: { realm: Realm; page: Page; enabled: boolean; startEpochMs: number } | undefined
+  async function enable(realm: Realm, target: Page) {
+    const startEpochMs = Date.now()
+    const enabled = await target.evaluate(() => {
+      const proof = (window as any).accountBootstrapProof
+      if (!proof?.enableSigninMergeDiagnostics || !proof.readLiveSigninSyncDiagnostics || !proof.stopSigninMergeDiagnostics || !proof.signinMergeDiagnostics || !proof.recordSigninMergeBoundary) return false
+      proof.enableSigninMergeDiagnostics()
+      return true
+    }).catch(() => false)
+    active = { realm, page: target, enabled, startEpochMs }
+  }
+  async function attach(realm: Realm, data: object) {
+    attempted.add(realm)
+    // A reporter failure during cleanup must preserve the original journey assertion
+    await testInfo.attach('signin-diagnostics-' + realm, { body: JSON.stringify({ realm, ...data }), contentType: 'application/json' }).catch(() => {})
+  }
+  async function collect(reached: boolean) {
+    const capture = active
+    if (!capture) return
+    active = undefined
+    const sample = capture.enabled ? await capture.page.evaluate(remote => {
+      const proof = (window as any).accountBootstrapProof
+      if (remote) proof.recordSigninMergeBoundary('remote-accepted')
+      let live = null
+      try { live = proof.readLiveSigninSyncDiagnostics() } catch { /* Preserve the historical receipt if live sampling is unavailable */ }
+      proof.stopSigninMergeDiagnostics()
+      const events = proof.signinMergeDiagnostics().map(({ stage, outcome, elapsedMs, errorCode, resourceFailure, metadata, workerMetadata, workerAccounting, ciphertextObservations }: any) =>
+        ({ stage, outcome, elapsedMs, errorCode, resourceFailure, metadata, workerMetadata, workerAccounting, ciphertextObservations }))
+      return { events, live }
+    }, reached && capture.realm === 'after-reload').catch(() => null) : null
+    const events = sample?.events
+    const available = !!events?.length
+    const worker = events?.at(-1)?.workerAccounting
+    const workerReports = !worker ? 'unavailable' : worker.incompleteRequests || worker.startedRequests > worker.reportedRequests ? 'incomplete-at-last-boundary' : 'reported-at-last-boundary'
+    await attach(capture.realm, { state: !capture.enabled ? 'enable-unavailable' : !events ? 'read-unavailable' : available ? 'observed' : 'empty',
+      reached, live: sample?.live ?? null, workerReports, boundedHistoryAtCapacity: events?.length === 128, incomplete: !reached || !available, counters: available ? 'last-recorded-boundary-only' : 'unavailable',
+      startEpochMs: capture.startEpochMs, endEpochMs: Date.now(), events: events ?? [] })
+  }
   try {
-    await guestProgress(second, 'Second synthetic device')
-    await signIn(second, email)
-    await expect(second.getByRole('heading', { name: 'Choose what to keep', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
-    await phase('second-device-reviewed')
-    await second.getByRole('button', { name: 'Use account data on this device', exact: true }).click()
-    await expect(second.getByRole('heading', { name: 'Use account data on this device?', exact: true })).toBeVisible()
-    await second.getByRole('button', { name: 'Confirm use account data', exact: true }).click()
-    await expect(second.getByRole('complementary', { name: 'Account sync' })).toBeVisible()
-    expect((await second.evaluate(() => (window as any).workspaceProof.inspect(false))).playthroughs).toContainEqual(expect.objectContaining({ label, progress: 1 }))
-    await phase('account-choice-opened')
-  } finally { await context.close() }
+    const email = await register(page)
+    const label = 'Synthetic Progress ' + 'long-name-'.repeat(16)
+    await guestProgress(page, label)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await enable('before-reload', page)
+    const started = Date.now()
+    await signIn(page, email)
+    await expect(page.getByRole('heading', { name: 'Choose what to keep', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+    await testInfo.attach('fresh-account-preparation', { body: JSON.stringify({ milliseconds: Date.now() - started, defaultCatalog: true }), contentType: 'application/json' })
+    await expect(page.getByText(label, { exact: false }).first()).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await reachStandaloneActionByUserScroll(page, 'Merge (recommended)')
+    await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Review your merge', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+    await expect(page.getByRole('heading', { name: 'Review your merge', exact: true })).toBeFocused()
+    await reachStandaloneActionByUserScroll(page, 'Confirm merge')
+    await phase('merge-prepared')
+    await collect(true)
+    await page.reload()
+    await enable('after-reload', page)
+    await signIn(page, email)
+    await expect(page.getByRole('heading', { name: 'Choose what to keep', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+    await page.getByRole('button', { name: 'Merge (recommended)', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Review your merge', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+    await expect(page.getByRole('heading', { name: 'Review your merge', exact: true })).toBeFocused()
+    await reachStandaloneActionByUserScroll(page, 'Confirm merge')
+    await phase('fresh-review-after-reload')
+    await page.getByRole('button', { name: 'Confirm merge', exact: true }).click()
+    await expect(page.getByRole('complementary', { name: 'Account sync' })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+    const merged = await page.evaluate(() => (window as any).workspaceProof.inspect(false))
+    expect(merged.playthroughs).toContainEqual(expect.objectContaining({ label, progress: 1 }))
+    await expect(page.getByRole('complementary', { name: 'Account sync' }).getByRole('status')).toHaveText('Synced', { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+    await expect.poll(() => page.evaluate(async () => (await (window as any).accountBootstrapProof.accountStorage()).pending.length), { timeout: ACCOUNT_PREPARATION_TIMEOUT_MS }).toBe(0)
+    await phase('merge-published')
+    await collect(true)
+    const context = await browser.newContext({ baseURL: accountOrigin, ignoreHTTPSErrors: true })
+    const second = await context.newPage()
+    try {
+      await guestProgress(second, 'Second synthetic device')
+      await enable('second-device', second)
+      await signIn(second, email)
+      await expect(second.getByRole('heading', { name: 'Choose what to keep', exact: true })).toBeVisible({ timeout: ACCOUNT_PREPARATION_TIMEOUT_MS })
+      await phase('second-device-reviewed')
+      await second.getByRole('button', { name: 'Use account data on this device', exact: true }).click()
+      await expect(second.getByRole('heading', { name: 'Use account data on this device?', exact: true })).toBeVisible()
+      await second.getByRole('button', { name: 'Confirm use account data', exact: true }).click()
+      await expect(second.getByRole('complementary', { name: 'Account sync' })).toBeVisible()
+      expect((await second.evaluate(() => (window as any).workspaceProof.inspect(false))).playthroughs).toContainEqual(expect.objectContaining({ label, progress: 1 }))
+      await phase('account-choice-opened')
+      await collect(true)
+    } finally {
+      try { await collect(false) } finally { await context.close() }
+    }
+  } finally {
+    await collect(false)
+    for (const realm of realms) if (!attempted.has(realm)) {
+      await attach(realm, { state: 'not-entered', reached: false, live: null, incomplete: true, counters: 'unavailable', workerReports: 'unavailable', boundedHistoryAtCapacity: false, events: [] })
+    }
+  }
 })
 
 

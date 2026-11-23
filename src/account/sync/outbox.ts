@@ -1,3 +1,4 @@
+import { observeSigninSyncWork } from '../../workspace/signin-merge-diagnostics'
 import { readReviewedReplacement, reviewedRemoteMatches, pauseReviewedReplacement, bindReviewedPublication, completeReviewedPublication, installReviewedPublication } from '../../workspace/reviewed-replacement'
 import { captureAccountSyncWorkspace } from '../../workspace/account-sync-capture'
 import { prepareManagedAccountProjection } from '../../workspace/account-managed-projection'
@@ -206,7 +207,10 @@ export function registerSyncProjectionGuard(token: ProfileToken, mayReplace: () 
   guards.set(id, mayReplace)
   return () => { if (guards.get(id) === mayReplace) guards.delete(id) }
 }
-export async function runSyncIteration(token: ProfileToken, signal: AbortSignal): Promise<import('./scheduler').SyncOutcome> {
+export function runSyncIteration(token: ProfileToken, signal: AbortSignal): Promise<import('./scheduler').SyncOutcome> {
+  return observeSigninSyncWork('sync-iteration', () => foregroundIteration(token, signal))
+}
+async function foregroundIteration(token: ProfileToken, signal: AbortSignal): Promise<import('./scheduler').SyncOutcome> {
   const { AccountDatabase } = await import('../../persistence/account-database')
   const { stagePull, activatePulledState, readRemoteState, readRemoteHeads, RemoteStateSchema } = await import('./pull')
   const { captureRemoteProjection, openRemoteProjection, readPublicationPages, assertProjectionAdvance, assertProjectionSuccessor } = await import('./projection')
@@ -223,7 +227,7 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
     signal.throwIfAborted(); assertActiveProfile(token)
     const fence = await database.profileMeta.get('active')
     if (!fence) throw new SyncError('LOCAL_INTEGRITY_FAILED')
-    const captureLocal = () => localRead ??= captureAccountSyncWorkspace(database, token, fence, signal)
+    const captureLocal = () => localRead ??= observeSigninSyncWork('capture-local', () => captureAccountSyncWorkspace(database, token, fence, signal))
     const outbox = new EncryptedOutbox(database, token)
     if ((await database.outbox.toArray()).some(row => row.status === 'unmapped-local')) await captureLocal()
     await outbox.assertMapped()
@@ -289,7 +293,7 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
     let remote: import('./projection').RemoteProjection | null = null
     const candidate = await stagePull(database, token, client, async heads => {
       const local = await captureLocal()
-      nextRemoteCapture = await captureRemoteProjection(database, token, heads, local.workspace.head, local.operativePlanner.localData.revision, local.validatedEvidence, local.publicationValidatedEvidence)
+      nextRemoteCapture = await observeSigninSyncWork('remote-projection', () => captureRemoteProjection(database, token, heads, local.workspace.head, local.operativePlanner.localData.revision, local.validatedEvidence, local.publicationValidatedEvidence))
       const next = nextRemoteCapture.projection
       // Establish the persisted floor once per call, including the reconstructed predecessor on resume
       // Every subsequent group advances that validated predecessor transitively; downloads alone never establish authority
@@ -399,7 +403,7 @@ export async function runSyncIteration(token: ProfileToken, signal: AbortSignal)
         // Borrow only its exact admitted root, keeping any existing preparation-owned proof intact
         if (proof.root.documentId === native.opened.inheritedEvidence?.documentId && proof.root.revisionId === native.opened.inheritedEvidence.revisionId) native = { ...native, validatedEvidence: proof }
       }
-      managedProjection = await prepareManagedAccountProjection(database, token, local.fence, native, newEvidenceIntent)
+      managedProjection = await observeSigninSyncWork('managed-projection', () => prepareManagedAccountProjection(database, token, local.fence, native, newEvidenceIntent))
     }
     await activatePulledState(database, token, committedCandidate, local.fence, prepared, completedRow && operation ? { intent: completedRow, publication: operation.row } : undefined, operation?.value.accepted && !completedRow ? operation.row : undefined, assertMayActivate, acceptedBindings.map(entry => entry.body.revisionId), newEvidenceIntent, managedProjection?.prepared, reviewed?.row)
     if (prepared && typeof window !== 'undefined') window.dispatchEvent(new Event('crykit-account-sync-applied'))
