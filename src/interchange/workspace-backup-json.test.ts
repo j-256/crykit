@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { BackupJsonReader, encodeBackupJson } from './workspace-backup-json'
 import { metadataSource, readBackupMetadata } from './workspace-backup-evidence'
 import { WORKSPACE_BACKUP_LIMITS } from './workspace-backup-schema'
@@ -158,4 +158,99 @@ it('keeps observer exceptions outside codec success and failure semantics', asyn
     expect(reader.finish()).toEqual({ kept: true })
     expect(() => reader.consume(new Uint8Array([0xff]))).toThrow()
   } finally { stop() }
+})
+
+it('consumes a complete original page once and leaves parse misses untouched', async () => {
+  const { observeBackupJsonWork } = await import('./workspace-backup-json')
+  const counters: Record<string, number> = {}, reader = new BackupJsonReader()
+  let pages = 0
+  const reservePage = () => { pages++ }
+  const stop = observeBackupJsonWork((counter, bytes) => { counters[counter] = (counters[counter] ?? 0) + bytes })
+  // Readers capture their observer at construction, so use this interval's own reader
+  const observed = new BackupJsonReader()
+  const encode = (text: string) => new TextEncoder().encode(text)
+  try {
+    for (const text of ['[["array"]', '[["array"]][["end"]]']) expect(observed.tryConsumeCompletePage(encode(text), reservePage)).toBe(false)
+    expect(pages).toBe(0)
+    expect(counters).toEqual({})
+    const bytes = encode('[["object"],["key","kept"],["text-value","value"],["end"]]')
+    expect(observed.tryConsumeCompletePage(bytes, reservePage)).toBe(true)
+    bytes.fill(0)
+    expect(observed.finish()).toEqual({ kept: 'value' })
+    expect(Object.getPrototypeOf(observed.finish())).toBe(null)
+    expect(pages).toBe(1)
+    expect(counters).toEqual({ decodedInputBytes: bytes.length })
+    expect(() => reader.tryConsumeCompletePage(encode('[["value",1]]'), () => { throw new Error('Frame budget') })).toThrow('Frame budget')
+    reader.consume(encode('[["value",2]]'))
+    expect(reader.finish()).toBe(2)
+  } finally { stop() }
+})
+
+it('shares complete-page token rejection without falling back after mutation', async () => {
+  const { observeBackupJsonWork } = await import('./workspace-backup-json')
+  const page = new TextEncoder().encode('[["array"],["value",1],["unknown"]]')
+  let decoded = 0
+  const stop = observeBackupJsonWork((counter, bytes) => { if (counter === 'decodedInputBytes') decoded += bytes })
+  const reader = new BackupJsonReader()
+  try {
+    expect(() => reader.tryConsumeCompletePage(page, () => {})).toThrow('Unknown backup token')
+    expect(decoded).toBe(page.length)
+    reader.consume(new TextEncoder().encode('[["end"]]'))
+    expect(reader.finish()).toEqual([1])
+  } finally { stop() }
+})
+
+it('counts complete and split pages once while borrowed input is cleared on advance', async () => {
+  const { observeBackupJsonWork } = await import('./workspace-backup-json')
+  const value = { text: 'Snow 雪 [ ] \\"', rows: [1, 2], end: [] }
+  const pages = [...encodeBackupJson(value, 64)]
+  const chunks = pages.flatMap((page, index) => index % 2 ? [page.slice(0, 7), page.slice(7)] : [page])
+  const total = pages.reduce((sum, page) => sum + page.length, 0)
+  let decoded = 0
+  const stop = observeBackupJsonWork((counter, bytes) => { if (counter === 'decodedInputBytes') decoded += bytes })
+  try {
+    await expect(readBackupMetadata({ byteLength: total, async *open() { for (const chunk of chunks) { yield chunk; chunk.fill(0) } } })).resolves.toEqual(value)
+    expect(decoded).toBe(total)
+    expect(chunks.every(chunk => chunk.every(byte => byte === 0))).toBe(true)
+  } finally { stop() }
+})
+
+it.each(['constructor', 'prototype', '__proto__'])('rejects unsafe complete-page keys: %s', async key => {
+  const bytes = new TextEncoder().encode(JSON.stringify([['object'], ['key', key], ['value', 1], ['end']]))
+  await expect(readBackupMetadata({ byteLength: bytes.length, async *open() { yield bytes } })).rejects.toThrow('Duplicate or invalid backup key')
+})
+
+it.each([
+  { tokens: [['array', 'extra']], reason: 'arity' },
+  { tokens: [['value', {}]], reason: 'primitive' },
+  { tokens: [['object'], ['key', 'unfinished'], ['end']], reason: 'container end' },
+  { tokens: Array.from({ length: WORKSPACE_BACKUP_LIMITS.depth + 2 }, () => ['array']), reason: 'deeply nested' },
+])('keeps complete-page token and depth checks: $reason', async ({ tokens, reason }) => {
+  const bytes = new TextEncoder().encode(JSON.stringify(tokens))
+  await expect(readBackupMetadata({ byteLength: bytes.length, async *open() { yield bytes } })).rejects.toThrow(reason)
+})
+
+it('retains whitespace prefixes in the following page byte bound', async () => {
+  const first = new TextEncoder().encode('[["array"]] ')
+  const tokens = [['text-value', 'x'.repeat(WORKSPACE_BACKUP_LIMITS.payload - JSON.stringify([['text-value', '']]).length)]]
+  const second = new TextEncoder().encode(JSON.stringify(tokens))
+  expect(second.length).toBe(WORKSPACE_BACKUP_LIMITS.payload)
+  await expect(readBackupMetadata({ byteLength: first.length + second.length, async *open() { yield first; yield second } })).rejects.toThrow('page limit exceeded')
+})
+
+it('keeps node and frame budgets before complete-page publication', async () => {
+  vi.resetModules()
+  vi.doMock('./workspace-backup-schema', async importOriginal => {
+    const original = await importOriginal<typeof import('./workspace-backup-schema')>()
+    return { ...original, WORKSPACE_BACKUP_LIMITS: { ...original.WORKSPACE_BACKUP_LIMITS, bytes: 256, frames: 2 } }
+  })
+  try {
+    const { BackupJsonReader: BoundedReader } = await import('./workspace-backup-json')
+    const { readBackupMetadata: boundedRead } = await import('./workspace-backup-evidence')
+    const reader = new BoundedReader()
+    const nodes = new TextEncoder().encode(JSON.stringify([['array'], ...Array.from({ length: 256 }, () => ['value', 0])]))
+    expect(() => reader.tryConsumeCompletePage(nodes, () => {})).toThrow('node limit exceeded')
+    const pages = ['[["array"]]', '[["value",0]]', '[["end"]]'].map(text => new TextEncoder().encode(text))
+    await expect(boundedRead({ byteLength: pages.reduce((sum, page) => sum + page.length, 0), async *open() { yield* pages } })).rejects.toThrow('page count exceeded')
+  } finally { vi.doUnmock('./workspace-backup-schema'); vi.resetModules() }
 })

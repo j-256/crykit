@@ -115,6 +115,20 @@ export class BackupJsonReader {
   consume(bytes: Uint8Array) {
     observedBytes(this.observer, 'decodedInputBytes', bytes)
     const tokens: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+    this.consumeTokens(tokens)
+  }
+  tryConsumeCompletePage(bytes: Uint8Array, beforeConsume: () => void): boolean {
+    let tokens: unknown
+    try { tokens = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)) }
+    catch { return false }
+    // Reserve framing limits before observer delivery or token mutation
+    // Only parsing can miss: a rejected token must never be replayed through the scanner
+    beforeConsume()
+    observedBytes(this.observer, 'decodedInputBytes', bytes)
+    this.consumeTokens(tokens)
+    return true
+  }
+  private consumeTokens(tokens: unknown) {
     if (!Array.isArray(tokens) || !tokens.length) throw new Error('Invalid backup token page')
     for (const token of tokens) {
       if (!Array.isArray(token) || typeof token[0] !== 'string') throw new Error('Invalid backup token')

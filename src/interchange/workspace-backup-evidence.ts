@@ -35,6 +35,7 @@ export async function readBackupMetadata(content: BlobSource): Promise<unknown> 
   if (!Number.isSafeInteger(content.byteLength) || content.byteLength < 0 || content.byteLength > WORKSPACE_BACKUP_LIMITS.bytes) throw new Error('Backup metadata byte limit exceeded')
   const json = new BackupJsonReader(), page = new Uint8Array(Math.min(content.byteLength, WORKSPACE_BACKUP_LIMITS.payload))
   let length = 0, pageLength = 0, depth = 0, quoted = false, escaped = false, pages = 0
+  const reservePage = () => { if (++pages > WORKSPACE_BACKUP_LIMITS.frames) throw new Error('Backup metadata page count exceeded') }
   // Original token pages are concatenated JSON arrays, but encrypted blobs can split or combine them
   // Recover only their framing here; the frozen decoder still validates every token and value
   // ASCII delimiters cannot occur inside a UTF-8 continuation, so byte scanning also preserves split characters
@@ -42,6 +43,11 @@ export async function readBackupMetadata(content: BlobSource): Promise<unknown> 
     for await (const chunk of content.open()) {
       if (chunk.length > content.byteLength - length) throw new Error('Backup metadata length mismatch')
       length += chunk.length
+      // Stored evidence restores whole original pages before delivery, avoiding a bytewise scan
+      // Outer whitespace must stay buffered because it counts toward the following page's bound
+      // A split/coalesced parse miss leaves counters and token state untouched for the scanner
+      if (!pageLength && chunk.length <= WORKSPACE_BACKUP_LIMITS.payload && chunk[0] === JSON_BYTE.arrayStart && chunk.at(-1) === JSON_BYTE.arrayEnd
+        && json.tryConsumeCompletePage(chunk, reservePage)) continue
       for (const byte of chunk) {
         if (pageLength === page.length) throw new Error('Backup metadata page limit exceeded')
         page[pageLength++] = byte
@@ -59,7 +65,7 @@ export async function readBackupMetadata(content: BlobSource): Promise<unknown> 
         else if (byte === JSON_BYTE.arrayStart || byte === JSON_BYTE.objectStart) depth++
         else if (byte === JSON_BYTE.arrayEnd || byte === JSON_BYTE.objectEnd) {
           if (--depth === 0) {
-            if (++pages > WORKSPACE_BACKUP_LIMITS.frames) throw new Error('Backup metadata page count exceeded')
+            reservePage()
             json.consume(page.subarray(0, pageLength))
             page.fill(0, 0, pageLength); pageLength = 0
           }
