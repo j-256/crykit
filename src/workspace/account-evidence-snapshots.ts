@@ -1,5 +1,6 @@
 import { requireCompactCatalogWriters } from './catalog-writer-capability'
 import { compactHistoricalIdentity, historicalMemberKey } from '../interchange/workspace-backup-catalog'
+import Dexie from 'dexie'
 import { z } from 'zod'
 import { catalogEvidenceSchemas, validateCatalogEvidenceSources, type CatalogInheritedSnapshotSources } from './catalog-evidence'
 import { accountCleanupOnlyFailure, accountPreparationFailure, assertAccountCleanupJoinable, hasNewAccountCleanupFailure, readAccountCleanupOnlyFailure, readAccountPreparationFailure, type AccountCleanupGroup, type AccountCleanupJoin, type AccountCleanupResult, type AccountManagedCleanup } from './account-cleanup-attempt'
@@ -14,12 +15,16 @@ import { WorkspaceBlobRefSchema } from './file-schemas'
 import type { BlobSource, WorkspaceBlobRef } from './documents'
 import { blobIdentity, hashBlob, verifiedBlob } from './blobs'
 import { NATIVE_BACKUP_JSON_LIMITS, parseBoundedJson } from '../interchange/json'
-import { WORKSPACE_BACKUP_LIMITS } from '../interchange/workspace-backup-schema'
+import { SnapshotHeaderSchema, WORKSPACE_BACKUP_LIMITS } from '../interchange/workspace-backup-schema'
 import { attachBackupBodies, capturedBackupEvidence, compareBackupRefs, equalMetadataStreams, historicalMetadataIdentity, readBackupMetadata, type InheritedSnapshotSources, type SnapshotMetadataV1 } from '../interchange/workspace-backup-evidence'
 import { inheritedSnapshotSetDigest } from '../interchange/identity'
 import { assertOwnedWorkspaceSnapshot, validateWorkspaceSnapshotV1, type WorkspaceSnapshotV2, type InheritedWorkspaceSnapshot } from './snapshot'
 import { withImmutableWorkspaceBodyValidation } from './closure'
 import { guestEvidenceSources, type CapturedGuestEvidence } from './guest-evidence'
+import { MOD_CATALOG_SCHEMA } from '../domain/mod-layers'
+import { prepareSourcePayloadValidation } from '../domain/source-fulfillment'
+import type { CatalogSnapshot } from '../domain/types'
+import { validateWorkspacePrefix } from './validation'
 
 const integer = z.number().int().nonnegative().safe()
 const digest = z.string().regex(/^[0-9a-f]{64}$/)
@@ -312,11 +317,33 @@ class GraphReader {
   }
 }
 
+async function prepareLegacySourceChecks(catalogs: readonly CatalogSnapshot[], lifetime: ReadLifetime, assertCurrent: () => void): Promise<void> {
+  let guardFailure: { error: unknown } | undefined
+  // The checksum helper calls this synchronously between tasks, including immediately before caching
+  const check = () => {
+    try { lifetime.assertOpen(); assertCurrent() }
+    catch (error) { guardFailure = { error }; throw error }
+  }
+  for (const catalog of catalogs) {
+    if (catalog.schemaVersion === MOD_CATALOG_SCHEMA) continue
+    try {
+      if (!await prepareSourcePayloadValidation(catalog, check)) break
+    } catch {
+      // Keep the first authority error even if a subsequent check would report something else
+      if (guardFailure) throw guardFailure.error
+      break
+    }
+  }
+}
+
 export async function openAccountInheritedEvidence(database: AccountDatabase, token: ProfileToken, root: CipherRef, owner?: AccountPreparationOwner, cleanup?: AccountManagedCleanup): Promise<AccountInheritedEvidence> {
+  // A transaction-scoped caller must keep synchronous source checks even if Dexie's scope changes during decryption
+  const transactionAtEntry = !!Dexie.currentTransaction
   root = freeze(CipherRefSchema.parse(root)); token = Object.freeze({ ...token })
   let unregister = () => {}
   let releaseObservations = () => {}
-  const lifetime = new ReadLifetime(async () => { assertActiveProfile(token); if (database.accountId !== token.accountId) throw new Error('Foreign account evidence database'); owner?.check() }, owner, () => { unregister(); releaseObservations() })
+  const assertCurrent = () => { assertActiveProfile(token); if (database.accountId !== token.accountId) throw new Error('Foreign account evidence database'); owner?.check() }
+  const lifetime = new ReadLifetime(async () => { assertCurrent() }, owner, () => { unregister(); releaseObservations() })
   const join = cleanup?.reader(lifetime)
   const dispose = async () => {
     if (!join) return lifetime.dispose()
@@ -378,7 +405,20 @@ export async function openAccountInheritedEvidence(database: AccountDatabase, to
           if (!stored || !sameRef(stored.source, body.source) || !sameRef(raw.state.blobs[index], body.source) || refKey(body.content) !== refKey(stored.content)) throw new Error('Account historical subset association mismatch')
           union.add(blobIdentity(body.source))
         }
-        await validateWorkspaceSnapshotV1(attachBackupBodies(raw, new Map(bodies.map(body => [blobIdentity(body.ref), body]))), bodyValidation)
+        const snapshot = attachBackupBodies(raw, new Map(bodies.map(body => [blobIdentity(body.ref), body])))
+        const candidates = snapshot.state.planner?.catalogs
+        if (!transactionAtEntry && !Dexie.currentTransaction && Array.isArray(candidates) && candidates.some(catalog => catalog?.schemaVersion !== MOD_CATALOG_SCHEMA)) {
+          // Check the same header and complete shape prefix before introducing any scheduled source work
+          const { state, ...header } = snapshot
+          SnapshotHeaderSchema.parse(header)
+          const catalogs = validateWorkspacePrefix(state)
+          await lifetime.check()
+          if (!Dexie.currentTransaction) await prepareLegacySourceChecks(catalogs, lifetime, assertCurrent)
+          await lifetime.check()
+        }
+        // The original decoded catalogs retain their key order for the source annex
+        // False or failed preparation leaves the original validator in charge of the result and error order
+        await validateWorkspaceSnapshotV1(snapshot, bodyValidation)
         streams.push(freeze({ ...member, segments, byteLength: length, subset: subset.map(body => body.source), subsetBodies: subset }))
       }
     })

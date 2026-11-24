@@ -7,7 +7,8 @@ import type { WorkspaceBlobRef } from './file-types'
 import { EditorWorkspaceDocumentSchema, SaveWorkspaceDocumentSchema, WorkspaceAssetSchema, WorkspaceBlobRefSchema, WorkspaceConflictSchema, WorkspaceRetainedContentSchema, LibraryDefaultsSchema } from './file-schemas'
 import { NativeEvidenceSchema, NativeLineageSchema, NativeLocalDataSchema, NativeSourceManifestSchema } from '../interchange/native-schema'
 
-export function validateWorkspace(state: WorkspaceState): void {
+// Account checksum preparation shares this admission order without gaining source or graph authority
+export function validateWorkspacePrefix(state: WorkspaceState): WorkspaceState['planner']['catalogs'] {
   const exactFields = (value: object, fields: readonly string[]) => { const keys = Object.keys(value); if (keys.length !== fields.length || keys.some(key => !fields.includes(key))) throw new Error('Unknown or missing workspace container fields') }
   exactFields(state, ['planner', 'editorDocuments', 'saveDocuments', 'assets', 'libraryDefaults', 'conflicts', 'retainedContent', 'blobs'])
   exactFields(state.planner, ['localData', 'lineage', 'catalogs', 'evidence', 'sources', 'history', ...(state.planner.savedChanges ? ['savedChanges'] : []), ...(state.planner.journal ? ['journal'] : [])])
@@ -16,6 +17,11 @@ export function validateWorkspace(state: WorkspaceState): void {
   // Admit every member before journal checks so endpoint validation can share its checked catalog lookup
   const catalogs = Object.isFrozen(state.planner.catalogs) ? state.planner.catalogs : Object.freeze([...state.planner.catalogs])
   for (const catalog of catalogs) immutableCatalogSnapshot(catalog)
+  return catalogs
+}
+
+export function validateWorkspace(state: WorkspaceState): void {
+  const catalogs = validateWorkspacePrefix(state)
   if (state.planner.journal) {
     const { checkpoints, ...header } = state.planner.journal
     PlannerJournalSchema.omit({ checkpoints: true }).parse(header)

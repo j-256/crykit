@@ -1,19 +1,26 @@
 import { assertBytePagesEqual } from './byte-pages.test-helpers'
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
+import { SYNTHETIC_RETAINED_CATALOG } from '../domain/retained-catalog.test-helpers'
 import 'fake-indexeddb/auto'
 import { afterEach, expect, it, vi } from 'vitest'
-import { installProfile, invalidateProfile } from '../account/profile'
+import { installProfile, invalidateProfile, type ProfileToken } from '../account/profile'
+import Dexie from 'dexie'
 import { WORKSPACE_BACKUP_LIMITS } from '../interchange/workspace-backup-schema'
+import { inheritedSnapshotSetDigest } from '../interchange/identity'
 import type { CipherRecord, CipherRef } from './account-database'
-import { accountLocalId } from '../workspace/account-cache'
+import { accountLocalId, cipherRef, stageAccountBytes } from '../workspace/account-cache'
 import { AccountDatabase } from './account-database'
-import { editorClosureFixture } from '../workspace/test-helpers'
+import { editorClosureFixture, syntheticCatalog } from '../workspace/test-helpers'
 import { inheritWorkspaceSnapshot } from '../interchange/workspace-backup'
-import { capturedBackupEvidence, readBackupMetadata, attachBackupBodies } from '../interchange/workspace-backup-evidence'
+import { capturedBackupEvidence, readBackupMetadata, attachBackupBodies, historicalMetadataIdentity, metadataSource, type SnapshotMetadataV1 } from '../interchange/workspace-backup-evidence'
 import { disposeWorkspaceSnapshot, validateWorkspaceSnapshotV1, type WorkspaceSnapshotV1 } from '../workspace/snapshot'
 import { hashBlob, memoryBlob, blobIdentity, readBlob } from '../workspace/blobs'
 import * as evidence from '../workspace/account-evidence-snapshots'
 import { createAccountCleanupCoordinator } from '../workspace/account-cleanup-attempt'
+import { prepareAccountWorkspace } from '../workspace/account-graph'
+import { createAccountPreparationOwner } from '../workspace/account-prepared-records'
+import { captureAccountSnapshot } from '../workspace/account-snapshot'
+import { compactCatalogEvidenceFixture } from '../workspace/catalog-evidence.test-helpers'
 import { emptyPlannerEvidence, guestEvidenceFromSnapshot } from '../workspace/guest-evidence'
 
 vi.mock('../interchange/workspace-backup-schema', async importOriginal => {
@@ -670,6 +677,159 @@ async function emptyRoot(database: AccountDatabase, token: import('../account/pr
   const blobs = await putJson(database, token, { version: 1, kind: 'evidence-blob-page', entries: [], children: [] }, [])
   return putJson(database, token, { version: 1, kind: 'inherited-snapshot-evidence', setDigest: 'b31b613c1f568466840704190d9a418278ba187123148b5c31c8d0d979840297', members, blobs }, [members, blobs])
 }
+
+// Encrypt even invalid metadata with matching physical receipts so semantic admission decides the outcome
+async function installLegacyCatalogArchive(database: AccountDatabase, token: ProfileToken, raw: SnapshotMetadataV1) {
+  const metadata = metadataSource(raw), identity = await historicalMetadataIdentity(metadata)
+  const segments = []
+  for await (const page of metadata.open()) {
+    const record = await stageAccountBytes(database, token, page, [])
+    await database.encryptedRevisions.add(record)
+    segments.push({ ordinal: segments.length, byteLength: page.length, sha256: await hashBlob(memoryBlob(page)), content: cipherRef(record) })
+  }
+  const json = (value: unknown, dependencies: readonly CipherRef[] = []) => putJson(database, token, value, dependencies)
+  const index = await json({ version: 1, kind: 'evidence-metadata-page', entries: segments, children: [] }, segments.map(segment => segment.content))
+  const stream = await json({ version: 1, kind: 'evidence-metadata-stream', codec: 'backup-json-tokens-v1', pages: index, byteLength: metadata.byteLength, digest: identity.metadataStreamDigest }, [index])
+  const subset = await json({ version: 1, kind: 'evidence-subset-page', entries: [], children: [] })
+  const members = await json({ version: 1, kind: 'evidence-member-page', entries: [{ id: identity.id, metadata: stream, blobSubset: subset }], children: [] }, [stream, subset])
+  const blobs = await json({ version: 1, kind: 'evidence-blob-page', entries: [], children: [] })
+  return json({ version: 1, kind: 'inherited-snapshot-evidence', setDigest: await inheritedSnapshotSetDigest([identity.id]), members, blobs }, [members, blobs])
+}
+
+function interceptSourceDigest(catalogIds: string | readonly string[], beforeDigest: (catalogId: string) => void | Promise<void>) {
+  const digest = crypto.subtle.digest.bind(crypto.subtle)
+  const ids = typeof catalogIds === 'string' ? [catalogIds] : catalogIds
+  vi.spyOn(crypto.subtle, 'digest').mockImplementation(async (algorithm, bytes) => {
+    const text = new TextDecoder().decode(bytes)
+    const id = ids.find(id => text.includes(`"id":"${id}"`))
+    if (id) await beforeDigest(id)
+    return digest(algorithm, bytes)
+  })
+}
+
+it.each(['profile', 'owner', 'one-shot owner check'] as const)('rejects %s retirement across the scheduled archive source digest', async authority => {
+  const { database, token } = account(), { legacy } = await compactCatalogEvidenceFixture()
+  const root = await installLegacyCatalogArchive(database, token, legacy.raw)
+  const primary = new Error('synthetic one-shot owner retirement')
+  let failOwnerCheck = false
+  const owner = authority === 'profile' ? undefined : createAccountPreparationOwner(database, token, { operationId: accountLocalId(), check() {
+    if (failOwnerCheck) { failOwnerCheck = false; throw primary }
+  } })
+  let reach!: (boundary: 'digest') => void, release!: () => void
+  const reached = new Promise<'digest'>(resolve => { reach = resolve })
+  const released = new Promise<void>(resolve => { release = resolve })
+  interceptSourceDigest(SYNTHETIC_RETAINED_CATALOG.id, () => {
+    reach('digest')
+    return released
+  })
+  let admitted: evidence.AccountInheritedEvidence | undefined
+  let failure: unknown
+  const opened = evidence.openAccountInheritedEvidence(database, token, root, owner).then(handle => {
+    admitted = handle
+    return 'admitted' as const
+  }, error => {
+    failure = error
+    return 'rejected' as const
+  })
+  try {
+    expect(await Promise.race([reached, opened])).toBe('digest')
+    if (authority === 'profile') invalidateProfile()
+    else if (authority === 'owner') await owner!.abandon()
+    else failOwnerCheck = true
+    release()
+    expect(await opened).toBe('rejected')
+    if (authority === 'one-shot owner check') expect(failure).toBe(primary)
+    else expect(failure).toMatchObject({ message: expect.stringMatching(authority === 'profile' ? /released/ : /closed/) })
+  } finally {
+    release()
+    await opened
+    await admitted?.dispose()
+    await owner?.abandon()
+  }
+})
+
+it.each(['valid', 'invalid', 'preparation false', 'invalid journal'] as const)('uses full snapshot validation after optional preparation stops (%s)', async variant => {
+  const { database, token } = account(), { catalog, legacy } = await compactCatalogEvidenceFixture()
+  const first = variant === 'valid' ? catalog : { ...catalog, checksum: 'builtin:sha256:' + '0'.repeat(64) }
+  const second = syntheticCatalog('legacy source checked only after its predecessor')
+  const planner = { ...legacy.raw.state.planner, catalogs: [first, second] }
+  if (variant === 'invalid journal') Object.assign(planner, { journal: { version: 1, changes: [], checkpoints: null, undoable: true } })
+  const root = await installLegacyCatalogArchive(database, token, { ...legacy.raw, state: { ...legacy.raw.state, planner } })
+  const started: string[] = []
+  interceptSourceDigest([first.id, second.id], id => {
+    started.push(id)
+    if (variant === 'valid' || variant === 'invalid') throw new Error('synthetic Web Crypto digest failure')
+  })
+  const opened = evidence.openAccountInheritedEvidence(database, token, root)
+  if (variant === 'valid') await (await opened).dispose()
+  else if (variant === 'invalid journal') await expect(opened).rejects.toThrow('Invalid planner checkpoint collection')
+  else await expect(opened).rejects.toThrow('A catalog source payload has invalid identity, revision, or contents')
+  expect(started).toEqual([first.id])
+})
+
+it.each([
+  ['header', /unrecognized_keys/],
+  ['workspace', /Unknown or missing workspace container fields/],
+  ['planner', /Unknown or missing workspace container fields/],
+  ['catalog', /A transformed catalog has an unsupported shape/],
+] as const)('rejects invalid %s before preparing an earlier valid catalog', async (stage, expected) => {
+  const { database, token } = account(), { catalog, legacy } = await compactCatalogEvidenceFixture()
+  const raw = legacy.raw
+  if (stage === 'header') Object.assign(raw, { unknown: true })
+  else if (stage === 'workspace') Object.assign(raw.state, { unknown: true })
+  else if (stage === 'planner') Object.assign(raw.state.planner, { unknown: true })
+  else Object.assign(raw.state.planner, { catalogs: [catalog, { ...catalog, entities: null }] })
+  const root = await installLegacyCatalogArchive(database, token, raw)
+  let reachedDigest = false
+  interceptSourceDigest(catalog.id, () => { reachedDigest = true })
+  await expect(evidence.openAccountInheritedEvidence(database, token, root)).rejects.toThrow(expected)
+  expect(reachedDigest).toBe(false)
+})
+
+it('preserves catalog order and the exact keys bound by source evidence through encrypted archive reopening', async () => {
+  const { database, token } = account(), { legacy } = await compactCatalogEvidenceFixture()
+  const catalogs = [syntheticCatalog('deliberately first', { zeta: 'first', alpha: 'second' }), SYNTHETIC_RETAINED_CATALOG]
+  const initial = await prepareAccountWorkspace(database, token, { ...legacy.raw.state, planner: { ...legacy.raw.state.planner, catalogs }, blobs: [] })
+  const historical = await captureAccountSnapshot(initial.opened, { key: 'active', headRevision: 0, head: initial.head }, async () => {})
+  const inherited = await inheritWorkspaceSnapshot(historical, [historical])
+  const prepared = await evidence.createAccountInheritedEvidencePreparation(database, token).prepare({ additions: [inherited] })
+  const started: string[] = []
+  interceptSourceDigest(catalogs.map(catalog => catalog.id), id => { started.push(id) })
+  const opened = await evidence.openAccountInheritedEvidence(database, token, prepared.root, prepared.owner)
+  try {
+    const { bodies, members } = await evidence.accountInheritedSources(opened)
+    const raw = await readBackupMetadata(members[0].metadata) as SnapshotMetadataV1
+    const expectedOrder = [catalogs[0].id, 'crystal-project/guide/synthetic-retained-source']
+    expect(started).toEqual(expectedOrder)
+    expect(raw.state.planner.catalogs.map(catalog => catalog.id)).toEqual(expectedOrder)
+    expect(Object.keys(raw.state.planner.catalogs[0].legacy!)).toEqual(['zeta', 'alpha'])
+    const snapshot = attachBackupBodies(raw, new Map(bodies.map(body => [blobIdentity(body.ref), body])))
+    const catalog = snapshot.state.planner.catalogs[0]!
+    const reordered = { ...snapshot, state: { ...snapshot.state, planner: { ...snapshot.state.planner, catalogs: [{ ...catalog, legacy: { alpha: 'second', zeta: 'first' } }, ...snapshot.state.planner.catalogs.slice(1)] } } }
+    // A reordered object has the same source checksum but cannot satisfy the projected source evidence
+    await expect(validateWorkspaceSnapshotV1(reordered)).rejects.toThrow('Current-unit evidence has a foreign projected association')
+  } finally {
+    await opened.dispose()
+    await prepared.dispose()
+    await disposeWorkspaceSnapshot(inherited)
+    await disposeWorkspaceSnapshot(historical)
+  }
+})
+
+it('opens a legacy archive in an active Dexie transaction without scheduling a source digest', async () => {
+  const { database, token } = account(), { catalog, legacy } = await compactCatalogEvidenceFixture()
+  const root = await installLegacyCatalogArchive(database, token, legacy.raw)
+  let reachedDigest = false
+  interceptSourceDigest(catalog.id, () => { reachedDigest = true })
+  await database.transaction('r', database.encryptedRevisions, database.stagedCipherChunks, async () => {
+    expect(Dexie.currentTransaction?.active).toBe(true)
+    // Keep the caller's transaction open across the existing encrypted reads in this fixture
+    const opened = await Dexie.waitFor(evidence.openAccountInheritedEvidence(database, token, root))
+    try { expect(opened.members).toEqual([{ id: legacy.id }]) }
+    finally { await opened.dispose() }
+  })
+  expect(reachedDigest).toBe(false)
+})
 
 it('rejects repeated and cyclic pages, and bounds cycle-free wide and deep trees before traversal', async () => {
   const { database, token } = account()
