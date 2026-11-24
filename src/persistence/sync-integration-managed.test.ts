@@ -205,3 +205,196 @@ it.each(['fresh', 'migrated'] as const)('publishes %s managed encrypted commands
     expect(undone.localData.personalDefinitions).toEqual(before.localData.personalDefinitions)
   } finally { activation.mockRestore(); await store.dispose() }
 }, 60_000)
+
+it.each(['fresh poll', 'completed scan'])('keeps an in-flight managed planner save bound to its publication base across an unchanged %s', async path => {
+  const { conflictService } = await import('./sync-conflict-fixture')
+  const { createPersonalDefinition } = await import('../domain')
+  const { openAccountJson } = await import('../workspace/account-cache')
+  const { IncrementalWorkspaceIntentSchema } = await import('../workspace/account-mapping-origin')
+  const { createReviewedReplacementService } = await import('../workspace/reviewed-replacement')
+  const activation = await import('./account-database')
+  const fixture = await conflictService()
+  try {
+    const device = await fixture.device(0)
+    expect((await device.settle()).state).toBe('synced')
+    if (path === 'completed scan') {
+      const review = await createReviewedReplacementService(device.db, device.token).refresh()
+      await review.dispose()
+      expect(await device.db.syncState.get('scan')).toBeDefined()
+    } else expect(await device.db.syncState.get('scan')).toBeUndefined()
+    const repository = await device.open(), before = await repository.load()
+    const base = (await device.db.syncState.get('projection'))!.ref
+    const fence = (await device.db.profileMeta.get('active'))!, journal = await device.db.migrationJournal.count()
+    const draft = createPersonalDefinition(before.localData, { kind: 'item', name: 'Foreground draft' })
+    const activate = activation.activateLocalAccountCommit
+    // Run the actual poll after the intent captures its base, before the save transaction checks it
+    const gate = vi.spyOn(activation, 'activateLocalAccountCommit').mockImplementationOnce(async (...args) => {
+      expect(await runSyncIteration(device.token, new AbortController().signal)).toEqual({ state: 'synced', moreWork: false })
+      return activate(...args)
+    })
+    const saved = await repository.save(draft, before.revision).finally(() => gate.mockRestore())
+    expect(saved.localData.personalDefinitions).toEqual(draft.personalDefinitions)
+    expect(saved.canUndo).toBe(true)
+    expect(await device.db.syncState.get('scan')).toBeUndefined()
+    expect((await device.db.syncState.get('projection'))?.ref).toEqual(base)
+    expect((await device.db.syncState.get('remote'))?.ref).toEqual(base)
+    const target = (await device.db.profileMeta.get('active'))!
+    expect(target.headRevision).toBe(fence.headRevision + 1)
+    expect(await device.db.migrationJournal.count()).toBe(journal + 1)
+    const intents = await device.db.outbox.toArray()
+    expect(intents).toHaveLength(1)
+    expect(intents[0]).toMatchObject({ status: 'unmapped-local', publicationBase: base })
+    expect(await openAccountJson(device.db, device.token, intents[0].ref, IncrementalWorkspaceIntentSchema)).toMatchObject({ operation: 'save', before: fence.head, after: target.head, publicationBase: base, sequence: target.headRevision })
+    expect((await device.settle()).state).toBe('synced')
+    expect(await device.db.outbox.count()).toBe(0)
+    const reopened = await device.open()
+    expect((await reopened.load()).localData).toEqual(saved.localData)
+    expect((await reopened.undo(saved.localData.revision)).localData.personalDefinitions).toEqual(before.localData.personalDefinitions)
+  } finally { await fixture.dispose() }
+})
+
+it('refuses an in-flight managed save when a second device advances the selected account', async () => {
+  const { conflictService } = await import('./sync-conflict-fixture')
+  const { createPersonalDefinition } = await import('../domain')
+  const { readRemoteState } = await import('../account/sync/pull')
+  const activation = await import('./account-database')
+  const fixture = await conflictService()
+  try {
+    await (await fixture.device(0)).settle()
+    const second = await fixture.device(1)
+    await second.settle()
+    const other = await second.open(), remote = await other.load()
+    await other.save(createPersonalDefinition(remote.localData, { kind: 'item', name: 'Published elsewhere' }), remote.revision)
+    expect((await second.settle()).state).toBe('synced')
+
+    const first = await fixture.device(0), stale = await first.open(), before = await stale.load()
+    const previous = (await readRemoteState(first.db, first.token))!
+    const draft = createPersonalDefinition(before.localData, { kind: 'item', name: 'Uncommitted foreground draft' })
+    const activate = activation.activateLocalAccountCommit
+    const gate = vi.spyOn(activation, 'activateLocalAccountCommit').mockImplementationOnce(async (...args) => {
+      expect((await first.settle()).state).toBe('synced')
+      return activate(...args)
+    })
+    await expect(stale.save(draft, before.revision)).rejects.toMatchObject({ code: 'LOCAL_REVISION_CONFLICT' }).finally(() => gate.mockRestore())
+    const advanced = (await readRemoteState(first.db, first.token))!
+    expect(advanced.row.ref).not.toEqual(previous.row.ref)
+    expect(advanced.value.publicationEpoch).toBeGreaterThan(previous.value.publicationEpoch)
+    expect((await first.db.syncState.get('projection'))?.ref).toEqual(advanced.row.ref)
+    expect(await first.db.outbox.count()).toBe(0)
+    const after = await (await first.open()).load()
+    expect(Object.values(after.localData.personalDefinitions).map(definition => definition.name)).toContain('Published elsewhere')
+    expect(after.localData.personalDefinitions).not.toEqual(draft.personalDefinitions)
+  } finally { await fixture.dispose() }
+})
+
+it('selects a renewed server cursor even when the authenticated heads and watermarks stay equal', async () => {
+  const { conflictService } = await import('./sync-conflict-fixture')
+  const { readRemoteHeads, readRemoteState } = await import('../account/sync/pull')
+  const fixture = await conflictService()
+  try {
+    const device = await fixture.device(0)
+    await device.settle()
+    const previous = (await readRemoteState(device.db, device.token))!
+    const hour = 60 * 60 * 1000
+    fixture.fixture.advance(hour)
+    expect((await device.settle()).state).toBe('synced')
+    const next = (await readRemoteState(device.db, device.token))!
+    expect(next.value.cursor).not.toEqual(previous.value.cursor)
+    expect(next.value.watermark).toBe(previous.value.watermark)
+    expect(next.value.publicationEpoch).toBe(previous.value.publicationEpoch)
+    expect(await readRemoteHeads(device.db, device.token, next.value.heads)).toEqual(await readRemoteHeads(device.db, device.token, previous.value.heads))
+    expect(next.row.ref).not.toEqual(previous.row.ref)
+    expect((await device.db.syncState.get('projection'))?.ref).toEqual(next.row.ref)
+  } finally { await fixture.dispose() }
+})
+
+it('keeps an unchanged scan retryable if pending work, selection, or iteration ownership changes before retirement', async () => {
+  const { conflictService } = await import('./sync-conflict-fixture')
+  const pull = await import('../account/sync/pull')
+  const fixture = await conflictService()
+  try {
+    const device = await fixture.device(0)
+    await device.settle()
+    const priorSelection = (await device.db.syncState.get('projection'))!
+    const repository = await device.open(), initial = await repository.load()
+    await repository.save({ ...initial.localData, modSetup: { version: 1, state: 'skipped' } }, initial.revision)
+    await prepareManagedSync(device.db, device.token)
+    const intent = (await device.db.outbox.toArray())[0]!
+    expect((await runSyncIteration(device.token, new AbortController().signal)).moreWork).toBe(true)
+    const publication = (await device.db.syncState.get('publication'))!
+    expect(publication).toBeDefined()
+    expect((await device.settle()).state).toBe('synced')
+    const remote = (await device.db.syncState.get('remote'))!
+    const activate = pull.activatePulledState
+    for (const row of ['outbox', 'publication', 'selection', 'retirement'] as const) {
+      const controller = new AbortController(), retired = new Error('Retired idle poll')
+      // Reuse actual encrypted records so the race guard sees the same rows as a real writer
+      const gate = vi.spyOn(pull, 'activatePulledState').mockImplementationOnce(async (...args) => {
+        if (row === 'outbox') await device.db.outbox.add(intent)
+        else if (row === 'publication') await device.db.syncState.add(publication)
+        else if (row === 'selection') await device.db.syncState.put(priorSelection)
+        else controller.abort(retired)
+        return activate(...args)
+      })
+      try {
+        const poll = runSyncIteration(device.token, controller.signal)
+        if (row === 'retirement') await expect(poll).rejects.toBe(retired)
+        else await expect(poll, row).rejects.toThrow('LOCAL_REVISION_CONFLICT')
+        expect(await device.db.syncState.get('remote')).toEqual(remote)
+        expect((await device.db.syncState.get('projection'))?.ref).toEqual(row === 'selection' ? priorSelection.ref : remote.ref)
+        expect(await device.db.syncState.get('scan')).toBeDefined()
+      } finally {
+        gate.mockRestore()
+        if (row === 'outbox') await device.db.outbox.delete(intent.id)
+        else if (row === 'publication') await device.db.syncState.delete('publication')
+        else if (row === 'selection') await device.db.syncState.put({ id: 'projection', ref: remote.ref })
+      }
+    }
+    expect((await device.settle()).state).toBe('synced')
+    expect(await device.db.syncState.get('scan')).toBeUndefined()
+    expect(await device.db.syncState.get('remote')).toEqual(remote)
+  } finally { await fixture.dispose() }
+})
+
+it('advances an authenticated lower floor or stale body/publication binding even when server heads stay unchanged', async () => {
+  const { z } = await import('zod')
+  const { conflictService } = await import('./sync-conflict-fixture')
+  const { CipherRefSchema } = await import('../workspace/account-cache')
+  const { readRemoteState } = await import('../account/sync/pull')
+  const { writeSyncState } = await import('../account/sync/outbox')
+  const { readPublicationPages } = await import('../account/sync/projection')
+  const { publicationPageSchema, stagePublicationPages } = await import('../account/sync/publication')
+  const fixture = await conflictService()
+  try {
+    const device = await fixture.device(0)
+    await device.settle()
+    const pages = publicationPageSchema(z.strictObject({ key: z.string(), body: CipherRefSchema, publication: CipherRefSchema }), 'local-effective-units')
+    const entries = (root: import('./account-database').CipherRef) => readPublicationPages(device.db, device.token, root, pages, entry => [entry.body, entry.publication])
+    const earlier = await entries((await readRemoteState(device.db, device.token))!.value.effective!.units)
+    const repository = await device.open(), initial = await repository.load()
+    await repository.save({ ...initial.localData, modSetup: { version: 1, state: 'skipped' } }, initial.revision)
+    expect((await device.settle()).state).toBe('synced')
+    const current = (await readRemoteState(device.db, device.token))!.value
+    const newer = await entries(current.effective!.units)
+    const predecessor = earlier.find(prior => newer.some(next => next.key === prior.key && prior.body.revisionId !== next.body.revisionId && prior.publication.revisionId !== next.publication.revisionId))
+    if (!predecessor) throw new Error('The published planner edit has no advancing effective unit')
+    for (const field of ['watermark', 'publicationEpoch', 'body', 'publication'] as const) {
+      const value = structuredClone(current)
+      if (field === 'watermark' || field === 'publicationEpoch') value[field]--
+      else {
+        const stale = newer.map(entry => entry.key === predecessor.key ? { ...entry, [field]: predecessor[field] } : entry)
+        value.effective!.units = await stagePublicationPages(device.db, device.token, 'local-effective-units', stale, entry => [entry.body, entry.publication])
+      }
+      // Each selected floor retains actual authenticated refs, including the old same-unit publication ancestor
+      const row = await writeSyncState(device.db, device.token, 'remote', value, await device.db.syncState.get('remote'), [value.heads, value.effective!.control, value.effective!.units])
+      await device.db.syncState.put({ id: 'projection', ref: row.ref })
+      expect((await runSyncIteration(device.token, new AbortController().signal)).state, field).toBe('synced')
+      const refreshed = (await readRemoteState(device.db, device.token))!
+      expect(refreshed.row.ref, field).not.toEqual(row.ref)
+      expect((await device.db.syncState.get('projection'))?.ref, field).toEqual(refreshed.row.ref)
+      expect(refreshed.value.watermark).toBe(current.watermark)
+      expect(refreshed.value.publicationEpoch).toBe(current.publicationEpoch)
+      expect(await entries(refreshed.value.effective!.units)).toEqual(newer)
+    }
+  } finally { await fixture.dispose() }
+})

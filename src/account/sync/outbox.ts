@@ -207,6 +207,20 @@ export function registerSyncProjectionGuard(token: ProfileToken, mayReplace: () 
   guards.set(id, mayReplace)
   return () => { if (guards.get(id) === mayReplace) guards.delete(id) }
 }
+type EffectiveEntry = { readonly key: string; readonly body: CipherRef; readonly publication: CipherRef }
+
+function sameEffectiveEntries(previous: readonly EffectiveEntry[], next: readonly EffectiveEntry[]): boolean {
+  if (previous.length !== next.length) return false
+  const byKey = new Map(previous.map(entry => [entry.key, entry]))
+  if (byKey.size !== previous.length) return false
+  return next.every(entry => {
+    const prior = byKey.get(entry.key)
+    if (!prior) return false
+    byKey.delete(entry.key)
+    return prior.body.documentId === entry.body.documentId && prior.body.revisionId === entry.body.revisionId
+      && prior.publication.documentId === entry.publication.documentId && prior.publication.revisionId === entry.publication.revisionId
+  })
+}
 export function runSyncIteration(token: ProfileToken, signal: AbortSignal): Promise<import('./scheduler').SyncOutcome> {
   return observeSigninSyncWork('sync-iteration', () => foregroundIteration(token, signal))
 }
@@ -290,6 +304,8 @@ async function foregroundIteration(token: ProfileToken, signal: AbortSignal): Pr
     }
     if (reviewed?.value.state === 'active' && operation?.value.accepted) reviewed = await completeReviewedPublication(database, token, reviewed)
     const previousRemote = await readRemoteState(database, token)
+    const selectedProjection = previousRemote && !operation ? await database.syncState.get('projection') : undefined
+    let previousEntries: readonly EffectiveEntry[] | undefined
     let remote: import('./projection').RemoteProjection | null = null
     const candidate = await stagePull(database, token, client, async heads => {
       const local = await captureLocal()
@@ -297,7 +313,7 @@ async function foregroundIteration(token: ProfileToken, signal: AbortSignal): Pr
       const next = nextRemoteCapture.projection
       // Establish the persisted floor once per call, including the reconstructed predecessor on resume
       // Every subsequent group advances that validated predecessor transitively; downloads alone never establish authority
-      if (!remote) await assertProjectionAdvance(database, token, next, previousRemote?.value.effective)
+      if (!remote) previousEntries = await assertProjectionAdvance(database, token, next, previousRemote?.value.effective)
       // Every indivisible group must advance the preceding validated group, including within one downloaded page
       await assertProjectionSuccessor(database, token, next, remote)
       // Keep only the selected predecessor and the next admission until successor checks finish
@@ -385,8 +401,23 @@ async function foregroundIteration(token: ProfileToken, signal: AbortSignal): Pr
       newEvidenceIntent = { id, ref: cipherRef(staged.record), records: staged.records }
     }
     const deferred = !!projection && changed && !keepLocalInitialPublication && (!mayReplace || remaining.length > 0)
-    const effective = projection ? { lineageId: projection.lineageId, control: projection.control, units: await stagePublicationPages(database, token, 'local-effective-units', [...projection.units.values()].map(unit => ({ key: unit.key, body: unit.body.ref, publication: unit.ref })).concat([...projection.lineages].map(([key, anchor]) => ({ key, body: anchor.value.selected, publication: anchor.ref }))), entry => [entry.body, entry.publication]) } : undefined
-    const committedCandidate = { ...candidate, state: { ...candidate.state, projectionPending: deferred, ...(effective ? { effective } : {}) } }
+    const installingLineages = !operation?.value.accepted && !needsEvidencePublication && projection && [...(await import('./lineage')).personalLineageChains(projection.workspace.state.planner.localData).keys()].some(key => !projection.lineages.has(key))
+    const entries = projection ? [...projection.units.values()].map(unit => ({ key: unit.key, body: unit.body.ref, publication: unit.ref })).concat([...projection.lineages].map(([key, anchor]) => ({ key, body: anchor.value.selected, publication: anchor.ref }))) : []
+    const prior = previousRemote?.value
+    // The previous floor was authenticated before checking each successive graph. Reuse its
+    // index only when both body and publication bindings match, including the lineage anchors
+    const idle = projection && previousRemote && selectedProjection && prior?.effective && previousEntries && !changed && !prepared && !deferred
+      && !operation && !rows.length && !installingLineages && !newEvidenceIntent
+      && (!reviewed || reviewed.value.state === 'accepted' || reviewed.value.state === 'selected-latest')
+      && selectedProjection.ref.documentId === previousRemote.row.ref.documentId && selectedProjection.ref.revisionId === previousRemote.row.ref.revisionId
+      && JSON.stringify(previousRemote.row) === JSON.stringify(candidate.previous)
+      && prior.initialComplete && prior.projectionPending === false && prior.cursor === candidate.state.cursor
+      && prior.watermark === candidate.state.watermark && prior.publicationEpoch === candidate.state.publicationEpoch
+      && prior.effective.lineageId === projection.lineageId && prior.effective.control.documentId === projection.control.documentId
+      && prior.effective.control.revisionId === projection.control.revisionId
+      && sameEffectiveEntries(previousEntries, entries)
+    const effective = idle ? prior.effective : projection ? { lineageId: projection.lineageId, control: projection.control, units: await stagePublicationPages(database, token, 'local-effective-units', entries, entry => [entry.body, entry.publication]) } : undefined
+    const committedCandidate = { ...candidate, state: { ...candidate.state, heads: idle ? prior.heads : candidate.state.heads, projectionPending: deferred, ...(effective ? { effective } : {}) } }
     signal.throwIfAborted(); assertActiveProfile(token)
     // A draft opened during preparation must also prevent the final pointer transaction
     const assertMayActivate = () => { if (projectionBase !== local.workspace && !mayReplaceNow()) throw new SyncError('LOCAL_REVISION_CONFLICT') }
@@ -405,12 +436,11 @@ async function foregroundIteration(token: ProfileToken, signal: AbortSignal): Pr
       }
       managedProjection = await observeSigninSyncWork('managed-projection', () => prepareManagedAccountProjection(database, token, local.fence, native, newEvidenceIntent))
     }
-    await activatePulledState(database, token, committedCandidate, local.fence, prepared, completedRow && operation ? { intent: completedRow, publication: operation.row } : undefined, operation?.value.accepted && !completedRow ? operation.row : undefined, assertMayActivate, acceptedBindings.map(entry => entry.body.revisionId), newEvidenceIntent, managedProjection?.prepared, reviewed?.row)
+    await activatePulledState(database, token, committedCandidate, local.fence, prepared, completedRow && operation ? { intent: completedRow, publication: operation.row } : undefined, operation?.value.accepted && !completedRow ? operation.row : undefined, assertMayActivate, acceptedBindings.map(entry => entry.body.revisionId), newEvidenceIntent, managedProjection?.prepared, reviewed?.row, idle ? { projection: selectedProjection, signal } : undefined)
     if (prepared && typeof window !== 'undefined') window.dispatchEvent(new Event('crykit-account-sync-applied'))
     if (needsEvidencePublication) return { state: 'syncing', moreWork: true }
     const settledState = state.conflicts.some(conflict => conflict.disposition.kind === 'unresolved' && !projection?.supersededConflictIds.has(conflict.id)) ? 'conflict' as const : 'synced' as const
     if (operation?.value.accepted) return { state: !remaining.length && projection && !deferred ? settledState : deferred && !remaining.length ? 'paused' : 'syncing', moreWork: remaining.length > 0 || !projection }
-    const installingLineages = projection && [...(await import('./lineage')).personalLineageChains(projection.workspace.state.planner.localData).keys()].some(key => !projection.lineages.has(key))
     if (!remaining.length && projection && !installingLineages) return { state: deferred ? 'paused' : settledState, moreWork: false }
     const intents = await Promise.all(remaining.map(async row => ({ row, value: await openAccountJson(database, token, row.ref, MappedWorkspaceIntentSchema) })))
     intents.sort((a, b) => a.value.localRevision - b.value.localRevision)

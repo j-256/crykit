@@ -288,7 +288,8 @@ export async function stagePull(database: AccountDatabase, token: ProfileToken, 
       scan.heads = await saveHeads(database, token, heads)
       await save()
     }
-    scan.heads = await saveHeads(database, token, heads); scan.cursor = page.cursor; scan.complete = !page.hasMore; delete scan.page
+    // Each completed group already saved its exact heads; an empty page retains its authenticated index
+    scan.cursor = page.cursor; scan.complete = !page.hasMore; delete scan.page
     await save()
   }
   if (!scan.complete) return null
@@ -299,9 +300,10 @@ export async function stagePull(database: AccountDatabase, token: ProfileToken, 
   return { previous: remote?.row, scanRow: saved.row, state, heads }
 }
 
-export async function activatePulledState(database: AccountDatabase, token: ProfileToken, candidate: PullCandidate, expected: import('../../persistence/account-database').AccountFence, prepared?: import('../../workspace/account-graph').PreparedAccountWorkspace, completed?: { readonly intent: import('../../persistence/account-database').AccountIntentRecord; readonly publication: EncryptedSyncState }, publicationOnly?: EncryptedSyncState, assertMayActivate: () => void = () => {}, acceptedBodies: readonly string[] = [], newIntent?: { readonly id: string; readonly ref: CipherRef; readonly records: readonly CipherRecord[] }, managed?: import('../../persistence/account-database').PreparedLocalActivation, reviewedAuthority?: EncryptedSyncState): Promise<void> {
+export async function activatePulledState(database: AccountDatabase, token: ProfileToken, candidate: PullCandidate, expected: import('../../persistence/account-database').AccountFence, prepared?: import('../../workspace/account-graph').PreparedAccountWorkspace, completed?: { readonly intent: import('../../persistence/account-database').AccountIntentRecord; readonly publication: EncryptedSyncState }, publicationOnly?: EncryptedSyncState, assertMayActivate: () => void = () => {}, acceptedBodies: readonly string[] = [], newIntent?: { readonly id: string; readonly ref: CipherRef; readonly records: readonly CipherRecord[] }, managed?: import('../../persistence/account-database').PreparedLocalActivation, reviewedAuthority?: EncryptedSyncState, idlePoll?: { readonly projection: EncryptedSyncState; readonly signal: AbortSignal }): Promise<void> {
   // Ignore opened functions and caller owner claims; only this captured envelope can publish
   reviewedAuthority = structuredClone(reviewedAuthority)
+  if (idlePoll) idlePoll = { projection: structuredClone(idlePoll.projection), signal: idlePoll.signal }
   candidate = structuredClone(candidate)
   expected = structuredClone(expected)
   const selected = managed ? structuredClone({ head: managed.head, records: managed.records }) : prepared ? structuredClone({ head: prepared.head, records: prepared.records }) : undefined
@@ -320,11 +322,23 @@ export async function activatePulledState(database: AccountDatabase, token: Prof
   try {
     const { stageAccountJson, cipherRef } = await import('../../workspace/account-cache')
     const { profileSignal } = await import('../profile')
-    const record = await stageAccountJson(database, token, candidate.state, [candidate.state.heads, ...(candidate.state.effective ? [candidate.state.effective.control, candidate.state.effective.units] : [])])
+    // The caller supplies the pre-pull selection only after checking the entire fresh
+    // graph, all effective bindings, and absence of work. A foreground save depends on
+    // the exact encrypted base; retire only its scan under the same authority transaction
+    if (idlePoll) {
+      idlePoll.signal.throwIfAborted()
+      const incumbent = await readRemoteState(database, token)
+      if (!incumbent || JSON.stringify(incumbent.row) !== JSON.stringify(candidate.previous)) throw new SyncError('LOCAL_REVISION_CONFLICT')
+      if (selected || completed || publicationOnly || newIntent || acceptedBodies.length || !candidate.state.initialComplete
+        || candidate.state.projectionPending !== false || !candidate.state.effective || JSON.stringify(candidate.state) !== JSON.stringify(incumbent.value)
+        || JSON.stringify(idlePoll.projection.ref) !== JSON.stringify(incumbent.row.ref)) throw new SyncError('LOCAL_INTEGRITY_FAILED')
+    }
+    const activation = idlePoll ? { idlePoll } : { record: await stageAccountJson(database, token, candidate.state, [candidate.state.heads, ...(candidate.state.effective ? [candidate.state.effective.control, candidate.state.effective.units] : [])]) }
     const signal = profileSignal(token)
     let transaction: import('dexie').Transaction | undefined
     const abort = () => transaction?.abort()
     signal.addEventListener('abort', abort, { once: true })
+    idlePoll?.signal.addEventListener('abort', abort, { once: true })
     try {
       await database.transaction('rw', database.tables, async current => {
         transaction = current
@@ -333,6 +347,17 @@ export async function activatePulledState(database: AccountDatabase, token: Prof
           || JSON.stringify(await database.syncState.get('remote')) !== JSON.stringify(candidate.previous)
           || JSON.stringify(await database.syncState.get('scan')) !== JSON.stringify(candidate.scanRow)) throw new SyncError('LOCAL_REVISION_CONFLICT')
         if (JSON.stringify(await database.syncState.get('reviewed-replacement')) !== JSON.stringify(reviewedAuthority)) throw new SyncError('LOCAL_REVISION_CONFLICT')
+        idlePoll?.signal.throwIfAborted()
+        if (activation.idlePoll) {
+          if (JSON.stringify(await database.syncState.get('projection')) !== JSON.stringify(activation.idlePoll.projection)
+            || await database.syncState.get('publication') || await database.outbox.count()) throw new SyncError('LOCAL_REVISION_CONFLICT')
+          await database.syncState.delete('scan')
+          assertMayActivate()
+          activation.idlePoll.signal.throwIfAborted()
+          assertActiveProfile(token)
+          return
+        }
+        const record = activation.record
         const publication = completed?.publication ?? publicationOnly
         if (publication && JSON.stringify(await database.syncState.get('publication')) !== JSON.stringify(publication)) throw new SyncError('LOCAL_REVISION_CONFLICT')
         if (completed && JSON.stringify(await database.outbox.get(completed.intent.id)) !== JSON.stringify(completed.intent)) throw new SyncError('LOCAL_REVISION_CONFLICT')
@@ -382,7 +407,7 @@ export async function activatePulledState(database: AccountDatabase, token: Prof
         assertMayActivate()
         assertActiveProfile(token)
       })
-    } finally { signal.removeEventListener('abort', abort) }
+    } finally { signal.removeEventListener('abort', abort); idlePoll?.signal.removeEventListener('abort', abort) }
     await managedSelection?.disposeSelection()
   } catch (error) { failed = true; primary = error; throw error }
   finally {
