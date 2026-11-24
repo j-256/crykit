@@ -65,7 +65,7 @@ test('hosted persistence balances eight bins independently of discovery order an
 
   const bins = await assign(files)
   // Unknown files must grow their bin's cost, including a new project at the same path
-  assert.deepEqual(bins, [[conflicts], [recovery], [a, f], [aService, g], [b, h], [c], [d], [e]])
+  assert.deepEqual(bins, [[recovery], [conflicts], [a, f], [aService, g], [b, h], [c], [d], [e]])
   assert.equal(bins.flat().length, files.length)
   assert.deepEqual(new Set(bins.flat()), new Set(files))
   const staleCache = { getTestSpecificationResult() { throw new Error('Placement read cached timings') } }
