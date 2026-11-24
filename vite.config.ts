@@ -1,7 +1,7 @@
 import { hostedSharePlugin } from './scripts/hosted-share-plugin.ts'
 import { configDefaults, defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import NativeTestSequencer from './scripts/native-test-sequencer.ts'
+import { selectNativeTestSequencer } from './scripts/native-test-sequencer.ts'
 import { offlinePlugin } from './scripts/offline-plugin.ts'
 import { ocrAssets } from './scripts/ocr-assets.ts'
 import { softwareLicenses } from './scripts/software-licenses.ts'
@@ -20,8 +20,12 @@ const SERVICE_PERSISTENCE_TEST_FILES = [
   // This cross-runtime proof owns a real Worker fixture and must share the native service budget
   'e2e/accounts/cleanup-persistence.proof.mjs',
   'src/persistence/account-recovery.test.ts',
-  'src/persistence/reviewed-replacement.test.ts',
-  'src/persistence/signin-reconciliation.test.ts',
+  'src/persistence/reviewed-replacement-receipts.test.ts',
+  'src/persistence/reviewed-replacement-branch-ownership.test.ts',
+  'src/persistence/reviewed-replacement-publication.test.ts',
+  'src/persistence/signin-reconciliation-discovery-and-preparation.test.ts',
+  'src/persistence/signin-reconciliation-merge-confirmation.test.ts',
+  'src/persistence/signin-reconciliation-recovery.test.ts',
   'src/persistence/signin-merge-client.test.ts',
   'src/persistence/managed-compact-comparisons.test.ts',
   'src/persistence/conflicts.test.ts',
@@ -36,6 +40,7 @@ const SERVICE_PERSISTENCE_TEST_FILES = [
 ]
 const CI_PERSISTENCE_TEST_WORKERS = 1
 const persistenceTestWorkers = process.env.CI ? CI_PERSISTENCE_TEST_WORKERS : undefined
+const testSequencer = selectNativeTestSequencer(process.env)
 const DOM_TEST_FILES = [
   'src/ui/account/service-availability.test.tsx',
   'src/ui/PrelaunchWorkspaceNotice.test.tsx',
@@ -91,8 +96,8 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    // Only the prepared local native lanes request balanced placement; standalone and hosted scheduling stay independent
-    sequence: !process.env.CI && process.env.CRYKIT_NATIVE_TEST_PARTITION === 'balanced' ? { sequencer: NativeTestSequencer } : undefined,
+    // The hosted workflow opts in only for numbered persistence lanes so sync and Worker retain ordinary placement
+    sequence: testSequencer ? { sequencer: testSequencer } : undefined,
     restoreMocks: true,
     maxWorkers: process.env.CI ? CI_TEST_WORKERS : LOCAL_TEST_WORKERS,
     // Bundle-only imports have no Vitest module graph edge, so source changes must trigger reruns
