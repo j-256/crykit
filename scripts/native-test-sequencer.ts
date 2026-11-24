@@ -1,5 +1,6 @@
 import { relative, sep } from 'node:path'
 import { BaseSequencer, type TestSpecification } from 'vitest/node'
+import { HOSTED_PERSISTENCE_TEST_COSTS } from './hosted-persistence-test-costs.ts'
 
 // Rounded relative costs from complete local verification, not deadlines or eligibility rules
 // Include the short files too so their default weight cannot distort the measured balance
@@ -51,13 +52,15 @@ const NATIVE_TEST_COSTS: Readonly<Record<string, number>> = Object.freeze({
 })
 
 export default class NativeTestSequencer extends BaseSequencer {
+  protected readonly testCosts = NATIVE_TEST_COSTS
+
   async shard(files: TestSpecification[]): Promise<TestSpecification[]> {
     const { root, shard } = this.ctx.config
     if (!shard) return files
     const bins = Array.from({ length: shard.count }, () => ({ cost: 0, files: [] as TestSpecification[] }))
     const ranked = files.map(spec => {
       const path = relative(root, spec.moduleId).split(sep).join('/')
-      return { spec, key: JSON.stringify([path, spec.project.name]), cost: NATIVE_TEST_COSTS[path] ?? DEFAULT_TEST_COST }
+      return { spec, key: JSON.stringify([path, spec.project.name]), cost: this.testCosts[path] ?? DEFAULT_TEST_COST }
     }).sort((a, b) => b.cost - a.cost || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
     // Every shard derives the same assignment from discovery, independent of input order or local caches
     // This changes placement only; inherited sorting and each serial process's cleanup remain intact
@@ -68,4 +71,13 @@ export default class NativeTestSequencer extends BaseSequencer {
     }
     return bins[shard.index - 1].files
   }
+}
+
+class HostedPersistenceTestSequencer extends NativeTestSequencer {
+  protected override readonly testCosts = HOSTED_PERSISTENCE_TEST_COSTS
+}
+
+export function selectNativeTestSequencer(env: NodeJS.ProcessEnv) {
+  if (env.CI) return env.CRYKIT_HOSTED_PERSISTENCE_PARTITION === 'balanced' ? HostedPersistenceTestSequencer : undefined
+  return env.CRYKIT_NATIVE_TEST_PARTITION === 'balanced' ? NativeTestSequencer : undefined
 }
