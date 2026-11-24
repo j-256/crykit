@@ -134,12 +134,122 @@ it('merge activation survives failed UI selection and exact reload without impor
 it.each(['absent', 'untouched'] as const)('opens %s local data only after remote preparation', async kind => {
   const fixture = await setup(workspace(createBlankLocalData({ now })))
   if (kind === 'absent') fixture.options.captureGuest = async () => undefined
+  const capture = vi.spyOn(await import('../workspace/account-snapshot'), 'captureAccountSnapshot')
+  const admit = vi.spyOn(await import('../workspace/snapshot-admission'), 'admitWorkspaceMetadata')
+  const { openAccountJson } = await import('../workspace/account-cache')
+  const controller = fixture.create(), { db, token } = fixture.device
+  await controller.begin(token)
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'complete', fresh: false })
+  expect(controller.getSnapshot().account).toBeUndefined()
+  expect(fixture.opens).toBe(1)
+  expect(await db.outbox.count()).toBe(0)
+  const selected = (await db.syncState.get('projection'))!
+  expect((await db.syncState.get('remote'))?.ref).toEqual(selected.ref)
+  const row = (await db.syncState.get(reconciliation.SIGNIN_DECISION_KEY))!
+  expect(await openAccountJson(db, token, row.ref, reconciliation.SigninDecisionSchema)).toMatchObject({ action: 'account', status: 'complete' })
+  expect((await db.encryptedRevisions.get(row.ref.revisionId))?.descriptor.dependencies).toEqual([(await db.profileMeta.get('active'))!.head])
+  expect(capture).toHaveBeenCalled()
+  const accountSnapshot = await capture.mock.results.at(-1)!.value
+  expect(admit.mock.calls.some(([snapshot]) => snapshot === accountSnapshot)).toBe(false)
+  await controller.dispose()
+  capture.mockClear()
+  await fixture.create().begin(token)
+  expect(fixture.opens).toBe(2)
+  expect(await db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toEqual(row)
+  expect(capture).not.toHaveBeenCalled()
+})
+it.each(['projection', 'remote', 'fence', 'reviewed-replacement', 'publication', 'guest-copy:pending', 'outbox', 'decision'] as const)('refuses an automatic receipt if %s changes during receipt staging', async change => {
+  const fixture = await setup()
+  fixture.options.captureGuest = async () => undefined
+  const receipts = await import('./account-activation-attachments')
+  const prepare = receipts.prepareAccountReceiptAttachment
+  vi.spyOn(receipts, 'prepareAccountReceiptAttachment').mockImplementationOnce(async (...args) => {
+    const attachment = await prepare(...args)
+    const { db } = fixture.device
+    const fence = (await db.profileMeta.get('active'))!
+    if (change === 'projection' || change === 'remote') await db.syncState.delete(change)
+    else if (change === 'fence') await db.profileMeta.put({ ...fence, headRevision: fence.headRevision + 1 })
+    else if (change === 'outbox') await db.outbox.add({ id: 'concurrent-intent', ref: fence.head, status: 'unmapped-local' })
+    else await db.syncState.put({ id: change === 'decision' ? reconciliation.SIGNIN_DECISION_KEY : change, ref: fence.head })
+    return attachment
+  })
   const controller = fixture.create()
   await controller.begin(fixture.device.token)
-  expect(controller.getSnapshot().phase).toBe('complete')
-  expect(await fixture.device.db.syncState.get('projection')).toBeDefined()
-  expect(fixture.opens).toBe(1)
-  expect(await fixture.device.db.outbox.count()).toBe(0)
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'failed', reason: 'review-stale' })
+  expect(fixture.opens).toBe(0)
+  const row = await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)
+  if (change === 'decision') expect(row?.ref).toEqual((await fixture.device.db.profileMeta.get('active'))!.head)
+  else expect(row).toBeUndefined()
+})
+it('refuses an automatic receipt after a known empty guest capture loses its source', async () => {
+  const fixture = await setup(workspace(createBlankLocalData({ now })))
+  let changed = false, releases = 0
+  fixture.options.captureGuest = async () => ({
+    snapshot: ownWorkspaceSnapshot({ version: 1, dataGeneration: LAUNCH_DATA_GENERATION, snapshotId: 'empty', capturedAt: now, revisionVector: { guest: 'original' }, state: fixture.guest }, {
+      async check() { if (changed) throw new Error('SIGNIN_SOURCE_CHANGED') },
+      async dispose() { releases++ },
+    }),
+  })
+  const receipts = await import('./account-activation-attachments')
+  const prepare = receipts.prepareAccountReceiptAttachment
+  vi.spyOn(receipts, 'prepareAccountReceiptAttachment').mockImplementationOnce(async (...args) => {
+    const attachment = await prepare(...args)
+    changed = true
+    return attachment
+  })
+  const controller = fixture.create()
+  await controller.begin(fixture.device.token)
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'failed', source: 'available', reason: 'source-changed' })
+  expect(fixture.opens).toBe(0)
+  expect(await fixture.device.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toBeUndefined()
+  await controller.dispose()
+  expect(releases).toBe(1)
+})
+it('fresh discovery refuses an automatic receipt when a second device publishes after the settled iteration', async () => {
+  const fixture = await setup()
+  fixture.options.captureGuest = async () => undefined
+  await fixture.device.settle()
+  const other = await service!.device(1, workspace(createBlankLocalData({ now })))
+  await other.settle()
+  const repository = await other.open(), remote = await repository.readWorkspace()
+  await repository.commitWorkspace({ ...remote, planner: { ...remote.planner, localData: { ...remote.planner.localData, modSetup: { version: 1, state: 'completed' } } } }, remote.planner.localData.revision)
+
+  const { SyncClient } = await import('../account/sync/client')
+  const commit = SyncClient.prototype.commit, held = new Error('Hold the second device publication')
+  let publication: Parameters<typeof commit>[0] | undefined
+  // All mapping, uploads, and registration run normally; only the final head publication waits for the first device
+  const stop = vi.spyOn(SyncClient.prototype, 'commit').mockImplementation(function (this: InstanceType<typeof SyncClient>, input) {
+    if (!input.heads.length) return commit.call(this, input)
+    publication = input
+    return Promise.reject(held)
+  })
+  try { await expect(other.settle()).rejects.toBe(held) } finally { stop.mockRestore() }
+  if (!publication) throw new Error('Second device did not stage a publication')
+  const ready = publication
+  const first = await service!.device(0)
+  const { readRemoteState } = await import('../account/sync/pull')
+  let epochs: { selected: number; published: number } | undefined
+  const { EncryptedOutbox, transferBudget } = await import('../account/sync/outbox')
+  const sender = new EncryptedOutbox(other.db, first.token)
+  fixture.options.run = async (token, signal) => {
+    await prepareManagedSync(first.db, token)
+    const outcome = await runSyncIteration(token, signal)
+    if (outcome.state === 'synced' && !epochs) {
+      const selected = (await readRemoteState(first.db, token))!.value.publicationEpoch
+      // Resume the original durable command and its real server continuation using the same account session
+      const receipt = await sender.advance(ready.mutationId, new SyncClient(token, signal), transferBudget())
+      if (!receipt) return { state: 'syncing', moreWork: true }
+      epochs = { selected, published: receipt.publicationEpoch }
+    }
+    return outcome
+  }
+  const controller = fixture.create()
+  await controller.begin(first.token)
+  expect(epochs, controller.getSnapshot().reason).toBeDefined()
+  expect(epochs!.published).toBe(epochs!.selected + 1)
+  expect(controller.getSnapshot()).toMatchObject({ phase: 'failed', fresh: false, reason: 'review-stale' })
+  expect(fixture.opens).toBe(0)
+  expect(await first.db.syncState.get(reconciliation.SIGNIN_DECISION_KEY)).toBeUndefined()
 })
 it('changed content and restored source instance do not inherit a prior account-only approval', async () => {
   const fixture = await setup(), first = fixture.create()

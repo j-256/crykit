@@ -5,13 +5,13 @@ import { prewarmSigninMergeWorker } from './signin-merge-prewarm'
 import { mapIncrementalAccountBaseline } from './account-local-mapping-client'
 import { createMergeOperationScope, type MergeOperationScope } from './snapshot-admission'
 import { beginSigninMergeDiagnostics, type SigninMergeStage } from './signin-merge-diagnostics'
-import { assertActiveProfile, onProfileSessionChange, profileSignal, type ProfileToken } from '../account/profile'
+import { assertActiveProfile, onProfileSessionChange, profileAccess, profileSignal, type ProfileToken } from '../account/profile'
 import { OpaqueIdSchema } from '../account/protocol'
-import { attachSyncScheduler, drainSyncSchedulers, subscribeSync, type Runner, type SyncSchedulerOwner } from '../account/sync/scheduler'
+import { attachSyncScheduler, drainSyncSchedulers, subscribeSync, type Runner, type SyncSchedulerOwner, type SyncState } from '../account/sync/scheduler'
 import { readRemoteHeads, RemoteStateSchema } from '../account/sync/pull'
 import { registerSyncProjectionGuard, runSyncIteration } from '../account/sync/outbox'
 import { AccountDatabase, type EncryptedSyncState } from '../persistence/account-database'
-import { commitAccountReceipt, prepareAccountReceiptAttachment, releaseAccountActivationAttachment } from '../persistence/account-activation-attachments'
+import { commitAccountReceipt, prepareAccountReceiptAttachment, releaseAccountActivationAttachment, type AccountActivationAttachment } from '../persistence/account-activation-attachments'
 import { jsonEqual } from '../persistence/local-data'
 import { accountLocalId, openAccountJson } from './account-cache'
 import { captureExistingGuestWorkspaceForSignin, type GuestCopySource } from './guest-repository'
@@ -19,7 +19,7 @@ import { createGuestCopyService, type GuestCopyPreview, type PreparedSigninMerge
 import { GuestCopyJournalSchema, PENDING_COPY, SAVED_COPY_PREFIX } from './guest-copy-journal'
 import { captureWorkspaceDocuments, privateRecordKey, type WorkspaceState } from './documents'
 import { classifySigninLocalData, type SigninLocalSummary } from './signin-local-data'
-import { assertReviewedDecisionActivation, createReviewedReplacementService, stableWorkspaceSnapshotIdentity, type ReviewedAccountData, type ReviewedReplacement, type StableWorkspaceSnapshotIdentity } from './reviewed-replacement'
+import { assertReviewedDecisionActivation, createReviewedReplacementService, stableWorkspaceSnapshotIdentity, REVIEWED_REPLACEMENT_KEY, type AutomaticAccountSelection, type ReviewedAccountData, type ReviewedReplacement, type StableWorkspaceSnapshotIdentity } from './reviewed-replacement'
 import { createAccountRecoveryService } from './account-recovery'
 import { captureAccountSyncWorkspace } from './account-sync-capture'
 import { captureAccountSnapshot } from './account-snapshot'
@@ -206,12 +206,41 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     active = pending
     return pending
   }
-  async function remember(value: SigninDecision, cancellation = false) {
+  async function commitAutomaticReceipt(selection: AutomaticAccountSelection, attachment: AccountActivationAttachment) {
+    const db = database!
+    // The projection and replacement can change without moving the workspace fence
+    // Enclose their comparisons and the existing encrypted receipt CAS in one transaction
+    const signal = AbortSignal.any([lifetime.signal, profileSignal(token)])
+    let pending: import('dexie').Transaction | undefined
+    const abort = () => pending?.abort()
+    signal.addEventListener('abort', abort, { once: true })
+    try {
+      await db.transaction('rw', db.tables, async transaction => {
+        pending = transaction
+        check()
+        const [remote, projection, replacement, pendingCopy, publication] = await db.syncState.bulkGet(['remote', 'projection', REVIEWED_REPLACEMENT_KEY, PENDING_COPY, 'publication'])
+        if (!jsonEqual(remote, selection.remote) || !jsonEqual(projection?.ref, selection.remote.ref)
+          || !jsonEqual(replacement, selection.replacement?.row) || pendingCopy || publication || await db.outbox.count()) throw new Error('LOCAL_REVISION_CONFLICT')
+        check()
+        if (profileAccess(token) !== 'connected' || typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('SIGNIN_OFFLINE')
+        await commitAccountReceipt(db, token, attachment)
+        check()
+      })
+    } finally { signal.removeEventListener('abort', abort) }
+  }
+  async function remember(value: SigninDecision, cancellation = false, automatic?: AutomaticAccountSelection) {
     if (cancellation) assertActiveProfile(token); else check()
-    const expected = await database!.profileMeta.get('active')
+    const expected = automatic?.fence ?? await database!.profileMeta.get('active')
     if (!expected) throw new Error('ACCOUNT_PROJECTION_UNAVAILABLE')
     const attachment = await prepareAccountReceiptAttachment(database!, token, { expected, head: expected.head }, { id: decisionKey, expected: saved?.row, value })
-    try { if (cancellation) assertActiveProfile(token); else check(); await commitAccountReceipt(database!, token, attachment) }
+    try {
+      if (cancellation) assertActiveProfile(token); else check()
+      if (automatic) {
+        // A guest capture must still own the identity classified before account discovery
+        if (source) await currentSource()
+        await commitAutomaticReceipt(automatic, attachment)
+      } else await commitAccountReceipt(database!, token, attachment)
+    }
     finally { await releaseAccountActivationAttachment(attachment) }
     saved = await readDecision(); operationId = value.operationId
   }
@@ -235,7 +264,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     if (!selected.initialComplete || selected.projectionPending) return undefined
     const heads = await readRemoteHeads(database!, token, selected.heads)
     check(); publish({ canOpenAccount: true })
-    return { epoch: selected.publicationEpoch, heads: [...heads].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([documentId, revisionId]) => ({ documentId, revisionId })) }
+    return { ref: row.ref, epoch: selected.publicationEpoch, heads: [...heads].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([documentId, revisionId]) => ({ documentId, revisionId })) }
   }
   async function requireSelectedReview(handle: ReviewedAccountData) {
     const selected = await selectedProjection()
@@ -255,6 +284,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     await selectedProjection()
     if (typeof navigator !== 'undefined' && !navigator.onLine) throw new Error('SIGNIN_OFFLINE')
     const retainedPreparation = await database!.syncState.get('guest-copy:pending') || saved?.value.status === 'preparing'
+    let settled: SyncState | undefined
     if (!retainedPreparation) {
       preparationStage('syncing-account')
       unregister = registerSyncProjectionGuard(token, () => !disposed && !cancelling)
@@ -262,13 +292,13 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       let unsubscribe: (() => void) | undefined
       const signal = AbortSignal.any([lifetime.signal, profileSignal(token)])
       try {
-        await new Promise<void>((resolve, reject) => {
+        settled = await new Promise<SyncState>((resolve, reject) => {
           const abort = () => reject(signal.reason)
           signal.addEventListener('abort', abort, { once: true })
           let observed = false
           const unlisten = subscribeSync(token, next => {
             if (next === 'syncing') observed = true
-            if (next === 'synced' || next === 'conflict' || observed && next === 'paused') resolve()
+            if (next === 'synced' || next === 'conflict' || observed && next === 'paused') resolve(next)
             else if (['offline', 'signin-required', 'quota', 'failed'].includes(next)) reject(new Error(next === 'offline' ? 'SIGNIN_OFFLINE' : next === 'quota' ? 'QUOTA_EXCEEDED' : 'SIGNIN_PREPARATION_FAILED'))
           })
           unsubscribe = () => { unlisten(); signal.removeEventListener('abort', abort) }
@@ -278,7 +308,20 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     } else if (!await database!.syncState.get('projection')) throw new Error('ACCOUNT_PROJECTION_UNAVAILABLE')
     // Discovery must not rewrite the publication-base row owned by an exact saved copy
     preparationStage('checking-account')
-    await releaseReview(); review = await service().refresh(); check()
+    await releaseReview()
+    const knownNoChoice = state.source === 'absent' || !!source && !!identity && state.source === 'available' && state.local?.meaningful === false
+    if (settled === 'synced' && !recoveryEntry && knownNoChoice && !saved?.value.cleanupPending
+      && state.replacement?.state !== 'paused' && profileAccess(token) === 'connected') {
+      const automatic = await service().automaticAccountSelection()
+      check()
+      if (automatic) {
+        const selected = await selectedProjection()
+        if (!selected || !jsonEqual(selected.ref, automatic.remote.ref) || selected.epoch !== automatic.epoch || !jsonEqual(selected.heads, automatic.heads)) throw new Error('HEAD_CONFLICT')
+        publish({ account: undefined, replacement: automatic.replacement?.value })
+        return automatic
+      }
+    }
+    review = await service().refresh(); check()
     const replacement = await service().status()
     if (replacement?.state !== 'paused') await requireSelectedReview(review)
     publish({ fresh: true, account: summarize(review.snapshot.state), replacement })
@@ -339,7 +382,8 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
       && saved?.value.status !== 'preparing' && !await database!.syncState.get(PENDING_COPY)) {
       check(); warmedMerge = prewarmSigninMergeWorker(token, lifetime.signal, createMergeWorker)
     }
-    try { await prepareAccount() }
+    let automatic: AutomaticAccountSelection | undefined
+    try { automatic = await prepareAccount() }
     catch (error) {
       releaseWarmWorker()
       if (options.admittedOffline && state.canOpenAccount) {
@@ -350,7 +394,7 @@ export function createSigninReconciliation(options: SigninReconciliationOptions)
     // Explicit recovery entry always reviews even empty snapshots and completed prior choices
     // Preparing receipts still resume below; opening retry follows activated ownership
     if (!recoveryEntry && state.replacement?.state !== 'paused' && (!source && state.source === 'absent' || source && !state.local?.meaningful)) {
-      await remember(SigninDecisionSchema.parse({ version: 1, kind: 'signin-decision', accountId: token.accountId, source: identity, action: 'account', operationId: accountLocalId(), status: 'complete' }))
+      await remember(SigninDecisionSchema.parse({ version: 1, kind: 'signin-decision', accountId: token.accountId, source: identity, action: 'account', operationId: accountLocalId(), status: 'complete' }), false, automatic)
       activated = true; await open(); return
     }
     publish({ phase: 'choosing', cleanupPending: saved?.value.cleanupPending })

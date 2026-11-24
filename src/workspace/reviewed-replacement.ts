@@ -149,6 +149,13 @@ export async function completeReviewedPublication(database: AccountDatabase, tok
   return { value, row: await writeSyncState(database, token, REVIEWED_REPLACEMENT_KEY, value, stored.row, dependencies(value)) }
 }
 
+export interface AutomaticAccountSelection {
+  readonly fence: AccountFence
+  readonly remote: EncryptedSyncState
+  readonly epoch: number
+  readonly heads: readonly CipherRef[]
+  readonly replacement?: StoredReviewedReplacement
+}
 export interface ReviewedAccountData {
   readonly epoch: number
   readonly heads: readonly CipherRef[]
@@ -240,12 +247,11 @@ export function createReviewedReplacementService(database: AccountDatabase, toke
     if (review.stale) throw new SyncError('REPLACEMENT_REVIEW_REQUIRED')
     return review
   }
-  async function refresh(): Promise<ReviewedAccountData> {
+  async function discoverAccount() {
     const fence = await database.profileMeta.get('active')
     if (!fence) throw new SyncError('LOCAL_INTEGRITY_FAILED')
     const captured = await captureAccountReviewWorkspace(database, token, fence, signal)
     let snapshot: WorkspaceSnapshot | undefined
-    let scope: MergeOperationScope | undefined
     try {
       // A completed unactivated scan is a snapshot, not evidence that the account stayed unchanged
       // Restart discovery from the last selected remote floor and validate every complete group again
@@ -271,6 +277,28 @@ export function createReviewedReplacementService(database: AccountDatabase, toke
       if (!validated) throw new SyncError('ACCOUNT_PROJECTION_UNAVAILABLE')
       const previous = await readReviewedReplacement(database, token)
       snapshot = await captureAccountSnapshot(validated.workspace, { ...fence, head: validated.workspace.head }, () => check(fence), { database, token, validatedEvidence: captured.validatedEvidence })
+      return { fence, captured, candidate, validated, snapshot, previous }
+    } catch (error) {
+      try { if (snapshot) await disposeWorkspaceSnapshot(snapshot) } finally { await captured.dispose() }
+      throw error
+    }
+  }
+  async function automaticAccountSelection(): Promise<AutomaticAccountSelection | undefined> {
+    const { fence, captured, candidate, snapshot, previous } = await discoverAccount()
+    try {
+      // Construction validates current and inherited originals together; only review needs a reusable metadata admission
+      await assertOwnedWorkspaceSnapshot(snapshot)
+      if (snapshot.state.blobs.some(({ content, ref }) => content.byteLength !== ref.byteLength)) throw new SyncError('LOCAL_INTEGRITY_FAILED')
+      await check(fence)
+      if (previous?.value.state === 'paused') return undefined
+      if (!candidate.previous) throw new SyncError('ACCOUNT_PROJECTION_UNAVAILABLE')
+      return { fence, remote: candidate.previous, epoch: candidate.state.publicationEpoch, heads: refs(candidate.heads), replacement: previous }
+    } finally { try { await disposeWorkspaceSnapshot(snapshot) } finally { await captured.dispose() } }
+  }
+  async function refresh(): Promise<ReviewedAccountData> {
+    const { fence, captured, candidate, validated, snapshot, previous } = await discoverAccount()
+    let scope: MergeOperationScope | undefined
+    try {
       scope = createMergeOperationScope(token, signal, () => check(fence))
       const admission = await admitWorkspaceMetadata(snapshot, scope)
       const review: Review = { database, token, fence, captured, candidate, projection: validated, snapshot, previous, scope, admission, pendingSources: new Set(), disposed: false, stale: false }
@@ -516,5 +544,5 @@ export function createReviewedReplacementService(database: AccountDatabase, toke
     }
     return values
   }
-  return { refresh, assertUnchangedReview, prepare, activate, approve, prepareLatest, useLatest, preparations, status: async () => (await readReviewedReplacement(database, token))?.value }
+  return { refresh, automaticAccountSelection, assertUnchangedReview, prepare, activate, approve, prepareLatest, useLatest, preparations, status: async () => (await readReviewedReplacement(database, token))?.value }
 }
