@@ -31,11 +31,21 @@ export function observeAccountForeground(token: ProfileToken, listener: (pending
   value.listeners.add(listener); listener(value.count > 0)
   return () => value.listeners.delete(listener)
 }
-export async function withAccountForeground<T>(token: ProfileToken, operation: () => Promise<T>): Promise<T> {
+export function acquireAccountForeground(token: ProfileToken): () => void {
   const value = state(token)
   if (++value.count === 1) for (const listener of value.listeners) listener(true)
+  let released = false
+  return () => {
+    if (released) return
+    released = true
+    // Delayed cleanup balances the captured generation even after another profile becomes active
+    if (--value.count === 0) for (const listener of value.listeners) listener(false)
+  }
+}
+export async function withAccountForeground<T>(token: ProfileToken, operation: () => Promise<T>): Promise<T> {
+  const release = acquireAccountForeground(token)
   try { const result = await operation(); assertActiveProfile(token); return result }
-  finally { if (--value.count === 0) for (const listener of value.listeners) listener(false) }
+  finally { release() }
 }
 
 export async function waitForAccountForeground(token: ProfileToken, signal?: AbortSignal): Promise<void> {

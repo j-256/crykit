@@ -424,3 +424,194 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
     } finally { await attach(info) }
   })
 })
+
+interface EditorForegroundObservation {
+  editorPhase: string
+  editorDirty: boolean
+  editorHydrating: boolean
+  pending: boolean
+  foreground?: boolean
+}
+
+declare global {
+  interface Window {
+    editorForegroundProof: { transitions: EditorForegroundObservation[]; inputs: EditorForegroundObservation[] }
+  }
+}
+
+async function runEditorForegroundMapping(page: Page) {
+  const request = await page.evaluate(async () => {
+    const proof = (window as any).localSaveProof
+    const start = window.mapperEvents.length
+    await proof.startMapping()
+    return start
+  })
+  await expect.poll(() => page.evaluate(start => {
+    const mapping = (window as any).localSaveProof.mapping()
+    const events = window.mapperEvents.slice(start)
+    const map = events.find(event => event.direction === 'sent' && event.kind === 'map')
+    const complete = map?.id && events.some(event => event.direction === 'received' && event.id === map.id && event.status === 'complete')
+    return { pending: mapping.pending, error: mapping.error, complete: !!complete }
+  }, request)).toEqual({ pending: false, error: undefined, complete: true })
+}
+
+async function prepareEditorForeground(page: Page) {
+  await installSaveWorkCounters(page)
+  const path = process.env.CRYKIT_SAVE_FIXTURE ?? '/__accounts-proof/local-save-performance.html'
+  await page.goto(`${path}?mode=account&size=small`)
+  await page.waitForFunction(() => (window as any).localSaveProof?.ready() || (window as any).localSaveFailure)
+  expect(await page.evaluate(() => (window as any).localSaveFailure)).toBeUndefined()
+  await page.evaluate(async () => {
+    const proof = (window as any).localSaveProof
+    if (proof.setup.build !== 'compiled') throw new Error('The queued Editor regression requires a compiled account fixture')
+    await proof.queueMapping()
+  })
+  const reload = page.getByRole('button', { name: 'Load updated data', exact: true })
+  await reload.click()
+  await expect(reload).toBeHidden()
+  await openOperation(page, 'invalid Editor draft', async () => {})
+  return page.getByLabel('Exact JSON value')
+}
+
+async function observeEditorForeground(page: Page) {
+  await page.evaluate(() => {
+    const proof = (window as any).localSaveProof
+    const capture = (foreground?: boolean): EditorForegroundObservation => {
+      const { editorPhase, editorDirty, editorHydrating, pending } = proof.diagnostics()
+      return { foreground, editorPhase, editorDirty, editorHydrating, pending }
+    }
+    const observations: Window['editorForegroundProof'] = { transitions: [], inputs: [] }
+    window.editorForegroundProof = observations
+    let mapper: Worker | undefined
+    const postMessage = Worker.prototype.postMessage
+    Worker.prototype.postMessage = function (this: Worker, ...args: [message: unknown, transfer?: Transferable[] | StructuredSerializeOptions]) {
+      const message = args[0] as { kind?: string; pending?: boolean } | undefined
+      if (message?.kind === 'map') mapper ??= this
+      if (this === mapper && message?.kind === 'foreground') observations.transitions.push(capture(message.pending))
+      Reflect.apply(postMessage, this, args)
+    }
+    // Window sees the textarea event after React handles it, in the same task as the edit
+    // The quiet timer cannot explain a foreground transition captured here
+    window.addEventListener('input', event => {
+      if (event.target instanceof HTMLTextAreaElement && event.target.matches('.inspector-editor textarea')) {
+        observations.inputs.push(capture(observations.transitions.at(-1)?.foreground))
+      }
+    })
+  })
+  await runEditorForegroundMapping(page)
+}
+
+async function focusSettledEditorField(page: Page) {
+  const field = await prepareEditorForeground(page)
+  await observeEditorForeground(page)
+  await field.blur()
+  await field.focus()
+  await expect(field).toBeFocused()
+  expect(await page.evaluate(() => window.editorForegroundProof.transitions)).toEqual([])
+  return field
+}
+
+test('queued Editor input reserves foreground through readiness', async ({ page }) => {
+  const field = await focusSettledEditorField(page)
+  const draft = '{"queued":'
+  await field.fill(draft)
+  const input = await page.evaluate(() => window.editorForegroundProof.inputs.at(-1))
+  expect(input).toMatchObject({ editorDirty: true, editorPhase: 'idle', pending: false, editorHydrating: false })
+  expect(input?.foreground, 'foreground priority sent to the real mapper during queued input').toBe(true)
+
+  await idle(page, 'editor', 'Saved JSON edit; not applied', true)
+  const transitions = await page.evaluate(() => window.editorForegroundProof.transitions)
+  expect(transitions).toMatchObject([
+    { foreground: true, editorDirty: true, editorPhase: 'idle', pending: false, editorHydrating: false },
+    { foreground: false, editorDirty: false, editorPhase: 'idle', pending: false, editorHydrating: false },
+  ])
+  await expect(field).toHaveValue(draft)
+  const persisted = await inspect(page, 'editor')
+  expect(persisted.unfinished).toBe(draft)
+  expect(persisted.file.unfinished.fieldState.editor).toBe(draft)
+  await runEditorForegroundMapping(page)
+})
+
+test('queued Editor input releases foreground after a stopped autosave', async ({ page }) => {
+  const field = await focusSettledEditorField(page)
+  const baseline = await inspect(page, 'editor')
+  await page.evaluate(() => (window as any).localSaveProof.armEditorSaveReadFailure())
+  const draft = '{"failed":'
+  await field.fill(draft)
+  await expect(page.getByText('Synthetic Editor staging read failed', { exact: true })).toBeVisible()
+  await expect(field).toHaveValue(draft)
+  const transitions = await page.evaluate(() => window.editorForegroundProof.transitions)
+  expect(transitions).toMatchObject([
+    { foreground: true, editorDirty: true, editorPhase: 'idle', pending: false, editorHydrating: false },
+    { foreground: false, editorDirty: true, editorPhase: 'idle', pending: false, editorHydrating: false },
+  ])
+
+  const later = '{"retained":'
+  await field.fill(later)
+  await expect(field).toHaveValue(later)
+  expect(await page.evaluate(() => window.editorForegroundProof.inputs.at(-1))).toMatchObject({ foreground: false, editorDirty: true, editorPhase: 'idle', pending: false })
+  await runEditorForegroundMapping(page)
+  expect(await page.evaluate(() => window.editorForegroundProof.transitions)).toEqual(transitions)
+  const persisted = await inspect(page, 'editor')
+  expect(persisted.file.revision).toBe(baseline.file.revision)
+  expect(persisted.unfinished).toBe(baseline.unfinished)
+})
+
+test('queued Editor map layer change holds foreground across both field updates', async ({ page }) => {
+  await prepareEditorForeground(page)
+  await page.getByRole('tab', { name: 'Map Editor', exact: true }).click({ noWaitAfter: true })
+  await page.getByRole('button', { name: 'New map mod', exact: true }).click({ noWaitAfter: true })
+  await idle(page, 'editor')
+  const fileId = await page.getByRole('combobox', { name: 'Files opened in this tool', exact: true }).inputValue()
+  expect(fileId).not.toBe(PERFORMANCE_EDITOR_ID)
+  const inspectMap = () => page.evaluate(id => (window as any).localSaveProof.inspect('editor', id), fileId)
+  const layer = page.getByRole('combobox', { name: 'Editor map layer', exact: true })
+  const plane = page.getByRole('button', { name: 'Construction plane', exact: true })
+  await expect(plane).toHaveAttribute('aria-pressed', 'false')
+  await expect(plane).toBeEnabled()
+  const initialLayer = await layer.inputValue()
+  const nextLayer = await layer.locator('option').evaluateAll(options => options.find(option => !(option as HTMLOptionElement).selected)?.getAttribute('value'))
+  if (nextLayer == null) throw new Error('The map fixture needs two layers')
+  await layer.selectOption(nextLayer)
+  await idle(page, 'editor')
+  await layer.selectOption(initialLayer)
+  await idle(page, 'editor')
+  await plane.click({ noWaitAfter: true })
+  await idle(page, 'editor')
+  await plane.click({ noWaitAfter: true })
+  await idle(page, 'editor')
+  const baseline = await inspectMap()
+  expect(baseline.file.unfinished.fieldState.map).toMatchObject({ constructionPlane: false, layerId: Number(initialLayer) })
+  await observeEditorForeground(page)
+
+  const observation = await page.evaluate(async ({ initialLayer, nextLayer }) => {
+    const layer = document.querySelector<HTMLSelectElement>('[data-editor-focus="map-layer"]')!
+    const plane = document.querySelector<HTMLButtonElement>('.map-editor button[aria-label="Construction plane"]')!
+    const proof = (window as any).localSaveProof
+    const changedLayer = (value: string) => {
+      layer.value = value
+      layer.dispatchEvent(new Event('change', { bubbles: true }))
+    }
+    // Deliver the real handlers before the quiet callback can fire, and let registered waiters settle
+    plane.click()
+    const queued = proof.diagnostics()
+    let resumed = false
+    const waiting = proof.waitForForeground().then(() => { resumed = true })
+    changedLayer(nextLayer)
+    await Promise.resolve()
+    await Promise.resolve()
+    const switched = { resumed, ...proof.diagnostics(), plane: plane.getAttribute('aria-pressed'), layer: layer.value, edges: window.editorForegroundProof.transitions.map(state => state.foreground) }
+    changedLayer(initialLayer)
+    // The candidate drop runs in a microtask. Report an unsettled waiter without hanging on a stranded lease
+    await Promise.race([waiting, Promise.resolve().then(() => {}).then(() => {}).then(() => {})])
+    return { queued, switched, cancelled: { resumed, ...proof.diagnostics(), edges: window.editorForegroundProof.transitions.map(state => state.foreground) } }
+  }, { initialLayer, nextLayer })
+
+  expect(observation.queued).toMatchObject({ editorDirty: true, editorPhase: 'idle', pending: false })
+  expect(observation.switched).toMatchObject({ editorDirty: true, editorPhase: 'idle', pending: false, plane: 'false', layer: nextLayer })
+  expect(observation.switched.edges, 'the compound map event keeps the original foreground reservation').toEqual([true])
+  expect(observation.switched.resumed).toBe(false)
+  expect(observation.cancelled).toMatchObject({ resumed: true, editorDirty: false, editorPhase: 'idle', pending: false, edges: [true, false] })
+  await runEditorForegroundMapping(page)
+  expect((await inspectMap()).file.revision).toBe(baseline.file.revision)
+})

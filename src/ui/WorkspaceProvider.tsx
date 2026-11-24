@@ -15,8 +15,9 @@ import { parseSavePending } from '../workspace/save-pending'
 import { emptySavePending } from '../workspace/save-input-controller'
 import { parseAppRoute, writeNavigationRoute } from './navigation'
 import { NAVIGATION_EVENT } from './navigation/history'
-import { createEditorSession, type EditorWorkspaceActions } from './editor-session'
-import { reconcileOwnedFileOutcome, resolveOwnedFileReceipt, verifyOwnedFileReceipt } from '../workspace/owned-file-command'
+import { createEditorSession, releaseEditorAutosaveForeground, RetiredEditorCommandError, transferEditorAutosaveForeground, type EditorHydration, type EditorWorkspaceActions } from './editor-session'
+import type { EditorInputTicket } from '../workspace/editor-input-controller'
+import { reconcileOwnedFileOutcome, resolveOwnedFileReceipt, verifyOwnedFileReceipt, type OwnedFileCommand, type OwnedFileOutcome } from '../workspace/owned-file-command'
 import { readEditorContent } from '../workspace/editor-document'
 import { createContext, useContext, useEffect, useRef, useState, useCallback, type ReactNode } from 'react'
 import { flushSync as flushReactUpdates } from 'react-dom'
@@ -93,12 +94,16 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
   const editorSession = useRef(createEditorSession()).current
   const saveSession = useRef(createSaveSession()).current
   const buildInputSession = useRef(createBuildInputSession()).current
-  const filePending = useRef(false)
+  // Readiness and terminal results can outlive their view, so release only the captured command's gate
+  const pendingFileCommand = useRef<OwnedFileCommand>(undefined)
+  const releasePendingFileCommand = (command: OwnedFileCommand | undefined) => {
+    if (command && pendingFileCommand.current === command) pendingFileCommand.current = undefined
+  }
   const beforeAuthentication = () => {
-    if (filePending.current || draftPresence.current() || editorSession.controller.snapshot().dirty || saveSession.controller.snapshot().dirty || buildInputSession.controller.snapshot().dirty) throw new Error('WORKSPACE_PENDING_CHANGES')
+    if (pendingFileCommand.current || draftPresence.current() || editorSession.controller.snapshot().dirty || saveSession.controller.snapshot().dirty || buildInputSession.controller.snapshot().dirty) throw new Error('WORKSPACE_PENDING_CHANGES')
   }
   const localCopy = useRef(createGuestCopyService(() => captureGuestWorkspaceForCopy(), () => {
-    if (filePending.current || draftPresence.current() || editorSession.controller.snapshot().dirty || saveSession.controller.snapshot().dirty || buildInputSession.controller.snapshot().dirty) throw new Error('Save or discard open drafts before copying local work')
+    if (pendingFileCommand.current || draftPresence.current() || editorSession.controller.snapshot().dirty || saveSession.controller.snapshot().dirty || buildInputSession.controller.snapshot().dirty) throw new Error('Save or discard open drafts before copying local work')
   })).current
   useEffect(() => {
     if (!accountEntry) return
@@ -135,11 +140,13 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
     saveSession.immediateInputSave = false
     saveSession.phase = 'idle'
     saveSession.operation = undefined
+    releaseEditorAutosaveForeground(editorSession, editorSession.autosaveForeground?.view)
     editorSession.controller.revoke()
     editorSession.navigation = undefined
     editorSession.applyRequested = undefined
     editorSession.libraryResult = undefined
     editorSession.recovery = undefined
+    editorSession.command = undefined
     editorSession.document = undefined
     editorSession.hydration = undefined
     editorSession.transferView = undefined
@@ -147,7 +154,7 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
     editorSession.scroll = undefined
     editorSession.explorer = undefined
     editorSession.phase = 'idle'
-    filePending.current = false
+    pendingFileCommand.current = undefined
   }
   const currentRepository = useRef(repository)
   currentRepository.current = repository
@@ -158,7 +165,7 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
   useEffect(() => {
     if (selection.kind !== 'account' || reconciliationState && !['complete', 'cancelled'].includes(reconciliationState.phase)) return
     const token = selection.token
-    const unregister = registerSyncProjectionGuard(token, () => current.current === selection && !filePending.current && !draftPresence.current() && !editorSession.controller.snapshot().dirty && !saveSession.controller.snapshot().dirty && !buildInputSession.controller.snapshot().dirty)
+    const unregister = registerSyncProjectionGuard(token, () => current.current === selection && !pendingFileCommand.current && !draftPresence.current() && !editorSession.controller.snapshot().dirty && !saveSession.controller.snapshot().dirty && !buildInputSession.controller.snapshot().dirty)
     const stop = attachSyncScheduler(token, runSyncIteration)
     const unsubscribe = subscribeSync(token, setSyncState)
     return () => { unsubscribe(); stop(); unregister() }
@@ -186,7 +193,7 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
       const confirmed = await previous.readSelected()
       // Activation events carry no authority; a late guest result cannot replace a selected account
       if (!live || version.current !== generation || current.current.kind !== 'guest' || !guestPlannerValuesEqual(confirmed, nextBinding.manifest)) throw new Error('The selected workspace changed during reopening')
-      if (filePending.current || draftPresence.current() || editorSession.controller.snapshot().dirty || saveSession.controller.snapshot().dirty || buildInputSession.controller.snapshot().dirty) {
+      if (pendingFileCommand.current || draftPresence.current() || editorSession.controller.snapshot().dirty || saveSession.controller.snapshot().dirty || buildInputSession.controller.snapshot().dirty) {
         throw new GuestReopeningBlockedError('Finish or recover open drafts before reopening the selected workspace')
       }
       // Only the explicit update action carries this inert requested choice; no callback survives reopening
@@ -359,7 +366,7 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
     const assertMayReopen = () => {
       assertActiveProfile(token)
       if (current.current !== selection || currentRepository.current !== repository || version.current !== generation) throw new Error('The captured account workspace is no longer selected')
-      if (filePending.current || draftPresence.current() || editorSession.controller.snapshot().dirty || saveSession.controller.snapshot().dirty || buildInputSession.controller.snapshot().dirty) throw new Error('Finish or recover open drafts before reopening the selected workspace')
+      if (pendingFileCommand.current || draftPresence.current() || editorSession.controller.snapshot().dirty || saveSession.controller.snapshot().dirty || buildInputSession.controller.snapshot().dirty) throw new Error('Finish or recover open drafts before reopening the selected workspace')
     }
     assertMayReopen()
     const opened = await openAccountRepository(token)
@@ -502,14 +509,25 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
   }, [])
   const capturedGeneration = version.current
   const isCurrent = () => version.current === capturedGeneration && currentRepository.current === repository && current.current === selection
+  const ownsEditorCommand = (ticket: EditorInputTicket) => isCurrent() && pendingFileCommand.current === ticket.command && editorSession.command === ticket && editorSession.transferView === ticket.view
+  function stopEditorHandoff(handoff: EditorHydration) {
+    if (editorSession.hydration !== handoff || editorSession.transferView !== handoff.view || version.current !== handoff.generation) return
+    // A fallback can commit before the successor Editor mounts, or while its receipt check is pending
+    // Keep the handoff identity for subsequent fallback notifications while retiring its current confirmation
+    handoff.confirmation = undefined
+    editorSession.phase = 'recovery'
+    releaseEditorAutosaveForeground(editorSession, handoff.view)
+  }
+  const editorHandoff = editorSession.hydration
   const editorActions: EditorWorkspaceActions = {
     editorSession,
+    reportEditorHandoffLoadFailure: () => { if (editorHandoff && isCurrent()) stopEditorHandoff(editorHandoff) },
     reopenEditorSavedVersion: async (view, documentId) => {
       const controller = editorSession.controller, input = controller.snapshot()
       const check = () => {
         controller.assertView(view)
         if (!isCurrent() || input.documentId !== documentId || editorSession.document?.file.id !== documentId || controller.snapshot().input !== input.input) throw new Error('The Editor changed before reopening its saved version')
-        if (filePending.current || editorSession.phase !== 'idle' || !controller.canTransfer() || draftPresence.current(controller.owner) || saveSession.controller.snapshot().dirty || buildInputSession.controller.snapshot().dirty) throw new Error('Finish or recover other open drafts before reopening this file')
+        if (pendingFileCommand.current || editorSession.phase !== 'idle' || !controller.canTransfer() || draftPresence.current(controller.owner) || saveSession.controller.snapshot().dirty || buildInputSession.controller.snapshot().dirty) throw new Error('Finish or recover other open drafts before reopening this file')
       }
       check()
       const opened = selection.kind === 'account' ? await openAccountRepository(selection.token) : createGuestRepository()
@@ -541,7 +559,7 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
       }
     },
     isCurrent,
-    fileCommandPending: () => filePending.current,
+    fileCommandPending: () => Boolean(pendingFileCommand.current),
     importEditorSource: async (preview, expected, owner, result) => {
       const session = editorSession, file = session.document?.file, view = session.transferView
       const input = session.controller.snapshot()
@@ -561,7 +579,9 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
           ticket.command.assertMayActivate()
           // An identical original needs no new command or ownership transfer; pin equality alone is insufficient
           if (stored.bytes.byteLength === source.bytes.byteLength && stored.bytes.every((value, index) => value === source.bytes[index])) {
-            filePending.current = false
+            if (!ownsEditorCommand(ticket)) throw new Error('The editor command owner was retired')
+            session.command = undefined
+            releasePendingFileCommand(ticket.command)
             session.phase = 'idle'
             return
           }
@@ -572,31 +592,46 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
       }
       const outcome = await importOwnedLibrarySource(repository, preview, ticket.command, expected)
       // Only a saved owned command can carry this inert result through the exact file's remount
-      if (outcome.status === 'saved') {
+      if (outcome.status === 'saved' && ownsEditorCommand(ticket)) {
         session.libraryResult = { documentId: file.id, revision: file.revision, result: { ...result, warnings: [...result.warnings] } }
       }
       await editorActions.completeEditorCommand(outcome, ticket, file)
     },
     beginEditorCommand: (view, operation) => {
-      if (filePending.current) throw new Error('Another file command is still being reconciled')
+      if (pendingFileCommand.current) throw new Error('Another file command is still being reconciled')
       const guard = () => {
         if (!isCurrent() || draftPresence.current(editorSession.controller.owner)) throw new Error('The workspace or another open draft changed during file saving')
       }
       const ticket = editorSession.controller.capture(view, operation, guard)
       if (operation !== 'libraryImport') editorSession.libraryResult = undefined
-      filePending.current = true
+      editorSession.command = ticket
+      pendingFileCommand.current = ticket.command
       editorSession.phase = 'staging'
       return ticket
     },
     completeEditorCommand: async (outcome, ticket, file) => {
-      // A completed old transaction cannot mutate recovery or pending flags belonging to a successor profile
-      if (!isCurrent()) throw new Error(outcome.status === 'saved' ? 'The captured draft was saved; its editor owner was retired' : 'The editor command owner was retired')
-      editorSession.recovery = { outcome, ticket, file }
+      const ownsCommand = ownsEditorCommand(ticket)
+      const view = ticket.view
+      if (outcome.status === 'not-saved' && isCurrent() && editorSession.command === ticket) {
+        // A definite failure ends its own attempt even if the Editor already unmounted
+        editorSession.command = undefined
+        editorSession.recovery = undefined
+        editorSession.phase = 'idle'
+        releasePendingFileCommand(ticket.command)
+        releaseEditorAutosaveForeground(editorSession, view)
+      }
+      // The original caller retains its receipt or reconciliation evidence without changing the successor's state
+      if (!ownsCommand) throw new RetiredEditorCommandError(ticket, outcome)
+      const recovery = { outcome, ticket, file }
+      if (outcome.status !== 'not-saved') editorSession.recovery = recovery
       if (outcome.status !== 'saved' || !outcome.receipt) {
-        if (outcome.status === 'not-saved') { filePending.current = false; editorSession.phase = 'idle'; editorSession.recovery = undefined }
-        else editorSession.phase = 'recovery'
+        if (outcome.status !== 'not-saved') {
+          editorSession.phase = 'recovery'
+          releaseEditorAutosaveForeground(editorSession, view)
+        }
         throw outcome.error ?? new Error('File save outcome is uncertain. Keep your draft for recovery.')
       }
+      let handoff: EditorHydration | undefined
       try {
         ticket.command.assertMayActivate()
         editorSession.phase = 'reconciling'
@@ -612,23 +647,24 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
           // Receipt I/O can overlap a new gesture or composition; transfer only after an idle recheck
           // Keep the final check and ownership transfer in one synchronous continuation
         } while (!editorSession.controller.canTransfer())
+        if (!ownsEditorCommand(ticket)) throw new RetiredEditorCommandError(ticket, outcome)
         editorSession.captureFocus?.()
         if (file?.id !== editorSession.document?.file.id) {
           editorSession.scroll = undefined
           editorSession.explorer = undefined
         }
-        const view = editorSession.transferView
-        if (!view) throw new Error('The file input owner is no longer mounted')
         if (file && content) {
           if (ticket.command.operation === 'saveUnfinished' || ticket.command.operation === 'libraryImport') editorSession.controller.acknowledge(ticket, file.revision)
           else editorSession.controller.open(view, file.id, file.revision, { original: JSON.stringify(file.original), applied: JSON.stringify(file.lastApplied), reference: file.referenceId }, { text: content.unfinishedText, editedPath: file.unfinished.editedPath, fieldState: file.unfinished.fieldState, validation: file.unfinished.validation })
           editorSession.document = { file, content }
         } else { editorSession.controller.close(view); editorSession.document = undefined }
         const transferred = editorSession.controller.transfer(view)
+        transferEditorAutosaveForeground(editorSession, view, transferred)
         editorSession.transferView = transferred
         const generation = ++version.current
         editorSession.phase = 'hydrating'
-        editorSession.hydration = { view: transferred, completion, generation }
+        handoff = { view: transferred, completion, generation }
+        editorSession.hydration = handoff
         currentRepository.current = completion.repository
         // Ownership retirement and DOM replacement must finish in the same continuation
         // A deferred commit leaves retired controls clickable and loses their later navigation state
@@ -642,7 +678,11 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
           setSuccessorPending(false)
         })
       } catch (reason) {
-        if (isCurrent()) editorSession.phase = 'recovery'
+        if (handoff) stopEditorHandoff(handoff)
+        else if (ownsEditorCommand(ticket) && editorSession.recovery === recovery) {
+          editorSession.phase = 'recovery'
+          releaseEditorAutosaveForeground(editorSession, view)
+        } else throw new RetiredEditorCommandError(ticket, outcome)
         // Publication and UI continuation have separate outcomes; rejected completion cannot claim rollback
         throw new Error(`The captured draft was saved. Reopening is pending; keep or export your later edits. ${reason instanceof Error ? reason.message : String(reason)}`)
       }
@@ -660,39 +700,54 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
       const recovery = editorSession.recovery
       if (!recovery) throw new Error('There is no file command awaiting reconciliation')
       const outcome = await reconcileOwnedFileOutcome(recovery.outcome)
-      if (!isCurrent() || editorSession.recovery !== recovery) throw new Error('The file recovery owner changed')
+      if (!ownsEditorCommand(recovery.ticket) || editorSession.recovery !== recovery) throw new RetiredEditorCommandError(recovery.ticket, outcome)
       await editorActions.completeEditorCommand(outcome, recovery.ticket, recovery.file)
     },
     confirmEditorHydration: async view => {
       const hydration = editorSession.hydration
+      const ticket = editorSession.command
+      let pending: Promise<void> | undefined
       try {
         editorSession.controller.assertView(view)
-        if (hydration && (hydration.view !== view || hydration.generation !== version.current || !isCurrent() || draftPresence.current(editorSession.controller.owner))) throw new Error('The saved draft needs explicit reopening before more edits')
+        if (!isCurrent() || hydration && (hydration.view !== view || hydration.generation !== version.current || draftPresence.current(editorSession.controller.owner))) throw new Error('The saved draft needs explicit reopening before more edits')
+        // A cold replacement retires an older Editor attempt, while repeated readiness leaves a live attempt pending
+        if (!hydration && ticket?.view === view) return
         // StrictMode can repeat readiness while this exact transferred view's receipt check is pending
         // Share its verification without granting another view or workspace authority
         if (hydration?.confirmation) return hydration.confirmation
         const confirm = async () => {
           if (hydration) {
             await hydration.completion.assertCurrent()
-            if (hydration !== editorSession.hydration || hydration.generation !== version.current || !isCurrent() || draftPresence.current(editorSession.controller.owner)) throw new Error('Workspace changed during editor hydration')
+            if (hydration !== editorSession.hydration || hydration.confirmation !== pending || hydration.generation !== version.current || !isCurrent() || draftPresence.current(editorSession.controller.owner)) throw new Error('Workspace changed during editor hydration')
           }
           editorSession.controller.hydrated(view)
           editorSession.hydration = undefined
           editorSession.recovery = undefined
           editorSession.phase = 'idle'
-          filePending.current = false
+          releasePendingFileCommand(ticket?.command)
+          editorSession.command = undefined
+          const snapshot = editorSession.controller.snapshot()
+          // A dirty descendant keeps the same reservation until its own quiet save settles
+          if (!snapshot.dirty) releaseEditorAutosaveForeground(editorSession, view)
           if (selection.kind === 'account') requestSync(selection.token, 'quiet')
           const navigation = editorSession.navigation
           editorSession.navigation = undefined
-          const snapshot = editorSession.controller.snapshot()
           // Navigation belongs to the captured request, not an asynchronous callback from the retired App
           if (navigation && !snapshot.dirty && snapshot.documentId === navigation.documentId && JSON.stringify(snapshot.input) === navigation.input && window.location.hash === navigation.sourceHash) writeNavigationRoute(navigation.destination, 'push')
         }
-        const pending = confirm()
+        pending = confirm()
         if (hydration) hydration.confirmation = pending
         await pending
       } catch (error) {
-        if (isCurrent() && hydration === editorSession.hydration) { editorSession.phase = 'recovery'; if (hydration) hydration.confirmation = undefined }
+        if (isCurrent() && editorSession.transferView === view && hydration === editorSession.hydration) {
+          if (hydration) {
+            // A stopped confirmation may reject after retry has taken the slot
+            if (hydration.view === view && (!pending || hydration.confirmation === pending)) stopEditorHandoff(hydration)
+          } else {
+            editorSession.phase = 'recovery'
+            releaseEditorAutosaveForeground(editorSession, view)
+          }
+        }
         throw error
       }
     },
@@ -704,22 +759,22 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
       // A volatile display fallback for a newer form is never authority to overwrite its stored payload
       if (operation === 'savePending' && saveSession.document && parseSavePending(saveSession.document.file.pendingForm).kind === 'unsupported') throw new Error('Reset unsupported unfinished input explicitly before saving a replacement')
       if (['saveExport', 'saveImport', 'saveRemove'].includes(operation) && saveSession.controller.snapshot().dirty) throw new Error('Save unfinished input before this operation')
-      if (filePending.current) throw new Error('Another file command is still being reconciled')
+      if (pendingFileCommand.current) throw new Error('Another file command is still being reconciled')
       const guard = () => {
         if (!isCurrent() || draftPresence.current(saveSession.controller.owner)) throw new Error('The workspace or another open draft changed during file saving')
       }
       const ticket = saveSession.controller.capture(view, operation, guard)
-      filePending.current = true
+      pendingFileCommand.current = ticket.command
       saveSession.phase = 'staging'
       saveSession.operation = operation
       return ticket
     },
     completeSaveCommand: async (outcome, ticket, file) => {
       // A completed old transaction cannot mutate recovery or pending flags belonging to a successor profile
-      if (!isCurrent()) throw new Error(outcome.status === 'saved' ? 'The captured draft was saved; its save owner was retired' : 'The save command owner was retired')
+      if (!isCurrent() || pendingFileCommand.current !== ticket.command) throw new Error(outcome.status === 'saved' ? 'The captured draft was saved; its save owner was retired' : 'The save command owner was retired')
       saveSession.recovery = { outcome, ticket, file }
       if (outcome.status !== 'saved' || !outcome.receipt) {
-        if (outcome.status === 'not-saved') { filePending.current = false; saveSession.phase = 'idle'; saveSession.recovery = undefined }
+        if (outcome.status === 'not-saved') { releasePendingFileCommand(ticket.command); saveSession.phase = 'idle'; saveSession.recovery = undefined }
         else saveSession.phase = 'recovery'
         throw outcome.error ?? new Error('File save outcome is uncertain. Keep your draft for recovery.')
       }
@@ -811,8 +866,10 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
     },
     confirmSaveHydration: async view => {
       const hydration = saveSession.hydration
+      const command = hydration && saveSession.recovery?.ticket.command
       saveSession.controller.assertView(view)
       if (hydration && (hydration.view !== view || hydration.generation !== version.current || !isCurrent() || draftPresence.current(saveSession.controller.owner))) throw new Error('The saved draft needs explicit reopening before more edits')
+      if (!hydration && saveSession.phase !== 'idle') return
       // StrictMode repeats readiness for the same transferred view before its receipt check settles
       // Coalescing belongs to that exact hydration; a different owner still fails the guards
       if (hydration?.confirmation) return hydration.confirmation
@@ -825,7 +882,7 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
         saveSession.hydration = undefined
         saveSession.recovery = undefined
         saveSession.phase = 'idle'
-        filePending.current = false
+        releasePendingFileCommand(command)
         if (selection.kind === 'account') requestSync(selection.token, 'quiet')
         const navigation = saveSession.navigation
         saveSession.navigation = undefined
@@ -841,11 +898,11 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
       }
     },
   }
-  const finishBuildImport = async (outcome: import('../workspace/owned-file-command').OwnedFileOutcome, command: import('../workspace/owned-file-command').OwnedFileCommand) => {
-    if (!isCurrent()) throw new Error('The import owner was retired. Reopen its workspace to inspect the saved library.')
+  const finishBuildImport = async (outcome: OwnedFileOutcome, command: OwnedFileCommand) => {
+    if (!isCurrent() || pendingFileCommand.current !== command) throw new Error('The import owner was retired. Reopen its workspace to inspect the saved library.')
     buildInputSession.recovery = { outcome, command }
     if (outcome.status !== 'saved' || !outcome.receipt) {
-      if (outcome.status === 'not-saved') { filePending.current = false; buildInputSession.phase = 'idle'; buildInputSession.recovery = undefined }
+      if (outcome.status === 'not-saved') { releasePendingFileCommand(command); buildInputSession.phase = 'idle'; buildInputSession.recovery = undefined }
       else buildInputSession.phase = 'recovery'
       refreshBuildPhase(value => value + 1)
       throw outcome.error ?? new Error('The library import outcome is uncertain. Keep the Build input and retry.')
@@ -877,11 +934,11 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
   const buildActions: BuildInputActions = {
     buildInputSession,
     importBuildSource: async (preview, expected) => {
-      if (filePending.current || !buildInputSession.view) throw new Error('Another file command is pending or the Build form is closed')
+      if (pendingFileCommand.current || !buildInputSession.view) throw new Error('Another file command is pending or the Build form is closed')
       const command = buildInputSession.controller.capture(buildInputSession.view, () => {
         if (!isCurrent() || draftPresence.current(buildInputSession.controller.owner)) throw new Error('The workspace or another open draft changed during mod import')
       })
-      filePending.current = true; buildInputSession.phase = 'staging'; refreshBuildPhase(value => value + 1)
+      pendingFileCommand.current = command; buildInputSession.phase = 'staging'; refreshBuildPhase(value => value + 1)
       const outcome = await importOwnedLibrarySource(repository, preview, command, expected)
       await finishBuildImport(outcome, command)
     },
@@ -896,6 +953,7 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
     },
     confirmBuildHydration: async view => {
       const hydration = buildInputSession.hydration
+      const command = hydration && buildInputSession.recovery?.command
       const guard = () => {
         buildInputSession.controller.assertView(view)
         // Fresh forms attach to the existing planner while its ordinary saves can still be pending
@@ -903,6 +961,7 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
         if (!isCurrent() || hydration !== buildInputSession.hydration || hydration && (draftPresence.current(buildInputSession.controller.owner) || hydration.generation !== version.current)) throw new Error('The workspace changed during Build reopening')
       }
       guard()
+      if (!hydration && buildInputSession.phase !== 'idle') return
       // StrictMode can confirm the same transferred view twice while its receipt check is pending
       // Share only that exact hydration's work; every caller and completion still checks its captured owner
       if (hydration?.confirmation) return hydration.confirmation
@@ -910,7 +969,7 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
         if (hydration) { await hydration.completion.assertCurrent(); guard() }
         buildInputSession.controller.hydrated(view)
         buildInputSession.hydration = undefined; buildInputSession.recovery = undefined; buildInputSession.phase = 'idle'
-        filePending.current = false
+        releasePendingFileCommand(command)
         if (selection.kind === 'account' && hydration) requestSync(selection.token, 'quiet')
       }
       const pending = confirm()
@@ -936,5 +995,5 @@ export function WorkspaceProvider({ children }: { readonly children: ReactNode }
     {guestRefreshError && <section className="panel guest-recovery-notice" role="alert"><h2>Could not check for a newer workspace</h2><p>{guestRefreshError}</p><p>Your open workspace has been kept.</p><Button tone="secondary" onClick={() => window.dispatchEvent(new Event(GUEST_ACTIVATED_EVENT))}>Retry workspace check</Button></section>}
     <GuestRecoveryNotice repository={repository} canReplace={() => current.current === selection && current.current.kind === 'guest' && !draftPresence.current()}/>
   </div> : null
-  return <WorkspaceContext.Provider value={{ repository, localCopy, notices, ...(selection.kind === 'account' ? { token: selection.token } : {}), openAccount, authenticated, beforeAuthentication, reviewSigninReplacement, reconcileRecovery, continueLocal, reopenGuest, reopenAccount, readReferenceRetry: () => { if (!isCurrent()) throw new Error('The Reference retry owner was retired'); return referenceRetry.current }, rememberReferenceRetry: value => { if (!isCurrent()) throw new Error('The Reference retry owner was retired'); referenceRetry.current = value && { ...value } }, readModLibraryResult: () => { if (!isCurrent()) throw new Error('The mod import result owner was retired'); return modLibraryResult.current && copyModLibraryResult(modLibraryResult.current) }, clearModLibraryResult: () => { if (!isCurrent()) throw new Error('The mod import result owner was retired'); modLibraryResult.current = undefined }, registerDraftPresence, flushSync, syncState, retrySync, ...editorActions, ...saveActions, ...buildActions }}><ErrorBoundary key={`${workspaceSelectionKey(selection)}:${ownedGeneration}`} recoveryDownload={() => downloadCapturedWorkspace(repository)}>{children}</ErrorBoundary></WorkspaceContext.Provider>
+  return <WorkspaceContext.Provider value={{ repository, localCopy, notices, ...(selection.kind === 'account' ? { token: selection.token } : {}), openAccount, authenticated, beforeAuthentication, reviewSigninReplacement, reconcileRecovery, continueLocal, reopenGuest, reopenAccount, readReferenceRetry: () => { if (!isCurrent()) throw new Error('The Reference retry owner was retired'); return referenceRetry.current }, rememberReferenceRetry: value => { if (!isCurrent()) throw new Error('The Reference retry owner was retired'); referenceRetry.current = value && { ...value } }, readModLibraryResult: () => { if (!isCurrent()) throw new Error('The mod import result owner was retired'); return modLibraryResult.current && copyModLibraryResult(modLibraryResult.current) }, clearModLibraryResult: () => { if (!isCurrent()) throw new Error('The mod import result owner was retired'); modLibraryResult.current = undefined }, registerDraftPresence, flushSync, syncState, retrySync, ...editorActions, ...saveActions, ...buildActions }}><ErrorBoundary key={`${workspaceSelectionKey(selection)}:${ownedGeneration}`} recoveryDownload={() => downloadCapturedWorkspace(repository)} onRenderFailure={editorHandoff && (() => stopEditorHandoff(editorHandoff))}>{children}</ErrorBoundary></WorkspaceContext.Provider>
 }

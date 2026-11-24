@@ -29,6 +29,8 @@ export interface EditorInputSnapshot {
 }
 export interface EditorInputTicket {
   readonly command: OwnedFileCommand
+  // A failed outcome can retire its own scheduling lease even when the command no longer has authority
+  readonly view: EditorViewIncarnation
   readonly input?: UnfinishedEditorInput
   readonly documentId?: string
   readonly revision?: number
@@ -110,7 +112,7 @@ export class EditorInputController {
       // Descendant permission applies only to this immutable payload, never to caller-supplied replacement state
       if (id !== captured.documentId || revision !== captured.revision || operation === 'saveUnfinished' && JSON.stringify(input) !== JSON.stringify(captured.input)) throw new Error('The file command does not match its captured editor input')
     }
-    const ticket = Object.freeze({ command: newOwnedFileCommand(operation, guard, assertInput), input: frozen(captured.input), documentId: captured.documentId, revision: captured.revision, version: this.version })
+    const ticket = Object.freeze({ command: newOwnedFileCommand(operation, guard, assertInput), view, input: frozen(captured.input), documentId: captured.documentId, revision: captured.revision, version: this.version })
     this.tickets.set(ticket, proof)
     return ticket
   }

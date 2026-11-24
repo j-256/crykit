@@ -2,6 +2,7 @@ import { assertActiveProfile, trackProfileUrl, type ProfileToken } from '../acco
 import { encodeEditorText } from '../workspace/editor-document'
 import { useEditorStorage, inspectorDraft } from './mod-inspector/useEditorStorage'
 import { useWorkspace } from './WorkspaceProvider'
+import { releaseEditorAutosaveForeground, updateEditorAutosaveForeground } from './editor-session'
 import { Sources } from './Sources'
 import { lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { childAt, childCount, parseDocument, parseJsonFragment, nodeAtPath, formatJsonPath, objectProperty } from '../mod-inspector/document'
@@ -288,6 +289,7 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
   useEffect(() => {
     // Hydration advances inputEpoch when it releases the receipt; an expired quiet timer must not race that handoff
     if (!active || !controller.snapshot().dirty || saving.current || saveFailed.current || storage.session.hydration || !controller.canTransfer()) return
+    refreshAutosaveForeground()
     const timer = setTimeout(() => { void persist() }, controller.remainingQuietTime(EDITOR_QUIET_MS))
     return () => clearTimeout(timer)
   }, [editor, path, text, mapDirty, active, saveState, inputEpoch])
@@ -338,7 +340,15 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
       }).catch(reason => { if (mounted.current) { setError(message(reason)); setSaveState('failed') } })
     } else void storage.ready().catch(reason => { if (mounted.current) setError(message(reason)) })
     return () => {
-      queueMicrotask(() => { if (!mounted.current && storage.session.transferView === viewOwner) { controller.release(viewOwner); storage.session.transferView = undefined } })
+      queueMicrotask(() => {
+        if (!mounted.current && storage.session.transferView === viewOwner) {
+          releaseEditorAutosaveForeground(storage.session, viewOwner)
+          // Recovery can remount the exact receipt owner after the boundary replaces its children
+          if (storage.session.hydration?.view === viewOwner) return
+          controller.release(viewOwner)
+          storage.session.transferView = undefined
+        }
+      })
     }
   }, [storage])
   useEffect(() => {
@@ -432,6 +442,10 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
     return true
   }
   function endOperation() { opening.current = false; if (mounted.current) setBusy(false) }
+  function refreshAutosaveForeground() {
+    // Reserve within the input event even when a gesture or composition delays the quiet save
+    if (storage.isCurrent()) updateEditorAutosaveForeground(storage.session, viewOwner, token, !saveFailed.current && storage.session.phase !== 'recovery')
+  }
   function captureField(value: string, dirty: boolean) {
     controller.editField(viewOwner, 'editor', value)
     controller.editField(viewOwner, 'editorLoaded', true)
@@ -440,6 +454,7 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
     const node = parsed ? nodeAtPath(parsed.root, path) : undefined
     const unfinished = dirty && node ? textRef.current.slice(0, node.start) + value + textRef.current.slice(node.end) : textRef.current
     controller.editText(viewOwner, unfinished)
+    refreshAutosaveForeground()
   }
   function edit(value: string) {
     if (opening.current || !storage.isCurrent()) return
@@ -452,12 +467,16 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
     const node = parsed ? nodeAtPath(parsed.root, nextPath) : undefined
     if (!node) return
     controller.editPath(viewOwner, nextPath); controller.editField(viewOwner, 'editor', node.raw); controller.editField(viewOwner, 'editorLoaded', true); controller.editField(viewOwner, 'editorDirty', false)
+    refreshAutosaveForeground()
     setQuery(''); setPath(nextPath); setEditor(node.raw); setEditorLoaded(true); setEditError(undefined); setOptionQuery(''); setOptionLimit(PAGE_SIZE)
     setExpanded(previous => revealPath(previous, nextPath))
   }
   function open(row: InspectorDraft, nextTab: InspectorTab = 'document', hydrating = false) {
     if (!hydrating) storage.remember(row)
-    if (!hydrating) controller.open(viewOwner, row.id, row.revision, { original: row.originalText, applied: row.draftText, reference: row.referenceId }, row.unfinished ?? { text: row.draftText, editedPath: [], fieldState: null, validation: 'valid' })
+    if (!hydrating) {
+      controller.open(viewOwner, row.id, row.revision, { original: row.originalText, applied: row.draftText, reference: row.referenceId }, row.unfinished ?? { text: row.draftText, editedPath: [], fieldState: null, validation: 'valid' })
+      refreshAutosaveForeground()
+    }
     const snapshot = controller.snapshot()
     const input = snapshot.input ?? row.unfinished
     const fields = (input?.fieldState && typeof input.fieldState === 'object' && !Array.isArray(input.fieldState) ? input.fieldState : {}) as Readonly<Record<string, import('../domain/types').JsonValue>>
@@ -521,6 +540,7 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
   }
   async function persistQueued() {
     if (!controller.canTransfer() || saveFailed.current || !activeRef.current || !controller.snapshot().dirty && !storage.pending() || !storage.isCurrent()) return
+    refreshAutosaveForeground()
     saving.current = true
     onDraftChange?.(true, registeredActions)
     setSaveState('saving')
@@ -530,6 +550,7 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
       else await storage.save(row.id, row.revision)
     } catch (reason) {
       saveFailed.current = true
+      releaseEditorAutosaveForeground(storage.session, viewOwner)
       if (mounted.current && storage.isCurrent()) { setError(message(reason)); setSaveState('failed') }
     } finally { saving.current = false }
   }
@@ -559,6 +580,7 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
     if (opening.current || removing || reviewBusy || dirtyRef.current || textRef.current !== expected) return false
     // Map edits share the inspector queue and revision check; they never mutate the archived original
     controller.editText(viewOwner, next); controller.editField(viewOwner, 'workingText', next); controller.editField(viewOwner, 'editorLoaded', false)
+    refreshAutosaveForeground()
     textRef.current = next; setText(next); setEditorLoaded(false); setReview(undefined); setLibraryResult(undefined); setLibraryError(undefined)
     return true
   }
@@ -601,6 +623,7 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
       if (!row) return true
       await mapActions.current?.discard()
       controller.discard(viewOwner)
+      releaseEditorAutosaveForeground(storage.session, viewOwner)
       textRef.current = row.draftText
       setText(row.draftText)
       setReview(undefined)
@@ -689,7 +712,13 @@ function EditorWorkspaceView({ onDraftChange, onSaveToLibrary, initialDraftId, e
       {active && parsed && (mapOpened || tab === 'map') && <Suspense fallback={<p role="status">Opening map editor...</p>}><MapPlacementEditor key={renderedMapIncarnation} onReady={() => {
         // The lazy map can mount after the owner's layout effect, so restore its focused field when it exists
         if (tab === 'map' && isMapCurrent()) { restoreFocus(); restoreScroll() }
-      }} document={parsed} disabled={busy || removing || reviewBusy || editorDirty} initialInput={(controller.snapshot().input?.fieldState as Record<string, import('../domain/types').JsonValue> | null)?.map} onInput={(key, value) => { if (!isMapCurrent()) return; controller.editMapField(viewOwner, key, value); controller.editField(viewOwner, 'tab', 'map'); setInputEpoch(value => value + 1); setMapDirty(true); onDraftChange?.(true, registeredActions) }} onGesture={value => { if (!isMapCurrent()) return; controller.setInteraction(viewOwner, 'gesture', value); if (!value) setInputEpoch(epoch => epoch + 1) }} onChange={(next, expected) => isMapCurrent() && applyMapText(next, expected)} onDraftChange={onMapDraftChange} onInspect={index => { if (!isMapCurrent()) return; select(['Entities', index]); setTab('document') }}/></Suspense>}
+      }} document={parsed} disabled={busy || removing || reviewBusy || editorDirty} initialInput={(controller.snapshot().input?.fieldState as Record<string, import('../domain/types').JsonValue> | null)?.map} onInput={(key, value) => {
+        if (!isMapCurrent()) return
+        controller.editMapField(viewOwner, key, value)
+        controller.editField(viewOwner, 'tab', 'map')
+        refreshAutosaveForeground()
+        setInputEpoch(value => value + 1); setMapDirty(true); onDraftChange?.(true, registeredActions)
+      }} onGesture={value => { if (!isMapCurrent()) return; controller.setInteraction(viewOwner, 'gesture', value); if (!value) setInputEpoch(epoch => epoch + 1) }} onChange={(next, expected) => isMapCurrent() && applyMapText(next, expected)} onDraftChange={onMapDraftChange} onInspect={index => { if (!isMapCurrent()) return; select(['Entities', index]); setTab('document') }}/></Suspense>}
     </section>
     <section className="inspector-tab-panel" role="tabpanel" id={`${tabsId}-dictionary-panel`} aria-labelledby={`${tabsId}-dictionary-tab`} tabIndex={0} hidden={tab !== 'dictionary'}><EnumDictionary active={tab === 'dictionary'}/></section>
   </div>
