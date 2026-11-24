@@ -206,23 +206,75 @@ it('publishesRestoredHistoricalOriginalsForExactReexportOnAnotherDevice', async 
   } finally { invalidateProfile(); for (const db of databases) await db.delete(); Dexie.dependencies.indexedDB = originalFactory }
 }, 120_000)
 
-it('publishes the first pending copy once and preserves every original on a fresh second device', async () => {
+it('publishes the first pending copy once and preserves every original on a fresh second device', async ({ task, signal, onTestFinished }) => {
+  const MAX_PHASE_MARKS = 48, MAX_PENDING_DISPATCHES = 16
+  const started = performance.now(), initialCpu = process.cpuUsage()
+  const phases: { phase: string; elapsedMs: number; processCpuMs: number; started: number; completed: number }[] = []
+  const requests = { started: 0, completed: 0, failed: 0, nonOk: 0, totalMs: 0, maximumMs: 0 }
+  const pending = new Set<{ family: string; at: number }>()
+  let settleTurn = 0, deleted = 0, omittedPhaseMarks = 0, truncatedPending = false
+  // Vitest process CPU excludes work in the native Worker subprocess
+  const cpuMs = () => { const cpu = process.cpuUsage(initialCpu); return (cpu.user + cpu.system) / 1000 }
+  const mark = (phase: string) => {
+    if (signal.aborted) return
+    if (phases.length === MAX_PHASE_MARKS) {
+      phases.shift()
+      omittedPhaseMarks++
+    }
+    phases.push({ phase, elapsedMs: performance.now() - started, processCpuMs: cpuMs(), started: requests.started, completed: requests.completed })
+  }
+  // Capture the last phase on abort before cleanup can overwrite the stalled await
+  const retain = () => {
+    const now = performance.now()
+    Object.assign(task.meta, { originalsTiming: { phases: [...phases], elapsedMs: now - started, processCpuMs: cpuMs(), aborted: signal.aborted, turn: settleTurn, deleted, omittedPhaseMarks,
+      requests: { ...requests }, truncatedPending, pending: [...pending.values()].map(({ family, at }) => ({ family, ageMs: now - at })) } })
+  }
+  signal.addEventListener('abort', retain, { once: true })
+  // The final elapsed time and process CPU include afterEach fixture teardown before this callback
+  onTestFinished(() => {
+    if (!signal.aborted) retain()
+    signal.removeEventListener('abort', retain)
+  })
+  mark('imports')
   const { editorClosureFixture } = await import('../workspace/test-helpers')
   const { createGuestCopyService } = await import('../workspace/guest-copy')
   const { ownWorkspaceSnapshot, captureWorkspaceSnapshot, openHistoricalSnapshot, disposeWorkspaceSnapshot } = await import('../workspace/snapshot')
   const { blobIdentity, readBlob } = await import('../workspace/blobs')
+  mark('service-fixture')
   service = await createServiceFixture({ now: 1_800_000_000_000 })
+  mark('register-session')
   const session = await customer(service, 'first_copy'), key = crypto.getRandomValues(new Uint8Array(32))
   const originalFactory = Dexie.dependencies.indexedDB, databases: AccountDatabase[] = [], publications = new Set<string>()
   vi.stubGlobal('fetch', async (path: string, init: RequestInit) => {
     const headers = new Headers(init.headers); headers.set('cookie', session.headers.cookie); headers.set('origin', 'http://127.0.0.1')
-    const response = await service!.request(path, { ...init, headers })
+    // Dispatch ends at response delivery; concurrent requests can overlap and later body reads are separate
+    const at = performance.now()
+    const family = /^\/api\/v1\/sync\/(uploads|changes|revisions|commits|mutations|recoveries|cleanup)(?:[/?]|$)/.exec(path)?.[1] ?? 'other'
+    const dispatch = { family, at }
+    requests.started++
+    if (pending.size < MAX_PENDING_DISPATCHES) pending.add(dispatch)
+    else truncatedPending = true
+    let response: Response
+    try {
+      response = await service!.request(path, { ...init, headers })
+      if (!response.ok) requests.nonOk++
+    } catch (error) {
+      requests.failed++
+      throw error
+    } finally {
+      const ms = performance.now() - at
+      pending.delete(dispatch)
+      requests.completed++
+      requests.totalMs += ms
+      requests.maximumMs = Math.max(requests.maximumMs, ms)
+    }
     if (path.endsWith('/commits') && response.ok) {
       const command = JSON.parse(init.body as string) as { mutationId: string; heads: unknown[] }
       if (command.heads.length) publications.add(command.mutationId)
     }
     return response
   })
+  mark('source-fixture')
   const fixture = await editorClosureFixture(), blank = { ...fixture.state, blobs: [], retainedContent: [] }
   const source = ownWorkspaceSnapshot({ dataGeneration: LAUNCH_DATA_GENERATION, version: 1, snapshotId: 'first-copy-original', capturedAt: fixture.file.updatedAt, revisionVector: {}, state: { ...fixture.state, editorDocuments: [fixture.file] } }, { check: async () => {}, dispose: async () => {} })
   const copy = createGuestCopyService(async () => source)
@@ -233,47 +285,68 @@ it('publishes the first pending copy once and preserves every original on a fres
     return { token, db }
   }
   const settle = async ({ token, db }: Awaited<ReturnType<typeof openDevice>>) => {
+    settleTurn = 0
     await prepareManagedSync(db, token)
+    mark('settle-iterations')
     for (let turn = 0; turn < 160; turn++) {
+      settleTurn = turn + 1
       try { const result = await runSyncIteration(token, new AbortController().signal); if (result.state === 'synced') return; expect(result.moreWork).toBe(true) }
       catch (error) { if (!(error instanceof SyncError && error.code === 'SERVICE_UNAVAILABLE')) throw error }
     }
     throw new Error('Initial copy did not settle')
   }
   try {
+    mark('first-open')
     const first = await openDevice()
-    await copy.commitGuestCopy(first.token, await copy.previewGuestCopy(first.token, ['["editor","editor-1"]']))
+    mark('copy-preview')
+    const preview = await copy.previewGuestCopy(first.token, ['["editor","editor-1"]'])
+    mark('copy-commit')
+    await copy.commitGuestCopy(first.token, preview)
+    mark('first-selection')
     const localSelection = await first.db.profileMeta.get('active'), liveRepository = await openAccountRepository(first.token)
+    mark('first-settle')
     await settle(first)
+    mark('first-local-assertions')
     expect(await first.db.profileMeta.get('active')).toEqual(localSelection)
     expect((await liveRepository.readWorkspace()).editorDocuments).toEqual([fixture.file])
     expect(publications.size).toBe(1)
     expect(await first.db.outbox.count()).toBe(0)
+    mark('first-capture')
     const saved = await captureWorkspaceSnapshot(await openAccountRepository(first.token))
     let originalIds: string[]
     try {
       if (saved.version !== 2) throw new Error('Originals are missing')
       originalIds = saved.historicalEvidence.snapshots.map(member => member.id)
-    } finally { await disposeWorkspaceSnapshot(saved) }
+    } finally { mark('first-capture-dispose'); await disposeWorkspaceSnapshot(saved) }
+    mark('second-open')
     const second = await openDevice()
+    mark('second-settle')
     await settle(second)
     expect(publications.size).toBe(1)
     const { captureAccountSyncWorkspace } = await import('../workspace/account-sync-capture')
     const { readRemoteState, readRemoteHeads } = await import('../account/sync/pull')
     const { openRemoteProjection } = await import('../account/sync/projection')
     const { accountEvidenceContains } = await import('../workspace/account-evidence-union')
+    mark('second-remote-state')
     const before = (await readRemoteState(second.db, second.token))!.value
+    mark('second-remote-heads')
     const heads = await readRemoteHeads(second.db, second.token, before.heads)
+    mark('second-local-capture')
     const local = await captureAccountSyncWorkspace(second.db, second.token, (await second.db.profileMeta.get('active'))!)
     try {
+      mark('second-open-projection')
       const remote = (await openRemoteProjection(second.db, second.token, heads, local.workspace.head, local.operativePlanner.localData.revision, local.validatedEvidence))!
       expect(local.inheritedEvidence).not.toEqual(remote.inheritedEvidence)
+      mark('contains-local-remote')
       expect(await accountEvidenceContains(second.db, second.token, local.inheritedEvidence!, remote.inheritedEvidence!)).toBe(true)
+      mark('contains-remote-local')
       expect(await accountEvidenceContains(second.db, second.token, remote.inheritedEvidence!, local.inheritedEvidence!)).toBe(true)
-    } finally { await local.dispose() }
+    } finally { mark('second-capture-dispose'); await local.dispose() }
     // Reopening an equivalent archive must not create another publication or reciprocal device churn
     for (let repeat = 0; repeat < 2; repeat++) {
+      mark('repeat-sync')
       expect(await runSyncIteration(second.token, new AbortController().signal)).toEqual({ state: 'synced', moreWork: false })
+      mark('repeat-readback')
       expect(await second.db.outbox.count()).toBe(0)
       expect(await second.db.syncState.get('publication')).toBeUndefined()
       const after = (await readRemoteState(second.db, second.token))!.value
@@ -281,17 +354,26 @@ it('publishes the first pending copy once and preserves every original on a fres
       expect(await readRemoteHeads(second.db, second.token, after.heads)).toEqual(heads)
       expect(publications.size).toBe(1)
     }
+    mark('second-final-capture')
     const received = await captureWorkspaceSnapshot(await openAccountRepository(second.token))
     try {
       expect(received.state.editorDocuments).toEqual([fixture.file])
       if (received.version !== 2) throw new Error('Synced originals are missing')
       expect(received.historicalEvidence.snapshots.map(member => member.id)).toEqual(originalIds)
+      mark('original-readback')
       for (const member of received.historicalEvidence.snapshots) {
         const child = await openHistoricalSnapshot(received, member.id)
         try {
           for (const body of fixture.state.blobs) expect(await readBlob(child.state.blobs.find(value => blobIdentity(value.ref) === blobIdentity(body.ref))!.content, body.ref.byteLength)).toEqual(await readBlob(body.content, body.ref.byteLength))
         } finally { await disposeWorkspaceSnapshot(child) }
       }
-    } finally { await disposeWorkspaceSnapshot(received) }
-  } finally { await copy.dispose(); await disposeWorkspaceSnapshot(source); invalidateProfile(); for (const db of databases) await db.delete(); Dexie.dependencies.indexedDB = originalFactory; key.fill(0) }
+    } finally { mark('second-final-dispose'); await disposeWorkspaceSnapshot(received) }
+  } finally {
+    mark('copy-dispose'); await copy.dispose()
+    mark('source-dispose'); await disposeWorkspaceSnapshot(source)
+    invalidateProfile()
+    mark('database-delete'); for (const db of databases) { await db.delete(); deleted++ }
+    Dexie.dependencies.indexedDB = originalFactory; key.fill(0)
+  }
+  mark('finished')
 })
