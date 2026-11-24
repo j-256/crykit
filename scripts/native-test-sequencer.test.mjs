@@ -65,7 +65,7 @@ test('hosted persistence balances eight bins independently of discovery order an
 
   const bins = await assign(files)
   // Unknown files must grow their bin's cost, including a new project at the same path
-  assert.deepEqual(bins, [[recovery], [conflicts], [a, f], [aService, g], [b, h], [c], [d], [e]])
+  assert.deepEqual(bins, [[conflicts], [recovery], [a, f], [aService, g], [b, h], [c], [d], [e]])
   assert.equal(bins.flat().length, files.length)
   assert.deepEqual(new Set(bins.flat()), new Set(files))
   const staleCache = { getTestSpecificationResult() { throw new Error('Placement read cached timings') } }
@@ -75,12 +75,13 @@ test('hosted persistence balances eight bins independently of discovery order an
 })
 
 test('placement markers select hosted CI or local native costs only in their intended environment', async () => {
-  const recovery = spec('src/persistence/signin-reconciliation-recovery.test.ts', 'persistence-service')
-  const conflicts = spec('src/persistence/conflicts.test.ts', 'persistence-service')
-  const firstBin = Sequencer => new (Sequencer ?? BaseSequencer)({ config: { root, shard: { index: 1, count: 2 } } }).shard([recovery, conflicts])
+  // These fixtures rank in opposite order under the local and hosted cost tables
+  const copiedJourney = spec('src/persistence/copied-conflict-journey.test.ts', 'persistence-service')
+  const lineageConflicts = spec('src/persistence/lineage-conflicts.test.ts', 'persistence-service')
+  const firstBin = Sequencer => new (Sequencer ?? BaseSequencer)({ config: { root, shard: { index: 1, count: 2 } } }).shard([copiedJourney, lineageConflicts])
 
-  assert.deepEqual(await firstBin(await configuredSequencer({ native: 'balanced', hosted: 'balanced' })), [conflicts])
-  assert.deepEqual(await firstBin(await configuredSequencer({ ci: 'true', native: 'balanced', hosted: 'balanced' })), [recovery])
+  assert.deepEqual(await firstBin(await configuredSequencer({ native: 'balanced', hosted: 'balanced' })), [lineageConflicts])
+  assert.deepEqual(await firstBin(await configuredSequencer({ ci: 'true', native: 'balanced', hosted: 'balanced' })), [copiedJourney])
   assert.equal(await configuredSequencer({ hosted: 'balanced' }), undefined)
   assert.equal(await configuredSequencer({ ci: 'true', native: 'balanced' }), undefined)
   assert.equal(await configuredSequencer({ ci: 'true', hosted: 'true' }), undefined)
