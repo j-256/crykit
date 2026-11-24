@@ -1,4 +1,4 @@
-import { sourcePayloadValid } from '../domain/source-fulfillment'
+import { prepareSourcePayloadValidation, sourcePayloadValid } from '../domain/source-fulfillment'
 import { assertPublicSourceContexts, publicSetupAllowsPin, publicCheckpointAllowsRef } from '../domain/public-source-context'
 import { assertRetainedSelections, retainedSelectionRefs } from '../domain/retained-selections'
 import type { CatalogEntityKind, CatalogSnapshot, EntityRef, JsonValue, Knowledge, LocalData, LocalDataId, Timestamp } from '../domain/types'
@@ -1001,6 +1001,11 @@ export async function previewNativeBackup(bytes: Uint8Array, filename: string): 
   // Each complete body either matches a format-owned immutable body or passes full schema admission
   // Frozen membership and nested values permit reuse without trusting IDs or caller-supplied digests
   const allCatalogs = Object.freeze(payloadResult.data.catalogs.map(readNativeCatalog))
+  // Async previews verify the same complete source bytes with Web Crypto before graph validation
+  // Only successful exact-object integrity enters the shared cache; transaction callers keep synchronous validation
+  for (const catalog of allCatalogs) {
+    if (catalog.schemaVersion !== MOD_CATALOG_SCHEMA && !await prepareSourcePayloadValidation(catalog, () => {})) schemaError('A catalog source payload has invalid identity, revision, or contents')
+  }
   const catalogs = validateCatalogs(allCatalogs)
   const validationKeys = includeUnavailableModCatalogs(catalogs.keys, unavailableModCatalogKeys([payloadResult.data.localData as unknown as LocalData, ...(payloadResult.data.history ?? []).flatMap(entry => [entry.before, entry.after]) as unknown as LocalData[]], allCatalogs))
   const localData = validateLocalData(payloadResult.data.localData, validationKeys, 'localData', catalogs.entityKinds)
