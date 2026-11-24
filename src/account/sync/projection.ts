@@ -249,7 +249,7 @@ async function assertAdvance(database: AccountDatabase, token: ProfileToken, nex
 export async function assertProjectionSuccessor(database: AccountDatabase, token: ProfileToken, next: RemoteProjection | null, previous: RemoteProjection | null): Promise<void> {
   if (previous) await assertAdvance(database, token, next, { control: previous.control, lineageId: previous.lineageId, units: [...previous.units.values()].map(unit => ({ key: unit.key, publication: unit.ref })).concat([...previous.lineages].map(([key, anchor]) => ({ key, publication: anchor.ref }))) })
 }
-export async function assertProjectionAdvance(database: AccountDatabase, token: ProfileToken, next: RemoteProjection | null, previous?: import('./pull').RemoteState['effective']): Promise<void> {
+export async function assertProjectionAdvance(database: AccountDatabase, token: ProfileToken, next: RemoteProjection | null, previous?: import('./pull').RemoteState['effective']) {
   if (!previous) return
   const { z } = await import('zod')
   const { CipherRefSchema } = await import('../../workspace/account-cache')
@@ -257,6 +257,7 @@ export async function assertProjectionAdvance(database: AccountDatabase, token: 
   const pages = publicationPageSchema(z.strictObject({ key: z.string(), body: CipherRefSchema, publication: CipherRefSchema }), 'local-effective-units')
   const units = await readPublicationPages(database, token, previous.units, pages, entry => [entry.body, entry.publication])
   await assertAdvance(database, token, next, { ...previous, units })
+  return units
 }
 
 export { descended as assertPublicationDescendant }

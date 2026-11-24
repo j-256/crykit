@@ -701,3 +701,28 @@ it.each([false, true])('finishes remote proof retirement before local capture an
   await observed!.dispose()
   await expect(observed!.validatedEvidence!.check()).rejects.toThrow('released')
 })
+
+it('retains the publication base on an idle poll with the same completed replacement and rejects a changed authority', async () => {
+  const { api, device } = await start()
+  expect((await device.settle()).state).toBe('synced')
+  const terminal = (await api.readReviewedReplacement(device.db, device.token))!
+  expect(terminal.value.state).toBe('accepted')
+  const base = (await device.db.syncState.get('projection'))!.ref
+  expect((await device.settle()).state).toBe('synced')
+  expect((await device.db.syncState.get('projection'))?.ref).toEqual(base)
+  expect(await device.db.syncState.get(api.REVIEWED_REPLACEMENT_KEY)).toEqual(terminal.row)
+
+  const pull = await import('../account/sync/pull')
+  const { writeSyncState } = await import('../account/sync/outbox')
+  const activate = pull.activatePulledState
+  const gate = vi.spyOn(pull, 'activatePulledState').mockImplementationOnce(async (...args) => {
+    const record = (await device.db.encryptedRevisions.get(terminal.row.ref.revisionId))!
+    await writeSyncState(device.db, device.token, terminal.row.id, terminal.value, terminal.row, record.descriptor.dependencies)
+    return activate(...args)
+  })
+  try {
+    await expect(runSyncIteration(device.token, new AbortController().signal)).rejects.toThrow('LOCAL_REVISION_CONFLICT')
+    expect((await device.db.syncState.get('remote'))?.ref).toEqual(base)
+    expect(await device.db.syncState.get('scan')).toBeDefined()
+  } finally { gate.mockRestore() }
+})
