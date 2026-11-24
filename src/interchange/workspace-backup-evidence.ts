@@ -200,7 +200,9 @@ async function constructEvidenceSnapshot(raw: SnapshotMetadataV2, current: BlobS
   // Release digest reuse before exposing any reader; later opening validates afresh
   await withImmutableWorkspaceBodyValidation([...registry.values()], async bodyValidation => {
     const projected = projectWorkspaceSnapshotV1(attachBackupBodies(raw, registry))
-    await validateWorkspaceSnapshotV1(projected, bodyValidation)
+    // The retained current keeps the admitted catalog identity, so its digest can be reused under the owner's check
+    // Verify freshness across the digest's task yield while archive imports and historical members validate independently
+    await validateWorkspaceSnapshotV1(projected, bodyValidation, undefined, retainedOwner ? () => retainedOwner.check() : undefined)
     for (const ref of raw.state.blobs) used.add(blobIdentity(ref))
     for (const [id, content] of historical) {
       const identity = await historicalMetadataIdentity(content)

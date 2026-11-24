@@ -1,7 +1,16 @@
 import { LAUNCH_DATA_GENERATION } from '../domain/data-generation'
 import 'fake-indexeddb/auto'
 import { afterEach, expect, it, vi } from 'vitest'
+import * as backupJson from './workspace-backup-json'
 import { BackupJsonReader } from './workspace-backup-json'
+import { installProfile, invalidateProfile } from '../account/profile'
+import { SYNTHETIC_RETAINED_CATALOG } from '../domain/retained-catalog.test-helpers'
+import { AccountDatabase, activateLocalAccountCommit } from '../persistence/account-database'
+import { accountLocalId } from '../workspace/account-cache'
+import { prepareAccountWorkspace } from '../workspace/account-graph'
+import { captureAccountSnapshot } from '../workspace/account-snapshot'
+import { readBlob } from '../workspace/blobs'
+import { splitWorkspace, type BlobSource, type WorkspaceDocument } from '../workspace/documents'
 import * as snapshots from '../workspace/snapshot'
 import * as evidence from './workspace-backup-evidence'
 import { editorClosureFixture } from '../workspace/test-helpers'
@@ -163,4 +172,112 @@ it('detaches source subset and body constraints before an awaited owner check', 
   const joined = await pending
   try { expect(joined.historicalEvidence.snapshots).toEqual([{ id: history.members[0].id }]) }
   finally { await disposeWorkspaceSnapshot(joined) }
+})
+
+async function withCatalogCurrent(run: (current: WorkspaceSnapshotV1) => Promise<void>, check = async () => {}) {
+  const source = await fixture()
+  const state = { ...source.state, planner: { ...source.state.planner, catalogs: [SYNTHETIC_RETAINED_CATALOG] } }
+  const token = installProfile(accountLocalId(), crypto.getRandomValues(new Uint8Array(32)))
+  const database = new AccountDatabase(token.accountId)
+  try {
+    const prepared = await prepareAccountWorkspace(database, token, state)
+    const fence = await activateLocalAccountCommit(database, token, { version: 1, id: accountLocalId(), expected: undefined, head: prepared.head, records: prepared.records })
+    const current = await captureAccountSnapshot(prepared.opened, fence, check)
+    try {
+      if (current.version !== 1) throw new Error('Expected a direct account capture')
+      await run(current)
+    } finally { await disposeWorkspaceSnapshot(current) }
+  } finally {
+    invalidateProfile()
+    await database.delete()
+  }
+}
+
+const readWhole = (source: BlobSource) => readBlob(source, source.byteLength)
+
+it('reuses the warmed current catalog digest and preserves exact source and historical evidence', async () => {
+  await withCatalogCurrent(async current => {
+    const original = { ...current, snapshotId: 'original-catalog-current' }
+    const history = await inherited(original)
+    const member = history.members[0]
+    const originalBytes = await readWhole(member.metadata)
+    const document = splitWorkspace(current.state).find(({ kind }) => kind === 'catalog')!
+    expect(document.value).toBe(SYNTHETIC_RETAINED_CATALOG)
+
+    let encodedBytes = 0
+    const encode = backupJson.encodeBackupJson
+    const observe = vi.spyOn(backupJson, 'encodeBackupJson').mockImplementation(function* (value, ...options) {
+      const candidate = value as Partial<WorkspaceDocument>
+      const matches = candidate.kind === 'catalog' && candidate.key === document.key && candidate.value === document.value
+      for (const page of encode(value, ...options)) {
+        if (matches) encodedBytes += page.byteLength
+        yield page
+      }
+    })
+    const expectedDigest = await snapshots.backupMetadataDigest(document)
+    expect(current.sourceEvidence?.units.find(unit => unit.key === document.key)?.projectedDigest).toBe(expectedDigest)
+    expect(encodedBytes).toBeGreaterThan(0)
+    encodedBytes = 0
+    const joined = await evidence.joinWorkspaceSnapshotEvidence(current, history)
+    observe.mockRestore()
+    try {
+      expect(encodedBytes).toBe(0)
+      const expectedCurrent = JSON.stringify(snapshotMetadata(current))
+      expect(JSON.stringify(snapshotMetadata(projectWorkspaceSnapshotV1(joined)))).toBe(expectedCurrent)
+      expect(joined.state.planner.catalogs[0]).toBe(SYNTHETIC_RETAINED_CATALOG)
+      expect(joined.historicalEvidence.snapshots).toEqual([{ id: member.id }])
+      const child = await openHistoricalSnapshot(joined, member.id)
+      try {
+        expect(JSON.stringify(snapshotMetadata(child))).toBe(JSON.stringify(snapshotMetadata(original)))
+        expect(await readWhole(evidence.capturedBackupEvidence(child).current)).toEqual(originalBytes)
+      } finally { await disposeWorkspaceSnapshot(child) }
+
+      const restored = await readWorkspaceBackup(exportWorkspaceBackup(joined))
+      try {
+        expect(restored.version).toBe(2)
+        expect(JSON.stringify(snapshotMetadata(projectWorkspaceSnapshotV1(restored)))).toBe(expectedCurrent)
+        const restoredOriginal = await openHistoricalSnapshot(restored, member.id)
+        try { expect(await readWhole(evidence.capturedBackupEvidence(restoredOriginal).current)).toEqual(originalBytes) }
+        finally { await disposeWorkspaceSnapshot(restoredOriginal) }
+      } finally { await disposeWorkspaceSnapshot(restored) }
+    } finally { await disposeWorkspaceSnapshot(joined) }
+  })
+})
+
+it('rejects current owner invalidation during validation and releases only join staging', async () => {
+  const reason = new Error('Current owner invalidated during catalog validation')
+  let validatingCurrent = false, invalidated = false
+  let revocation: ReturnType<typeof setTimeout> | undefined
+  const check = async () => {
+    if (invalidated) throw reason
+    // Queue revocation at the first validation checkpoint so it runs during the cached digest's task yield
+    if (validatingCurrent && revocation === undefined) revocation = setTimeout(() => { invalidated = true }, 0)
+  }
+  await withCatalogCurrent(async current => {
+    const source = await fixture(), history = await inherited(source)
+    const before = new Set((await indexedDB.databases()).map(database => database.name))
+    const validate = snapshots.validateWorkspaceSnapshotV1
+    let currentValidation: Promise<void> | undefined
+    const observe = vi.spyOn(snapshots, 'validateWorkspaceSnapshotV1').mockImplementation(async (...args) => {
+      if (args[0].snapshotId !== current.snapshotId) return validate(...args)
+      validatingCurrent = true
+      currentValidation = validate(...args)
+      try { await currentValidation }
+      finally { validatingCurrent = false }
+    })
+    let joined: Awaited<ReturnType<typeof evidence.joinWorkspaceSnapshotEvidence>> | undefined
+    try {
+      await expect(evidence.joinWorkspaceSnapshotEvidence(current, history).then(value => { joined = value })).rejects.toBe(reason)
+      expect(currentValidation).toBeDefined()
+      await expect(currentValidation).rejects.toBe(reason)
+      expect(invalidated).toBe(true)
+      expect((await indexedDB.databases()).filter(database => database.name?.startsWith('crykit-backup-staging-') && !before.has(database.name))).toEqual([])
+      invalidated = false
+      await expect(assertWorkspaceSnapshotCurrent(current)).resolves.toBeUndefined()
+    } finally {
+      clearTimeout(revocation)
+      observe.mockRestore()
+      if (joined) await disposeWorkspaceSnapshot(joined)
+    }
+  }, check)
 })
