@@ -4,7 +4,7 @@ import { stageAccountJson, cipherRef, readAccountRecordBytes } from '../workspac
 import { afterEach, expect, it } from 'vitest'
 import { installProfile, invalidateProfile } from './profile'
 import { accountLocalId } from '../workspace/account-cache'
-import { accountWorkCheckpoint, installAccountWorkCheckpoint, observeAccountForeground, withAccountForeground, waitForAccountForeground } from './background-work'
+import { acquireAccountForeground, accountWorkCheckpoint, installAccountWorkCheckpoint, observeAccountForeground, withAccountForeground, waitForAccountForeground } from './background-work'
 
 afterEach(() => invalidateProfile())
 it('keeps nested foreground work pending through completion and clears its captured profile on failure', async () => {
@@ -53,4 +53,48 @@ it('holds main-thread publication behind foreground completion and rejects a can
   const controller = new AbortController(), cancelled = waitForAccountForeground(token, controller.signal)
   controller.abort(); await expect(cancelled).rejects.toThrow(/cancelled/)
   release(); await foreground; await waiting; expect(settled).toBe(true)
+})
+
+it('holds an explicit foreground lease across nested commands and releases it only once', async () => {
+  const token = installProfile(accountLocalId(), new Uint8Array(32)), states: boolean[] = []
+  observeAccountForeground({ ...token }, pending => states.push(pending))
+  const release = acquireAccountForeground(token)
+  expect(states).toEqual([false, true])
+  let resumed = false
+  const waiting = waitForAccountForeground({ ...token }).then(() => { resumed = true })
+  await expect(withAccountForeground({ ...token }, async () => 'saved')).resolves.toBe('saved')
+  await expect(withAccountForeground(token, async () => { throw new Error('save failed') })).rejects.toThrow('save failed')
+  expect(resumed).toBe(false)
+  expect(states).toEqual([false, true])
+  release()
+  release()
+  await waiting
+  expect(states).toEqual([false, true, false])
+  const releaseNext = acquireAccountForeground(token)
+  expect(states).toEqual([false, true, false, true])
+  releaseNext()
+  expect(states).toEqual([false, true, false, true, false])
+})
+
+it('cancels a retired profile waiter without affecting the successor foreground count', async () => {
+  const accountId = accountLocalId(), initial = installProfile(accountId, new Uint8Array(32)), initialStates: boolean[] = []
+  observeAccountForeground(initial, pending => initialStates.push(pending))
+  const releaseInitial = acquireAccountForeground(initial)
+  const retired = expect(waitForAccountForeground(initial)).rejects.toThrow('Captured account preparation was cancelled')
+  invalidateProfile()
+  await retired
+
+  const successor = installProfile(accountId, new Uint8Array(32)), successorStates: boolean[] = []
+  observeAccountForeground(successor, pending => successorStates.push(pending))
+  const releaseSuccessor = acquireAccountForeground({ ...successor })
+  let resumed = false
+  const waiting = waitForAccountForeground(successor).then(() => { resumed = true })
+  releaseInitial()
+  await Promise.resolve()
+  expect(resumed).toBe(false)
+  expect(initialStates).toEqual([false, true])
+  expect(successorStates).toEqual([false, true])
+  releaseSuccessor()
+  await waiting
+  expect(successorStates).toEqual([false, true, false])
 })

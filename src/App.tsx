@@ -265,7 +265,13 @@ export default function App() {
       persistedRevisionRef.current = loaded.localData.revision
       setLoadedData(loaded)
       if (initialLanding.current && BUNDLED_MOD_LIBRARY.length > 0 && loaded.localData.modSetup?.state === 'pending') setModSelectorOpen(true)
-    }).catch((error: unknown) => { if (live) { setPrelaunchGuestData(error instanceof PrelaunchGuestDataError); setLoadingError(formatAppError(error, 'Local records could not be opened.')) } })
+    }).catch((error: unknown) => {
+      if (!live) return
+      // The load error screen prevents the successor Editor from mounting and confirming its receipt
+      workspace.reportEditorHandoffLoadFailure()
+      setPrelaunchGuestData(error instanceof PrelaunchGuestDataError)
+      setLoadingError(formatAppError(error, 'Local records could not be opened.'))
+    })
     return () => { live = false }
   }, [])
 

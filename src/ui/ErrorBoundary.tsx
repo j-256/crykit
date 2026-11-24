@@ -4,13 +4,14 @@ import { downloadBytes, formatAppError } from './model'
 
 interface State { readonly error?: Error; readonly exporting?: boolean; readonly exportError?: string }
 
-export class ErrorBoundary extends Component<{ children: ReactNode; recoveryExport?: () => Promise<Uint8Array>; recoveryDownload?: () => Promise<void> }, State> {
+export class ErrorBoundary extends Component<{ children: ReactNode; recoveryExport?: () => Promise<Uint8Array>; recoveryDownload?: () => Promise<void>; onRenderFailure?: () => void }, State> {
   state: State = {}
 
   static getDerivedStateFromError(error: Error): State { return { error } }
 
   componentDidCatch() {
     console.error('crykit_render_failure', { code: 'RENDER_FAILED' })
+    this.props.onRenderFailure?.()
   }
 
   private exportRecovery = async () => {

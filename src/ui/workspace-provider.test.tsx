@@ -1,5 +1,6 @@
 import { useQueuedTileUpdates } from './useQueuedTileUpdates'
 import 'fake-indexeddb/auto'
+import App from '../App'
 import { GuestCoordinatorDatabase } from '../workspace/guest-coordinator'
 import { createGuestLocalStore } from '../workspace/guest-local-store'
 import { prepareLocalWorkspace } from '../workspace/local-root'
@@ -10,9 +11,14 @@ import { createRoot, type Root } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { captureProfileEpoch, currentProfileToken, installProfile, invalidateProfile, type ProfileToken } from '../account/profile'
+import { observeAccountForeground, waitForAccountForeground } from '../account/background-work'
 import { WorkspaceProvider, useWorkspace } from './WorkspaceProvider'
+import { ModInspectorView } from './ModInspectorView'
+import { releaseEditorAutosaveForeground, updateEditorAutosaveForeground } from './editor-session'
+import { ownedFileReceipt, reconcileOwnedFileOutcome, resolveOwnedFileReceipt, verifyOwnedFileReceipt, reconcilableFileOutcome, registerOwnedFileCommitter, type OwnedFileOutcome } from '../workspace/owned-file-command'
 import { AccountView } from './account/AccountView'
 import { NAVIGATION_EVENT } from './navigation/history'
+import { formatAppRoute, routeForDestination } from './navigation'
 import { BuildInputProvider, useBuildInput, useBuildInputState } from './build-input-session'
 import * as account from '../workspace/account-repository'
 import * as lifecycle from '../account/lifecycle'
@@ -629,6 +635,391 @@ it('profile selection clears file ownership and a retired completion cannot repl
   expect(selected.fileCommandPending()).toBe(true)
   expect(selected.editorSession.phase).toBe('staging')
   expect(selected.editorSession.recovery).toBeUndefined()
+})
+
+async function mountedEditorFileGate() {
+  let selected!: ReturnType<typeof useWorkspace>
+  function Owner({ editor }: { editor: boolean }) {
+    selected = useWorkspace()
+    return editor ? <ModInspectorView/> : null
+  }
+  const showEditor = (editor: boolean) => act(async () => root.render(<WorkspaceProvider><Owner editor={editor}/></WorkspaceProvider>))
+  await showEditor(true)
+  const view = selected.editorSession.transferView!
+  const old = selected, ticket = old.beginEditorCommand(view, 'import')
+  await showEditor(false)
+  expect(selected.isCurrent()).toBe(true)
+  expect(selected.repository).toBe(old.repository)
+  expect(selected.editorSession.transferView).toBeUndefined()
+  expect(() => selected.editorSession.controller.assertView(view)).toThrow('retired')
+  expect(selected.fileCommandPending()).toBe(true)
+  return { selected: () => selected, old, ticket, showEditor }
+}
+
+it('drains the pending file gate when a definitely failed Editor command returns after actual unmount', async () => {
+  const { old, ticket, selected } = await mountedEditorFileGate()
+  const outcome: OwnedFileOutcome = { status: 'not-saved', error: new Error('Synthetic terminal Editor failure') }
+  const reported = await old.completeEditorCommand(outcome, ticket).catch(error => error)
+  expect(reported).toMatchObject({ message: expect.stringContaining('retired'), ticket, outcome })
+  expect(selected().fileCommandPending()).toBe(false)
+  expect(selected().editorSession.command).toBeUndefined()
+  expect(selected().editorSession.phase).toBe('idle')
+  const view = selected().saveSession.controller.attach()
+  const next = selected().beginSaveCommand(view, 'saveImport')
+  await expect(selected().completeSaveCommand({ status: 'not-saved' }, next)).rejects.toThrow()
+  expect(selected().fileCommandPending()).toBe(false)
+})
+
+it.each(['Save', 'Build'] as const)('holds a newer %s gate through cold Editor readiness and an old definite failure', async tool => {
+  await sameRealmIndexedDb()
+  const { old, ticket, selected, showEditor } = await mountedEditorFileGate()
+  const workspace = selected()
+  let begin!: () => Promise<() => Promise<unknown>>
+  if (tool === 'Save') {
+    const view = workspace.saveSession.controller.attach()
+    workspace.saveSession.transferView = view
+    await workspace.confirmSaveHydration(view)
+    begin = async () => {
+      const newer = workspace.beginSaveCommand(view, 'saveImport')
+      return () => workspace.completeSaveCommand({ status: 'not-saved' }, newer).catch(error => error)
+    }
+  } else {
+    const { previewCrystalEdit } = await import('../interchange/crystal-edit')
+    const view = workspace.buildInputSession.controller.attach()
+    workspace.buildInputSession.view = view
+    await workspace.confirmBuildHydration(view)
+    const before = await workspace.repository.load()
+    const preview = await previewCrystalEdit(new TextEncoder().encode('{"ID":"pending-build-gate","Title":"Pending Build gate","EditorVersion":34,"Items":[]}'), 'pending-build-gate.json')
+    begin = async () => {
+      let entered!: () => void, finish!: (outcome: OwnedFileOutcome) => void
+      const started = new Promise<void>(resolve => { entered = resolve })
+      const held = new Promise<OwnedFileOutcome>(resolve => { finish = resolve })
+      registerOwnedFileCommitter(workspace.repository, async () => { entered(); return held })
+      let importing!: Promise<unknown>
+      await act(async () => { importing = workspace.importBuildSource(preview, { id: before.localData.id, revision: before.revision }).catch(error => error); await Promise.race([started, importing]) })
+      expect(workspace.buildInputSession.phase).toBe('staging')
+      return async () => { finish({ status: 'not-saved' }); await importing }
+    }
+  }
+
+  const oldGateSurvivedReadiness = workspace.fileCommandPending()
+  // In both implementations start the new tool after the old gate drains
+  // Only an actual Editor reattachment has authority to retire the old pending Editor view
+  if (oldGateSurvivedReadiness) { await showEditor(true); await showEditor(false) }
+  const finish = await begin()
+  expect(workspace.fileCommandPending()).toBe(true)
+  const newSession = tool === 'Save' ? workspace.saveSession : workspace.buildInputSession
+  try {
+    await expect(old.completeEditorCommand({ status: 'not-saved' }, ticket)).rejects.toThrow('retired')
+    expect(workspace.fileCommandPending()).toBe(true)
+    await showEditor(true)
+    expect(selected().editorSession.transferView).toBeDefined()
+    expect(workspace.fileCommandPending()).toBe(true)
+    expect(newSession.phase).toBe('staging')
+    expect(oldGateSurvivedReadiness).toBe(true)
+  } finally { await act(async () => { await finish() }) }
+  expect(workspace.fileCommandPending()).toBe(false)
+})
+
+it.each(['saved', 'uncertain', 'not-saved'] as const)('fences a late %s Editor result after same-workspace reattachment', async status => {
+  let selected!: ReturnType<typeof useWorkspace>
+  function Owner() { selected = useWorkspace(); return <span>owner</span> }
+  const repository = { ...createGuestRepository(db), kind: 'account' as const }
+  vi.spyOn(account, 'openAccountRepository').mockResolvedValue(repository)
+  await act(async () => root.render(<WorkspaceProvider><Owner/></WorkspaceProvider>))
+  await act(async () => selected.openAccount(token))
+  const captured = selected, session = captured.editorSession, { controller } = session
+  const edges: boolean[] = []
+  observeAccountForeground(token, pending => edges.push(pending))
+  const oldView = controller.attach()
+  session.transferView = oldView
+  const oldTicket = captured.beginEditorCommand(oldView, 'import')
+  const assertCurrent = async () => { expect(captured.isCurrent()).toBe(true) }
+  const completion = { repository, state: await repository.readWorkspace(), assertCurrent }
+  const oldReceipt = ownedFileReceipt(oldTicket.command, async () => completion, assertCurrent)
+  const saved: OwnedFileOutcome = { status: 'saved', receipt: oldReceipt }
+  const failure = new Error('Synthetic old Editor failure')
+  const late = status === 'saved' ? saved : status === 'uncertain' ? reconcilableFileOutcome({ status, error: failure }, async () => saved) : { status, error: failure }
+
+  controller.release(oldView)
+  const view = controller.attach()
+  session.transferView = view
+  await captured.confirmEditorHydration(view)
+  controller.open(view, 'successor', 1, { original: '{}', applied: '{}', reference: 'fixture' }, { text: '{}', editedPath: [], fieldState: null, validation: 'unchecked' })
+  controller.editText(view, '{"successor":')
+  updateEditorAutosaveForeground(session, view, token, true)
+  const successor = captured.beginEditorCommand(view, 'saveUnfinished')
+  let stop!: () => void
+  const held = new Promise<never>((_resolve, reject) => { stop = () => reject(new Error('End synthetic successor verification')) })
+  const successorOutcome: OwnedFileOutcome = { status: 'saved', receipt: ownedFileReceipt(successor.command, () => held) }
+  const successorResult = captured.completeEditorCommand(successorOutcome, successor).catch(error => error)
+  const recovery = session.recovery
+  expect(session.phase).toBe('reconciling')
+  try {
+    const reported = await captured.completeEditorCommand(late, oldTicket).catch(error => error)
+    controller.editText(view, '{"continued":')
+    updateEditorAutosaveForeground(session, view, token, session.phase !== 'recovery')
+    expect(selected.repository).toBe(repository)
+    expect(session.phase).toBe('reconciling')
+    expect(captured.fileCommandPending()).toBe(true)
+    expect(session.recovery).toBe(recovery)
+    expect(edges).toEqual([false, true])
+    expect(reported).toMatchObject({ message: expect.stringContaining('retired') })
+    expect(reported.ticket).toBe(oldTicket)
+    expect(reported.outcome).toBe(late)
+    if (status !== 'not-saved') {
+      const evidence = await reconcileOwnedFileOutcome(reported.outcome)
+      expect(evidence).toBe(saved)
+      expect(evidence.receipt).toBe(oldReceipt)
+      await expect(verifyOwnedFileReceipt(evidence.receipt!)).resolves.toBeUndefined()
+      await expect(resolveOwnedFileReceipt(evidence.receipt!)).rejects.toThrow('retired')
+    }
+  } finally { stop(); await successorResult }
+})
+
+it.each(['before successor mount', 'during receipt confirmation', 'after confirmed readiness'] as const)('scopes render fallback cleanup %s to its captured Editor handoff', async failureAt => {
+  vi.spyOn(console, 'error').mockImplementation(() => {})
+  const repository = { ...createGuestRepository(db), kind: 'account' as const }, replacement = { ...repository }
+  vi.spyOn(account, 'openAccountRepository').mockResolvedValue(repository)
+  let selected!: ReturnType<typeof useWorkspace>, failMount = failureAt === 'before successor mount', failLater!: () => void
+  const installed: object[] = []
+  function EditorOwner() {
+    selected = useWorkspace()
+    const session = selected.editorSession, view = session.transferView
+    useLayoutEffect(() => { if (view) installed.push(view) }, [view])
+    return <span>editor owner ready</span>
+  }
+  function Descendant() {
+    const workspace = useWorkspace(), [failed, setFailed] = useState(false)
+    failLater = () => setFailed(true)
+    if (failed || failMount && workspace.repository === replacement) throw new Error('Synthetic Editor descendant render failure')
+    return <EditorOwner/>
+  }
+  await act(async () => root.render(<WorkspaceProvider><Descendant/></WorkspaceProvider>))
+  await act(async () => selected.openAccount(token))
+  const original = selected, session = original.editorSession, { controller } = session
+  const view = controller.attach()
+  session.transferView = view
+  controller.open(view, 'original', 1, { original: '{}', applied: '{}', reference: 'fixture' }, { text: '{}', editedPath: [], fieldState: null, validation: 'unchecked' })
+  const edges: boolean[] = []
+  observeAccountForeground(token, pending => edges.push(pending))
+  controller.editText(view, '{"queued":')
+  updateEditorAutosaveForeground(session, view, token, true)
+  let resumed = false
+  const waiting = waitForAccountForeground(token).then(() => { resumed = true })
+  void waiting.catch(() => {})
+  const ticket = original.beginEditorCommand(view, 'remove')
+  let verificationGate: Promise<void> | undefined
+  const completion = { repository: replacement, state: await repository.readWorkspace(), assertCurrent: async () => { await verificationGate } }
+  const outcome: OwnedFileOutcome = { status: 'saved', receipt: ownedFileReceipt(ticket.command, async () => completion) }
+  await act(async () => original.completeEditorCommand(outcome, ticket))
+  const transferred = session.transferView!
+  expect(transferred).not.toBe(view)
+  let unblock!: () => void, pendingConfirmation: Promise<unknown> | undefined
+  if (failureAt === 'during receipt confirmation') {
+    verificationGate = new Promise<void>(resolve => { unblock = resolve })
+    pendingConfirmation = selected.confirmEditorHydration(transferred).catch(error => error)
+    await act(async () => failLater())
+  }
+  if (failMount) {
+    expect(installed).not.toContain(transferred)
+  }
+  if (failureAt !== 'after confirmed readiness') {
+    expect(container.textContent).toContain('This view could not be displayed')
+    expect(edges).toEqual([false, true, false])
+    await waiting
+    expect(resumed).toBe(true)
+    if (pendingConfirmation) {
+      unblock()
+      expect(await pendingConfirmation).toMatchObject({ message: expect.stringContaining('changed during editor hydration') })
+    }
+    expect(session.phase).toBe('recovery')
+    expect(original.fileCommandPending()).toBe(true)
+    expect(session.recovery?.outcome).toBe(outcome)
+    expect(session.hydration?.completion).toBe(completion)
+    failMount = false
+    const back = [...container.querySelectorAll('button')].find(button => button.textContent === 'Return to CryKit')!
+    await act(async () => back.click())
+  }
+  expect(installed).toContain(transferred)
+  await act(async () => selected.confirmEditorHydration(transferred))
+  await waiting
+  expect(session.phase).toBe('idle')
+  if (failureAt === 'after confirmed readiness') {
+    controller.open(transferred, 'later', 1, { original: '{}', applied: '{}', reference: 'fixture' }, { text: '{}', editedPath: [], fieldState: null, validation: 'unchecked' })
+    controller.editText(transferred, '{"later":')
+    updateEditorAutosaveForeground(session, transferred, token, true)
+    await act(async () => failLater())
+    expect(container.textContent).toContain('This view could not be displayed')
+    expect(edges).toEqual([false, true, false, true])
+    expect(session.phase).toBe('idle')
+    releaseEditorAutosaveForeground(session, transferred)
+  }
+})
+
+async function transferQueuedEditor(workspace: ReturnType<typeof useWorkspace>, repository: typeof workspace.repository, assertCurrent = async () => {}) {
+  const session = workspace.editorSession, { controller } = session, view = session.transferView!
+  let completion!: NonNullable<typeof session.hydration>['completion'], outcome!: OwnedFileOutcome
+  await act(async () => {
+    controller.open(view, 'queued', 1, { original: '{}', applied: '{}', reference: 'fixture' }, { text: '{}', editedPath: [], fieldState: null, validation: 'unchecked' })
+    controller.editText(view, '{"queued":')
+    updateEditorAutosaveForeground(session, view, workspace.token, true)
+    const ticket = workspace.beginEditorCommand(view, 'remove')
+    completion = { repository, state: await workspace.repository.readWorkspace(), assertCurrent }
+    outcome = { status: 'saved', receipt: ownedFileReceipt(ticket.command, async () => completion) }
+    await workspace.completeEditorCommand(outcome, ticket)
+  })
+  expect(session.transferView).not.toBe(view)
+  return { hydration: session.hydration!, completion, outcome }
+}
+
+async function mountedEditorWithAppSuccessors() {
+  const repository = { ...createGuestRepository(db), kind: 'account' as const }
+  vi.spyOn(account, 'openAccountRepository').mockResolvedValue(repository)
+  let selected!: ReturnType<typeof useWorkspace>
+  function Owner() {
+    selected = useWorkspace()
+    // The predecessor supplies the real Editor. Successors must pass the production planner load
+    return selected.repository.kind === 'guest' || selected.repository === repository ? <ModInspectorView/> : <App/>
+  }
+  await act(async () => root.render(<WorkspaceProvider><Owner/></WorkspaceProvider>))
+  await act(async () => selected.openAccount(token))
+  expect(selected.editorSession.transferView).toBeDefined()
+  return { selected: () => selected, repository }
+}
+
+it('releases an Editor handoff at the production App planner load error screen', async () => {
+  const { selected, repository } = await mountedEditorWithAppSuccessors()
+  const original = selected(), session = original.editorSession
+  let failLoad!: (error: Error) => void
+  const loading = new Promise<never>((_resolve, reject) => { failLoad = reject })
+  const replacement = { ...repository, load: () => loading }
+  const edges: boolean[] = []
+  observeAccountForeground(token, pending => edges.push(pending))
+  const { hydration, completion, outcome } = await transferQueuedEditor(original, replacement)
+  expect(edges).toEqual([false, true])
+  const waiting = waitForAccountForeground(token)
+  void waiting.catch(() => {})
+  selected().captureEditorNavigation(routeForDestination('inventory'), session.controller.owner)
+  const navigation = session.navigation
+  await act(async () => failLoad(new Error('Synthetic successor planner read rejected')))
+
+  expect(container.querySelector('h1')?.textContent).toBe('Your records could not be opened')
+  expect(container.textContent).toContain('Synthetic successor planner read rejected')
+  expect(container.querySelector('.inspector-toolbar')).toBeNull()
+  expect(edges).toEqual([false, true, false])
+  await waiting
+  expect(session.phase).toBe('recovery')
+  expect(session.hydration).toBe(hydration)
+  expect(session.hydration?.completion).toBe(completion)
+  expect(session.recovery?.outcome).toBe(outcome)
+  expect(session.navigation).toBe(navigation)
+  expect(selected().fileCommandPending()).toBe(true)
+})
+
+it('ignores a delayed obsolete App load failure while a newer handoff owns foreground', async () => {
+  const { selected, repository } = await mountedEditorWithAppSuccessors()
+  const session = selected().editorSession
+  let failLoad!: (error: Error) => void, rejectObserved = false
+  const loading = new Promise<never>((_resolve, reject) => { failLoad = reject })
+  const first = { ...repository, load: () => loading.catch(error => { rejectObserved = true; throw error }) }
+  const { hydration: firstHandoff } = await transferQueuedEditor(selected(), first)
+  const firstOwner = selected()
+  // Settle the first handoff through its owning provider while its App load is deliberately held
+  await act(async () => firstOwner.confirmEditorHydration(firstHandoff.view))
+  const edges: boolean[] = []
+  observeAccountForeground(token, pending => edges.push(pending))
+  const second = { ...repository, load: () => new Promise<never>(() => {}) }
+  const { hydration: secondHandoff, outcome } = await transferQueuedEditor(firstOwner, second)
+  const waiting = waitForAccountForeground(token)
+  void waiting.catch(() => {})
+  const current = selected()
+  await act(async () => {
+    failLoad(new Error('Obsolete synthetic planner load'))
+    firstOwner.reportEditorHandoffLoadFailure()
+  })
+
+  expect(rejectObserved).toBe(true)
+  expect(container.textContent).not.toContain('Your records could not be opened')
+  expect(edges).toEqual([false, true])
+  expect(session.phase).toBe('hydrating')
+  expect(session.hydration).toBe(secondHandoff)
+  expect(session.recovery?.outcome).toBe(outcome)
+  expect(current.fileCommandPending()).toBe(true)
+  await act(async () => current.confirmEditorHydration(secondHandoff.view))
+  await waiting
+  expect(edges).toEqual([false, true, false])
+})
+
+it.each(['resolve before retry', 'reject during retry'] as const)('stops a second fallback on the same boundary and retries the exact Editor handoff with an old check to %s', async oldCheck => {
+  vi.spyOn(console, 'error').mockImplementation(() => {})
+  const repository = { ...createGuestRepository(db), kind: 'account' as const }, replacement = { ...repository }
+  vi.spyOn(account, 'openAccountRepository').mockResolvedValue(repository)
+  let selected!: ReturnType<typeof useWorkspace>, failMount = true, failAgain!: () => void
+  function Descendant() {
+    selected = useWorkspace()
+    const [failed, setFailed] = useState(false)
+    failAgain = () => setFailed(true)
+    if (failed || failMount && selected.repository === replacement) throw new Error('Controlled successor render failure')
+    return <ModInspectorView/>
+  }
+  const back = () => [...container.querySelectorAll('button')].find(button => button.textContent === 'Return to CryKit')!
+  await act(async () => root.render(<WorkspaceProvider><Descendant/></WorkspaceProvider>))
+  await act(async () => selected.openAccount(token))
+  const original = selected, session = original.editorSession
+  let checkReceipt = async () => {}
+  const { completion, outcome } = await transferQueuedEditor(original, replacement, () => checkReceipt())
+  expect(container.querySelector('h1')?.textContent).toBe('This view could not be displayed')
+  const destination = routeForDestination('inventory'), source = window.location.href
+  selected.captureEditorNavigation(destination, session.controller.owner)
+  const navigation = session.navigation
+
+  let releaseCheck!: () => void, rejectCheck!: (error: Error) => void, entered = false
+  const held = new Promise<void>((resolve, reject) => { releaseCheck = resolve; rejectCheck = reject })
+  checkReceipt = async () => { entered = true; await held }
+  failMount = false
+  await act(async () => back().click())
+  expect(entered).toBe(true)
+  expect(container.querySelector('.inspector-toolbar')).not.toBeNull()
+  const oldConfirmation = session.hydration?.confirmation
+  expect(oldConfirmation).toBeDefined()
+  await act(async () => failAgain())
+  expect(container.querySelector('h1')?.textContent).toBe('This view could not be displayed')
+
+  try {
+    const assertStillPending = () => {
+      expect(selected.fileCommandPending()).toBe(true)
+      expect(session.phase).toBe('recovery')
+      expect(session.hydration?.completion).toBe(completion)
+      expect(session.recovery?.outcome).toBe(outcome)
+      expect(session.navigation).toBe(navigation)
+      expect(window.location.href).toBe(source)
+    }
+    if (oldCheck === 'resolve before retry') {
+      await act(async () => releaseCheck())
+      assertStillPending()
+      checkReceipt = async () => {}
+      await act(async () => back().click())
+    } else {
+      let releaseRetry!: () => void
+      const retryGate = new Promise<void>(resolve => { releaseRetry = resolve })
+      checkReceipt = () => retryGate
+      await act(async () => back().click())
+      const retryConfirmation = session.hydration?.confirmation
+      expect(retryConfirmation).toBeDefined()
+      expect(retryConfirmation).not.toBe(oldConfirmation)
+      await act(async () => rejectCheck(new Error('Obsolete receipt check failed')))
+      expect(session.hydration?.confirmation).toBe(retryConfirmation)
+      assertStillPending()
+      await act(async () => releaseRetry())
+    }
+    expect(container.querySelector('.inspector-toolbar')).not.toBeNull()
+    expect(selected.fileCommandPending()).toBe(false)
+    expect(session.phase).toBe('idle')
+    expect(session.hydration).toBeUndefined()
+    expect(session.navigation).toBeUndefined()
+    expect(window.location.hash).toBe(formatAppRoute(destination))
+  } finally { window.history.replaceState(null, '', source) }
 })
 
 it('holds the exact saved receipt after hydration is blocked and releases it only after a verified retry', async () => {

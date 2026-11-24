@@ -4,6 +4,7 @@ import App from '../../src/App'
 import { WorkspaceProvider, useWorkspace } from '../../src/ui/WorkspaceProvider'
 import { ErrorBoundary } from '../../src/ui/ErrorBoundary'
 import { installProfile, type ProfileToken } from '../../src/account/profile'
+import { waitForAccountForeground } from '../../src/account/background-work'
 import { getSodium } from '../../src/account/crypto/sodium'
 import { accountLocalId, openAccountJson } from '../../src/workspace/account-cache'
 import { IncrementalWorkspaceIntentSchema } from '../../src/workspace/account-managed-repository'
@@ -36,6 +37,20 @@ let opened = false
 let opening: Promise<void> | undefined
 let mapping: Promise<void> | undefined
 let mappingError: string | undefined
+
+function armEditorSaveReadFailure() {
+  if (!workspace?.isCurrent() || workspace.repository.kind !== 'account') throw new Error('An active synthetic account is required')
+  const { repository, editorSession } = workspace
+  const readWorkspace = repository.readWorkspace
+  repository.readWorkspace = async (...args) => {
+    // Fail one owned save after it captures its ticket and before it can stage a durable write
+    if (workspace?.repository === repository && editorSession.phase === 'staging') {
+      repository.readWorkspace = readWorkspace
+      throw new Error('Synthetic Editor staging read failed')
+    }
+    return readWorkspace.apply(repository, args)
+  }
+}
 
 async function queueMapping() {
   if (!token || !workspace?.isCurrent()) throw new Error('An active synthetic account is required')
@@ -81,7 +96,7 @@ async function selected<T>(read: (adapter: LocalStoreAdapter, head: { documentId
 
 // Each untimed oracle reads actual durable bytes through the real storage authentication and codecs
 // It neither reads the rendered draft nor uses a previous in-memory admission as storage-health evidence
-async function inspect(kind: 'planner' | 'save' | 'editor') {
+async function inspect(kind: 'planner' | 'save' | 'editor', editorId = PERFORMANCE_EDITOR_ID) {
   return selected(async (adapter, head, account) => {
     const json = async (ref: typeof head) => JSON.parse(new TextDecoder().decode(await readBlob(await adapter.read(ref), 512 * 1024 * 1024)))
     const root = LocalWorkspaceRootV3Schema.parse(await json(head))
@@ -108,7 +123,7 @@ async function inspect(kind: 'planner' | 'save' | 'editor') {
       return { file, native, records }
     }
     if (kind === 'editor') {
-      const file = EditorWorkspaceDocumentSchema.parse(await find('editor', PERFORMANCE_EDITOR_ID))
+      const file = EditorWorkspaceDocumentSchema.parse(await find('editor', editorId))
       return { file, applied: decodeEditorText(await body(file.lastApplied)), unfinished: decodeEditorText(await body(file.unfinished.text)), records }
     }
     // Per-save assertions consume checkpoints and progress; unrelated Builds are admitted by full()
@@ -175,6 +190,11 @@ async function start() {
     ready: () => opened && !!workspace?.isCurrent(),
     diagnostics: () => ({ kind: workspace?.repository.kind, current: workspace?.isCurrent(), pending: workspace?.fileCommandPending(), editorPhase: workspace?.editorSession.phase, editorDirty: workspace?.editorSession.controller.snapshot().dirty, editorHydrating: !!workspace?.editorSession.hydration, savePhase: workspace?.saveSession.phase, saveDirty: workspace?.saveSession.controller.snapshot().dirty, saveHydrating: !!workspace?.saveSession.hydration }),
     inspect,
+    armEditorSaveReadFailure,
+    waitForForeground: () => {
+      if (!token) throw new Error('An active synthetic account is required')
+      return waitForAccountForeground(token)
+    },
     queueMapping, startMapping,
     mapping: () => ({ pending: !!mapping, error: mappingError }),
     // Complete restart admission remains separate from the small per-operation readback
