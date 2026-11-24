@@ -97,13 +97,97 @@ export function snapshotMetadata(snapshot: WorkspaceSnapshot) {
   return { ...header, state: { ...state, blobs: state.blobs.map(({ ref }) => ref) } }
 }
 const CATALOG_DIGEST_SLICE_MS = 16
+const CATALOG_DOCUMENT_FIELDS: ReadonlySet<PropertyKey> = new Set(['version', 'kind', 'key', 'value'])
+const stableCatalogDigestInputs = new WeakSet<CatalogSnapshot>()
+const completedCatalogDigests = new WeakMap<CatalogSnapshot, { readonly signature: string; readonly digest: string }>()
 export function backupMetadataDigest(value: unknown): Promise<string> { return digestMetadata(value) }
 export function backupWorkspaceDocumentDigest(document: WorkspaceDocument, checkpoint?: () => Promise<void>): Promise<string> {
-  // Only the format owner's deep-immutable catalog can survive task yields without mixed input
-  // Detach the small projection wrapper; other values keep the existing synchronous traversal
-  if (checkpoint && document.kind === 'catalog' && isImmutableCatalogSnapshot(document.value as unknown as CatalogSnapshot)
-    && Object.keys(document).every(key => ['version', 'kind', 'key', 'value'].includes(key))) return digestMetadata(Object.freeze({ ...document }), checkpoint)
-  return backupMetadataDigest(document)
+  // Preserve the cooperative traversal for the format owner's catalog projections
+  if (!checkpoint || document.kind !== 'catalog' || !isImmutableCatalogSnapshot(document.value as unknown as CatalogSnapshot)
+    || !Object.keys(document).every(key => CATALOG_DOCUMENT_FIELDS.has(key))) return backupMetadataDigest(document)
+
+  const detached = Object.freeze({ ...document })
+  const catalog = detached.value as unknown as CatalogSnapshot
+  // The wrapper can supply a different value during spread; check the actual value before using catalog scheduling
+  if (!isImmutableCatalogSnapshot(catalog)) return backupMetadataDigest(detached)
+  const signature = catalogDocumentDigestSignature(document, detached)
+  return signature === undefined ? digestMetadata(detached, checkpoint) : digestCatalogDocument(detached, catalog, signature, checkpoint)
+}
+function catalogDocumentDigestSignature(source: WorkspaceDocument, detached: WorkspaceDocument): string | undefined {
+  if (detached.version !== 1 || detached.kind !== 'catalog' || typeof detached.key !== 'string') return
+  const fields = Reflect.ownKeys(detached)
+  if (fields.length !== CATALOG_DOCUMENT_FIELDS.size || fields.some(field => !CATALOG_DOCUMENT_FIELDS.has(field))) return
+  // Spread normalizes accessors and exotic wrappers, so only plain own data fields qualify for reuse
+  try {
+    if (Object.getPrototypeOf(source) !== Object.prototype || Reflect.ownKeys(source).length !== fields.length) return
+    for (const field of fields) {
+      const descriptor = Object.getOwnPropertyDescriptor(source, field)
+      if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) return
+    }
+  } catch {
+    // A wrapper that rejects cache inspection keeps its existing detached digest path
+    return
+  }
+  // Legacy token pages bind the exact order of the detached projection's fields
+  return JSON.stringify([detached.version, detached.kind, detached.key, fields])
+}
+function hasStableCatalogDigestInput(catalog: CatalogSnapshot): boolean {
+  if (stableCatalogDigestInputs.has(catalog)) return true
+  const ancestors = new WeakSet<object>(), visited = new WeakSet<object>()
+  function visit(value: unknown): boolean {
+    if (value === null || typeof value === 'string' || typeof value === 'boolean') return true
+    if (typeof value === 'number') return Number.isFinite(value)
+    if (typeof value !== 'object') return false
+    if (visited.has(value)) return true
+    if (ancestors.has(value) || !Object.isFrozen(value)) return false
+
+    const array = Array.isArray(value)
+    const prototype = Object.getPrototypeOf(value)
+    const keys = Reflect.ownKeys(value)
+    if (array) {
+      const length = Object.getOwnPropertyDescriptor(value, 'length')?.value
+      if (prototype !== Array.prototype || keys.at(-1) !== 'length' || length !== keys.length - 1) return false
+      keys.pop()
+    } else if (prototype !== Object.prototype && prototype !== null) return false
+
+    ancestors.add(value)
+    for (const [index, key] of keys.entries()) {
+      if (typeof key !== 'string' || (array && key !== String(index))) return false
+      const descriptor = Object.getOwnPropertyDescriptor(value, key)
+      if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value') || !visit(descriptor.value)) return false
+    }
+    ancestors.delete(value)
+    visited.add(value)
+    return true
+  }
+  try {
+    // Freezing leaves getters callable, so inspect descriptors before giving a serializer the input
+    if (!visit(catalog)) return false
+    // Frozen proxies can reorder the encoder's keys; structured clone rejects them anywhere in the graph
+    structuredClone(catalog)
+  } catch { return false }
+  return true
+}
+async function digestCatalogDocument(document: WorkspaceDocument, catalog: CatalogSnapshot, signature: string, checkpoint: () => Promise<void>): Promise<string> {
+  const completed = completedCatalogDigests.get(catalog)
+  if (completed?.signature === signature) {
+    // The hash belongs to this immutable input; lifetime checks belong to each caller
+    await checkpoint()
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    await checkpoint()
+    return completed.digest
+  }
+  // Each cold caller owns its hash state; only a successful traversal of stable data can publish a digest
+  const digest = await digestMetadata(document, checkpoint)
+  const eligible = hasStableCatalogDigestInput(catalog)
+  // Reflection can invoke caller traps after SHA finalization; let their queued microtasks run before checking lifetime
+  await new Promise<void>(resolve => setTimeout(resolve, 0))
+  await checkpoint()
+  if (eligible) {
+    stableCatalogDigestInputs.add(catalog)
+    completedCatalogDigests.set(catalog, { signature, digest })
+  }
+  return digest
 }
 async function digestMetadata(value: unknown, checkpoint?: () => Promise<void>): Promise<string> {
   const sodium = await getSodium(), state = sodium.crypto_hash_sha256_init()
