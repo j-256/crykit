@@ -77,18 +77,37 @@ test('hosted persistence balances nine bins independently of discovery order and
   assert.deepEqual(await assign([]), emptyBins)
 })
 
-test('the hosted workflow enables balanced placement for the complete numbered persistence matrix', () => {
-  const workflow = readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8')
+const readHostedWorkflow = () => readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8')
+
+function assertNumberedPersistenceMatrix(workflow, shardCount) {
   const numbered = [...workflow.matchAll(/^\s*- \{ name: 'persistence (\d+)\/(\d+)', script: '([^']+)' \}$/gm)]
-  const shardCount = 9
   const command = 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts"'
   assert.deepEqual(numbered.map(match => match.slice(1)), Array.from({ length: shardCount }, (_, index) => {
     const shard = index + 1
     return [String(shard), String(shardCount), command + ' --shard=' + shard + '/' + shardCount]
   }))
+  // Count names outside the exact flow rows so an extra block row cannot evade the contract
+  const names = [...workflow.matchAll(/(?:^[ \t]*(?:-[ \t]+)?|[,{][ \t]*)(?:name|'name'|"name"):[ \t]*['"]?(persistence \d+\/\d+)(?=['"]?[ \t]*(?:[,}#]|$))/gm)]
+    .map(match => match[1])
+  assert.deepEqual(names, numbered.map(match => 'persistence ' + match[1] + '/' + match[2]), 'Unexpected numbered persistence job')
+}
+
+test('the hosted workflow enables balanced placement for the complete numbered persistence matrix', () => {
+  const workflow = readHostedWorkflow()
+  const shardCount = 9
+  assertNumberedPersistenceMatrix(workflow, shardCount)
   const marker = workflow.split('\n').find(line => line.trimStart().startsWith('CRYKIT_HOSTED_PERSISTENCE_PARTITION:'))
   assert.ok(marker?.includes("startsWith(matrix.check.name, 'persistence ') && endsWith(matrix.check.name, '/" + shardCount + "') && 'balanced' || ''"))
   assert.match(workflow, /name: 'persistence sync', script: 'test:persistence -- src\/persistence\/sync-integration'/)
+})
+
+test('the numbered persistence matrix rejects an extra YAML block row', () => {
+  const workflow = readHostedWorkflow().replace(/^([ \t]+)(- \{ name: 'persistence 9\/9'.*)$/m, [
+    '$1$2',
+    "$1- name: 'persistence 10/10'",
+    '$1  script: \'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=10/10\'',
+  ].join('\n'))
+  assert.throws(() => assertNumberedPersistenceMatrix(workflow, 9), /Unexpected numbered persistence job/)
 })
 
 test('placement markers select hosted CI or local native costs only in their intended environment', async () => {
