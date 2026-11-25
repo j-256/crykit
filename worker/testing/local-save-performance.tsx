@@ -15,7 +15,7 @@ import { GuestCoordinatorDatabase } from '../../src/workspace/guest-coordinator'
 import { createAccountLocalStore } from '../../src/workspace/account-local-store'
 import { createGuestLocalStore } from '../../src/workspace/guest-local-store'
 import { prepareLocalWorkspace } from '../../src/workspace/local-root'
-import { full, inspect, openAppliedSaveOracle } from './local-save-oracle'
+import { full, inspect, openAppliedSaveOracle, type SaveApplyProof } from './local-save-oracle'
 import { localSaveWorkload } from './local-save-workload'
 import '../../src/styles.css'
 
@@ -114,7 +114,11 @@ async function start() {
     ready: () => opened && !!workspace?.isCurrent(),
     diagnostics: () => ({ kind: workspace?.repository.kind, current: workspace?.isCurrent(), pending: workspace?.fileCommandPending(), editorPhase: workspace?.editorSession.phase, editorDirty: workspace?.editorSession.controller.snapshot().dirty, editorHydrating: !!workspace?.editorSession.hydration, savePhase: workspace?.saveSession.phase, saveDirty: workspace?.saveSession.controller.snapshot().dirty, saveHydrating: !!workspace?.saveSession.hydration }),
     inspect: (kind: 'planner' | 'save' | 'editor', editorId?: string) => inspect(token, kind, editorId),
-    ...(saveApplyOracle && { beginSaveApply: saveApplyOracle.begin, captureSaveApply: saveApplyOracle.capture, inspectSaveApply: saveApplyOracle.read }),
+    ...(saveApplyOracle && {
+      beginSaveApply: saveApplyOracle.begin,
+      captureSaveApply: saveApplyOracle.capture,
+      inspectSaveApply: saveApplyOracle.read,
+    } satisfies SaveApplyProof),
     armEditorSaveReadFailure,
     waitForForeground: () => {
       if (!token) throw new Error('An active synthetic account is required')
