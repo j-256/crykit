@@ -11,19 +11,12 @@ import { IncrementalWorkspaceIntentSchema } from '../../src/workspace/account-ma
 import { mapIncrementalAccountIntent } from '../../src/workspace/account-local-mapping-client'
 import { createPersonalDefinition } from '../../src/domain'
 import { AccountDatabase, activateLocalAccountCommit } from '../../src/persistence/account-database'
-import { GuestManagedManifestSchema } from '../../src/workspace/guest-managed-contract'
 import { GuestCoordinatorDatabase } from '../../src/workspace/guest-coordinator'
 import { createAccountLocalStore } from '../../src/workspace/account-local-store'
 import { createGuestLocalStore } from '../../src/workspace/guest-local-store'
-import { admitLocalRoot, LocalWorkspaceRootV3Schema, prepareLocalWorkspace, type LocalStoreAdapter, type LocalWorkspaceEntry } from '../../src/workspace/local-root'
-import { readLocalIndex } from '../../src/workspace/local-index'
-import { decodeWorkspaceDocument } from '../../src/workspace/document-codec'
-import { blobIdentity, hashBlob, readBlob } from '../../src/workspace/blobs'
-import { isBlobSource, privateRecordKey, type WorkspaceBlobRef, type WorkspaceDocumentKind } from '../../src/workspace/documents'
-import { EditorWorkspaceDocumentSchema, SaveWorkspaceDocumentSchema } from '../../src/workspace/file-schemas'
-import { decodeCrystalSave } from '../../src/interchange/crystal-save'
-import { decodeEditorText } from '../../src/workspace/editor-document'
-import { localSaveWorkload, PERFORMANCE_EDITOR_ID, PERFORMANCE_SAVE_ID } from './local-save-workload'
+import { prepareLocalWorkspace } from '../../src/workspace/local-root'
+import { full, inspect, openAppliedSaveOracle } from './local-save-oracle'
+import { localSaveWorkload } from './local-save-workload'
 import '../../src/styles.css'
 
 // This entry is built only into excluded synthetic proof assets, never the public application
@@ -73,77 +66,6 @@ async function startMapping() {
   mapping = mapIncrementalAccountIntent(database, captured, pending[0].row).catch(error => { mappingError = String(error) }).finally(() => { database.close(); mapping = undefined })
 }
 
-async function selected<T>(read: (adapter: LocalStoreAdapter, head: { documentId: string; revisionId: string }, account?: AccountDatabase) => Promise<T>): Promise<T> {
-  if (token) {
-    const database = new AccountDatabase(token.accountId), store = createAccountLocalStore(database, token)
-    try {
-      const before = await database.profileMeta.get('active')
-      if (!before) throw new Error('Missing selected account head')
-      const result = await read(store.adapter, before.head, database)
-      if (JSON.stringify(await database.profileMeta.get('active')) !== JSON.stringify(before)) throw new Error('Account head changed during oracle')
-      return result
-    } finally { await store.dispose(); database.close() }
-  }
-  const database = new GuestCoordinatorDatabase(), store = createGuestLocalStore(database, () => {})
-  try {
-    const before = await database.active.get('active')
-    const manifest = GuestManagedManifestSchema.parse(before?.manifest)
-    const result = await read(store.adapter, manifest.root)
-    if (JSON.stringify(await database.active.get('active')) !== JSON.stringify(before)) throw new Error('Guest head changed during oracle')
-    return result
-  } finally { database.close() }
-}
-
-// Each untimed oracle reads actual durable bytes through the real storage authentication and codecs
-// It neither reads the rendered draft nor uses a previous in-memory admission as storage-health evidence
-async function inspect(kind: 'planner' | 'save' | 'editor', editorId = PERFORMANCE_EDITOR_ID) {
-  return selected(async (adapter, head, account) => {
-    const json = async (ref: typeof head) => JSON.parse(new TextDecoder().decode(await readBlob(await adapter.read(ref), 512 * 1024 * 1024)))
-    const root = LocalWorkspaceRootV3Schema.parse(await json(head))
-    const index = await readLocalIndex<LocalWorkspaceEntry>(root.contentIndex, json)
-    const records = await bodyRecords(index.entries, account)
-    const document = async (entry: LocalWorkspaceEntry) => {
-      const source = await adapter.read(entry.ref)
-      if (await hashBlob(source) !== entry.digest) throw new Error('Oracle document digest mismatch')
-      return decodeWorkspaceDocument(source)
-    }
-    const find = async (type: WorkspaceDocumentKind, id: string) => {
-      const entry = index.entries.find(value => value.key === privateRecordKey(type, id))
-      if (!entry) throw new Error('Missing oracle document')
-      return (await document(entry)).value
-    }
-    const body = async (ref: WorkspaceBlobRef) => {
-      const value = await find('blob', blobIdentity(ref))
-      if (!isBlobSource(value)) throw new Error('Missing oracle body')
-      return readBlob(value, ref.byteLength)
-    }
-    if (kind === 'save') {
-      const file = SaveWorkspaceDocumentSchema.parse(await find('save', PERFORMANCE_SAVE_ID))
-      const native = decodeCrystalSave(await body(file.working))
-      return { file, native, records }
-    }
-    if (kind === 'editor') {
-      const file = EditorWorkspaceDocumentSchema.parse(await find('editor', editorId))
-      return { file, applied: decodeEditorText(await body(file.lastApplied)), unfinished: decodeEditorText(await body(file.unfinished.text)), records }
-    }
-    // Per-save assertions consume checkpoints and progress; unrelated Builds are admitted by full()
-    // Reading every Build here repeats unrelated encrypted payload work between measured operations
-    const values = await Promise.all(index.entries.filter(entry => ['build-checkpoint', 'progress'].includes(entry.kind)).map(document))
-    return { revision: root.localRevision, values, records }
-  })
-}
-
-async function bodyRecords(entries: readonly LocalWorkspaceEntry[], account?: AccountDatabase) {
-  const bodies = entries.filter(entry => entry.kind === 'blob' || entry.kind === 'catalog')
-  // One fresh native transaction captures the same immutable identities without opening one transaction per row
-  const encrypted = account && await account.encryptedRevisions.bulkGet(bodies.map(entry => entry.ref.revisionId))
-  return bodies.map((entry, index) => {
-    const record = encrypted && encrypted[index]
-    if (account && !record) throw new Error('Missing immutable oracle record')
-    return { key: entry.key, kind: entry.kind, ref: entry.ref, digest: entry.digest, storageId: record ? record.payloadId : entry.ref.revisionId }
-  })
-}
-
 function Entry() {
   const current = useWorkspace()
   useEffect(() => {
@@ -184,12 +106,15 @@ async function start() {
       await store.activate(operation, prepared.head, undefined, () => {})
     } finally { database.close() }
   }
+  const saveApplyOracle = parameters.get('saveApplyOracle') === '1' ? await openAppliedSaveOracle(token) : undefined
+  if (saveApplyOracle) window.addEventListener('pagehide', saveApplyOracle.close, { once: true })
   const setupMs = performance.now() - started
   Object.assign(window, { localSaveProof: {
     setup: { mode, large, setupMs, cachePreparationMs, build: import.meta.env.PROD ? 'compiled' : 'development', origin: location.origin, scripts: [...document.scripts].map(script => script.src) },
     ready: () => opened && !!workspace?.isCurrent(),
     diagnostics: () => ({ kind: workspace?.repository.kind, current: workspace?.isCurrent(), pending: workspace?.fileCommandPending(), editorPhase: workspace?.editorSession.phase, editorDirty: workspace?.editorSession.controller.snapshot().dirty, editorHydrating: !!workspace?.editorSession.hydration, savePhase: workspace?.saveSession.phase, saveDirty: workspace?.saveSession.controller.snapshot().dirty, saveHydrating: !!workspace?.saveSession.hydration }),
-    inspect,
+    inspect: (kind: 'planner' | 'save' | 'editor', editorId?: string) => inspect(token, kind, editorId),
+    ...(saveApplyOracle && { beginSaveApply: saveApplyOracle.begin, captureSaveApply: saveApplyOracle.capture, inspectSaveApply: saveApplyOracle.read }),
     armEditorSaveReadFailure,
     waitForForeground: () => {
       if (!token) throw new Error('An active synthetic account is required')
@@ -197,13 +122,7 @@ async function start() {
     },
     queueMapping, startMapping,
     mapping: () => ({ pending: !!mapping, error: mappingError }),
-    // Complete restart admission remains separate from the small per-operation readback
-    full: () => selected(async (adapter, head, account) => {
-      const loaded = await admitLocalRoot(adapter, head, { check() {}, async assertCurrent() {} })
-      // Authenticate the complete workspace before returning only the asserted planner observation
-      // Sending unused catalogs through the browser protocol duplicates their decoded graph in the controller
-      return { planner: { history: loaded.state.planner.history }, editorDocuments: loaded.state.editorDocuments, saveDocuments: loaded.state.saveDocuments, records: await bodyRecords(loaded.entries, account), blobs: await Promise.all(loaded.state.blobs.map(async value => ({ ref: value.ref, digest: await hashBlob(value.content) }))) }
-    }),
+    full: () => full(token),
     sodium: await getSodium(),
   } })
   createRoot(document.getElementById('root')!).render(<StrictMode><ErrorBoundary><WorkspaceProvider><Entry/></WorkspaceProvider></ErrorBoundary></StrictMode>)
