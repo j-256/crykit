@@ -99,7 +99,13 @@ it('attempts every distinct capture owner and retries a publication release that
     publication = handle; release = dispose
     retain?.(handle, async () => { if (++attempts === 1) throw new Error('publication release unavailable'); await dispose(); completed++ })
   }))
-  vi.spyOn(stores, 'createAccountLocalStore').mockImplementation((...args) => { const store = create(...args); return { ...store, async dispose() { storeAttempts++; await store.dispose() } } })
+  vi.spyOn(stores, 'createAccountLocalStore').mockImplementation((...args) => {
+    const store = create(...args)
+    const dispose = store.dispose
+    // Conversion checks the identity of the issued store, so instrument disposal in place
+    vi.spyOn(store, 'dispose').mockImplementation(async () => { storeAttempts++; await dispose() })
+    return store
+  })
   const captured = await input.read()
   cleanup.push(async () => { await release?.() })
   await expect(captured.dispose()).rejects.toThrow('publication release unavailable')
@@ -131,11 +137,13 @@ it.each([false, true])('releases publication then mapped proof before closing th
   }))
   vi.spyOn(stores, 'createAccountLocalStore').mockImplementation((...args) => {
     const store = create(...args)
-    return { ...store, async dispose() {
+    const dispose = store.dispose
+    vi.spyOn(store, 'dispose').mockImplementation(async () => {
       storeAttempts++
       if (mapped) await expect(mapped.check()).rejects.toThrow('released')
-      await store.dispose()
-    } }
+      await dispose()
+    })
+    return store
   })
   const captured = await input.read()
   mapped = captured.validatedEvidence!
@@ -158,7 +166,12 @@ it.each(['before-retain', 'after-retain'] as const)('capture construction failur
   const open = vi.spyOn(evidence, 'openAccountInheritedEvidence')
   let publication: evidence.AccountInheritedEvidence | undefined, release: (() => Promise<void>) | undefined
   let storeAttempts = 0, releaseAttempts = 0
-  vi.spyOn(stores, 'createAccountLocalStore').mockImplementation((...args) => { const store = create(...args); return { ...store, async dispose() { storeAttempts++; await store.dispose() } } })
+  vi.spyOn(stores, 'createAccountLocalStore').mockImplementation((...args) => {
+    const store = create(...args)
+    const dispose = store.dispose
+    vi.spyOn(store, 'dispose').mockImplementation(async () => { storeAttempts++; await dispose() })
+    return store
+  })
   vi.spyOn(mapping, 'ensureIncrementalAccountEvidence').mockImplementation(async (db, token, store, local, check, retain) => {
     if (mode === 'before-retain') throw new Error('before retained publication')
     const root = await ensure(db, token, store, local, check, (handle, dispose) => {
