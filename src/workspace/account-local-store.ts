@@ -10,16 +10,19 @@ import { encryptRevision } from '../account/crypto/revisions'
 import { accountLocalId, cipherRef } from './account-cache'
 import { createAccountPreparationOwner, type AccountPreparationReservation } from './account-prepared-records'
 import { openAccountSource, openPreparedAccountSource, stageAccountSource } from './account-streams'
-import { admitLocalRoot, admittedLocalReferences, type AdmittedLocalSnapshot, type CapturedLocalLifetime, type LocalStoreAdapter, type LocalRecordRef } from './local-root'
-import { localEvidenceReadAdmission, prepareLocalEvidence, readLocalEvidence } from './local-evidence'
+import { LocalWorkspaceRootV3Schema, admitLocalRoot, admittedLocalReferences, type AdmittedLocalSnapshot, type CapturedLocalLifetime, type LocalStoreAdapter, type LocalRecordRef } from './local-root'
+import { localEvidenceReadAdmission, localLegacyStreamBindings, prepareLocalEvidence, readLocalEvidence } from './local-evidence'
+import type { AccountInheritedEvidencePreparation, PreparedAccountInheritedEvidence } from './account-evidence-snapshots'
 import { mergeGuestEvidence, validateGuestCurrentBodies, type CapturedGuestEvidence } from './guest-evidence'
-import { parseBoundedJson } from '../interchange/json'
+import { NATIVE_BACKUP_JSON_LIMITS, parseBoundedJson } from '../interchange/json'
 import { encodeBytes, getSodium } from '../account/crypto/sodium'
-import { maxDocumentBytes, RevisionDescriptorSchema, streamOverheadBytes } from '../account/protocol'
+import { maxDocumentBytes, streamOverheadBytes } from '../account/protocol'
+import { recheckCiphertextObservations, sameCipherRecord, sameObservation, type Observation } from './account-ciphertext-observations'
 
+const INSTALLED_EVIDENCE_BATCH = 64
 const INLINE_OPERATION_BYTES = 4 * 1024 * 1024
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
-interface Observation { readonly record: CipherRecord; readonly chunks: readonly CipherChunk[] }
+
 interface Admission {
   readonly database: AccountDatabase; readonly token: ProfileToken; readonly prepared: PreparedLocalActivation
   readonly bridge?: { recheckInTransaction(): Promise<void> }
@@ -41,22 +44,34 @@ export function resolveLocalEvidenceReuse(adapter: LocalStoreAdapter, handle: ob
   proof.assert()
   return proof
 }
-const normalizedRecord = (value: CipherRecord) => ({ ...value, descriptor: RevisionDescriptorSchema.parse(value.descriptor) })
-function sameObservation(a: Observation, b: Observation) {
-  return same(normalizedRecord(a.record), normalizedRecord(b.record)) && a.chunks.length === b.chunks.length
-    && a.chunks.every((chunk, index) => { const other = b.chunks[index]; return chunk.payloadId === other.payloadId && chunk.index === other.index && chunk.bytes.length === other.bytes.length && chunk.bytes.every((byte, offset) => byte === other.bytes[offset]) })
+type InstalledLegacyStream = ReturnType<typeof localLegacyStreamBindings>[number]
+interface CapturedMappingEvidence {
+  readonly evidence: CapturedGuestEvidence
+  prepare(): Promise<PreparedAccountInheritedEvidence & { recheckAssociationInTransaction(): Promise<void> }>
+}
+type CaptureMappingEvidence = (local: AdmittedLocalSnapshot, check: () => Promise<void>) => Promise<CapturedMappingEvidence | undefined>
+const mappingStores = new WeakMap<object, { database: AccountDatabase; token: ProfileToken; capture: CaptureMappingEvidence }>()
+
+export async function captureAccountMappingEvidence(database: AccountDatabase, token: ProfileToken, store: object, local: AdmittedLocalSnapshot, check: () => Promise<void>) {
+  const issuer = mappingStores.get(store)
+  if (issuer?.database !== database || issuer.token.accountId !== token.accountId || issuer.token.generation !== token.generation) throw new Error('Foreign mapping store')
+  return issuer.capture(local, check)
 }
 
-async function recheckCiphertextObservations(database: AccountDatabase, observations: Iterable<Observation>) {
-  for (const { record, chunks } of observations) {
-    const actualRecord = await database.encryptedRevisions.get(record.revisionId)
-    // Schema parsing normalizes field order without dropping any authenticated descriptor field
-    if (!actualRecord || !same(normalizedRecord(actualRecord), normalizedRecord(record))) throw new Error('Consumed encrypted descriptor changed')
-    for (const captured of chunks) {
-      const actual = await database.stagedCipherChunks.get([captured.payloadId, captured.index])
-      if (!actual || actual.bytes.length !== captured.bytes.length || actual.bytes.some((byte, index) => byte !== captured.bytes[index])) throw new Error('Consumed encrypted bytes changed')
-    }
-  }
+interface InstalledMappingProof {
+  member(id: string): InstalledLegacyStream | undefined
+  checkObservation(ref: LocalRecordRef, observed: Observation | undefined): void
+}
+const mappingProofs = new WeakMap<object, { database: AccountDatabase; token: ProfileToken; evidence: CapturedGuestEvidence; proof: InstalledMappingProof }>()
+
+// Only the single-use native preparation can claim its own registration
+// Neither a captured sidecar nor a structurally similar preparation carries these rights
+export function claimInstalledMappingProof(operation: object, database: AccountDatabase, token: ProfileToken, evidence: CapturedGuestEvidence) {
+  const entry = mappingProofs.get(operation)
+  if (!entry) return undefined
+  mappingProofs.delete(operation)
+  if (entry.database !== database || entry.token.accountId !== token.accountId || entry.token.generation !== token.generation || entry.evidence !== evidence) throw new Error('Foreign installed mapping proof')
+  return entry.proof
 }
 
 // Only an exact preparation made by this adapter can replace full unrelated-root admission
@@ -114,6 +129,15 @@ export function admitInstalledMerge(database: AccountDatabase, token: ProfileTok
 }
 
 export function createAccountLocalStore(database: AccountDatabase, token: ProfileToken, reservation?: AccountPreparationReservation) {
+  return createLocalStore(database, token, reservation, false)
+}
+
+// Only background mapping admits installed local rows for native historical reuse
+export function createMappingAccountLocalStore(database: AccountDatabase, token: ProfileToken) {
+  return createLocalStore(database, token, undefined, true)
+}
+
+function createLocalStore(database: AccountDatabase, token: ProfileToken, reservation: AccountPreparationReservation | undefined, mapping: boolean) {
   let closed = false
   const check = () => { assertActiveProfile(token); if (closed) throw new Error('Managed account store is closed'); if (database.accountId !== token.accountId) throw new Error('Wrong managed account') }
   const owner = createAccountPreparationOwner(database, token, reservation)
@@ -167,10 +191,123 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
         check()
         const observed = { record, chunks }, previous = observations.get(record.revisionId)
         // A later successful decrypt must not replace the exact installed bytes admitted for reuse
-        if (pinnedEvidence.has(record.revisionId) && (!previous || !sameObservation(previous, observed))) throw new Error('Retained managed evidence observation changed')
+        if (pinnedEvidence.has(record.revisionId) || mapping && previous) {
+          if (!previous || !sameObservation(previous, observed)) throw new Error('Retained managed evidence observation changed')
+          return
+        }
         observations.set(record.revisionId, observed)
       })
     },
+  }
+  if (mapping) Object.freeze(adapter)
+  async function captureMappingEvidence(local: AdmittedLocalSnapshot, checkpoint: () => Promise<void>) {
+    admittedLocalReferences(local, adapter)
+    const generation = evidenceGeneration
+    const assert = () => { check(); if (generation !== evidenceGeneration) throw new Error('Installed mapping proof expired') }
+    const current = async () => { assert(); await checkpoint(); assert() }
+    const evidence = await readLocalEvidence(adapter, local.root.inheritedEvidence, current)
+    if (!evidence) return undefined
+    const admission = localEvidenceReadAdmission(evidence, adapter, local.root.inheritedEvidence)
+    const refs = [local.head, ...admission.dependencies.map(entry => entry.ref)]
+    const staged = new Set([...pending.values()].flat().map(record => record.revisionId))
+    if (refs.some(ref => inline.has(ref.revisionId) || staged.has(ref.revisionId))) throw new Error('Mapping requires an installed local archive')
+    if (!observations.has(local.head.revisionId)) {
+      // Committing a prepared snapshot clears producer observations. Authenticate its actual
+      // installed head before the first durable association can bind that snapshot's archive
+      const bytes = await readBlob(await adapter.read(local.head), maxDocumentBytes)
+      try {
+        const head = LocalWorkspaceRootV3Schema.parse(parseBoundedJson(bytes, 'managed mapping source', NATIVE_BACKUP_JSON_LIMITS))
+        if (!same(head, local.root)) throw new Error('Installed mapping source head changed')
+      } finally { bytes.fill(0) }
+    }
+    const consumed = new Map<string, Observation>()
+    for (const ref of refs) {
+      const observed = observations.get(ref.revisionId)
+      if (!observed || !same(cipherRef(observed.record), ref)) throw new Error('Missing installed mapping source observation')
+      consumed.set(ref.revisionId, observed)
+    }
+    const retainedPayloads = new Set<string>()
+    let used = false
+    return {
+      evidence,
+      async prepare() {
+        assert()
+        if (used) throw new Error('Mapping evidence preparation is single-use')
+        used = true
+        const { accountInheritedEvidenceCheck, createAccountInheritedEvidencePreparation } = await import('./account-evidence-snapshots')
+        const operation = createAccountInheritedEvidencePreparation(database, token)
+        try {
+          const prepared = await prepareMappingEvidence(operation, local, evidence, admission, consumed, assert, retainedPayloads)
+          const native = accountInheritedEvidenceCheck(prepared.handle, database, token)
+          return { ...prepared, async recheckAssociationInTransaction() {
+            assert()
+            await native.recheckInTransaction(consumed.values())
+            if (retainedPayloads.size && await database.preparationPayloads.where('payloadId').anyOf([...retainedPayloads]).count()) throw new Error('Installed evidence acquired a preparation owner')
+            assert()
+          } }
+        } catch (error) { await operation.abandon(); throw error }
+      },
+    }
+  }
+  async function prepareMappingEvidence(operation: AccountInheritedEvidencePreparation, local: AdmittedLocalSnapshot, evidence: CapturedGuestEvidence, admission: ReturnType<typeof localEvidenceReadAdmission>, consumed: ReadonlyMap<string, Observation>, checkCapture: () => void, retainedPayloads: Set<string>) {
+    const prepare = () => operation.prepare({ sourceEvidence: evidence })
+    if (!mapping) return prepare()
+    const members = localLegacyStreamBindings(evidence, adapter, local.root.inheritedEvidence)
+    if (!members.length) return prepare()
+    let active = true
+    const assert = () => { checkCapture(); if (!active) throw new Error('Installed mapping proof expired') }
+    const root = local.root.inheritedEvidence
+    const head = consumed.get(local.head.revisionId)
+    if (!head || !same(cipherRef(head.record), local.head)
+      || !head.record.descriptor.dependencies.some(ref => same(ref, root))) throw new Error('Missing installed mapping source head')
+    const bindings = new Map<string, Observation>(), aliases = new Set<string>(), payloads = new Set<string>()
+    const references = [{ ref: local.head }, ...admission.dependencies]
+    // The complete index binds row roles to exact installed refs. An alias can be a valid
+    // older encoding, but no member sharing that leaf may claim it as a unique native node
+    const reserved = new Set<string>()
+    for (let offset = 0; offset < references.length; offset += INSTALLED_EVIDENCE_BATCH) {
+      const batch = references.slice(offset, offset + INSTALLED_EVIDENCE_BATCH)
+      const installedRows = await database.encryptedRevisions.bulkGet(batch.map(entry => entry.ref.revisionId))
+      const allocations = await database.preparationPayloads.where('payloadId').anyOf(installedRows.flatMap(row => row ? [row.payloadId] : [])).toArray()
+      for (const row of allocations) reserved.add(row.payloadId)
+      await admission.check(); assert()
+      for (const [index, entry] of batch.entries()) {
+        const id = entry.ref.revisionId, observed = consumed.get(id)
+        if (!observed || !same(cipherRef(observed.record), entry.ref)) throw new Error('Missing installed evidence observation')
+        const installed = installedRows[index]
+        if (!installed || !sameCipherRecord(installed, observed.record)) throw new Error('Installed evidence descriptor changed')
+        if ('dependencies' in entry && !same(observed.record.descriptor.dependencies, [...new Map(entry.dependencies.map(ref => [blobIdentity(ref), ref])).values()])) throw new Error('Installed evidence dependencies changed')
+        if (bindings.has(id)) aliases.add(id)
+        else if (payloads.has(observed.record.payloadId)) throw new Error('Installed evidence payload identity was reused')
+        bindings.set(id, observed); payloads.add(observed.record.payloadId)
+      }
+    }
+    const streams = new Map<string, InstalledLegacyStream>()
+    for (const member of members) {
+      const eligible = member.segments.every(segment => {
+        const observed = bindings.get(segment.content.revisionId)
+        if (!observed || observed.record.descriptor.plainBytes !== segment.byteLength) throw new Error('Installed historical segment binding changed')
+        const { descriptor } = observed.record
+        return !aliases.has(segment.content.revisionId) && !reserved.has(observed.record.payloadId) && descriptor.protected && !descriptor.parents.length
+      })
+      if (eligible) {
+        streams.set(member.id, member)
+        for (const segment of member.segments) retainedPayloads.add(bindings.get(segment.content.revisionId)!.record.payloadId)
+      }
+    }
+    if (!streams.size) return prepare()
+    const proof: InstalledMappingProof = Object.freeze({
+      member(id: string) { assert(); return streams.get(id) },
+      checkObservation(ref: LocalRecordRef, actual: Observation | undefined) {
+        assert()
+        const expected = bindings.get(ref.revisionId)
+        if (!actual || !expected || !sameObservation(expected, actual)) throw new Error('Installed historical segment observation changed')
+      },
+    })
+    await admission.check(); assert()
+    mappingProofs.set(operation, { database, token, evidence, proof })
+    try { return await prepare() }
+    finally { active = false; mappingProofs.delete(operation) }
   }
   const selections = new Set<Awaited<ReturnType<typeof prepareSelectedV1Check>>>()
   const releaseSelections = async () => {
@@ -204,7 +341,7 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
         || observed.record.descriptor.documentId !== entry.ref.documentId || observed.record.descriptor.accountId !== token.accountId
         || 'dependencies' in entry && !same(observed.record.descriptor.dependencies, entry.dependencies)) throw new Error('Evidence reuse requires exact installed source records')
       const installed = await database.encryptedRevisions.get(entry.ref.revisionId)
-      if (!installed || !same(normalizedRecord(installed), normalizedRecord(observed.record))) throw new Error('Evidence reuse source is not installed')
+      if (!installed || !sameCipherRecord(installed, observed.record)) throw new Error('Evidence reuse source is not installed')
       consumed.push(observed); assert()
     }
     await recheckCiphertextObservations(database, consumed)
@@ -351,7 +488,7 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
   }
   // Mapping receipts use the same live adapter observations; callers cannot provide or revive authority
   // This closure performs only IDB reads inside the caller-owned descriptor/chunk transaction
-  return { adapter, lifetime, prepareInheritedEvidence,
+  const store = { adapter, lifetime, prepareInheritedEvidence,
     observedRecords() { check(); return structuredClone([...observations.values()].map(value => value.record)) },
     stagedRecords(operationId: string) { check(); return structuredClone(pending.get(operationId) ?? []) },
     describePreparation(prepared: PreparedLocalActivation) {
@@ -366,4 +503,6 @@ export function createAccountLocalStore(database: AccountDatabase, token: Profil
     const errors = results.flatMap(result => result.status === 'rejected' ? [result.reason] : [])
     if (errors.length) throw new AggregateError(errors, 'Managed store cleanup failed')
   } }
+  mappingStores.set(store, { database, token, capture: captureMappingEvidence })
+  return store
 }

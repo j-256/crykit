@@ -50,7 +50,8 @@ export function databaseEvidenceRows(database: Dexie): GuestEvidenceRows {
   return { tables: database.tables.map(table => table.name), keys: async table => await database.table<unknown, IDBValidKey>(table).toCollection().primaryKeys(), get: (table, key) => database.table<unknown, IDBValidKey>(table).get(key) }
 }
 export interface CapturedGuestEvidence { readonly setDigest: string; readonly planner: GuestPlannerEvidence; check(): Promise<void> }
-interface EvidenceValue { readonly sources: InheritedSnapshotSources; readonly plannerStream: BlobSource; readonly graph?: StoredEvidenceGraph }
+interface LegacyStreamBinding { readonly id: string; readonly digest: string; readonly byteLength: number; readonly segments: readonly z.infer<typeof segmentSchema>[] }
+interface EvidenceValue { readonly emptyLegacyStreams?: readonly LegacyStreamBinding[]; readonly sources: InheritedSnapshotSources; readonly plannerStream: BlobSource; readonly graph?: StoredEvidenceGraph }
 const captured = new WeakMap<CapturedGuestEvidence, EvidenceValue>()
 function freezeEvidence<T>(value: T): T {
   if (value && typeof value === 'object' && !Object.isFrozen(value)) { for (const child of Object.values(value)) freezeEvidence(child); Object.freeze(value) }
@@ -60,6 +61,12 @@ export function guestEvidenceSources(evidence: CapturedGuestEvidence): Inherited
   const owned = captured.get(evidence)
   if (!owned) throw new Error('A captured guest evidence sidecar is required')
   return owned.sources
+}
+
+// Only the completed strict legacy read attaches these empty-subset member bindings
+// The planner shares the segment table but can never contribute a historical binding
+export function admittedEmptyLegacyStreams(evidence: CapturedGuestEvidence) {
+  return captured.get(evidence)?.emptyLegacyStreams
 }
 
 // Every locator is interpreted under its retaining role and confined to this files participant
@@ -89,7 +96,8 @@ export async function readGuestEvidence(rows: GuestEvidenceRows, check: () => Pr
     }
     return entries
   }
-  const stream = async (ref: Locator): Promise<BlobSource> => {
+  const emptyLegacyStreams: LegacyStreamBinding[] = []
+  const stream = async (ref: Locator, emptyMemberId?: string): Promise<BlobSource> => {
     const root = streamSchema.parse(await take('evidenceRoots', ref))
     const segments = await page(root.pages, 'evidence-metadata-page', segmentSchema)
     let length = 0
@@ -106,6 +114,7 @@ export async function readGuestEvidence(rows: GuestEvidenceRows, check: () => Pr
       }
     } }
     if (await hashBlob(source) !== root.digest) throw new Error('Metadata stream digest mismatch')
+    if (emptyMemberId !== undefined) emptyLegacyStreams.push({ id: emptyMemberId, digest: root.digest, byteLength: length, segments })
     return source
   }
   const sentinel = envelope.parse(await rows.get('documents', GUEST_EXTENSION_KEY))
@@ -140,7 +149,7 @@ export async function readGuestEvidence(rows: GuestEvidenceRows, check: () => Pr
   const inherited: InheritedSnapshotSources['members'][number][] = [], union = new Set<string>()
   await withImmutableWorkspaceBodyValidation(bodies, async bodyValidation => {
     for (const member of members) {
-      const subset = await page(member.blobSubset, 'evidence-subset-page', bodySchema), metadata = await stream(member.metadata)
+      const subset = await page(member.blobSubset, 'evidence-subset-page', bodySchema), metadata = await stream(member.metadata, subset.length ? undefined : member.id)
       if ((await historicalMetadataIdentity(metadata)).id !== member.id) throw new Error('Historical metadata identity mismatch')
       const raw = await readBackupMetadata(metadata) as SnapshotMetadataV1
       if (raw.version !== 1 || raw.state.blobs.length !== subset.length) throw new Error('Historical subset mismatch')
@@ -167,7 +176,7 @@ export async function readGuestEvidence(rows: GuestEvidenceRows, check: () => Pr
   }
   await check()
   const evidence: CapturedGuestEvidence = Object.freeze({ setDigest: root.setDigest, planner, check })
-  captured.set(evidence, { sources: freezeEvidence({ members: inherited, bodies }), plannerStream, graph: stored.complete() })
+  captured.set(evidence, { sources: freezeEvidence({ members: inherited, bodies }), plannerStream, graph: stored.complete(), emptyLegacyStreams: freezeEvidence(emptyLegacyStreams) })
   return evidence
 }
 

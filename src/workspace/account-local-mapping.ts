@@ -5,20 +5,19 @@ import { z } from 'zod'
 import type { Table, Transaction } from 'dexie'
 import { assertActiveProfile, profileSignal, type ProfileToken } from '../account/profile'
 import { OpaqueIdSchema } from '../account/protocol'
-import type { AccountDatabase, AccountFence, AccountIntentRecord, CipherRecord, CipherRef } from '../persistence/account-database'
+import type { AccountDatabase, AccountFence, AccountIntentRecord, CipherRecord, CipherRef, LocalActivationJournal } from '../persistence/account-database'
 import { accountLocalId, cipherRef, CipherRefSchema, openAccountJson, stageAccountJson } from './account-cache'
-import { createAccountLocalStore } from './account-local-store'
-import { admitLocalRoot, admittedLocalReferences, localJournalCoveredByHistory, type AdmittedLocalSnapshot } from './local-root'
+import { captureAccountMappingEvidence, createMappingAccountLocalStore, type createAccountLocalStore } from './account-local-store'
+import { admitLocalRoot, localJournalCoveredByHistory, type AdmittedLocalSnapshot } from './local-root'
 import { openAccountWorkspace, prepareAccountWorkspace, prepareAccountWorkspaceWithEvidence, prepareAccountWorkspaceWithExistingEvidence, type OpenAccountWorkspace, type PreparedAccountWorkspace, prepareAccountHistoryReuse, type AccountHistoryReuse } from './account-graph'
 import { mappedChanges, stageMappedWorkspaceIntent } from './account-intents'
 import { retainPendingUnits } from './pending-content'
 import { guestPlannerValuesEqual } from '../persistence/guest-planner-equality'
-import { readLocalEvidence } from './local-evidence'
 import { inspectWorkspaceClosures } from './closure'
 import { sameCipherRefs } from './account-retaining'
 import { blobIdentity } from './blobs'
 import type { WorkspaceState, WorkspaceConflictClosure } from './documents'
-import { accountInheritedEvidenceCheck, createAccountInheritedEvidencePreparation, openAccountInheritedEvidence, type AccountInheritedEvidence } from './account-evidence-snapshots'
+import { accountInheritedEvidenceCheck, openAccountInheritedEvidence, type AccountInheritedEvidence } from './account-evidence-snapshots'
 
 export const IncrementalMappingTicketSchema = z.strictObject({ version: z.literal(1), operationId: OpaqueIdSchema, receipt: CipherRefSchema })
 export type IncrementalMappingTicket = z.infer<typeof IncrementalMappingTicketSchema>
@@ -72,11 +71,11 @@ export async function readIncrementalAccountEvidence(database: AccountDatabase, 
 }
 
 // A retained reader transfers cleanup to the enclosing mapper; ordinary callers release it before returning
-export async function ensureIncrementalAccountEvidence(database: AccountDatabase, token: ProfileToken, store: ReturnType<typeof createAccountLocalStore>, local: AdmittedLocalSnapshot, checkpoint: () => Promise<void> = async () => {}, retain?: (handle: AccountInheritedEvidence, dispose: () => Promise<void>) => void): Promise<CipherRef | undefined> {
-  admittedLocalReferences(local, store.adapter)
+export async function ensureIncrementalAccountEvidence(database: AccountDatabase, token: ProfileToken, store: ReturnType<typeof createAccountLocalStore>, local: AdmittedLocalSnapshot, checkpoint: () => Promise<void> = async () => {}, retain?: (handle: AccountInheritedEvidence, dispose: () => Promise<void>) => void, recheckMappingInput?: () => Promise<void>): Promise<CipherRef | undefined> {
   const check = async () => { assertActiveProfile(token); await checkpoint(); assertActiveProfile(token) }
-  const inherited = await readLocalEvidence(store.adapter, local.root.inheritedEvidence, check)
-  if (!inherited) return undefined
+  const source = await captureAccountMappingEvidence(database, token, store, local, check)
+  if (!source) return undefined
+  const inherited = source.evidence
   const key = evidenceKey(local.root.inheritedEvidence), mapped = await readIncrementalAccountEvidence(database, token, local.root.inheritedEvidence)
   if (mapped) {
     const evidence = await openAccountInheritedEvidence(database, token, mapped)
@@ -90,28 +89,29 @@ export async function ensureIncrementalAccountEvidence(database: AccountDatabase
       return mapped
     } finally { if (!retained) await evidence.dispose() }
   }
-  const owner = createAccountInheritedEvidencePreparation(database, token)
+  const prepared = await source.prepare()
   let retained = false
   try {
-    const prepared = await owner.prepare({ sourceEvidence: inherited })
     if (prepared.handle.setDigest !== inherited.setDigest) throw new Error('Managed historical preparation differs')
     await installRecords(database, token, prepared.records, check)
     const value = evidenceAssociationSchema.parse({ version: 1, kind: 'incremental-evidence-association', accountId: token.accountId, localEvidence: local.root.inheritedEvidence, evidence: prepared.root })
     const record = await stageAccountJson(database, token, value, [value.localEvidence, value.evidence])
     await installRecords(database, token, [record], check)
     await prepared.handle.check(); await inherited.check(); await check()
-    const evidenceCheck = accountInheritedEvidenceCheck(prepared.handle, database, token)
-    await mappingTransaction(database, token, [database.syncState, database.encryptedRevisions, database.stagedCipherChunks], async () => {
-      await evidenceCheck.recheckInTransaction()
+    await mappingTransaction(database, token, [database.syncState, database.encryptedRevisions, database.stagedCipherChunks, database.preparationPayloads, database.outbox, database.migrationJournal], async () => {
+      // This association is independently visible even when the enclosing mapping later aborts
+      // Bind its source index and installed rows in the first CAS together with the native graph
+      await prepared.recheckAssociationInTransaction()
+      await recheckMappingInput?.()
       if (await database.syncState.get(key)) throw new Error('Managed historical association was already selected')
       await database.syncState.add({ id: key, ref: cipherRef(record) })
     })
-    if (retain) { retain(prepared.handle, () => owner.abandon()); retained = true }
+    if (retain) { retain(prepared.handle, prepared.dispose); retained = true }
     return prepared.root
-  } finally { if (!retained) await owner.abandon() }
+  } finally { if (!retained) await prepared.dispose() }
 }
 
-async function prepareNativeLocal(database: AccountDatabase, token: ProfileToken, store: ReturnType<typeof createAccountLocalStore>, local: AdmittedLocalSnapshot, previous: OpenAccountWorkspace | undefined, state: WorkspaceState, check: () => Promise<void>, cleanup: (() => Promise<void>)[], historyReuse?: AccountHistoryReuse): Promise<PreparedAccountWorkspace> {
+async function prepareNativeLocal(database: AccountDatabase, token: ProfileToken, store: ReturnType<typeof createAccountLocalStore>, local: AdmittedLocalSnapshot, previous: OpenAccountWorkspace | undefined, state: WorkspaceState, check: () => Promise<void>, cleanup: (() => Promise<void>)[], recheckMappingInput: () => Promise<void>, historyReuse?: AccountHistoryReuse): Promise<PreparedAccountWorkspace> {
   // This native view is publication-only; the selected managed root remains Undo/backup authority
   // Covered frames remain in semantic history, avoiding a second encrypted checkpoint copy with
   // fresh wire dependencies on every projection; unmatched legacy journals retain the full codec
@@ -122,7 +122,7 @@ async function prepareNativeLocal(database: AccountDatabase, token: ProfileToken
   let verified: AccountInheritedEvidence | undefined
   // The existing mapping cleanup scope owns this reader until its receipt is staged
   // Reuse producer validation only within that scope; another realm must reopen durable ciphertext
-  const inherited = await ensureIncrementalAccountEvidence(database, token, store, local, check, (handle, dispose) => { verified = handle; cleanup.push(dispose) })
+  const inherited = await ensureIncrementalAccountEvidence(database, token, store, local, check, (handle, dispose) => { verified = handle; cleanup.push(dispose) }, recheckMappingInput)
   const previousEvidence = previous?.inheritedEvidence
   let native: PreparedAccountWorkspace
   if (!inherited || same(previousEvidence, inherited)) native = await prepareAccountWorkspace(database, token, state, previous, undefined, historyReuse)
@@ -179,6 +179,7 @@ export async function prepareIncrementalMapping(database: AccountDatabase, token
     if (!predecessor) throw new Error('Mapping baseline association changed')
   }
   let base: OpenAccountWorkspace | undefined
+  let predecessorJournal: LocalActivationJournal | undefined
   if (predecessor) {
     const value = await openAccountJson(database, token, predecessor.ref, z.union([receiptSchema, AccountMappingOriginSchema]))
     if (value.accountId !== token.accountId) throw new Error('Foreign mapping predecessor')
@@ -193,12 +194,19 @@ export async function prepareIncrementalMapping(database: AccountDatabase, token
   } else {
     // A pending earlier command cannot be independently remapped as a new baseline
     // Its receipt remains addressable even after accepted publication removes the old outbox row
-    const prior = (await database.migrationJournal.toArray()).find(value => same(value.head, intent.before))
-    if (!prior || prior.intent) throw new Error('The mapping predecessor is not ready')
+    predecessorJournal = (await database.migrationJournal.toArray()).find(value => same(value.head, intent.before))
+    if (!predecessorJournal || predecessorJournal.intent) throw new Error('The mapping predecessor is not ready')
   }
-  const store = createAccountLocalStore(database, token)
+  const store = createMappingAccountLocalStore(database, token)
   const cleanup: (() => Promise<void>)[] = []
-  const materialize = (local: AdmittedLocalSnapshot, previous?: OpenAccountWorkspace, state: WorkspaceState = local.state, historyReuse?: AccountHistoryReuse) => prepareNativeLocal(database, token, store, local, previous, state, check, cleanup, historyReuse)
+  const recheckMappingInput = async () => {
+    // Without a mapped pointer, the no-command journal is the authority for materializing
+    // this predecessor. Both durable receipts must fence the exact row admitted above
+    if (await database.syncState.get(key) || !same(await database.outbox.get(original.id), original) || !same(await database.migrationJournal.get(original.id), journal)
+      || !same(await database.syncState.get(rootKey(intent.before)), predecessor)
+      || predecessorJournal && !same(await database.migrationJournal.get(predecessorJournal.id), predecessorJournal)) throw new Error('Mapping preparation changed')
+  }
+  const materialize = (local: AdmittedLocalSnapshot, previous?: OpenAccountWorkspace, state: WorkspaceState = local.state, historyReuse?: AccountHistoryReuse) => prepareNativeLocal(database, token, store, local, previous, state, check, cleanup, recheckMappingInput, historyReuse)
   try {
     const before = await admitLocalRoot(store.adapter, intent.before, { check: () => assertActiveProfile(token), assertCurrent: check })
     const after = await admitLocalRoot(store.adapter, intent.after, { check: () => assertActiveProfile(token), assertCurrent: check })
@@ -239,7 +247,7 @@ export async function prepareIncrementalMapping(database: AccountDatabase, token
     let comparisonEvidence: AccountInheritedEvidence | undefined
     if (intent.version === 2) {
       const admitted = await readManagedCopyComparisons(database, token, store.adapter, intent, before, check, original.ref)
-      const inherited = await ensureIncrementalAccountEvidence(database, token, store, admitted.source, check, (handle, dispose) => { comparisonEvidence = handle; cleanup.push(dispose) })
+      const inherited = await ensureIncrementalAccountEvidence(database, token, store, admitted.source, check, (handle, dispose) => { comparisonEvidence = handle; cleanup.push(dispose) }, recheckMappingInput)
       if (!inherited || !comparisonEvidence) throw new Error('Managed comparison native originals are missing')
       // Keep the exact original planner, including inert journals, in the comparison source
       // The semantic target's publication-only checkpoint elision does not apply to originals
@@ -262,8 +270,7 @@ export async function prepareIncrementalMapping(database: AccountDatabase, token
       await comparisonCheck?.recheckInTransaction()
       await store.recheckObservationsInTransaction()
       assertActiveProfile(token)
-      if (await database.syncState.get(key) || !same(await database.outbox.get(original.id), original) || !same(await database.migrationJournal.get(original.id), journal)
-        || !same(await database.syncState.get(rootKey(intent.before)), predecessor)) throw new Error('Mapping preparation changed')
+      await recheckMappingInput()
       await database.syncState.add({ id: key, ref: cipherRef(record) })
       assertActiveProfile(token)
     })
@@ -320,11 +327,14 @@ export async function prepareIncrementalBaseline(database: AccountDatabase, toke
     await readBaseline(database, token, ticket)
     return ticket
   }
-  const store = createAccountLocalStore(database, token), cleanup: (() => Promise<void>)[] = []
+  const store = createMappingAccountLocalStore(database, token), cleanup: (() => Promise<void>)[] = []
   const check = async () => { assertActiveProfile(token); await checkpoint(); assertActiveProfile(token) }
   try {
     const local = await admitLocalRoot(store.adapter, fence.head, { check: () => assertActiveProfile(token), assertCurrent: check })
-    const prepared = await prepareNativeLocal(database, token, store, local, undefined, local.state, check, cleanup)
+    const recheckBaseline = async () => {
+      if (!same(await database.migrationJournal.get(journal.id), journal) || await database.syncState.get(baselineKey(journal.id)) || await database.syncState.get(rootKey(fence.head))) throw new Error('Mapping baseline preparation changed')
+    }
+    const prepared = await prepareNativeLocal(database, token, store, local, undefined, local.state, check, cleanup, recheckBaseline)
     await installRecords(database, token, prepared.records, check)
     await openAccountWorkspace(database, token, prepared.head, prepared.validatedEvidence)
     const origin = AccountMappingOriginSchema.parse({ version: 1, kind: 'incremental-mapping-origin', accountId: token.accountId, operationId: journal.id, localRoot: fence.head, mappedRoot: prepared.head, headRevision: fence.headRevision })
@@ -334,7 +344,7 @@ export async function prepareIncrementalBaseline(database: AccountDatabase, toke
     await mappingTransaction(database, token, [database.syncState, database.migrationJournal, database.encryptedRevisions, database.stagedCipherChunks], async () => {
       await evidenceCheck?.recheckInTransaction()
       await store.recheckObservationsInTransaction()
-      if (!same(await database.migrationJournal.get(journal.id), journal) || await database.syncState.get(baselineKey(journal.id)) || await database.syncState.get(rootKey(fence.head))) throw new Error('Mapping baseline preparation changed')
+      await recheckBaseline()
       await database.syncState.add({ id: baselineKey(journal.id), ref: cipherRef(record) })
     })
     return { version: 1, operationId: journal.id, receipt: cipherRef(record) }
