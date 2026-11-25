@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { admittedLocalIndexPages, prepareLocalIndex, readLocalIndex, type LocalIndex } from './local-index'
 import type { LocalRecordRef, LocalStoreAdapter } from './local-root'
-import { GUEST_EVIDENCE_STORES, GUEST_FILES_V1_STORES, GUEST_EXTENSION_KEY, readGuestEvidence, writeCapturedGuestEvidence, prepareCapturedGuestEvidenceWrite, type CapturedGuestEvidence } from './guest-evidence'
+import { GUEST_EVIDENCE_STORES, GUEST_FILES_V1_STORES, GUEST_EXTENSION_KEY, admittedEmptyLegacyStreams, readGuestEvidence, writeCapturedGuestEvidence, prepareCapturedGuestEvidenceWrite, type CapturedGuestEvidence } from './guest-evidence'
 import { hashBlob, memoryBlob, readBlob, verifiedBlob } from './blobs'
 import { parseBoundedJson } from '../interchange/json'
 import { WORKSPACE_BACKUP_LIMITS } from '../interchange/workspace-backup-schema'
@@ -24,6 +24,23 @@ export function localEvidenceReadAdmission(evidence: CapturedGuestEvidence, adap
   const admitted = readAdmissions.get(evidence)
   if (!admitted || admitted.adapter !== adapter || admitted.root.documentId !== root.documentId || admitted.root.revisionId !== root.revisionId) throw new Error('Foreign managed evidence read admission')
   return admitted
+}
+
+// Resolve historical roles through the admitted locator chain before looking at ciphertext
+// A matching digest or a binary row in the planner's shared table cannot establish that role
+export function localLegacyStreamBindings(evidence: CapturedGuestEvidence, adapter: LocalStoreAdapter, root: LocalRecordRef) {
+  const admission = localEvidenceReadAdmission(evidence, adapter, root)
+  const legacy = admittedEmptyLegacyStreams(evidence)
+  if (!legacy?.length) return []
+  const rows = new Map(admission.index.entries.filter(row => row.table === 'evidenceSegments').map(row => [row.key, row]))
+  return legacy.map(member => Object.freeze({
+    id: member.id, digest: member.digest, byteLength: member.byteLength,
+    segments: Object.freeze(member.segments.map(({ content, ordinal, byteLength, sha256 }) => {
+      const row = rows.get(content.key)
+      if (!row || row.encoding !== 'bytes' || row.digest !== sha256) throw new Error('Installed historical segment binding changed')
+      return Object.freeze({ ordinal, byteLength, sha256, content: row.ref })
+    })),
+  }))
 }
 
 // The existing strict evidence codec owns historical metadata, original body and orphan validation

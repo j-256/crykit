@@ -3,9 +3,10 @@ import { compactHistoricalIdentity, historicalMemberKey } from '../interchange/w
 import Dexie from 'dexie'
 import { z } from 'zod'
 import { catalogEvidenceSchemas, validateCatalogEvidenceSources, type CatalogInheritedSnapshotSources } from './catalog-evidence'
+import { recheckCiphertextObservations, sameCipherRecord, sameCiphertext, sameObservation, type Observation } from './account-ciphertext-observations'
 import { accountCleanupOnlyFailure, accountPreparationFailure, assertAccountCleanupJoinable, hasNewAccountCleanupFailure, readAccountCleanupOnlyFailure, readAccountPreparationFailure, type AccountCleanupGroup, type AccountCleanupJoin, type AccountCleanupResult, type AccountManagedCleanup } from './account-cleanup-attempt'
 import { assertActiveProfile, profileSignal, registerProfileCleanup, type ProfileToken } from '../account/profile'
-import { maxDependencies, maxDocumentBytes, RevisionDescriptorSchema } from '../account/protocol'
+import { maxDependencies, maxDocumentBytes } from '../account/protocol'
 import type { AccountDatabase, CipherChunk, CipherRecord, CipherRef } from '../persistence/account-database'
 import { CipherRefSchema, cipherRef, stageAccountBytes } from './account-cache'
 import { beginPreparedRead, createAccountPreparationOwner, resolveAccountRecord, type AccountPreparationOwner, type AccountPreparationReservation } from './account-prepared-records'
@@ -26,6 +27,7 @@ import { prepareSourcePayloadValidation } from '../domain/source-fulfillment'
 import type { CatalogSnapshot } from '../domain/types'
 import { validateWorkspacePrefix } from './validation'
 
+type InstalledMappingProof = NonNullable<ReturnType<typeof import('./account-local-store').claimInstalledMappingProof>>
 const integer = z.number().int().nonnegative().safe()
 const digest = z.string().regex(/^[0-9a-f]{64}$/)
 const rootSchema = z.strictObject({ version: z.literal(1), kind: z.literal('inherited-snapshot-evidence'), setDigest: digest, members: CipherRefSchema, blobs: CipherRefSchema })
@@ -45,8 +47,6 @@ type Body = z.infer<typeof bodySchema>
 type Segment = z.infer<typeof segmentSchema>
 type Member = z.infer<typeof memberSchema>
 type MemberStream = Member & { readonly segments: readonly Segment[]; readonly byteLength: number; readonly subset: readonly WorkspaceBlobRef[]; readonly subsetBodies: readonly Body[] }
-const normalizedRecord = (record: CipherRecord) => ({ revisionId: record.revisionId, payloadId: record.payloadId, descriptor: RevisionDescriptorSchema.parse(record.descriptor) })
-const sameRecord = (left: CipherRecord, right: CipherRecord) => JSON.stringify(normalizedRecord(left)) === JSON.stringify(normalizedRecord(right))
 const refKey = (ref: CipherRef) => JSON.stringify([ref.documentId, ref.revisionId])
 const sameRef = (a: WorkspaceBlobRef, b: WorkspaceBlobRef) => compareBackupRefs(a, b) === 0 && a.encoding === b.encoding && a.byteLength === b.byteLength && a.sha256 === b.sha256
 const uniqueRefs = (refs: readonly CipherRef[]) => [...new Map(refs.map(ref => [refKey(ref), ref])).values()]
@@ -302,13 +302,14 @@ class GraphReader {
   }
   // Account chunk boundaries are transport details; each yielded value must reconstruct exactly
   // one original token page because the frozen backup decoder parses each page independently
-  metadata(segments: readonly Segment[], byteLength: number): BlobSource {
+  metadata(segments: readonly Segment[], byteLength: number, installed?: InstalledMappingProof): BlobSource {
     const reader = this
     return { byteLength, async *open() {
       for (const segment of segments) {
         const bytes = await reader.bytes(segment.content, WORKSPACE_BACKUP_LIMITS.payload)
         try {
           if (bytes.length !== segment.byteLength || await hashBytes(bytes) !== segment.sha256) throw new Error('Account metadata segment digest or length mismatch')
+          installed?.checkObservation(segment.content, reader.observations.get(refKey(segment.content)))
           await reader.check()
           yield bytes
         } finally { bytes.fill(0) }
@@ -337,6 +338,10 @@ async function prepareLegacySourceChecks(catalogs: readonly CatalogSnapshot[], l
 }
 
 export async function openAccountInheritedEvidence(database: AccountDatabase, token: ProfileToken, root: CipherRef, owner?: AccountPreparationOwner, cleanup?: AccountManagedCleanup): Promise<AccountInheritedEvidence> {
+  return openEvidence(database, token, root, owner, cleanup)
+}
+
+async function openEvidence(database: AccountDatabase, token: ProfileToken, root: CipherRef, owner?: AccountPreparationOwner, cleanup?: AccountManagedCleanup, installed?: InstalledMappingProof): Promise<AccountInheritedEvidence> {
   // A transaction-scoped caller must keep synchronous source checks even if Dexie's scope changes during decryption
   const transactionAtEntry = !!Dexie.currentTransaction
   root = freeze(CipherRefSchema.parse(root)); token = Object.freeze({ ...token })
@@ -394,31 +399,43 @@ export async function openAccountInheritedEvidence(database: AccountDatabase, to
           length = checked(length, segment.byteLength, stream.byteLength)
         }
         if (length !== stream.byteLength) throw new Error('Account metadata stream length mismatch')
-        const metadata = reader.metadata(segments, length), identity = await historicalMetadataIdentity(metadata)
+        const accepted = installed?.member(member.id)
+        if (accepted && (subset.length || accepted.digest !== stream.digest || accepted.byteLength !== length || accepted.segments.length !== segments.length
+          || segments.some((segment, index) => {
+            const original = accepted.segments[index]
+            return segment.ordinal !== original.ordinal || segment.byteLength !== original.byteLength || segment.sha256 !== original.sha256 || refKey(segment.content) !== refKey(original.content)
+          }))) throw new Error('Native historical stream differs from installed source')
+        const metadata = reader.metadata(segments, length, accepted ? installed : undefined), identity = await historicalMetadataIdentity(metadata)
         if (identity.id !== member.id || identity.metadataStreamDigest !== stream.digest) throw new Error('Account historical metadata identity mismatch')
-        const raw = await readBackupMetadata(metadata) as SnapshotMetadataV1
-        if (raw.version !== 1 || !raw.state || !Array.isArray(raw.state.blobs) || raw.state.blobs.length !== subset.length) throw new Error('Account historical subset mismatch')
-        // Metadata refs are inert originals, not account dependencies; only these typed edges
-        // bind their complete native identities to the shared encrypted registry in source order
-        for (const [index, body] of subset.entries()) {
-          const stored = registry.get(blobIdentity(body.source))
-          if (!stored || !sameRef(stored.source, body.source) || !sameRef(raw.state.blobs[index], body.source) || refKey(body.content) !== refKey(stored.content)) throw new Error('Account historical subset association mismatch')
-          union.add(blobIdentity(body.source))
+        if (accepted) {
+          // The strict local v1 validator accepted these exact bytes with no external body inputs
+          // Reauthenticate every segment to EOF and charge its physical reread before reusing that result
+          for await (const bytes of metadata.open()) void bytes
+        } else {
+          const raw = await readBackupMetadata(metadata) as SnapshotMetadataV1
+          if (raw.version !== 1 || !raw.state || !Array.isArray(raw.state.blobs) || raw.state.blobs.length !== subset.length) throw new Error('Account historical subset mismatch')
+          // Metadata refs are inert originals, not account dependencies; only these typed edges
+          // bind their complete native identities to the shared encrypted registry in source order
+          for (const [index, body] of subset.entries()) {
+            const stored = registry.get(blobIdentity(body.source))
+            if (!stored || !sameRef(stored.source, body.source) || !sameRef(raw.state.blobs[index], body.source) || refKey(body.content) !== refKey(stored.content)) throw new Error('Account historical subset association mismatch')
+            union.add(blobIdentity(body.source))
+          }
+          const snapshot = attachBackupBodies(raw, new Map(bodies.map(body => [blobIdentity(body.ref), body])))
+          const candidates = snapshot.state.planner?.catalogs
+          if (!transactionAtEntry && !Dexie.currentTransaction && Array.isArray(candidates) && candidates.some(catalog => catalog?.schemaVersion !== MOD_CATALOG_SCHEMA)) {
+            // Check the same header and complete shape prefix before introducing any scheduled source work
+            const { state, ...header } = snapshot
+            SnapshotHeaderSchema.parse(header)
+            const catalogs = validateWorkspacePrefix(state)
+            await lifetime.check()
+            if (!Dexie.currentTransaction) await prepareLegacySourceChecks(catalogs, lifetime, assertCurrent)
+            await lifetime.check()
+          }
+          // The original decoded catalogs retain their key order for the source annex
+          // False or failed preparation leaves the original validator in charge of the result and error order
+          await validateWorkspaceSnapshotV1(snapshot, bodyValidation)
         }
-        const snapshot = attachBackupBodies(raw, new Map(bodies.map(body => [blobIdentity(body.ref), body])))
-        const candidates = snapshot.state.planner?.catalogs
-        if (!transactionAtEntry && !Dexie.currentTransaction && Array.isArray(candidates) && candidates.some(catalog => catalog?.schemaVersion !== MOD_CATALOG_SCHEMA)) {
-          // Check the same header and complete shape prefix before introducing any scheduled source work
-          const { state, ...header } = snapshot
-          SnapshotHeaderSchema.parse(header)
-          const catalogs = validateWorkspacePrefix(state)
-          await lifetime.check()
-          if (!Dexie.currentTransaction) await prepareLegacySourceChecks(catalogs, lifetime, assertCurrent)
-          await lifetime.check()
-        }
-        // The original decoded catalogs retain their key order for the source annex
-        // False or failed preparation leaves the original validator in charge of the result and error order
-        await validateWorkspaceSnapshotV1(snapshot, bodyValidation)
         streams.push(freeze({ ...member, segments, byteLength: length, subset: subset.map(body => body.source), subsetBodies: subset }))
       }
     })
@@ -459,7 +476,7 @@ export async function openAccountInheritedEvidence(database: AccountDatabase, to
 
 // The returned closure carries only private, completely authenticated physical observations
 // Recheck inside the publishing transaction so same-length ciphertext edits cannot race admission
-export function accountInheritedEvidenceCheck(handle: AccountInheritedEvidence, database: AccountDatabase, token: ProfileToken): { recheckInTransaction(): Promise<void>; observations(): readonly CipherRecord[] } {
+export function accountInheritedEvidenceCheck(handle: AccountInheritedEvidence, database: AccountDatabase, token: ProfileToken): { recheckInTransaction(source?: Iterable<Observation>): Promise<void>; observations(): readonly CipherRecord[] } {
   const owned = registration(handle)
   if (owned.database !== database || owned.token.accountId !== token.accountId || owned.token.generation !== token.generation) throw new Error('Foreign account evidence handle')
   owned.assertLive()
@@ -469,15 +486,26 @@ export function accountInheritedEvidenceCheck(handle: AccountInheritedEvidence, 
     owned.assertLive()
     if (observations.size !== owned.reader.records.size) throw new Error('Incomplete account evidence authentication')
     return structuredClone([...observations.values()].map(value => value.record))
-  }, async recheckInTransaction() {
+  }, async recheckInTransaction(source) {
     owned.assertLive()
     for (const { record, chunks } of observations.values()) {
       const actual = await database.encryptedRevisions.get(record.revisionId)
-      if (!actual || !sameRecord(actual, record)) throw new Error('Account evidence descriptor changed')
+      if (!actual || !sameCipherRecord(actual, record)) throw new Error('Account evidence descriptor changed')
       for (const chunk of chunks) {
         const actual = await database.stagedCipherChunks.get([chunk.payloadId, chunk.index])
-        if (!actual || actual.bytes.length !== chunk.bytes.length || actual.bytes.some((byte, index) => byte !== chunk.bytes[index])) throw new Error('Account evidence ciphertext changed')
+        if (!actual || !sameCiphertext(actual.bytes, chunk.bytes)) throw new Error('Account evidence ciphertext changed')
       }
+    }
+    if (source) {
+      const remaining: Observation[] = []
+      for (const observed of source) {
+        // Identical installed leaves were just rechecked above in this same transaction
+        // Both exact captures must agree before that physical read can satisfy both graphs
+        const native = observations.get(refKey(cipherRef(observed.record)))
+        if (!native) remaining.push(observed)
+        else if (!sameObservation(native, observed)) throw new Error('Consumed encrypted observation changed')
+      }
+      await recheckCiphertextObservations(database, remaining)
     }
     owned.assertLive()
   } }
@@ -516,7 +544,7 @@ function captureAdditions(additions: readonly WorkspaceSnapshotV2[]): readonly C
   })
 }
 
-async function prepareGraph(database: AccountDatabase, token: ProfileToken, owner: AccountPreparationOwner, input: PrepareAccountInheritedEvidenceInput, additions: readonly CapturedAddition[], lifetime: ReadLifetime, check: () => Promise<void>, sidecar?: InheritedSnapshotSources): Promise<{ root: CipherRef; records: readonly CipherRecord[] }> {
+async function prepareGraph(database: AccountDatabase, token: ProfileToken, owner: AccountPreparationOwner, input: PrepareAccountInheritedEvidenceInput, additions: readonly CapturedAddition[], lifetime: ReadLifetime, check: () => Promise<void>, sidecar?: InheritedSnapshotSources, installed?: InstalledMappingProof): Promise<{ root: CipherRef; records: readonly CipherRecord[] }> {
   const budget = new Budget(), inputs: InheritedSnapshotSources[] = [], sources = additions.map(value => value.snapshot)
   const base = input.base
   const reusableRoots: AccountInheritedEvidence[] = []
@@ -530,7 +558,7 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
     for (const record of owned.reader.records.values()) {
       const actual = await database.encryptedRevisions.get(record.revisionId)
       if (actual) {
-        if (!sameRecord(actual, record)) throw new Error('Account evidence descriptor changed')
+        if (!sameCipherRecord(actual, record)) throw new Error('Account evidence descriptor changed')
         installed++
       }
     }
@@ -704,6 +732,7 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
       continue
     }
     budget.potential(member.metadata.byteLength)
+    const accepted = installed?.member(member.id)
     const segments: Segment[] = []
     let length = 0
     for await (const bytes of guarded(member.metadata, member.id).open()) {
@@ -713,13 +742,23 @@ async function prepareGraph(database: AccountDatabase, token: ProfileToken, owne
       if (!bytes.length || bytes.length > WORKSPACE_BACKUP_LIMITS.payload) throw new Error('Account metadata token page limit')
       length = checked(length, bytes.length, member.metadata.byteLength)
       const existing = reused?.segments[segments.length]?.content
-      const content = existing && retainClosure(existing) ? existing : await stageBytes(bytes, [])
-      segments.push({ ordinal: segments.length, byteLength: bytes.length, sha256: await hashBytes(bytes), content })
+      const sha256 = await hashBytes(bytes)
+      let content: CipherRef
+      if (accepted) {
+        const leaf = accepted.segments[segments.length]
+        if (!leaf || leaf.ordinal !== segments.length || leaf.byteLength !== bytes.length || leaf.sha256 !== sha256 || outputNodes.has(refKey(leaf.content))) throw new Error('Installed historical page differs from source')
+        // Transfer the original visit and logical size exactly as staging would. The installed
+        // payload belongs to the local archive and must never enter this owner's install or cleanup set
+        budget.room(1); budget.declare(bytes.length); budget.reserve(leaf.content, 'segment')
+        outputNodes.add(refKey(leaf.content)); content = leaf.content
+      } else content = existing && retainClosure(existing) ? existing : await stageBytes(bytes, [])
+      segments.push({ ordinal: segments.length, byteLength: bytes.length, sha256, content })
       await sourceCheck()
     }
     if (length !== member.metadata.byteLength) throw new Error('Account historical metadata length mismatch')
     const identity = await historicalMetadataIdentity(guarded(member.metadata, member.id))
     if (identity.id !== member.id) throw new Error('Account historical metadata identity mismatch')
+    if (accepted && (accepted.digest !== identity.metadataStreamDigest || accepted.byteLength !== length || accepted.segments.length !== segments.length || member.subset.length)) throw new Error('Installed historical stream differs from source')
     const pages = await page('evidence-metadata-page', segments, entry => [entry.content])
     const metadata = await stageJson({ version: 1, kind: 'evidence-metadata-stream', codec: 'backup-json-tokens-v1', digest: identity.metadataStreamDigest, byteLength: length, pages }, [pages])
     const blobSubset = await writeSubset()
@@ -831,9 +870,11 @@ export function createAccountInheritedEvidencePreparation(database: AccountDatab
           stopListening = () => { captured.signal?.removeEventListener('abort', onAbort); profile.removeEventListener('abort', onAbort) }
           const fresh = async () => { await check(); captured.signal?.throwIfAborted(); await captured.sourceEvidence?.check(); if (captured.base) await registration(captured.base).lifetime.check(); if (captured.merge) await registration(captured.merge).lifetime.check(); for (const snapshot of captured.additions) await assertOwnedWorkspaceSnapshot(snapshot); await check(); captured.signal?.throwIfAborted() }
           await fresh()
-          const graph = compact ? await prepareCatalogAccountGraph(database, token, owner, captured, catalogAdditions, lifetime, fresh, sidecar) : await prepareGraph(database, token, owner, captured, additions, lifetime, fresh, sidecar)
+          const installed = !compact && !captured.base && !captured.merge && !additions.length && captured.sourceEvidence
+            ? (await import('./account-local-store')).claimInstalledMappingProof(operation, database, token, captured.sourceEvidence) : undefined
+          const graph = compact ? await prepareCatalogAccountGraph(database, token, owner, captured, catalogAdditions, lifetime, fresh, sidecar) : await prepareGraph(database, token, owner, captured, additions, lifetime, fresh, sidecar, installed)
           await fresh()
-          handle = await openAccountInheritedEvidence(database, token, graph.root, owner, openerCleanup)
+          handle = await openEvidence(database, token, graph.root, owner, openerCleanup, installed)
           await fresh()
           return Object.freeze({ ...graph, handle, owner, dispose: abandon })
         } catch (error) {
@@ -973,7 +1014,7 @@ async function prepareCatalogAccountGraph(database: AccountDatabase, token: Prof
     let installed = 0
     for (const record of owned.reader.records.values()) {
       const actual = await database.encryptedRevisions.get(record.revisionId)
-      if (actual) { if (!sameRecord(actual, record)) throw new Error('Account evidence descriptor changed'); installed++ }
+      if (actual) { if (!sameCipherRecord(actual, record)) throw new Error('Account evidence descriptor changed'); installed++ }
     }
     if (!installed && owned.owner) continue
     if (installed !== owned.reader.records.size) throw new Error('Incomplete installed account evidence')
