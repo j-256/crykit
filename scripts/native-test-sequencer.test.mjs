@@ -1,5 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadConfigFromFile } from 'vite'
 import { BaseSequencer } from 'vitest/node'
@@ -51,7 +52,7 @@ test('empty, filtered and additional shards still partition every discovered spe
   }
 })
 
-test('hosted persistence balances eight bins independently of discovery order and cached timings', async () => {
+test('hosted persistence balances nine bins independently of discovery order and cached timings', async () => {
   const Sequencer = await configuredSequencer({ ci: 'true', hosted: 'balanced' }) ?? BaseSequencer
   const recovery = spec('src/persistence/signin-reconciliation-recovery.test.ts', 'persistence-service')
   const conflicts = spec('src/persistence/conflicts.test.ts', 'persistence-service')
@@ -60,18 +61,34 @@ test('hosted persistence balances eight bins independently of discovery order an
   const b = unknown('b'), c = unknown('c'), d = unknown('d'), e = unknown('e')
   const f = unknown('f'), g = unknown('g'), h = unknown('h')
   const files = [h, conflicts, aService, e, c, recovery, g, a, b, d, f]
-  const assign = (discovered, cache) => Promise.all(Array.from({ length: 8 }, (_, offset) =>
-    new Sequencer({ config: { root, shard: { index: offset + 1, count: 8 } }, cache }).shard(discovered)))
+  const shardCount = 9
+  const assign = (discovered, cache) => Promise.all(Array.from({ length: shardCount }, (_, offset) =>
+    new Sequencer({ config: { root, shard: { index: offset + 1, count: shardCount } }, cache }).shard(discovered)))
 
   const bins = await assign(files)
   // Unknown files must grow their bin's cost, including a new project at the same path
-  assert.deepEqual(bins, [[recovery], [conflicts], [a, f], [aService, g], [b, h], [c], [d], [e]])
+  assert.deepEqual(bins, [[recovery], [conflicts], [a, g], [aService, h], [b], [c], [d], [e], [f]])
   assert.equal(bins.flat().length, files.length)
   assert.deepEqual(new Set(bins.flat()), new Set(files))
   const staleCache = { getTestSpecificationResult() { throw new Error('Placement read cached timings') } }
   assert.deepEqual(await assign([...files].reverse(), staleCache), bins)
-  assert.deepEqual(await assign([aService]), [[aService], [], [], [], [], [], [], []])
-  assert.deepEqual(await assign([]), [[], [], [], [], [], [], [], []])
+  const emptyBins = Array.from({ length: shardCount }, () => [])
+  assert.deepEqual(await assign([aService]), [[aService], ...emptyBins.slice(1)])
+  assert.deepEqual(await assign([]), emptyBins)
+})
+
+test('the hosted workflow enables balanced placement for the complete numbered persistence matrix', () => {
+  const workflow = readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8')
+  const numbered = [...workflow.matchAll(/^\s*- \{ name: 'persistence (\d+)\/(\d+)', script: '([^']+)' \}$/gm)]
+  const shardCount = 9
+  const command = 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts"'
+  assert.deepEqual(numbered.map(match => match.slice(1)), Array.from({ length: shardCount }, (_, index) => {
+    const shard = index + 1
+    return [String(shard), String(shardCount), command + ' --shard=' + shard + '/' + shardCount]
+  }))
+  const marker = workflow.split('\n').find(line => line.trimStart().startsWith('CRYKIT_HOSTED_PERSISTENCE_PARTITION:'))
+  assert.ok(marker?.includes("startsWith(matrix.check.name, 'persistence ') && endsWith(matrix.check.name, '/" + shardCount + "') && 'balanced' || ''"))
+  assert.match(workflow, /name: 'persistence sync', script: 'test:persistence -- src\/persistence\/sync-integration'/)
 })
 
 test('placement markers select hosted CI or local native costs only in their intended environment', async () => {

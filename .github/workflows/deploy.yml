@@ -30,14 +30,15 @@ jobs:
           # Separate runners retain fixture isolation and serial pools within the existing job deadline
           # The complete sync journey group owns a runner so unrelated files cannot consume its deadline
           - { name: 'persistence sync', script: 'test:persistence -- src/persistence/sync-integration' }
-          - { name: 'persistence 1/8', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=1/8' }
-          - { name: 'persistence 2/8', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=2/8' }
-          - { name: 'persistence 3/8', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=3/8' }
-          - { name: 'persistence 4/8', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=4/8' }
-          - { name: 'persistence 5/8', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=5/8' }
-          - { name: 'persistence 6/8', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=6/8' }
-          - { name: 'persistence 7/8', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=7/8' }
-          - { name: 'persistence 8/8', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=8/8' }
+          - { name: 'persistence 1/9', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=1/9' }
+          - { name: 'persistence 2/9', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=2/9' }
+          - { name: 'persistence 3/9', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=3/9' }
+          - { name: 'persistence 4/9', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=4/9' }
+          - { name: 'persistence 5/9', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=5/9' }
+          - { name: 'persistence 6/9', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=6/9' }
+          - { name: 'persistence 7/9', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=7/9' }
+          - { name: 'persistence 8/9', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=8/9' }
+          - { name: 'persistence 9/9', script: 'test:persistence -- --exclude="src/persistence/sync-integration*.test.ts" --shard=9/9' }
           - { name: 'worker 1/6', script: 'test:worker -- --shard=1/6' }
           - { name: 'worker 2/6', script: 'test:worker -- --shard=2/6' }
           - { name: 'worker 3/6', script: 'test:worker -- --shard=3/6' }
@@ -76,7 +77,7 @@ jobs:
         # Avoid making the sync deadline depend on disposable runner disk I/O latency
         env:
           CRYKIT_SYNC_MEMORY_SCRATCH: ${{ matrix.check.name == 'persistence sync' && 'true' || 'false' }}
-          CRYKIT_HOSTED_PERSISTENCE_PARTITION: ${{ startsWith(matrix.check.name, 'persistence ') && endsWith(matrix.check.name, '/8') && 'balanced' || '' }}
+          CRYKIT_HOSTED_PERSISTENCE_PARTITION: ${{ startsWith(matrix.check.name, 'persistence ') && endsWith(matrix.check.name, '/9') && 'balanced' || '' }}
         run: |
           if [ "$CRYKIT_SYNC_MEMORY_SCRATCH" = true ]; then
             TMPDIR="$(mktemp -d /dev/shm/crykit-sync.XXXXXX)"
