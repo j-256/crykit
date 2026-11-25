@@ -18,9 +18,13 @@ function consumedKeys(file: any, operation: Operation): Set<string> {
   return new Set()
 }
 
-async function arm(page: Page, event: 'click' | 'input', selector: string, withMapping = false, nextInput?: Parameters<Window['armSaveWork']>[2]) {
+async function arm(page: Page, event: 'click' | 'input', selector: string, withMapping = false, nextInput?: Parameters<Window['armSaveWork']>[2], captureSaveApply = false) {
   if (withMapping) await ensureMapping(page)
-  await page.evaluate(({ event, selector, nextInput }) => window.armSaveWork(event, selector, nextInput), { event, selector, nextInput })
+  return page.evaluate(({ event, selector, nextInput, captureSaveApply }) => {
+    const attempt = captureSaveApply ? (window as any).localSaveProof.beginSaveApply() as number : undefined
+    window.armSaveWork(event, selector, nextInput)
+    return attempt
+  }, { event, selector, nextInput, captureSaveApply })
 }
 async function ensureMapping(page: Page) {
   // Reuse real in-flight projection across edits; draining it per save serializes bulk work
@@ -141,7 +145,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
     page.on('crash', () => errors.push('The browser page crashed'))
     preparation.push({ phase: 'fixture-navigation', elapsedMs: Date.now() - startedAt })
     const path = process.env.CRYKIT_SAVE_FIXTURE ?? '/__accounts-proof/local-save-performance.html'
-    await page.goto(`${path}?mode=${mode === 'guest' ? 'guest' : 'account'}&size=${size}`)
+    await page.goto(`${path}?mode=${mode === 'guest' ? 'guest' : 'account'}&size=${size}${operation === 'Save inventory' ? '&saveApplyOracle=1' : ''}`)
     await page.waitForFunction(() => (window as any).localSaveProof?.ready() || (window as any).localSaveFailure)
     expect(await page.evaluate(() => (window as any).localSaveFailure)).toBeUndefined()
     setupSnapshot = await page.evaluate(() => (window as any).localSaveProof.setup)
@@ -189,6 +193,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       return saved.file
     })() : undefined
     let expected: unknown
+    let saveApplyAttempt: number | undefined
     let editorProbe: { value: string; canApply: boolean; work: ReturnType<Window['finishSaveWork']> } | undefined
     let nextInputWork: ReturnType<Window['finishSaveWork']> | undefined
     if (operation === 'Build notes') {
@@ -219,20 +224,23 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       if (!name) throw new Error('The inventory input has no accessible name')
       const selector = `.save-editor__inventory-row input[aria-label=${JSON.stringify(name)}]`, nextValue = String(3 + (index + 1) % 2)
       await input.fill(value)
-      await arm(page, 'click', '.save-editor__inventory-row button', mode === 'account-mapping', { selector, value: nextValue, budgetMs: SAVE_CEILING_MS, enabledSelector: `.save-editor__inventory-row:has(input[aria-label=${JSON.stringify(name)}]) button` })
+      saveApplyAttempt = await arm(page, 'click', '.save-editor__inventory-row button', mode === 'account-mapping', { selector, value: nextValue, budgetMs: SAVE_CEILING_MS, enabledSelector: `.save-editor__inventory-row:has(input[aria-label=${JSON.stringify(name)}]) button` }, true)
       await row.getByRole('button').click()
       // Read the same durable and visible conditions together; driver queries are not separate user actions
       // The clock still includes the next trusted input, enabled Apply action and paint
-      await page.waitForFunction(({ selector, value }) => {
-        const state = (window as any).localSaveProof.diagnostics(), field = document.querySelector<HTMLInputElement>(selector)
+      await page.waitForFunction(({ selector, value, attempt }) => {
+        const proof = (window as any).localSaveProof
+        const state = proof.diagnostics(), field = document.querySelector<HTMLInputElement>(selector)
         const action = field?.closest('form')?.querySelector<HTMLButtonElement>('button'), label = document.querySelector<HTMLElement>('.save-editor__state')
         const bounds = label?.getBoundingClientRect(), fieldBounds = field?.getBoundingClientRect()
         const ready = state.current && !state.pending && state.savePhase === 'idle' && !state.saveDirty && !state.saveHydrating
           && !!action?.disabled && !!label?.textContent?.startsWith('Saved locally') && !!bounds?.width && !!bounds?.height && getComputedStyle(label).visibility === 'visible'
           && !!field && !field.disabled && !field.readOnly && !!fieldBounds?.width && !!fieldBounds?.height && getComputedStyle(field).visibility === 'visible' && field.value === value
         if (ready && window.saveWork) window.saveWork.readyMs ??= performance.now() - window.saveWork.started
+        // Queue the persisted Apply fence in this readiness turn, then leave the next trusted input as the next driver action
+        if (ready) proof.captureSaveApply(attempt)
         return ready
-      }, { selector, value }, { timeout: SAVE_CEILING_MS })
+      }, { selector, value, attempt: saveApplyAttempt }, { timeout: SAVE_CEILING_MS })
       await input.fill(nextValue)
       nextInputWork = await page.evaluate(() => window.finishNextInputWork())
       expected = Number(value)
@@ -312,7 +320,9 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       }
       expect(await page.getByLabel('Exact JSON value').inputValue()).toBe(expected)
     }
-    const persisted = await inspect(page, operation === 'Save inventory' ? 'save' : operation.includes('Editor') ? 'editor' : 'planner')
+    const persisted = operation === 'Save inventory'
+      ? await page.evaluate(attempt => (window as any).localSaveProof.inspectSaveApply(attempt), saveApplyAttempt)
+      : await inspect(page, operation.includes('Editor') ? 'editor' : 'planner')
     measures.push({ index, work, expected, persisted, ...(beforeInventory ? { beforeInventory } : {}), ...(editorProbe ? { nextInput: { exactText: editorProbe.value === `${expected} `, applyEnabled: editorProbe.canApply } } : nextInputWork ? { nextInput: { exactText: nextInputWork.nextInputReady === true, focused: nextInputWork.nextInputReady === true } } : {}) })
     unverifiedMeasure = undefined
     // Editor receipts retain the entire interval; only the measured driver gap is excluded from the application budget
