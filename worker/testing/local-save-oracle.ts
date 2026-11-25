@@ -175,6 +175,13 @@ export async function openAppliedSaveOracle(token: ProfileToken | undefined) {
   }
 }
 
+type AppliedSaveOracle = Awaited<ReturnType<typeof openAppliedSaveOracle>>
+export interface SaveApplyProof {
+  beginSaveApply(): number
+  captureSaveApply: AppliedSaveOracle['capture']
+  inspectSaveApply: AppliedSaveOracle['read']
+}
+
 async function bodyRecords(entries: readonly LocalWorkspaceEntry[], account?: AccountDatabase) {
   const bodies = entries.filter(entry => entry.kind === 'blob' || entry.kind === 'catalog')
   // One fresh native transaction captures the same immutable identities without opening one transaction per row

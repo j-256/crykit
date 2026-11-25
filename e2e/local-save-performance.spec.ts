@@ -2,6 +2,7 @@ import { expect, test, type Page, type BrowserContext, type TestInfo } from './a
 import { cpus, platform, release, totalmem } from 'node:os'
 import { writeFile } from 'node:fs/promises'
 import { installSaveWorkCounters } from './local-save-work-counters'
+import type { SaveApplyProof } from '../worker/testing/local-save-oracle'
 import { PERFORMANCE_EDITOR_ID, PERFORMANCE_SAVE_ID } from '../worker/testing/local-save-workload'
 
 const SAVE_CEILING_MS = 1000
@@ -10,6 +11,7 @@ const MAX_MAPPING_SAMPLE_ATTEMPTS = 2
 const NEXT_INPUT_KEY = 'Space'
 const operations = ['Build notes', 'progress tile', 'invalid Editor draft', 'valid Editor Apply', 'Save inventory'] as const
 type Operation = typeof operations[number]
+type SaveApplyProofWindow = typeof window & { localSaveProof: SaveApplyProof & { diagnostics(): Record<string, unknown> } }
 interface BodyRecord { key: string; kind: string; ref: { documentId: string; revisionId: string }; digest: string; storageId: string }
 const bodyKey = (ref: { documentId: string; revisionId: string }) => JSON.stringify(['blob', JSON.stringify([ref.documentId, ref.revisionId])])
 function consumedKeys(file: any, operation: Operation): Set<string> {
@@ -21,7 +23,7 @@ function consumedKeys(file: any, operation: Operation): Set<string> {
 async function arm(page: Page, event: 'click' | 'input', selector: string, withMapping = false, nextInput?: Parameters<Window['armSaveWork']>[2], captureSaveApply = false) {
   if (withMapping) await ensureMapping(page)
   return page.evaluate(({ event, selector, nextInput, captureSaveApply }) => {
-    const attempt = captureSaveApply ? (window as any).localSaveProof.beginSaveApply() as number : undefined
+    const attempt = captureSaveApply ? (window as SaveApplyProofWindow).localSaveProof.beginSaveApply() : undefined
     window.armSaveWork(event, selector, nextInput)
     return attempt
   }, { event, selector, nextInput, captureSaveApply })
@@ -229,7 +231,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       // Read the same durable and visible conditions together; driver queries are not separate user actions
       // The clock still includes the next trusted input, enabled Apply action and paint
       await page.waitForFunction(({ selector, value, attempt }) => {
-        const proof = (window as any).localSaveProof
+        const proof = (window as SaveApplyProofWindow).localSaveProof
         const state = proof.diagnostics(), field = document.querySelector<HTMLInputElement>(selector)
         const action = field?.closest('form')?.querySelector<HTMLButtonElement>('button'), label = document.querySelector<HTMLElement>('.save-editor__state')
         const bounds = label?.getBoundingClientRect(), fieldBounds = field?.getBoundingClientRect()
@@ -240,7 +242,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
         // Queue the persisted Apply fence in this readiness turn, then leave the next trusted input as the next driver action
         if (ready) proof.captureSaveApply(attempt)
         return ready
-      }, { selector, value, attempt: saveApplyAttempt }, { timeout: SAVE_CEILING_MS })
+      }, { selector, value, attempt: saveApplyAttempt! }, { timeout: SAVE_CEILING_MS })
       await input.fill(nextValue)
       nextInputWork = await page.evaluate(() => window.finishNextInputWork())
       expected = Number(value)
@@ -321,7 +323,7 @@ for (const mode of ['guest', 'account', 'account-mapping'] as const) for (const 
       expect(await page.getByLabel('Exact JSON value').inputValue()).toBe(expected)
     }
     const persisted = operation === 'Save inventory'
-      ? await page.evaluate(attempt => (window as any).localSaveProof.inspectSaveApply(attempt), saveApplyAttempt)
+      ? await page.evaluate(attempt => (window as SaveApplyProofWindow).localSaveProof.inspectSaveApply(attempt), saveApplyAttempt!)
       : await inspect(page, operation.includes('Editor') ? 'editor' : 'planner')
     measures.push({ index, work, expected, persisted, ...(beforeInventory ? { beforeInventory } : {}), ...(editorProbe ? { nextInput: { exactText: editorProbe.value === `${expected} `, applyEnabled: editorProbe.canApply } } : nextInputWork ? { nextInput: { exactText: nextInputWork.nextInputReady === true, focused: nextInputWork.nextInputReady === true } } : {}) })
     unverifiedMeasure = undefined
