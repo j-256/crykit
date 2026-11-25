@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, expect, it, vi, type MockInstance } from 'vitest'
 import { installProfile, invalidateProfile } from '../account/profile'
 import { AccountDatabase } from './account-database'
 import { accountLocalId } from '../workspace/account-cache'
@@ -47,8 +47,12 @@ it('review capture omits publication authority and conversion while eager sync s
 
 it.each(['before', 'during'] as const)('review admission rejects a changed fence %s capture and releases its store', async when => {
   const input = await fixture()
-  const create = stores.createAccountLocalStore, disposals: ReturnType<typeof vi.fn>[] = []
-  vi.spyOn(stores, 'createAccountLocalStore').mockImplementation((...args) => { const store = create(...args), dispose = vi.fn(() => store.dispose()); disposals.push(dispose); return { ...store, dispose } })
+  const create = stores.createAccountLocalStore, disposals: MockInstance<() => Promise<void>>[] = []
+  vi.spyOn(stores, 'createAccountLocalStore').mockImplementation((...args) => {
+    const store = create(...args)
+    disposals.push(vi.spyOn(store, 'dispose'))
+    return store
+  })
   const change = () => input.database.profileMeta.put({ ...input.fence, headRevision: input.fence.headRevision + 1 })
   if (when === 'before') await change()
   else {
@@ -63,7 +67,12 @@ it.each(['before', 'during'] as const)('review admission rejects a changed fence
 it('eager conversion failure still releases the captured local owner', async () => {
   const input = await fixture(), create = stores.createAccountLocalStore
   const disposed = vi.fn()
-  vi.spyOn(stores, 'createAccountLocalStore').mockImplementation((...args) => { const store = create(...args); return { ...store, async dispose() { disposed(); await store.dispose() } } })
+  vi.spyOn(stores, 'createAccountLocalStore').mockImplementation((...args) => {
+    const store = create(...args)
+    const dispose = store.dispose
+    vi.spyOn(store, 'dispose').mockImplementation(async () => { disposed(); await dispose() })
+    return store
+  })
   vi.spyOn(mapping, 'ensureIncrementalAccountEvidence').mockRejectedValueOnce(new Error('conversion interrupted'))
   await expect(capture.captureAccountSyncWorkspace(input.database, input.token, input.fence)).rejects.toThrow('conversion interrupted')
   expect(disposed).toHaveBeenCalledOnce()
@@ -75,13 +84,18 @@ it('eager capture retries a failed store release before cleanup has occurred', a
   let fail = true
   vi.spyOn(stores, 'createAccountLocalStore').mockImplementation((...args) => {
     const store = create(...args)
-    return { ...store, async dispose() {
+    const dispose = store.dispose
+    // Eager conversion requires the issued store object before this cleanup can run
+    vi.spyOn(store, 'dispose').mockImplementation(async () => {
       attempts()
       if (fail) { fail = false; throw new Error('store cleanup unavailable') }
-      await store.dispose(); completed()
-    } }
+      await dispose()
+      completed()
+    })
+    return store
   })
   const captured = await capture.captureAccountSyncWorkspace(input.database, input.token, input.fence)
+  cleanup.push(() => captured.dispose())
   await expect(captured.dispose()).rejects.toThrow('store cleanup unavailable')
   expect(completed).not.toHaveBeenCalled()
   await expect(captured.dispose()).resolves.toBeUndefined()
